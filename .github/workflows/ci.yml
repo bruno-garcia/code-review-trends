@@ -83,6 +83,14 @@ jobs:
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
 
+      - name: Run pipeline tests
+        run: npm test --workspace=pipeline
+        env:
+          CLICKHOUSE_URL: http://localhost:8123
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: dev
+          CLICKHOUSE_DB: code_review_trends
+
       - name: Run Playwright tests
         run: npm run test:e2e --workspace=app
         env:
