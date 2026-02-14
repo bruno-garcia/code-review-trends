@@ -1,0 +1,22 @@
+node_modules/
+.next/
+out/
+dist/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

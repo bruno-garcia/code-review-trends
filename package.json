@@ -1,0 +1,16 @@
+{
+  "name": "code-review-trends",
+  "private": true,
+  "workspaces": ["app"],
+  "scripts": {
+    "dev": "docker compose up -d && npm run dev --workspace=app",
+    "dev:app": "npm run dev --workspace=app",
+    "dev:infra": "docker compose up -d",
+    "dev:down": "docker compose down",
+    "build": "npm run build --workspace=app",
+    "lint": "npm run lint --workspace=app",
+    "test": "npm run test --workspace=app",
+    "test:e2e": "npm run test:e2e --workspace=app",
+    "db:seed": "npm run db:seed --workspace=app"
+  }
+}
