@@ -10,9 +10,9 @@ INSERT INTO code_review_trends.bots (id, name, github_login, website, descriptio
     ('qodo', 'Qodo (formerly CodiumAI)', 'qodo-merge-pro[bot]', 'https://www.qodo.ai', 'AI agent for code integrity — reviews, tests, and suggestions.');
 
 -- Seed review_activity with fake weekly data (2023-01 to 2026-02)
--- We generate plausible growth curves for each bot
+-- Each bot has distinct growth curves and org/repo ratios
 
-INSERT INTO code_review_trends.review_activity (week, bot_id, review_count, review_comment_count, repo_count)
+INSERT INTO code_review_trends.review_activity (week, bot_id, review_count, review_comment_count, repo_count, org_count)
 SELECT
     toDate(arrayJoin(
         arrayMap(i -> toDate('2023-01-02') + i * 7, range(163))
@@ -20,17 +20,18 @@ SELECT
     bot.1 AS bot_id,
     toUInt64(greatest(0, bot.2 * pow(1.015, rowNumberInAllBlocks() % 163) * (1 + (rand() % 40 - 20) / 100.0))) AS review_count,
     toUInt64(greatest(0, bot.3 * pow(1.015, rowNumberInAllBlocks() % 163) * (1 + (rand() % 40 - 20) / 100.0))) AS review_comment_count,
-    toUInt64(greatest(1, bot.4 * pow(1.012, rowNumberInAllBlocks() % 163) * (1 + (rand() % 30 - 15) / 100.0))) AS repo_count
+    toUInt64(greatest(1, bot.4 * pow(1.012, rowNumberInAllBlocks() % 163) * (1 + (rand() % 30 - 15) / 100.0))) AS repo_count,
+    toUInt64(greatest(1, bot.5 * pow(1.010, rowNumberInAllBlocks() % 163) * (1 + (rand() % 25 - 12) / 100.0))) AS org_count
 FROM (
     SELECT arrayJoin([
-        ('coderabbit',  120, 450, 80),
-        ('copilot',     80,  200, 60),
-        ('sentry',      40,  150, 30),
-        ('codescene',   25,  80,  20),
-        ('sourcery',    60,  220, 45),
-        ('ellipsis',    15,  50,  12),
-        ('codeium',     30,  100, 25),
-        ('qodo',        35,  130, 28)
+        ('coderabbit',  120, 450, 80,  35),
+        ('copilot',     80,  200, 60,  40),
+        ('sentry',      40,  150, 30,  18),
+        ('codescene',   25,  80,  20,  14),
+        ('sourcery',    60,  220, 45,  25),
+        ('ellipsis',    15,  50,  12,  8),
+        ('codeium',     30,  100, 25,  15),
+        ('qodo',        35,  130, 28,  16)
     ]) AS bot
 );
 
@@ -43,7 +44,7 @@ SELECT
     toUInt64(350000 * (1 + number * 0.001) * (1 + (rand() % 15 - 7) / 100.0)) AS repo_count
 FROM numbers(163);
 
--- Seed review_reactions
+-- Seed review_reactions with varied sentiment profiles per bot
 INSERT INTO code_review_trends.review_reactions (week, bot_id, thumbs_up, thumbs_down, laugh, confused, heart)
 SELECT
     toDate(arrayJoin(
@@ -67,3 +68,33 @@ FROM (
         ('qodo',        14, 3,  1, 1, 5)
     ]) AS bot
 );
+
+-- Seed repo_bot_usage for top repos per bot
+INSERT INTO code_review_trends.repo_bot_usage (repo_full_name, bot_id, first_seen, last_seen, total_reviews, stars)
+SELECT
+    concat(orgs.1, '/', repos.1) AS repo_full_name,
+    bot.1 AS bot_id,
+    toDate('2023-01-02') + rand() % 365 AS first_seen,
+    toDate('2026-01-01') + rand() % 45 AS last_seen,
+    toUInt64(50 + rand() % 500) AS total_reviews,
+    toUInt32(100 + rand() % 50000) AS stars
+FROM (
+    SELECT arrayJoin([
+        ('coderabbit',), ('copilot',), ('sentry',), ('codescene',),
+        ('sourcery',), ('ellipsis',), ('codeium',), ('qodo',)
+    ]) AS bot
+) AS bots
+CROSS JOIN (
+    SELECT arrayJoin([
+        ('facebook',), ('google',), ('microsoft',), ('apache',), ('vercel',),
+        ('supabase',), ('tailwindlabs',), ('prisma',), ('remix-run',), ('astro',),
+        ('sveltejs',), ('vuejs',), ('angular',), ('nestjs',), ('strapi',)
+    ]) AS orgs
+) AS orgs_t
+CROSS JOIN (
+    SELECT arrayJoin([
+        ('react',), ('next.js',), ('typescript',), ('vscode',), ('deno',),
+        ('bun',), ('astro',), ('sveltekit',)
+    ]) AS repos
+) AS repos_t
+WHERE rand() % 3 = 0;

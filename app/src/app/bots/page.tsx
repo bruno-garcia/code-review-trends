@@ -8,11 +8,19 @@ export default async function BotsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">AI Code Review Bots</h1>
-        <p className="mt-2 text-gray-400">
-          Profiles and statistics for each AI code review bot we track.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">AI Code Review Bots</h1>
+          <p className="mt-2 text-gray-400">
+            Profiles and statistics for each AI code review bot we track.
+          </p>
+        </div>
+        <Link
+          href="/compare"
+          className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors"
+        >
+          Compare All →
+        </Link>
       </div>
 
       <div
@@ -32,7 +40,7 @@ export default async function BotsPage() {
             <p className="mt-2 text-sm text-gray-400 line-clamp-2">
               {bot.description}
             </p>
-            <div className="mt-4 flex gap-4 text-sm">
+            <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
               <div>
                 <span className="text-gray-500">Reviews</span>
                 <p className="font-medium tabular-nums">
@@ -43,6 +51,24 @@ export default async function BotsPage() {
                 <span className="text-gray-500">Repos</span>
                 <p className="font-medium tabular-nums">
                   {Number(bot.total_repos).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-500">Orgs</span>
+                <p className="font-medium tabular-nums">
+                  {Number(bot.total_orgs).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-500">Approval</span>
+                <p className="font-medium tabular-nums">
+                  {Number(bot.approval_rate).toFixed(0)}%
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-500">Avg C/R</span>
+                <p className="font-medium tabular-nums">
+                  {Number(bot.avg_comments_per_review).toFixed(1)}
                 </p>
               </div>
               <div>

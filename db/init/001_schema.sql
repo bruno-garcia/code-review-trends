@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS code_review_trends.review_activity (
     bot_id String,
     review_count UInt64,
     review_comment_count UInt64,
-    repo_count UInt64
+    repo_count UInt64,
+    org_count UInt64
 ) ENGINE = ReplacingMergeTree()
 ORDER BY (week, bot_id);
 
