@@ -152,6 +152,11 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
 
   const botNames = bots.map((b) => b.name);
 
+  // Pre-compute color map for O(1) lookups in bar charts
+  const botColorMap = new Map(
+    bots.map((b, i) => [b.id, COLORS[i % COLORS.length]]),
+  );
+
   return (
     <div className="space-y-10">
       {/* Radar chart */}
@@ -181,18 +186,21 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
                 {METRICS.map((m) => (
                   <th
                     key={m.key}
-                    className="pb-3 px-3 text-right cursor-pointer hover:text-white transition-colors whitespace-nowrap"
-                    onClick={() => handleSort(m.key)}
-                    title={m.description}
+                    className="pb-3 px-3 text-right whitespace-nowrap"
                   >
-                    <span className="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                      onClick={() => handleSort(m.key)}
+                      title={m.description}
+                    >
                       {m.label}
                       {sortKey === m.key && (
                         <span className="text-indigo-400">
                           {sortDir === "desc" ? "↓" : "↑"}
                         </span>
                       )}
-                    </span>
+                    </button>
                   </th>
                 ))}
               </tr>
@@ -264,7 +272,7 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
               .map((bot) => ({
                 name: bot.name,
                 value: Number(bot[key]),
-                fill: COLORS[bots.findIndex((b) => b.id === bot.id) % COLORS.length],
+                fill: botColorMap.get(bot.id) ?? COLORS[0],
               }));
 
             return (

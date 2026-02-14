@@ -58,9 +58,9 @@ export default async function BotPage({
   const hearts = Number(summary?.heart ?? 0);
   const growthPct = Number(summary?.growth_pct ?? 0);
 
-  // Rank among all bots
+  // Rank among all bots (sort a copy to avoid mutating the original)
   const reviewRank =
-    allSummaries
+    [...allSummaries]
       .sort((a, b) => Number(b.total_reviews) - Number(a.total_reviews))
       .findIndex((s) => s.id === id) + 1;
 

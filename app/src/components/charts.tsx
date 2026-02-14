@@ -14,6 +14,7 @@ import {
   Legend,
   BarChart,
   Bar,
+  Cell,
   RadarChart,
   Radar,
   PolarGrid,
@@ -69,12 +70,14 @@ function ToggleGroup({
       {options.map((opt) => (
         <button
           key={opt.value}
+          type="button"
           onClick={() => onChange(opt.value)}
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
             value === opt.value
               ? "bg-indigo-600 text-white"
               : "bg-gray-800 text-gray-400 hover:text-white"
           }`}
+          aria-pressed={value === opt.value}
           data-testid={`toggle-${opt.value}`}
         >
           {opt.label}
@@ -392,7 +395,7 @@ export function CompareBarChart({
         />
         <Bar dataKey="value" radius={[0, 4, 4, 0]}>
           {data.map((entry, i) => (
-            <rect key={i} fill={entry.color} />
+            <Cell key={`cell-${i}`} fill={entry.color} />
           ))}
         </Bar>
       </BarChart>

@@ -61,4 +61,12 @@ test.describe("Home page", () => {
     await link.click();
     await expect(page.getByTestId("compare-table")).toBeVisible();
   });
+
+  test("leaderboard bot names link to detail pages", async ({ page }) => {
+    await page.goto("/");
+    const table = page.getByTestId("leaderboard-table");
+    const botLink = table.locator("tbody a").first();
+    const href = await botLink.getAttribute("href");
+    expect(href).toMatch(/^\/bots\//);
+  });
 });

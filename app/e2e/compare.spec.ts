@@ -28,9 +28,9 @@ test.describe("Compare page", () => {
     await expect(firstRow.locator("text=★").first()).toBeVisible();
 
     // Click "Organizations" header to re-sort
-    await table.getByText("Organizations").click();
+    await table.getByRole('columnheader', { name: 'Organizations' }).getByRole('button').click();
     // After clicking, the sort indicator should appear on that column
-    await expect(table.getByText("Organizations")).toBeVisible();
+    await expect(table.getByRole('columnheader', { name: 'Organizations' }).getByText('↓')).toBeVisible();
   });
 
   test("shows visual bar chart breakdowns", async ({ page }) => {

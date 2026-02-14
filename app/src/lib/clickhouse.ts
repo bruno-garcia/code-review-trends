@@ -157,6 +157,29 @@ export async function getWeeklyTotals(): Promise<WeeklyTotals[]> {
 
 export async function getBotSummaries(): Promise<BotSummary[]> {
   return query<BotSummary>(`
+    WITH
+      activity_agg AS (
+        SELECT
+          bot_id,
+          sum(review_count) AS total_reviews,
+          sum(review_comment_count) AS total_comments,
+          max(repo_count) AS max_repos,
+          max(org_count) AS max_orgs,
+          min(week) AS first_seen,
+          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
+          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+        FROM review_activity
+        GROUP BY bot_id
+      ),
+      reaction_agg AS (
+        SELECT
+          bot_id,
+          sum(thumbs_up) AS thumbs_up,
+          sum(thumbs_down) AS thumbs_down,
+          sum(heart) AS heart
+        FROM review_reactions
+        GROUP BY bot_id
+      )
     SELECT
       b.id,
       b.name,
@@ -183,28 +206,8 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
     FROM bots b
-    LEFT JOIN (
-      SELECT
-        bot_id,
-        sum(review_count) AS total_reviews,
-        sum(review_comment_count) AS total_comments,
-        max(repo_count) AS max_repos,
-        max(org_count) AS max_orgs,
-        min(week) AS first_seen,
-        sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-        sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
-      FROM review_activity
-      GROUP BY bot_id
-    ) ra ON b.id = ra.bot_id
-    LEFT JOIN (
-      SELECT
-        bot_id,
-        sum(thumbs_up) AS thumbs_up,
-        sum(thumbs_down) AS thumbs_down,
-        sum(heart) AS heart
-      FROM review_reactions
-      GROUP BY bot_id
-    ) rr ON b.id = rr.bot_id
+    LEFT JOIN activity_agg ra ON b.id = ra.bot_id
+    LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
   `);
 }
@@ -231,6 +234,30 @@ export async function getBotReactions(
 
 export async function getBotComparisons(): Promise<BotComparison[]> {
   return query<BotComparison>(`
+    WITH
+      activity_agg AS (
+        SELECT
+          bot_id,
+          sum(review_count) AS total_reviews,
+          sum(review_comment_count) AS total_comments,
+          max(repo_count) AS max_repos,
+          max(org_count) AS max_orgs,
+          count() AS weeks_active,
+          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
+          sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
+          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+        FROM review_activity
+        GROUP BY bot_id
+      ),
+      reaction_agg AS (
+        SELECT
+          bot_id,
+          sum(thumbs_up) AS thumbs_up,
+          sum(thumbs_down) AS thumbs_down,
+          sum(heart) AS heart
+        FROM review_reactions
+        GROUP BY bot_id
+      )
     SELECT
       b.id,
       b.name,
@@ -257,29 +284,8 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
       COALESCE(ra.weeks_active, 0) AS weeks_active
     FROM bots b
-    LEFT JOIN (
-      SELECT
-        bot_id,
-        sum(review_count) AS total_reviews,
-        sum(review_comment_count) AS total_comments,
-        max(repo_count) AS max_repos,
-        max(org_count) AS max_orgs,
-        count() AS weeks_active,
-        sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-        sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
-        sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
-      FROM review_activity
-      GROUP BY bot_id
-    ) ra ON b.id = ra.bot_id
-    LEFT JOIN (
-      SELECT
-        bot_id,
-        sum(thumbs_up) AS thumbs_up,
-        sum(thumbs_down) AS thumbs_down,
-        sum(heart) AS heart
-      FROM review_reactions
-      GROUP BY bot_id
-    ) rr ON b.id = rr.bot_id
+    LEFT JOIN activity_agg ra ON b.id = ra.bot_id
+    LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
   `);
 }
