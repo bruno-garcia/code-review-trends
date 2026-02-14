@@ -1,14 +1,25 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Bots listing page", () => {
-  test("shows grid of bot cards", async ({ page }) => {
+  test("shows grid of bot cards with enriched stats", async ({ page }) => {
     await page.goto("/bots");
     const grid = page.getByTestId("bots-grid");
     await expect(grid).toBeVisible();
-    // Should have multiple bot cards
     const cards = grid.locator("[data-testid^='bot-card-']");
     const count = await cards.count();
     expect(count).toBeGreaterThan(0);
+    // Cards should show orgs and approval rate
+    const firstCard = cards.first();
+    await expect(firstCard.getByText("Orgs")).toBeVisible();
+    await expect(firstCard.getByText("Approval")).toBeVisible();
+  });
+
+  test("has compare button linking to compare page", async ({ page }) => {
+    await page.goto("/bots");
+    const btn = page.getByText("Compare All →");
+    await expect(btn).toBeVisible();
+    await btn.click();
+    await expect(page.getByTestId("compare-table")).toBeVisible();
   });
 
   test("bot card links to detail page", async ({ page }) => {
@@ -23,11 +34,29 @@ test.describe("Bots listing page", () => {
 });
 
 test.describe("Bot detail page", () => {
-  test("shows bot info and charts", async ({ page }) => {
+  test("shows enriched bot stats", async ({ page }) => {
     await page.goto("/bots/coderabbit");
     await expect(page.getByTestId("bot-name")).toHaveText("CodeRabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
+    // Check for new stat labels
+    await expect(page.getByText("Organizations")).toBeVisible();
+    await expect(page.getByText("Avg Comments/Review")).toBeVisible();
+    await expect(page.getByText("Approval Rate")).toBeVisible();
+    await expect(page.getByText("Comments/Repo")).toBeVisible();
+  });
+
+  test("shows activity chart with toggle", async ({ page }) => {
+    await page.goto("/bots/coderabbit");
     await expect(page.getByTestId("bot-activity-chart")).toBeVisible();
+    const toggle = page.getByTestId("bot-activity-toggle");
+    await expect(toggle).toBeVisible();
+    // Toggle to repos view
+    await page.getByTestId("toggle-repos").click();
+    await expect(page.getByTestId("toggle-repos")).toHaveClass(/bg-indigo-600/);
+  });
+
+  test("shows reaction chart", async ({ page }) => {
+    await page.goto("/bots/coderabbit");
     await expect(page.getByTestId("bot-reactions-chart")).toBeVisible();
   });
 

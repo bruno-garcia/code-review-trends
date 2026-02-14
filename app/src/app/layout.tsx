@@ -33,6 +33,12 @@ export default function RootLayout({
                 >
                   Bots
                 </Link>
+                <Link
+                  href="/compare"
+                  className="hover:text-white transition-colors"
+                >
+                  Compare
+                </Link>
                 <a
                   href="https://github.com/bruno-garcia/code-review-trends"
                   target="_blank"

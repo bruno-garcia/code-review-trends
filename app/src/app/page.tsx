@@ -15,7 +15,7 @@ export default async function Home() {
     getBotSummaries(),
   ]);
 
-  // Pivot activity data for stacked chart: { week, BotA: count, BotB: count, ... }
+  // Pivot activity data for stacked chart
   const botNames = [...new Set(activity.map((a) => a.bot_name))];
   const pivotMap: Record<string, Record<string, string | number>> = {};
   for (const row of activity) {
@@ -55,9 +55,7 @@ export default async function Home() {
 
       {/* Review Volume by Bot */}
       <section data-testid="volume-section">
-        <h2 className="text-2xl font-semibold mb-4">
-          Review Volume by Bot
-        </h2>
+        <h2 className="text-2xl font-semibold mb-4">Review Volume by Bot</h2>
         <p className="text-gray-400 mb-6">
           Weekly review count for each AI code review bot.
         </p>
@@ -68,15 +66,26 @@ export default async function Home() {
 
       {/* Bot Leaderboard */}
       <section data-testid="leaderboard-section">
-        <h2 className="text-2xl font-semibold mb-4">Bot Leaderboard</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-semibold">Bot Leaderboard</h2>
+          <Link
+            href="/compare"
+            className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
+            Full comparison →
+          </Link>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left" data-testid="leaderboard-table">
             <thead className="text-gray-400 border-b border-gray-800 text-sm">
               <tr>
                 <th className="pb-3 pr-4">Bot</th>
-                <th className="pb-3 pr-4 text-right">Total Reviews</th>
-                <th className="pb-3 pr-4 text-right">Active Repos</th>
-                <th className="pb-3 pr-4 text-right">Last 4 Weeks</th>
+                <th className="pb-3 pr-4 text-right">Reviews</th>
+                <th className="pb-3 pr-4 text-right">Comments</th>
+                <th className="pb-3 pr-4 text-right">Repos</th>
+                <th className="pb-3 pr-4 text-right">Orgs</th>
+                <th className="pb-3 pr-4 text-right">Avg Comments/Review</th>
+                <th className="pb-3 pr-4 text-right">Approval</th>
                 <th className="pb-3 text-right">Growth</th>
               </tr>
             </thead>
@@ -98,10 +107,19 @@ export default async function Home() {
                     {Number(bot.total_reviews).toLocaleString()}
                   </td>
                   <td className="py-3 pr-4 text-right tabular-nums">
+                    {Number(bot.total_comments).toLocaleString()}
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums">
                     {Number(bot.total_repos).toLocaleString()}
                   </td>
                   <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(bot.latest_week_reviews).toLocaleString()}
+                    {Number(bot.total_orgs).toLocaleString()}
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums">
+                    {Number(bot.avg_comments_per_review).toFixed(1)}
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums">
+                    {Number(bot.approval_rate).toFixed(0)}%
                   </td>
                   <td className="py-3 text-right tabular-nums">
                     <span
