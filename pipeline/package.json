@@ -1,0 +1,29 @@
+{
+  "name": "pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "cli": "tsx src/cli.ts",
+    "inspect": "tsx src/tools/inspect-data.ts",
+    "validate": "tsx src/tools/validate-schema.ts",
+    "discover-bots": "tsx src/tools/discover-bots.ts",
+    "test": "node --import tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@clickhouse/client": "^1.17.0",
+    "@google-cloud/bigquery": "^7.9.0",
+    "@octokit/rest": "^21.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^22",
+    "eslint": "^9",
+    "tsx": "^4.19.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.55.0"
+  }
+}

@@ -2,6 +2,7 @@ node_modules/
 .next/
 out/
 dist/
+pipeline/dist/
 
 # Playwright
 playwright-report/
