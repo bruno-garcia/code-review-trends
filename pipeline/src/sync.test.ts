@@ -236,7 +236,7 @@ describe("backfill integration", () => {
     const calls1: SyncChunk[] = [];
     const fetcher1 = fakeFetcher({ calls: calls1 });
 
-    // First run: backfill Jan-Feb
+    // First run: backfill Jan–Mar (3 months)
     await backfill(fetcher1, ch, {
       startDate: "2019-01-01",
       endDate: "2019-03-31",

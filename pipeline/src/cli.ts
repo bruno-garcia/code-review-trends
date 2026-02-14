@@ -215,6 +215,11 @@ async function cmdSync() {
   const args = parseArgs();
   const weeks = args["--weeks"] ? parseInt(args["--weeks"], 10) : 2;
 
+  if (!Number.isFinite(weeks) || weeks < 1) {
+    console.error(`Invalid --weeks value: "${args["--weeks"]}". Must be a positive integer.`);
+    process.exit(1);
+  }
+
   const fetcher = bigQueryFetcher(createBigQueryClient());
   const ch = createCHClient();
 

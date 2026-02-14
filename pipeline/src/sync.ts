@@ -223,9 +223,11 @@ async function fetchAndStoreChunk(
     repo_count: Number(row.repo_count),
   }));
 
-  // Write to ClickHouse
-  await insertReviewActivity(ch, activityRows);
-  await insertHumanActivity(ch, humanRows);
+  // Write to ClickHouse (independent inserts, run in parallel)
+  await Promise.all([
+    insertReviewActivity(ch, activityRows),
+    insertHumanActivity(ch, humanRows),
+  ]);
 
   log(
     `  ✓ ${activityRows.length} bot rows, ${humanRows.length} human rows`,
@@ -268,13 +270,18 @@ export async function backfill(
       next.setUTCDate(next.getUTCDate() + 1);
       const nextStr = fmtDate(next);
 
-      if (nextStr > endDate) {
+      // Never resume earlier than the user-requested start date
+      const resumeStart = nextStr < startDate ? startDate : nextStr;
+
+      if (resumeStart > endDate) {
         log(`Backfill already complete through ${lastCompleted}`);
         return [];
       }
 
-      effectiveStart = nextStr;
-      log(`Resuming backfill from ${effectiveStart} (last completed: ${lastCompleted})`);
+      effectiveStart = resumeStart;
+      log(
+        `Resuming backfill from ${effectiveStart} (last completed: ${lastCompleted}, requested start: ${startDate})`,
+      );
     }
   }
 
@@ -316,6 +323,10 @@ export async function syncRecent(
 ): Promise<SyncResult> {
   const log = opts?.log ?? console.log;
   const weeks = opts?.weeks ?? 2;
+
+  if (!Number.isFinite(weeks) || weeks < 1) {
+    throw new Error(`Invalid weeks value: ${weeks}. Must be a finite integer >= 1.`);
+  }
 
   const end = new Date();
   const start = new Date();
