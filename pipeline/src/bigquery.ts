@@ -20,6 +20,7 @@
  * Cost: ~150MB per day scanned. A 7-day query costs ~1GB.
  */
 
+import { execFileSync } from "node:child_process";
 import { BigQuery } from "@google-cloud/bigquery";
 
 /**
@@ -37,9 +38,33 @@ export type BigQueryConfig = {
 };
 
 export function createBigQueryClient(config?: BigQueryConfig): BigQuery {
-  return new BigQuery({
-    projectId: config?.projectId ?? process.env.GCP_PROJECT_ID,
-  });
+  const projectId = config?.projectId ?? process.env.GCP_PROJECT_ID ?? detectGcloudProject();
+  if (projectId) {
+    return new BigQuery({ projectId });
+  }
+  // Fall back to BigQuery's built-in project auto-detection (e.g., GCE metadata, service accounts).
+  return new BigQuery();
+}
+
+/**
+ * Read the active project from gcloud CLI config.
+ * Returns undefined if gcloud isn't installed or no project is set.
+ */
+function detectGcloudProject(): string | undefined {
+  try {
+    const result = execFileSync("gcloud", ["config", "get-value", "project"], {
+      encoding: "utf-8",
+      timeout: 5000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    // gcloud returns the literal string "(unset)" when no project is configured.
+    if (!result || result === "(unset)") {
+      return undefined;
+    }
+    return result;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
