@@ -17,7 +17,8 @@
   "dependencies": {
     "@clickhouse/client": "^1.17.0",
     "@google-cloud/bigquery": "^8.1.1",
-    "@octokit/rest": "^21.1.1"
+    "@octokit/rest": "^21.1.1",
+    "@sentry/node": "^10.38.0"
   },
   "engines": {
     "node": ">=18"
