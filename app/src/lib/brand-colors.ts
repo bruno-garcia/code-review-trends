@@ -1,9 +1,9 @@
 /**
  * All product brand colors used as text in the UI.
- * Extracted from the pipeline bot registry so the test stays in sync.
+ * Derived from the pipeline bot registry; this list is manually kept in sync for tests.
  *
  * To update: change colors in pipeline/src/bots.ts, run sync-bots,
- * then update this list to match.
+ * then manually update this list to match.
  */
 export const BRAND_COLORS: { name: string; color: string }[] = [
   { name: "CodeRabbit", color: "#f97316" },

@@ -17,7 +17,7 @@ export const THEME = {
   /** Axis labels */
   axis: "#555555",
   /** Nav link color */
-  navLink: "#666666",
+  navLink: "#9ca3af",
   /** Muted text (gray-400) */
   mutedText: "#9ca3af",
   /** Tooltip background (same as surface) */
@@ -31,4 +31,6 @@ export const THEME_COLORS = [...new Set(Object.values(THEME))];
  * Background colors that brand colors (used as text) must be readable against.
  * WCAG AA requires contrast ratio ≥ 4.5 for normal text.
  */
-export const TEXT_BACKGROUND_COLORS = [THEME.bg, THEME.surface] as const;
+export const TEXT_BACKGROUND_COLORS = [
+  ...new Set([THEME.bg, THEME.surface, THEME.nav]),
+] as const;

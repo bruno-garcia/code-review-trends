@@ -5,5 +5,8 @@
   --color-theme-surface: #12121a;
   --color-theme-border: #1e1e2e;
   --color-theme-nav: #12121a;
-  --color-nav-link: #666666;
+  --color-nav-link: #9ca3af;
+  --color-wordmark-code: #e0e0ef;
+  --color-wordmark-review: #a78bfa;
+  --color-wordmark-trends: #7c5fcf;
 }
