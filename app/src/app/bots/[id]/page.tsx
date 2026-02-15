@@ -82,7 +82,7 @@ export default async function BotPage({
             href={bot.website}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-indigo-400 hover:text-indigo-300"
+            className="text-sm text-violet-400 hover:text-violet-300"
           >
             {bot.website} ↗
           </a>
@@ -130,7 +130,7 @@ export default async function BotPage({
       {/* Activity chart */}
       <section data-testid="bot-activity-chart">
         <h2 className="text-2xl font-semibold mb-4">Activity Over Time</h2>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-[#12121a] rounded-xl p-6 border border-[#1e1e2e]">
           <SingleBotChart data={chartData} />
         </div>
       </section>
@@ -142,7 +142,7 @@ export default async function BotPage({
           Reactions on review comments — a proxy for how useful people find this
           bot&apos;s reviews.
         </p>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-[#12121a] rounded-xl p-6 border border-[#1e1e2e]">
           <ReactionChart data={reactionData} />
         </div>
       </section>
@@ -160,7 +160,7 @@ function StatCard({
   color?: string;
 }) {
   return (
-    <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
+    <div className="bg-[#12121a] rounded-xl p-5 border border-[#1e1e2e]">
       <p className="text-sm text-gray-400">{label}</p>
       <p className={`text-2xl font-bold tabular-nums ${color ?? ""}`}>
         {value}

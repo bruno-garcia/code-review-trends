@@ -23,14 +23,14 @@ import {
 } from "recharts";
 
 export const COLORS = [
-  "#6366f1", // indigo
+  "#a78bfa", // violet-400
+  "#22d3ee", // cyan-400
   "#f59e0b", // amber
   "#10b981", // emerald
-  "#ef4444", // red
-  "#8b5cf6", // violet
-  "#06b6d4", // cyan
-  "#f97316", // orange
   "#ec4899", // pink
+  "#f97316", // orange
+  "#6d28d9", // violet-700
+  "#ef4444", // red
 ];
 
 function formatWeek(week: string | number) {
@@ -45,10 +45,13 @@ function formatNumber(n: number) {
 }
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "#1f2937",
-  border: "1px solid #374151",
+  backgroundColor: "#12121a",
+  border: "1px solid #1e1e2e",
   borderRadius: 8,
 };
+
+const GRID_COLOR = "#1e1e2e";
+const AXIS_COLOR = "#555";
 
 // --- Toggle button group ---
 
@@ -74,8 +77,8 @@ function ToggleGroup({
           onClick={() => onChange(opt.value)}
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
             value === opt.value
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-800 text-gray-400 hover:text-white"
+              ? "bg-violet-600 text-white"
+              : "bg-[#1e1e2e] text-gray-400 hover:text-white"
           }`}
           aria-pressed={value === opt.value}
           data-testid={`toggle-${opt.value}`}
@@ -119,15 +122,15 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
       />
       <ResponsiveContainer width="100%" height={350}>
         <AreaChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
           <XAxis
             dataKey="week"
             tickFormatter={formatWeek}
-            stroke="#9ca3af"
+            stroke={AXIS_COLOR}
             tick={{ fontSize: 12 }}
           />
           <YAxis
-            stroke="#9ca3af"
+            stroke={AXIS_COLOR}
             tick={{ fontSize: 12 }}
             tickFormatter={(v) => `${v}%`}
           />
@@ -142,9 +145,9 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
           <Area
             type="monotone"
             dataKey={dataKey}
-            stroke="#6366f1"
-            fill="#6366f1"
-            fillOpacity={0.3}
+            stroke="#a78bfa"
+            fill="#a78bfa"
+            fillOpacity={0.2}
             name={`AI Share (${label})`}
           />
         </AreaChart>
@@ -165,15 +168,15 @@ export function ReviewVolumeChart({
   return (
     <ResponsiveContainer width="100%" height={350}>
       <AreaChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
         <XAxis
           dataKey="week"
           tickFormatter={formatWeek}
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
         />
         <YAxis
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
@@ -191,7 +194,7 @@ export function ReviewVolumeChart({
             stackId="1"
             stroke={COLORS[i % COLORS.length]}
             fill={COLORS[i % COLORS.length]}
-            fillOpacity={0.6}
+            fillOpacity={0.5}
           />
         ))}
       </AreaChart>
@@ -215,12 +218,12 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
   const lines: Record<string, { keys: string[]; colors: string[]; names: string[] }> = {
     reviews: {
       keys: ["review_count", "review_comment_count"],
-      colors: ["#6366f1", "#10b981"],
+      colors: ["#a78bfa", "#22d3ee"],
       names: ["Reviews", "Comments"],
     },
     repos: {
       keys: ["repo_count", "org_count"],
-      colors: ["#f59e0b", "#06b6d4"],
+      colors: ["#f59e0b", "#10b981"],
       names: ["Repos", "Organizations"],
     },
   };
@@ -240,15 +243,15 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
       />
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
           <XAxis
             dataKey="week"
             tickFormatter={formatWeek}
-            stroke="#9ca3af"
+            stroke={AXIS_COLOR}
             tick={{ fontSize: 12 }}
           />
           <YAxis
-            stroke="#9ca3af"
+            stroke={AXIS_COLOR}
             tick={{ fontSize: 12 }}
             tickFormatter={formatNumber}
           />
@@ -289,15 +292,15 @@ export function ReactionChart({ data }: { data: ReactionData[] }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
         <XAxis
           dataKey="week"
           tickFormatter={formatWeek}
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
         />
         <YAxis
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
@@ -325,14 +328,14 @@ export function BotRadarChart({
   return (
     <ResponsiveContainer width="100%" height={400}>
       <RadarChart data={data}>
-        <PolarGrid stroke="#374151" />
+        <PolarGrid stroke={GRID_COLOR} />
         <PolarAngleAxis
           dataKey="metric"
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 11 }}
         />
         <PolarRadiusAxis
-          stroke="#4b5563"
+          stroke="#2a2a3a"
           tick={{ fontSize: 10 }}
           domain={[0, 100]}
           tickCount={5}
@@ -375,17 +378,17 @@ export function CompareBarChart({
   return (
     <ResponsiveContainer width="100%" height={data.length * 44 + 40}>
       <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
         <XAxis
           type="number"
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
           tickFormatter={(v) => fmt(v)}
         />
         <YAxis
           type="category"
           dataKey="name"
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
           width={130}
         />
