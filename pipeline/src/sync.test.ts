@@ -299,10 +299,12 @@ describe("backfill integration", () => {
         chunk_end: "2019-01-31",
         rows_written: 10,
         bot_logins: "old-bot[bot]",
+        // Explicit future timestamp so this row wins in ReplacingMergeTree
+        completed_at: "2100-01-01 00:00:00",
       }],
       format: "JSONEachRow",
     });
-    // Give ReplacingMergeTree a moment to settle
+    // Merge so ReplacingMergeTree picks the latest row
     await ch.command({ query: `OPTIMIZE TABLE pipeline_state FINAL` });
 
     // Second run: same range with resume — should re-fetch Jan (stale bot set), skip Feb
