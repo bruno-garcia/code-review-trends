@@ -89,37 +89,58 @@ export function bigQueryFetcher(bq: BigQuery): DataFetcher {
 
 // ── Pipeline state table ────────────────────────────────────────────────
 
+/**
+ * Tracks which date chunks have been backfilled and which bot logins were
+ * included. When new bots are added, chunks with a stale `bot_logins` set
+ * are re-fetched automatically on the next backfill run.
+ */
 const ENSURE_STATE_TABLE = `
 CREATE TABLE IF NOT EXISTS pipeline_state (
     job_name String,
     chunk_start Date,
     chunk_end Date,
     completed_at DateTime DEFAULT now(),
-    rows_written UInt64
+    rows_written UInt64,
+    bot_logins String DEFAULT ''
 ) ENGINE = ReplacingMergeTree(completed_at)
 ORDER BY (job_name, chunk_start)
 `;
 
-async function ensureStateTable(ch: ClickHouseClient): Promise<void> {
-  await ch.command({ query: ENSURE_STATE_TABLE });
+/** Canonical string key for a set of bot logins (sorted, comma-joined). */
+function botLoginsKey(logins: string[]): string {
+  return [...logins].sort().join(",");
 }
 
-async function getLastCompletedChunk(
+async function ensureStateTable(ch: ClickHouseClient): Promise<void> {
+  await ch.command({ query: ENSURE_STATE_TABLE });
+  // Migrate: add bot_logins column if missing (table may predate this column)
+  await ch.command({
+    query: `ALTER TABLE pipeline_state ADD COLUMN IF NOT EXISTS bot_logins String DEFAULT ''`,
+  });
+}
+
+type CompletedChunk = { botLogins: string; chunkEnd: string };
+
+/**
+ * Get all completed chunks for a job, including which bots were included
+ * and what end date was covered.
+ */
+async function getCompletedChunks(
   ch: ClickHouseClient,
   jobName: string,
-): Promise<string | null> {
-  const rows = await query<{ chunk_end: string }>(
+): Promise<Map<string, CompletedChunk>> {
+  const rows = await query<{ chunk_start: string; chunk_end: string; bot_logins: string }>(
     ch,
-    `SELECT toString(ce) AS chunk_end
-     FROM (
-       SELECT max(chunk_end) AS ce
-       FROM pipeline_state FINAL
-       WHERE job_name = {jobName:String}
-     )
-     WHERE ce > toDate('1970-01-01')`,
+    `SELECT toString(chunk_start) AS chunk_start, toString(chunk_end) AS chunk_end, bot_logins
+     FROM pipeline_state FINAL
+     WHERE job_name = {jobName:String}`,
     { jobName },
   );
-  return rows.length > 0 ? rows[0].chunk_end : null;
+  const map = new Map<string, CompletedChunk>();
+  for (const row of rows) {
+    map.set(row.chunk_start, { botLogins: row.bot_logins, chunkEnd: row.chunk_end });
+  }
+  return map;
 }
 
 async function markChunkCompleted(
@@ -127,6 +148,7 @@ async function markChunkCompleted(
   jobName: string,
   chunk: SyncChunk,
   rowsWritten: number,
+  logins: string[],
 ): Promise<void> {
   await ch.insert({
     table: "pipeline_state",
@@ -136,6 +158,7 @@ async function markChunkCompleted(
         chunk_start: chunk.startDate,
         chunk_end: chunk.endDate,
         rows_written: rowsWritten,
+        bot_logins: botLoginsKey(logins),
       },
     ],
     format: "JSONEachRow",
@@ -181,9 +204,9 @@ async function fetchAndStoreChunk(
   fetcher: DataFetcher,
   ch: ClickHouseClient,
   chunk: SyncChunk,
+  logins: string[],
   log: (msg: string) => void,
 ): Promise<SyncResult> {
-  const logins = [...BOT_LOGINS];
 
   log(`  Querying bot activity ${chunk.startDate} → ${chunk.endDate}...`);
   const botRaw = await fetcher.fetchBotActivity(
@@ -246,7 +269,13 @@ const BACKFILL_JOB = "backfill";
 
 /**
  * Run a full historical backfill, month by month.
- * Tracks progress in pipeline_state so it can resume if interrupted.
+ *
+ * Tracks progress in pipeline_state per chunk, including which bot logins
+ * were fetched. On resume:
+ * - Chunks already completed with the current bot set are skipped.
+ * - Chunks completed with a different (older) bot set are re-fetched,
+ *   so newly added bots get backfilled without re-downloading everything.
+ * - New chunks (date range extended) are fetched normally.
  */
 export async function backfill(
   fetcher: DataFetcher,
@@ -260,48 +289,60 @@ export async function backfill(
 
   await ensureStateTable(ch);
 
-  let effectiveStart = startDate;
+  const allChunks = monthlyChunks(startDate, endDate);
+  const currentLoginsKey = botLoginsKey([...BOT_LOGINS]);
+
+  // Determine which chunks need processing
+  let chunksToProcess: SyncChunk[];
 
   if (resume) {
-    const lastCompleted = await getLastCompletedChunk(ch, BACKFILL_JOB);
-    if (lastCompleted) {
-      // Start from the day after the last completed chunk's end
-      const next = new Date(lastCompleted + "T00:00:00Z");
-      next.setUTCDate(next.getUTCDate() + 1);
-      const nextStr = fmtDate(next);
+    const completed = await getCompletedChunks(ch, BACKFILL_JOB);
+    chunksToProcess = allChunks.filter((chunk) => {
+      const stored = completed.get(chunk.startDate);
+      if (stored === undefined) return true; // never completed
+      // Re-fetch if bot set changed or chunk_end grew (partial month extended)
+      return stored.botLogins !== currentLoginsKey || stored.chunkEnd < chunk.endDate;
+    });
 
-      // Never resume earlier than the user-requested start date
-      const resumeStart = nextStr < startDate ? startDate : nextStr;
-
-      if (resumeStart > endDate) {
-        log(`Backfill already complete through ${lastCompleted}`);
-        return [];
-      }
-
-      effectiveStart = resumeStart;
-      log(
-        `Resuming backfill from ${effectiveStart} (last completed: ${lastCompleted}, requested start: ${startDate})`,
-      );
+    const skipped = allChunks.length - chunksToProcess.length;
+    if (skipped > 0) {
+      log(`Skipping ${skipped} already-completed chunks (bot set unchanged)`);
     }
+    if (chunksToProcess.length === 0) {
+      log(`Backfill already complete for ${startDate} → ${endDate} with current bot set`);
+      return [];
+    }
+
+    // Log stale chunks separately for visibility
+    const staleChunks = chunksToProcess.filter((chunk) => {
+      const stored = completed.get(chunk.startDate);
+      return stored !== undefined;
+    });
+    if (staleChunks.length > 0) {
+      log(`Re-fetching ${staleChunks.length} chunks (bot set or date range changed)`);
+    }
+  } else {
+    chunksToProcess = allChunks;
   }
 
-  const chunks = monthlyChunks(effectiveStart, endDate);
   log(
-    `Backfill: ${chunks.length} monthly chunks from ${effectiveStart} to ${endDate}`,
+    `Backfill: ${chunksToProcess.length} chunks to process (${startDate} → ${endDate})`,
   );
 
   const results: SyncResult[] = [];
+  const logins = [...BOT_LOGINS];
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    log(`\n[${i + 1}/${chunks.length}] ${chunk.startDate} → ${chunk.endDate}`);
+  for (let i = 0; i < chunksToProcess.length; i++) {
+    const chunk = chunksToProcess[i];
+    log(`\n[${i + 1}/${chunksToProcess.length}] ${chunk.startDate} → ${chunk.endDate}`);
 
-    const result = await fetchAndStoreChunk(fetcher, ch, chunk, log);
+    const result = await fetchAndStoreChunk(fetcher, ch, chunk, logins, log);
     await markChunkCompleted(
       ch,
       BACKFILL_JOB,
       chunk,
       result.botRows + result.humanRows,
+      logins,
     );
     results.push(result);
   }
@@ -338,7 +379,7 @@ export async function syncRecent(
   };
 
   log(`Syncing recent data: ${chunk.startDate} → ${chunk.endDate} (${weeks} weeks)`);
-  return fetchAndStoreChunk(fetcher, ch, chunk, log);
+  return fetchAndStoreChunk(fetcher, ch, chunk, [...BOT_LOGINS], log);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────

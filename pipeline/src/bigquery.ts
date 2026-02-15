@@ -22,6 +22,14 @@
 
 import { BigQuery } from "@google-cloud/bigquery";
 
+/**
+ * Default max bytes BigQuery is allowed to bill per query.
+ * BigQuery wildcard table estimates are wildly pessimistic (~600GB)
+ * even though actual scans are ~150MB/day. This limit is checked
+ * against the estimate, not actual bytes scanned.
+ */
+const DEFAULT_MAX_BYTES_BILLED = "700000000000"; // 700GB
+
 export type BigQueryConfig = {
   projectId?: string;
   /** If set, limits query cost (in bytes). Queries exceeding this are rejected. */
@@ -112,7 +120,7 @@ export async function queryBotReviewActivity(
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "500000000000", // 500GB — BigQuery wildcard estimates are much higher than actual scan
+      DEFAULT_MAX_BYTES_BILLED,
   });
 
   return rows as WeeklyBotReviewRow[];
@@ -170,7 +178,7 @@ export async function queryHumanReviewActivity(
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "500000000000",
+      DEFAULT_MAX_BYTES_BILLED,
   });
 
   return rows as WeeklyHumanReviewRow[];
@@ -212,7 +220,7 @@ export async function discoverBotReviewers(
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "500000000000",
+      DEFAULT_MAX_BYTES_BILLED,
   });
 
   return rows as { login: string; event_count: number; repo_count: number }[];
