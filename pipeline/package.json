@@ -11,6 +11,7 @@
     "inspect": "tsx src/tools/inspect-data.ts",
     "validate": "tsx src/tools/validate-schema.ts",
     "discover-bots": "tsx src/tools/discover-bots.ts",
+    "status": "tsx src/tools/status.ts",
     "test": "node --import tsx --test src/**/*.test.ts"
   },
   "dependencies": {

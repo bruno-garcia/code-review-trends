@@ -35,23 +35,15 @@ export const BOTS: BotDefinition[] = [
   {
     id: "copilot",
     name: "GitHub Copilot",
-    github_login: "copilot[bot]",
+    github_login: "copilot-pull-request-reviewer[bot]",
     website: "https://github.com/features/copilot",
     description:
       "GitHub's AI pair programmer, also provides code review suggestions.",
   },
   {
-    id: "sentry",
-    name: "Seer by Sentry",
-    github_login: "sentry[bot]",
-    website: "https://sentry.io",
-    description:
-      "Sentry's AI that reviews code for potential issues and error patterns.",
-  },
-  {
     id: "codescene",
     name: "CodeScene",
-    github_login: "codescene[bot]",
+    github_login: "codescene-delta-analysis[bot]",
     website: "https://codescene.com",
     description: "Behavioral code analysis and AI code review.",
   },
@@ -71,19 +63,20 @@ export const BOTS: BotDefinition[] = [
     description: "AI-powered code review and bug detection.",
   },
   {
-    id: "codeium",
-    name: "Codeium / Windsurf",
-    github_login: "codeiumbot[bot]",
-    website: "https://codeium.com",
-    description: "AI code completion and review.",
-  },
-  {
     id: "qodo",
     name: "Qodo (formerly CodiumAI)",
     github_login: "qodo-merge-pro[bot]",
     website: "https://www.qodo.ai",
     description:
       "AI agent for code integrity — reviews, tests, and suggestions.",
+  },
+  {
+    id: "greptile",
+    name: "Greptile",
+    github_login: "greptile-apps[bot]",
+    website: "https://greptile.com",
+    description:
+      "AI code review that understands your entire codebase.",
   },
 ];
 

@@ -36,6 +36,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   "fetch-bigquery": cmdFetchBigQuery,
   backfill: cmdBackfill,
   sync: cmdSync,
+  status: cmdStatus,
   help: cmdHelp,
 };
 
@@ -67,6 +68,7 @@ Commands:
   fetch-bigquery     Pull weekly review data from GH Archive (single range)
   backfill           Full historical import, month by month (resumable)
   sync               Fetch recent weeks (for scheduled/cron runs)
+  status             Show pipeline health, data freshness, and coverage
   help               Show this help message
 
 Options for fetch-bigquery:
@@ -82,6 +84,11 @@ Options for backfill:
 
 Options for sync:
   --weeks N            How many weeks back to fetch (default: 2)
+
+Options for status:
+  --json               Output machine-readable JSON
+  --check              Exit 1 if data is stale (for monitoring/alerting)
+  --max-age N          Days before data is considered stale (default: 14)
 
 Environment variables:
   CLICKHOUSE_URL       ClickHouse HTTP URL (default: http://localhost:8123)
@@ -231,6 +238,11 @@ async function cmdSync() {
   } finally {
     await ch.close();
   }
+}
+
+async function cmdStatus() {
+  const { runStatus } = await import("./tools/status.js");
+  await runStatus(process.argv.slice(3));
 }
 
 // --- Helpers ---
