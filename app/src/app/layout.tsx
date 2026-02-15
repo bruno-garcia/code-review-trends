@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { VersionStamp } from "@/components/version-stamp";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -72,6 +73,9 @@ export default function RootLayout({
             </a>
             .
           </p>
+          <div className="mt-3">
+            <VersionStamp />
+          </div>
         </footer>
       </body>
     </html>
