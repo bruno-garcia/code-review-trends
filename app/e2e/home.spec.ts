@@ -25,15 +25,15 @@ test.describe("Home page", () => {
 
     const reviewsBtn = page.getByTestId("toggle-reviews");
     const commentsBtn = page.getByTestId("toggle-comments");
-    await expect(reviewsBtn).toHaveClass(/bg-indigo-600/);
-    await expect(commentsBtn).not.toHaveClass(/bg-indigo-600/);
+    await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(commentsBtn).toHaveAttribute("aria-pressed", "false");
 
     await commentsBtn.click();
-    await expect(commentsBtn).toHaveClass(/bg-indigo-600/);
-    await expect(reviewsBtn).not.toHaveClass(/bg-indigo-600/);
+    await expect(commentsBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(reviewsBtn).toHaveAttribute("aria-pressed", "false");
 
     await reviewsBtn.click();
-    await expect(reviewsBtn).toHaveClass(/bg-indigo-600/);
+    await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");
   });
 
   test("shows review volume chart section", async ({ page }) => {
