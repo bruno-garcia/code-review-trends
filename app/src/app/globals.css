@@ -1,12 +1,60 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-theme-bg: #0a0a0f;
-  --color-theme-surface: #12121a;
-  --color-theme-border: #1e1e2e;
-  --color-theme-nav: #12121a;
-  --color-nav-link: #9ca3af;
-  --color-wordmark-code: #e0e0ef;
-  --color-wordmark-review: #a78bfa;
-  --color-wordmark-trends: #7c5fcf;
+/* Define theme colors using CSS custom properties that change with .dark class.
+ * We use @theme (without inline) so Tailwind generates var() references in utilities,
+ * ensuring they react to runtime class changes. */
+@theme {
+  --color-theme-bg: var(--theme-bg);
+  --color-theme-surface: var(--theme-surface);
+  --color-theme-border: var(--theme-border);
+  --color-theme-text: var(--theme-text);
+  --color-theme-muted: var(--theme-muted);
+  --color-theme-nav: var(--theme-nav);
+  --color-nav-link: var(--theme-nav-link);
+  --color-wordmark-code: var(--theme-wordmark-code);
+  --color-wordmark-review: var(--theme-wordmark-review);
+  --color-wordmark-trends: var(--theme-wordmark-trends);
+  --color-theme-chart-grid: var(--theme-chart-grid);
+  --color-theme-chart-axis: var(--theme-chart-axis);
+  --color-theme-tooltip-bg: var(--theme-tooltip-bg);
+  --color-theme-tooltip-border: var(--theme-tooltip-border);
+  --color-theme-node-stroke: var(--theme-node-stroke);
+}
+
+/* ---- Light theme (default) ---- */
+:root {
+  --theme-bg: #ffffff;
+  --theme-surface: #f9fafb;
+  --theme-border: #e5e7eb;
+  --theme-text: #111827;
+  --theme-muted: #6b7280;
+  --theme-nav: #f9fafb;
+  --theme-nav-link: #6b7280;
+  --theme-wordmark-code: #111827;
+  --theme-wordmark-review: #7c3aed;
+  --theme-wordmark-trends: #6d28d9;
+  --theme-chart-grid: #e5e7eb;
+  --theme-chart-axis: #9ca3af;
+  --theme-tooltip-bg: #ffffff;
+  --theme-tooltip-border: #e5e7eb;
+  --theme-node-stroke: #ffffff;
+}
+
+/* ---- Dark theme ---- */
+.dark {
+  --theme-bg: #0a0a0f;
+  --theme-surface: #12121a;
+  --theme-border: #1e1e2e;
+  --theme-text: #f3f4f6;
+  --theme-muted: #9ca3af;
+  --theme-nav: #12121a;
+  --theme-nav-link: #9ca3af;
+  --theme-wordmark-code: #e0e0ef;
+  --theme-wordmark-review: #a78bfa;
+  --theme-wordmark-trends: #7c5fcf;
+  --theme-chart-grid: #1e1e2e;
+  --theme-chart-axis: #555555;
+  --theme-tooltip-bg: #12121a;
+  --theme-tooltip-border: #1e1e2e;
+  --theme-node-stroke: #0a0a0f;
 }

@@ -173,7 +173,7 @@ export function CompareCharts({
       {/* Radar chart */}
       <section data-testid="radar-section">
         <h2 className="text-2xl font-semibold mb-2">Radar Overview</h2>
-        <p className="text-gray-400 mb-4 text-sm">
+        <p className="text-theme-muted mb-4 text-sm">
           Each dimension normalized to 0–100 relative to the top product.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
@@ -189,7 +189,7 @@ export function CompareCharts({
             className="w-full text-left text-sm"
             data-testid="compare-table"
           >
-            <thead className="text-gray-400 border-b border-theme-border">
+            <thead className="text-theme-muted border-b border-theme-border">
               <tr>
                 <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10">
                   Product
@@ -201,7 +201,7 @@ export function CompareCharts({
                   >
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                      className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-text transition-colors"
                       onClick={() => handleSort(m.key)}
                       title={m.description}
                     >
@@ -245,7 +245,7 @@ export function CompareCharts({
                       <td
                         key={m.key}
                         className={`py-3 px-3 text-right tabular-nums whitespace-nowrap ${
-                          isTop ? "text-white font-semibold" : "text-gray-300"
+                          isTop ? "text-theme-text font-semibold" : "text-theme-text/80"
                         } ${isGrowth && val > 0 ? "text-emerald-400" : ""} ${
                           isGrowth && val < 0 ? "text-red-400" : ""
                         }`}
@@ -264,7 +264,7 @@ export function CompareCharts({
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-theme-muted/70">
           Click any column header to sort. ★ marks the leader in each
           category.
         </p>
@@ -296,7 +296,7 @@ export function CompareCharts({
                 key={key}
                 className="bg-theme-surface rounded-xl p-5 border border-theme-border"
               >
-                <h3 className="text-sm font-medium text-gray-300 mb-3">
+                <h3 className="text-sm font-medium text-theme-text/80 mb-3">
                   {label}
                 </h3>
                 <div className="space-y-2">
@@ -305,7 +305,7 @@ export function CompareCharts({
                     const pct = max > 0 ? (item.value / max) * 100 : 0;
                     return (
                       <div key={item.name} className="flex items-center gap-3">
-                        <span className="text-xs text-gray-400 w-28 text-right truncate">
+                        <span className="text-xs text-theme-muted w-28 text-right truncate">
                           {item.name}
                         </span>
                         <div className="flex-1 bg-theme-border rounded-full h-5 relative overflow-hidden">
@@ -317,7 +317,7 @@ export function CompareCharts({
                             }}
                           />
                         </div>
-                        <span className="text-xs text-gray-300 tabular-nums w-16 text-right">
+                        <span className="text-xs text-theme-text/80 tabular-nums w-16 text-right">
                           {METRICS.find((m) => m.key === key)?.format(item.value) ?? item.value}
                         </span>
                       </div>
