@@ -6,7 +6,7 @@ Data collection service for Code Review Trends. Pulls code review event data fro
 
 - **Node.js** (see root `package.json` for version)
 - **GCP credentials** with BigQuery access — `gcloud auth application-default login`
-- **GCP project** — set via `GCP_PROJECT_ID` env var (any project works; GH Archive is a public dataset)
+- **GCP project** — auto-detected from `gcloud config get-value project`. Override with `GCP_PROJECT_ID` env var if needed. Any project with BigQuery API enabled works (GH Archive is a public dataset).
 - **ClickHouse** running locally — `npm run dev:infra` from the project root
 
 ## Commands
@@ -201,7 +201,7 @@ npm run pipeline -- status
 | `CLICKHOUSE_USER` | `default` | ClickHouse user |
 | `CLICKHOUSE_PASSWORD` | `dev` | ClickHouse password |
 | `CLICKHOUSE_DB` | `code_review_trends` | ClickHouse database |
-| `GCP_PROJECT_ID` | — | GCP project for BigQuery billing |
+| `GCP_PROJECT_ID` | auto-detected from `gcloud` | GCP project for BigQuery billing (any project works) |
 | `BQ_MAX_BYTES_BILLED` | `500000000000` (500GB) | Safety limit for BigQuery scans |
 | `GITHUB_TOKEN` | — | GitHub PAT for API enrichment (not needed for BigQuery) |
 
