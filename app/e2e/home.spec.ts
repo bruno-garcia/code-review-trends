@@ -62,6 +62,18 @@ test.describe("Home page", () => {
     await expect(page.getByTestId("compare-table")).toBeVisible();
   });
 
+  test("shows top organizations section", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("top-orgs-section")).toBeVisible();
+    await expect(page.getByTestId("top-orgs-chart")).toBeVisible();
+  });
+
+  test("shows bot sentiment section with leaderboard", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("bot-sentiment-section")).toBeVisible();
+    await expect(page.getByTestId("bot-reaction-leaderboard")).toBeVisible();
+  });
+
   test("leaderboard bot names link to detail pages", async ({ page }) => {
     await page.goto("/");
     const table = page.getByTestId("leaderboard-table");
