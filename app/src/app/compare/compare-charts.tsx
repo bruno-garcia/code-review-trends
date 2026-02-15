@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { BotComparison } from "@/lib/clickhouse";
+import type { ProductComparison } from "@/lib/clickhouse";
 import { BotRadarChart, COLORS } from "@/components/charts";
 import Link from "next/link";
 
-type SortKey = keyof BotComparison;
+type SortKey = keyof ProductComparison;
 
 const METRICS: {
   key: SortKey;
@@ -105,18 +105,22 @@ const METRICS: {
   },
 ];
 
-function normalize(bots: BotComparison[], key: SortKey): number[] {
-  const values = bots.map((b) => Number(b[key]));
+function normalize(products: ProductComparison[], key: SortKey): number[] {
+  const values = products.map((p) => Number(p[key]));
   const max = Math.max(...values);
   if (max === 0) return values.map(() => 0);
   return values.map((v) => Math.round((v / max) * 100));
 }
 
-export function CompareCharts({ bots }: { bots: BotComparison[] }) {
+export function CompareCharts({
+  products,
+}: {
+  products: ProductComparison[];
+}) {
   const [sortKey, setSortKey] = useState<SortKey>("total_reviews");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const sorted = [...bots].sort((a, b) => {
+  const sorted = [...products].sort((a, b) => {
     const av = Number(a[sortKey]);
     const bv = Number(b[sortKey]);
     return sortDir === "desc" ? bv - av : av - bv;
@@ -131,7 +135,13 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
     }
   }
 
-  // Radar chart data — normalize each dimension to 0-100
+  // Build brand color map — ProductComparison doesn't have brand_color,
+  // so we fall back to the COLORS palette
+  const productColorMap = new Map(
+    products.map((p, i) => [p.id, COLORS[i % COLORS.length]]),
+  );
+
+  // Radar chart data
   const radarDimensions = [
     { key: "total_reviews" as SortKey, label: "Reviews" },
     { key: "total_comments" as SortKey, label: "Comments" },
@@ -142,20 +152,15 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
   ];
 
   const radarData = radarDimensions.map((dim) => {
-    const normalized = normalize(bots, dim.key);
+    const normalized = normalize(products, dim.key);
     const point: Record<string, string | number> = { metric: dim.label };
-    bots.forEach((bot, i) => {
-      point[bot.name] = normalized[i];
+    products.forEach((p, i) => {
+      point[p.name] = normalized[i];
     });
     return point;
   });
 
-  const botNames = bots.map((b) => b.name);
-
-  // Pre-compute color map for O(1) lookups in bar charts
-  const botColorMap = new Map(
-    bots.map((b, i) => [b.id, COLORS[i % COLORS.length]]),
-  );
+  const productNames = products.map((p) => p.name);
 
   return (
     <div className="space-y-10">
@@ -163,10 +168,10 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
       <section data-testid="radar-section">
         <h2 className="text-2xl font-semibold mb-2">Radar Overview</h2>
         <p className="text-gray-400 mb-4 text-sm">
-          Each dimension normalized to 0–100 relative to the top bot.
+          Each dimension normalized to 0–100 relative to the top product.
         </p>
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-          <BotRadarChart data={radarData} bots={botNames} />
+          <BotRadarChart data={radarData} bots={productNames} />
         </div>
       </section>
 
@@ -181,7 +186,7 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
             <thead className="text-gray-400 border-b border-gray-800">
               <tr>
                 <th className="pb-3 pr-4 sticky left-0 bg-gray-950 z-10">
-                  Bot
+                  Product
                 </th>
                 {METRICS.map((m) => (
                   <th
@@ -206,23 +211,27 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((bot, rowIdx) => (
+              {sorted.map((product, rowIdx) => (
                 <tr
-                  key={bot.id}
+                  key={product.id}
                   className="border-b border-gray-800/50 hover:bg-gray-900/50"
                 >
                   <td className="py-3 pr-4 sticky left-0 bg-gray-950 z-10">
                     <Link
-                      href={`/bots/${bot.id}`}
-                      className="font-medium hover:text-indigo-300 transition-colors"
-                      style={{ color: COLORS[rowIdx % COLORS.length] }}
+                      href={`/bots/${product.id}`}
+                      className="font-medium hover:opacity-80 transition-colors"
+                      style={{
+                        color:
+                          productColorMap.get(product.id) ??
+                          COLORS[rowIdx % COLORS.length],
+                      }}
                     >
-                      {bot.name}
+                      {product.name}
                     </Link>
                   </td>
                   {METRICS.map((m) => {
-                    const val = Number(bot[m.key]);
-                    const allVals = sorted.map((b) => Number(b[m.key]));
+                    const val = Number(product[m.key]);
+                    const allVals = sorted.map((p) => Number(p[m.key]));
                     const max = Math.max(...allVals);
                     const isTop = max > 0 && val === max;
                     const isGrowth = m.key === "growth_pct";
@@ -267,12 +276,13 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
             { key: "approval_rate" as SortKey, label: "Approval Rate %" },
             { key: "comments_per_repo" as SortKey, label: "Comments per Repo" },
           ].map(({ key, label }) => {
-            const chartData = [...bots]
+            const chartData = [...products]
               .sort((a, b) => Number(b[key]) - Number(a[key]))
-              .map((bot) => ({
-                name: bot.name,
-                value: Number(bot[key]),
-                fill: botColorMap.get(bot.id) ?? COLORS[0],
+              .map((product) => ({
+                name: product.name,
+                value: Number(product[key]),
+                fill:
+                  productColorMap.get(product.id) ?? COLORS[0],
               }));
 
             return (
@@ -284,25 +294,25 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
                   {label}
                 </h3>
                 <div className="space-y-2">
-                  {chartData.map((bot) => {
+                  {chartData.map((item) => {
                     const max = chartData[0].value;
-                    const pct = max > 0 ? (bot.value / max) * 100 : 0;
+                    const pct = max > 0 ? (item.value / max) * 100 : 0;
                     return (
-                      <div key={bot.name} className="flex items-center gap-3">
+                      <div key={item.name} className="flex items-center gap-3">
                         <span className="text-xs text-gray-400 w-28 text-right truncate">
-                          {bot.name}
+                          {item.name}
                         </span>
                         <div className="flex-1 bg-gray-800 rounded-full h-5 relative overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
                               width: `${Math.max(pct, 2)}%`,
-                              backgroundColor: bot.fill,
+                              backgroundColor: item.fill,
                             }}
                           />
                         </div>
                         <span className="text-xs text-gray-300 tabular-nums w-16 text-right">
-                          {METRICS.find((m) => m.key === key)?.format(bot.value) ?? bot.value}
+                          {METRICS.find((m) => m.key === key)?.format(item.value) ?? item.value}
                         </span>
                       </div>
                     );
