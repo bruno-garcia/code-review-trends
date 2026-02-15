@@ -6,7 +6,7 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc --noEmit",
-    "lint": "eslint . --ext .ts --ignore-pattern node_modules --ignore-pattern bin",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:vm": "./test-vm.sh",
@@ -20,10 +20,10 @@
     "@pulumi/random": "^4.0.0"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
+    "@eslint/js": "^9.0.0",
     "eslint": "^9.0.0",
     "typescript": "^5.0.0",
-    "vitest": "^3.0.0"
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.0"
   }
 }

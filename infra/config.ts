@@ -4,6 +4,7 @@ const PROJECT_PREFIX = "crt";
 
 export const CLICKHOUSE_HTTP_PORT = 41923;
 export const CADDY_HTTPS_PORT = 58432;
+export const SUBNET_CIDR = "10.100.0.0/24";
 
 export interface EnvironmentConfig {
   environment: string;

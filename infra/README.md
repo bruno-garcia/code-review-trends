@@ -7,7 +7,7 @@ Pulumi (TypeScript) infrastructure for Code Review Trends, running on GCP.
 - **VPC** with a single subnet (`10.100.0.0/24`), Cloud Router, and Cloud NAT
 - **Static external IP** for the ClickHouse VM
 - **Secret Manager** secret with an auto-generated ClickHouse password
-- **Firewall rules**: SSH via IAP, ClickHouse HTTP (non-standard high port) open to the internet, ClickHouse native (9000) VPC-only
+- **Firewall rules**: SSH via IAP, HTTPS via Caddy reverse proxy (non-standard high port) open to the internet, ClickHouse native (9000) VPC-only
 - **ClickHouse VM** (Debian 12 + ClickHouse server) with persistent boot disk
 
 All resources are prefixed `crt-{env}-*` and live in their own VPC, fully isolated from other workloads in the GCP project.
@@ -43,9 +43,12 @@ pulumi stack init staging
 
 # Set your GCP project (encrypted — safe for public repos)
 pulumi config set gcp:project <your-gcp-project-id> --secret
+
+# Set the domain for TLS certificates (must have an A record pointing to the static IP)
+pulumi config set code-review-trends:clickhouseDomain your-ch-domain.example.com --secret
 ```
 
-The `--secret` flag encrypts the project ID in `Pulumi.staging.yaml` so it won't be readable in git. This is the only value you need to set manually — everything else (region, zone, machine types) is already configured in the stack file.
+The `--secret` flag encrypts values in `Pulumi.staging.yaml` so they won't be readable in git. The GCP project and domain are the only values you need to set manually — everything else (region, zone, machine types) is already configured in the stack file.
 
 On subsequent sessions, you just need to log in to the backend and set your passphrase:
 
@@ -95,20 +98,17 @@ gcloud secrets versions access latest --secret=crt-staging-clickhouse-password
 
 ### Apply the schema
 
-The ClickHouse HTTP interface doesn't support multi-statement queries, so use this script from the project root:
+Copy the schema file to the VM and execute it with `clickhouse-client`, which supports multi-statement queries natively:
 
 ```bash
-CH_PASS=$(gcloud secrets versions access latest --secret=crt-staging-clickhouse-password)
-CH_URL=$(cd infra && pulumi stack output clickhouseUrl)
+# Copy schema to VM
+gcloud compute scp db/init/001_schema.sql crt-staging-clickhouse:/tmp/001_schema.sql \
+  --zone=us-central1-a --tunnel-through-iap
 
-while IFS= read -r -d ';' stmt; do
-  trimmed=$(echo "$stmt" | sed '/^[[:space:]]*$/d' | sed '/^[[:space:]]*--/d')
-  if [ -n "$trimmed" ]; then
-    result=$(curl -s "${CH_URL}/?user=default&password=${CH_PASS}&database=code_review_trends" \
-      --data-binary "${stmt};")
-    [ -n "$result" ] && echo "ERROR: $result"
-  fi
-done < db/init/001_schema.sql
+# Execute on VM
+CH_PASS=$(gcloud secrets versions access latest --secret=crt-staging-clickhouse-password)
+gcloud compute ssh crt-staging-clickhouse --zone=us-central1-a --tunnel-through-iap -- \
+  "clickhouse-client --port 9000 --password \"$CH_PASS\" --database code_review_trends --multiquery < /tmp/001_schema.sql"
 ```
 
 ### Set Vercel environment variables

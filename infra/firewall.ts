@@ -1,6 +1,6 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { EnvironmentConfig, CADDY_HTTPS_PORT } from "./config";
+import { EnvironmentConfig, CADDY_HTTPS_PORT, SUBNET_CIDR } from "./config";
 
 export function createFirewallRules(
   cfg: EnvironmentConfig,
@@ -9,7 +9,7 @@ export function createFirewallRules(
 ): void {
   const prefix = cfg.namePrefix;
 
-  // SSH access (for administration via IAP or direct)
+  // SSH access via IAP only (for administration)
   new gcp.compute.Firewall(
     `${prefix}-allow-ssh`,
     {
@@ -49,7 +49,7 @@ export function createFirewallRules(
       name: `${prefix}-clickhouse-native`,
       network: vpcName,
       allows: [{ protocol: "tcp", ports: ["9000"] }],
-      sourceRanges: ["10.100.0.0/24"],
+      sourceRanges: [SUBNET_CIDR],
       targetTags: ["clickhouse"],
     },
     { parent },

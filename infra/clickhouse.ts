@@ -72,14 +72,15 @@ cat > /etc/clickhouse-server/config.d/listen.xml <<'CFGEOF'
 </clickhouse>
 CFGEOF
 
-# Set the default user password as a shell variable for use in heredoc and commands
+# Set the default user password and compute SHA256 hash for config
 CH_PASSWORD='${escapedPassword}'
+CH_PASSWORD_HASH=$(echo -n "$CH_PASSWORD" | sha256sum | tr -d ' -')
 
-cat > /etc/clickhouse-server/users.d/default-password.xml <<PWEOF
+cat > /etc/clickhouse-server/users.d/default-password.xml <<'PWEOF'
 <clickhouse>
   <users>
     <default>
-      <password>$CH_PASSWORD</password>
+      <password_sha256_hex>PLACEHOLDER_HASH</password_sha256_hex>
       <networks>
         <ip>::/0</ip>
       </networks>
@@ -87,6 +88,7 @@ cat > /etc/clickhouse-server/users.d/default-password.xml <<PWEOF
   </users>
 </clickhouse>
 PWEOF
+sed -i "s/PLACEHOLDER_HASH/$CH_PASSWORD_HASH/" /etc/clickhouse-server/users.d/default-password.xml
 
 systemctl enable clickhouse-server
 systemctl restart clickhouse-server
@@ -114,10 +116,19 @@ systemctl restart caddy
 
 # ---- Create database ----
 
+ch_ready=""
 for i in $(seq 1 30); do
-  clickhouse-client --port 9000 --password "$CH_PASSWORD" -q "SELECT 1" 2>/dev/null && break
+  if clickhouse-client --port 9000 --password "$CH_PASSWORD" -q "SELECT 1" 2>/dev/null; then
+    ch_ready="1"
+    break
+  fi
   sleep 2
 done
+
+if [ -z "$ch_ready" ]; then
+  echo "ERROR: ClickHouse did not become ready within 60 seconds"
+  exit 1
+fi
 
 clickhouse-client --port 9000 --password "$CH_PASSWORD" -q "CREATE DATABASE IF NOT EXISTS code_review_trends"
 

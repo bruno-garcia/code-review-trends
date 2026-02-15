@@ -1,17 +1,12 @@
 import { createClient } from "@clickhouse/client";
 
 export function getClickHouseClient() {
-  const url = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
-  const username = process.env.CLICKHOUSE_USER ?? "default";
-  const password = process.env.CLICKHOUSE_PASSWORD ?? "dev";
-  const database = process.env.CLICKHOUSE_DB ?? "code_review_trends";
-
-  // Temporary debug: log connection info (no password) to diagnose Vercel 500s
-  console.log(
-    `[ClickHouse] url=${url} user=${username} db=${database} passLen=${password.length}`,
-  );
-
-  return createClient({ url, username, password, database });
+  return createClient({
+    url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
+    username: process.env.CLICKHOUSE_USER ?? "default",
+    password: process.env.CLICKHOUSE_PASSWORD ?? "dev",
+    database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
+  });
 }
 
 export type Bot = {

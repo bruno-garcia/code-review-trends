@@ -58,13 +58,14 @@ describe("network", () => {
     expect(addressType).toBe("EXTERNAL");
   });
 
-  it("uses isolated subnet CIDR", async () => {
-    const { loadConfig } = await import("../config");
+  it("uses isolated subnet CIDR from config constant", async () => {
+    const { loadConfig, SUBNET_CIDR } = await import("../config");
     const { createNetwork } = await import("../network");
     const cfg = loadConfig();
     const network = createNetwork(cfg);
 
     const cidr = await outputValue(network.subnet.ipCidrRange);
+    expect(cidr).toBe(SUBNET_CIDR);
     expect(cidr).toBe("10.100.0.0/24");
   });
 });
@@ -177,9 +178,14 @@ describe("clickhouse VM", () => {
     expect(s).toContain("<listen_host>127.0.0.1</listen_host>");
     expect(s).toContain(`<http_port>${CLICKHOUSE_HTTP_PORT}</http_port>`);
 
-    // Password is injected (not placeholder)
+    // Password is injected and hashed via SHA256
     expect(s).toContain("test-password-123");
     expect(s).not.toContain("CHANGE_ME");
+    expect(s).toContain("password_sha256_hex");
+    expect(s).toContain("sha256sum");
+
+    // Readiness check with error handling
+    expect(s).toContain("ClickHouse did not become ready");
 
     // Caddy installation and config
     expect(s).toContain("apt-get install -y caddy");
