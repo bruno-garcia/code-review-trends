@@ -86,7 +86,7 @@ export type BotComparison = {
   weeks_active: number;
 };
 
-async function query<T>(sql: string, params?: Record<string, string | number>): Promise<T[]> {
+async function query<T>(sql: string, params?: Record<string, unknown>): Promise<T[]> {
   const client = getClickHouseClient();
   try {
     const result = await client.query({
@@ -114,8 +114,10 @@ type BotLoginRow = {
 
 async function assembleBots(botRows: BotRow[]): Promise<Bot[]> {
   if (botRows.length === 0) return [];
+  const botIds = botRows.map((b) => b.id);
   const loginRows = await query<BotLoginRow>(
-    "SELECT bot_id, github_login FROM bot_logins ORDER BY bot_id, github_login",
+    "SELECT bot_id, github_login FROM bot_logins WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
+    { botIds },
   );
   const loginsByBot = new Map<string, string[]>();
   for (const row of loginRows) {
