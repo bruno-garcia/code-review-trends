@@ -368,6 +368,7 @@ export async function getBotReactionLeaderboard(): Promise<BotReactions[]> {
         0), 1) AS approval_rate
     FROM pr_comments c
     JOIN bots b ON c.bot_id = b.id
+    WHERE c.comment_id > 0
     GROUP BY c.bot_id, b.name
     ORDER BY total_thumbs_up DESC
   `);
@@ -382,7 +383,7 @@ export type BotCommentsPerPR = {
 };
 
 export async function getAvgCommentsPerPR(botId?: string): Promise<BotCommentsPerPR[]> {
-  const where = botId ? "WHERE c.bot_id = {botId:String}" : "";
+  const where = botId ? "AND c.bot_id = {botId:String}" : "";
   return query<BotCommentsPerPR>(
     `SELECT
       c.bot_id,
@@ -393,7 +394,7 @@ export async function getAvgCommentsPerPR(botId?: string): Promise<BotCommentsPe
       count() AS total_comments
     FROM pr_comments c
     JOIN bots b ON c.bot_id = b.id
-    ${where}
+    WHERE c.comment_id > 0 ${where}
     GROUP BY c.bot_id, b.name
     ORDER BY avg_comments_per_pr DESC`,
     botId ? { botId } : {},
@@ -449,7 +450,7 @@ export async function getReactionsByPRSize(botId?: string): Promise<ReactionsByP
       countDistinct(c.repo_name, c.pr_number) AS pr_count
     FROM pr_comments c
     JOIN pull_requests p ON c.repo_name = p.repo_name AND c.pr_number = p.pr_number
-    WHERE 1 = 1 ${where}
+    WHERE c.comment_id > 0 ${where}
     GROUP BY size_bucket
     ORDER BY pr_count DESC`,
     botId ? { botId } : {},
@@ -471,7 +472,7 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
       (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
       (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events) AS total_discovered_prs,
       (SELECT count() FROM pull_requests) AS enriched_prs,
-      (SELECT count() FROM pr_comments) AS total_comments
+      (SELECT countIf(comment_id > 0) FROM pr_comments) AS total_comments
   `);
   return rows[0] ?? {
     total_discovered_repos: 0,

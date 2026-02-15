@@ -141,6 +141,25 @@ export async function enrichComments(
 
       if (rows.length > 0) {
         await insertPrComments(ch, rows);
+      } else {
+        // Insert a sentinel row so this PR/bot combo isn't re-fetched on
+        // subsequent runs (the bot left a review but no line-level comments).
+        await insertPrComments(ch, [{
+          repo_name,
+          pr_number,
+          comment_id: "0",
+          bot_id,
+          body_length: 0,
+          created_at: new Date().toISOString(),
+          thumbs_up: 0,
+          thumbs_down: 0,
+          laugh: 0,
+          confused: 0,
+          heart: 0,
+          hooray: 0,
+          eyes: 0,
+          rocket: 0,
+        }]);
       }
       fetched++;
     } catch (err: unknown) {
