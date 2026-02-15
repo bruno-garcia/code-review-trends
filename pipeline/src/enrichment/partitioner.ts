@@ -33,7 +33,9 @@ export function partitionWhereClause(
 ): { sql: string; params: Record<string, number> } | null {
   if (config.totalWorkers <= 1) return null;
   const col = column ?? "repo_name";
-  if (!ALLOWED_COLUMNS.has(col)) {
+  // Strip table alias prefix (e.g. "e.repo_name" → "repo_name") for validation
+  const unqualified = col.includes(".") ? col.split(".").pop()! : col;
+  if (!ALLOWED_COLUMNS.has(unqualified)) {
     throw new Error(`Invalid partition column: ${col}. Allowed: ${[...ALLOWED_COLUMNS].join(", ")}`);
   }
   return {

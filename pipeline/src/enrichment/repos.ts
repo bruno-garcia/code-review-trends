@@ -246,6 +246,30 @@ export async function refreshStaleRepos(
           archived: false,
           fetch_status: "not_found",
         }]);
+      } else if (status === 403) {
+        const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
+        const isRateLimit = headers?.["retry-after"] || (headers?.["x-ratelimit-remaining"] === "0");
+        if (headers) {
+          rateLimiter.update(headers);
+          const retryAfter = headers["retry-after"];
+          if (retryAfter) {
+            await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+          }
+        }
+        if (!isRateLimit) {
+          // Real 403 (DMCA, private, etc.) — mark as forbidden
+          await insertRepos(ch, [{
+            name,
+            owner,
+            stars: 0,
+            primary_language: "",
+            fork: false,
+            archived: false,
+            fetch_status: "forbidden",
+          }]);
+        } else {
+          console.log(`[repos] Rate-limited refreshing ${name}, will retry later`);
+        }
       } else {
         console.error(`[repos] Error refreshing ${name}:`, err instanceof Error ? err.message : err);
       }
