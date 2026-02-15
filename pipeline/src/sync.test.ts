@@ -144,7 +144,8 @@ describe("backfill integration", () => {
         chunk_start Date,
         chunk_end Date,
         completed_at DateTime DEFAULT now(),
-        rows_written UInt64
+        rows_written UInt64,
+        bot_logins String DEFAULT ''
       ) ENGINE = ReplacingMergeTree(completed_at)
       ORDER BY (job_name, chunk_start)`,
     });
@@ -268,6 +269,55 @@ describe("backfill integration", () => {
     });
     assert.equal(results3.length, 1, "Should only process April");
     assert.equal(calls3[0].startDate, "2019-04-01");
+  });
+
+  it("re-fetches chunks when bot set changes", async () => {
+    // Clean state
+    await ch.command({
+      query: `DELETE FROM pipeline_state WHERE job_name = 'backfill'`,
+    });
+
+    const calls1: SyncChunk[] = [];
+    const fetcher1 = fakeFetcher({ calls: calls1 });
+
+    // First run: backfill Jan–Feb 2019
+    await backfill(fetcher1, ch, {
+      startDate: "2019-01-01",
+      endDate: "2019-02-28",
+      resume: true,
+      log: quiet,
+    });
+    assert.equal(calls1.length, 2, "Should process Jan and Feb");
+
+    // Simulate a bot set change by overwriting the stored bot_logins
+    // with a different (older) set for January only
+    await ch.insert({
+      table: "pipeline_state",
+      values: [{
+        job_name: "backfill",
+        chunk_start: "2019-01-01",
+        chunk_end: "2019-01-31",
+        rows_written: 10,
+        bot_logins: "old-bot[bot]",
+        // Explicit future timestamp so this row wins in ReplacingMergeTree
+        completed_at: "2100-01-01 00:00:00",
+      }],
+      format: "JSONEachRow",
+    });
+    // Merge so ReplacingMergeTree picks the latest row
+    await ch.command({ query: `OPTIMIZE TABLE pipeline_state FINAL` });
+
+    // Second run: same range with resume — should re-fetch Jan (stale bot set), skip Feb
+    const calls2: SyncChunk[] = [];
+    const fetcher2 = fakeFetcher({ calls: calls2 });
+    const results2 = await backfill(fetcher2, ch, {
+      startDate: "2019-01-01",
+      endDate: "2019-02-28",
+      resume: true,
+      log: quiet,
+    });
+    assert.equal(results2.length, 1, "Should only re-fetch January (stale bot set)");
+    assert.equal(calls2[0].startDate, "2019-01-01");
   });
 
   it("is idempotent — re-running same range overwrites without error", async () => {

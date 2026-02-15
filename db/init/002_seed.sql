@@ -1,13 +1,22 @@
--- Seed bots
-INSERT INTO code_review_trends.bots (id, name, github_login, website, description) VALUES
-    ('coderabbit', 'CodeRabbit', 'coderabbitai[bot]', 'https://coderabbit.ai', 'AI code review agent that provides contextual feedback on pull requests.'),
-    ('copilot', 'GitHub Copilot', 'copilot[bot]', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.'),
-    ('sentry', 'Seer by Sentry', 'sentry[bot]', 'https://sentry.io', 'Sentry''s AI that reviews code for potential issues and error patterns.'),
-    ('codescene', 'CodeScene', 'codescene[bot]', 'https://codescene.com', 'Behavioral code analysis and AI code review.'),
-    ('sourcery', 'Sourcery', 'sourcery-ai[bot]', 'https://sourcery.ai', 'AI code reviewer focused on code quality and refactoring.'),
-    ('ellipsis', 'Ellipsis', 'ellipsis-dev[bot]', 'https://ellipsis.dev', 'AI-powered code review and bug detection.'),
-    ('codeium', 'Codeium / Windsurf', 'codeiumbot[bot]', 'https://codeium.com', 'AI code completion and review.'),
-    ('qodo', 'Qodo (formerly CodiumAI)', 'qodo-merge-pro[bot]', 'https://www.qodo.ai', 'AI agent for code integrity — reviews, tests, and suggestions.');
+-- Seed bots — must match pipeline/src/bots.ts (the source of truth)
+INSERT INTO code_review_trends.bots (id, name, website, description) VALUES
+    ('coderabbit', 'CodeRabbit', 'https://coderabbit.ai', 'AI code review agent that provides contextual feedback on pull requests.'),
+    ('copilot', 'GitHub Copilot', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.'),
+    ('codescene', 'CodeScene', 'https://codescene.com', 'Behavioral code analysis and AI code review.'),
+    ('sourcery', 'Sourcery', 'https://sourcery.ai', 'AI code reviewer focused on code quality and refactoring.'),
+    ('ellipsis', 'Ellipsis', 'https://ellipsis.dev', 'AI-powered code review and bug detection.'),
+    ('qodo', 'Qodo (formerly CodiumAI)', 'https://www.qodo.ai', 'AI agent for code integrity — reviews, tests, and suggestions.'),
+    ('greptile', 'Greptile', 'https://greptile.com', 'AI code review that understands your entire codebase.');
+
+-- Seed bot logins — must match pipeline/src/bots.ts (the source of truth)
+INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
+    ('coderabbit', 'coderabbitai[bot]'),
+    ('copilot', 'copilot-pull-request-reviewer[bot]'),
+    ('codescene', 'codescene-delta-analysis[bot]'),
+    ('sourcery', 'sourcery-ai[bot]'),
+    ('ellipsis', 'ellipsis-dev[bot]'),
+    ('qodo', 'qodo-merge-pro[bot]'),
+    ('greptile', 'greptile-apps[bot]');
 
 -- Seed review_activity with fake weekly data (2023-01 to 2026-02)
 -- Each bot has distinct growth curves and org/repo ratios
@@ -26,12 +35,11 @@ FROM (
     SELECT arrayJoin([
         ('coderabbit',  120, 450, 80,  35),
         ('copilot',     80,  200, 60,  40),
-        ('sentry',      40,  150, 30,  18),
         ('codescene',   25,  80,  20,  14),
         ('sourcery',    60,  220, 45,  25),
         ('ellipsis',    15,  50,  12,  8),
-        ('codeium',     30,  100, 25,  15),
-        ('qodo',        35,  130, 28,  16)
+        ('qodo',        35,  130, 28,  16),
+        ('greptile',    20,  70,  15,  10)
     ]) AS bot
 );
 
@@ -60,12 +68,11 @@ FROM (
     SELECT arrayJoin([
         ('coderabbit',  30, 5,  3, 2, 8),
         ('copilot',     25, 8,  4, 3, 6),
-        ('sentry',      15, 3,  2, 1, 5),
         ('codescene',   10, 2,  1, 1, 3),
         ('sourcery',    20, 4,  2, 2, 7),
         ('ellipsis',    5,  1,  1, 1, 2),
-        ('codeium',     12, 3,  2, 1, 4),
-        ('qodo',        14, 3,  1, 1, 5)
+        ('qodo',        14, 3,  1, 1, 5),
+        ('greptile',    8,  2,  1, 1, 3)
     ]) AS bot
 );
 
@@ -80,8 +87,8 @@ SELECT
     toUInt32(100 + rand() % 50000) AS stars
 FROM (
     SELECT arrayJoin([
-        ('coderabbit',), ('copilot',), ('sentry',), ('codescene',),
-        ('sourcery',), ('ellipsis',), ('codeium',), ('qodo',)
+        ('coderabbit',), ('copilot',), ('codescene',),
+        ('sourcery',), ('ellipsis',), ('qodo',), ('greptile',)
     ]) AS bot
 ) AS bots
 CROSS JOIN (

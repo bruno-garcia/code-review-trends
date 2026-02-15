@@ -96,7 +96,7 @@ Environment variables:
   CLICKHOUSE_PASSWORD  ClickHouse password (default: dev)
   CLICKHOUSE_DB        ClickHouse database (default: code_review_trends)
   GCP_PROJECT_ID       GCP project for BigQuery
-  BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 500GB)
+  BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 700GB)
   GITHUB_TOKEN         GitHub PAT for API enrichment
   `);
 }

@@ -87,7 +87,13 @@ export default async function BotPage({
             {bot.website} ↗
           </a>
           <span className="text-sm text-gray-500">
-            GitHub: <code className="text-gray-300">{bot.github_login}</code>
+            GitHub:{" "}
+            {bot.github_logins.map((login, i) => (
+              <span key={login}>
+                {i > 0 && ", "}
+                <code className="text-gray-300">{login}</code>
+              </span>
+            ))}
           </span>
           <span className="text-sm text-gray-500">
             Rank: <span className="text-white font-medium">#{reviewRank}</span>{" "}

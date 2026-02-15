@@ -12,7 +12,7 @@ export function getClickHouseClient() {
 export type Bot = {
   id: string;
   name: string;
-  github_login: string;
+  github_logins: string[];
   website: string;
   description: string;
 };
@@ -86,7 +86,7 @@ export type BotComparison = {
   weeks_active: number;
 };
 
-async function query<T>(sql: string, params?: Record<string, string | number>): Promise<T[]> {
+async function query<T>(sql: string, params?: Record<string, unknown>): Promise<T[]> {
   const client = getClickHouseClient();
   try {
     const result = await client.query({
@@ -100,16 +100,50 @@ async function query<T>(sql: string, params?: Record<string, string | number>): 
   }
 }
 
+type BotRow = {
+  id: string;
+  name: string;
+  website: string;
+  description: string;
+};
+
+type BotLoginRow = {
+  bot_id: string;
+  github_login: string;
+};
+
+async function assembleBots(botRows: BotRow[]): Promise<Bot[]> {
+  if (botRows.length === 0) return [];
+  const botIds = botRows.map((b) => b.id);
+  const loginRows = await query<BotLoginRow>(
+    "SELECT bot_id, github_login FROM bot_logins WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
+    { botIds },
+  );
+  const loginsByBot = new Map<string, string[]>();
+  for (const row of loginRows) {
+    const logins = loginsByBot.get(row.bot_id) ?? [];
+    logins.push(row.github_login);
+    loginsByBot.set(row.bot_id, logins);
+  }
+  return botRows.map((b) => ({
+    ...b,
+    github_logins: loginsByBot.get(b.id) ?? [],
+  }));
+}
+
 export async function getBots(): Promise<Bot[]> {
-  return query<Bot>("SELECT * FROM bots ORDER BY name");
+  const rows = await query<BotRow>("SELECT * FROM bots ORDER BY name");
+  return assembleBots(rows);
 }
 
 export async function getBotById(id: string): Promise<Bot | null> {
-  const rows = await query<Bot>(
+  const rows = await query<BotRow>(
     "SELECT * FROM bots WHERE id = {id:String}",
     { id },
   );
-  return rows[0] ?? null;
+  if (rows.length === 0) return null;
+  const bots = await assembleBots(rows);
+  return bots[0] ?? null;
 }
 
 export async function getWeeklyActivity(

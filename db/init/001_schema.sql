@@ -1,14 +1,20 @@
 CREATE DATABASE IF NOT EXISTS code_review_trends;
 
--- Bots we're tracking
+-- Bots we're tracking (display info only)
 CREATE TABLE IF NOT EXISTS code_review_trends.bots (
     id String,
     name String,
-    github_login String,
     website String,
     description String
 ) ENGINE = ReplacingMergeTree()
 ORDER BY id;
+
+-- GitHub logins for each bot (a bot can have multiple logins, e.g. after a rename)
+CREATE TABLE IF NOT EXISTS code_review_trends.bot_logins (
+    bot_id String,
+    github_login String
+) ENGINE = ReplacingMergeTree()
+ORDER BY (bot_id, github_login);
 
 -- Weekly aggregated review counts per bot (from BigQuery / GH Archive)
 CREATE TABLE IF NOT EXISTS code_review_trends.review_activity (

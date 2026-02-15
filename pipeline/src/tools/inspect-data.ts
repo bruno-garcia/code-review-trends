@@ -40,6 +40,7 @@ async function showOverview() {
 
     const tables = [
       "bots",
+      "bot_logins",
       "review_activity",
       "human_review_activity",
       "review_reactions",
@@ -68,12 +69,23 @@ async function showOverview() {
     }
 
     console.log("\n=== Bots ===\n");
-    const bots = await query<{ id: string; name: string; github_login: string }>(
+    const bots = await query<{ id: string; name: string }>(
       client,
-      "SELECT id, name, github_login FROM bots ORDER BY name",
+      "SELECT id, name FROM bots ORDER BY name",
     );
+    const logins = await query<{ bot_id: string; github_login: string }>(
+      client,
+      "SELECT bot_id, github_login FROM bot_logins ORDER BY bot_id, github_login",
+    );
+    const loginsByBot = new Map<string, string[]>();
+    for (const row of logins) {
+      const arr = loginsByBot.get(row.bot_id) ?? [];
+      arr.push(row.github_login);
+      loginsByBot.set(row.bot_id, arr);
+    }
     for (const bot of bots) {
-      console.log(`  ${bot.id.padEnd(15)} ${bot.name.padEnd(25)} ${bot.github_login}`);
+      const botLogins = loginsByBot.get(bot.id) ?? [];
+      console.log(`  ${bot.id.padEnd(15)} ${bot.name.padEnd(25)} ${botLogins.join(", ")}`);
     }
 
     console.log("\n=== Latest Week Activity ===\n");

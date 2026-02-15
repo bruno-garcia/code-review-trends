@@ -36,7 +36,7 @@ export function createCHClient(config?: ClickHouseConfig): ClickHouseClient {
 }
 
 /**
- * Sync bot definitions into the `bots` table.
+ * Sync bot definitions into the `bots` and `bot_logins` tables.
  * Uses ReplacingMergeTree so re-inserts update existing rows.
  */
 export async function syncBots(
@@ -45,17 +45,42 @@ export async function syncBots(
 ): Promise<void> {
   if (bots.length === 0) return;
 
+  // Ensure bot_logins table exists (for migration of existing DBs)
+  await client.command({
+    query: `CREATE TABLE IF NOT EXISTS bot_logins (
+      bot_id String,
+      github_login String
+    ) ENGINE = ReplacingMergeTree()
+    ORDER BY (bot_id, github_login)`,
+  });
+
+  // Write display info to bots table
   await client.insert({
     table: "bots",
     values: bots.map((b) => ({
       id: b.id,
       name: b.name,
-      github_login: b.github_login,
       website: b.website,
       description: b.description,
     })),
     format: "JSONEachRow",
   });
+
+  // Write login mappings to bot_logins table
+  const loginRows = bots.flatMap((b) =>
+    b.github_logins.map((login) => ({
+      bot_id: b.id,
+      github_login: login,
+    })),
+  );
+
+  if (loginRows.length > 0) {
+    await client.insert({
+      table: "bot_logins",
+      values: loginRows,
+      format: "JSONEachRow",
+    });
+  }
 }
 
 export type ReviewActivityRow = {

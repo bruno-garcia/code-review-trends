@@ -106,7 +106,8 @@ describe("buildReport integration", () => {
         chunk_start Date,
         chunk_end Date,
         completed_at DateTime DEFAULT now(),
-        rows_written UInt64
+        rows_written UInt64,
+        bot_logins String DEFAULT ''
       ) ENGINE = ReplacingMergeTree(completed_at)
       ORDER BY (job_name, chunk_start)`,
     });
