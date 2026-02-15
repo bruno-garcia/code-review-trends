@@ -162,7 +162,7 @@ describe("seed SQL consistency", () => {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
   const seedSql: string = readFileSync(
-    join(__dirname, "../../db/init/002_seed.sql"),
+    join(__dirname, "../../db/init/002_bot_data.sql"),
     "utf-8",
   );
 

@@ -22,9 +22,20 @@ run_statement() {
   }
 }
 
+# 1. Run schema (db/init/*.sql)
 for f in db/init/*.sql; do
   echo "Running $f..."
-  # Remove single-line comments, join lines, split on semicolons
+  statements=$(sed 's/--.*$//' "$f" | tr '\n' ' ' | sed 's/;/;\n/g')
+  while IFS= read -r stmt; do
+    run_statement "$stmt"
+  done <<< "$statements"
+  echo "  Done."
+done
+
+# 2. Run seed data (db/seed/*.sql) — fake data for CI tests
+for f in db/seed/*.sql; do
+  [ -f "$f" ] || continue
+  echo "Running $f..."
   statements=$(sed 's/--.*$//' "$f" | tr '\n' ' ' | sed 's/;/;\n/g')
   while IFS= read -r stmt; do
     run_statement "$stmt"
