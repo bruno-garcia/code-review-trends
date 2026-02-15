@@ -1,4 +1,10 @@
+import { useId } from "react";
+
 export function LogoIcon({ size = 32 }: { size?: number }) {
+  const uid = useId();
+  const g1 = `logo-g1-${uid}`;
+  const g2 = `logo-g2-${uid}`;
+
   return (
     <svg
       width={size}
@@ -6,10 +12,12 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
       viewBox="0 0 52 52"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
     >
       <defs>
         <linearGradient
-          id="logo-g1"
+          id={g1}
           x1="10"
           y1="0"
           x2="42"
@@ -20,7 +28,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
           <stop offset="100%" stopColor="#6d28d9" />
         </linearGradient>
         <linearGradient
-          id="logo-g2"
+          id={g2}
           x1="26"
           y1="8"
           x2="26"
@@ -39,7 +47,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
         height="33.94"
         rx="7"
         transform="rotate(45 26 2)"
-        fill="url(#logo-g1)"
+        fill={`url(#${g1})`}
         opacity="0.15"
       />
       <rect
@@ -50,7 +58,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
         rx="6"
         transform="rotate(45 26 4)"
         fill="none"
-        stroke="url(#logo-g1)"
+        stroke={`url(#${g1})`}
         strokeWidth="1.2"
         opacity="0.4"
       />
@@ -60,20 +68,20 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
         y1="14"
         x2="22"
         y2="40"
-        stroke="url(#logo-g2)"
+        stroke={`url(#${g2})`}
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M22 20 C22 20, 24 20, 28 16"
-        stroke="url(#logo-g2)"
+        stroke={`url(#${g2})`}
         strokeWidth="3"
         strokeLinecap="round"
         fill="none"
       />
       <path
         d="M22 32 C22 32, 24 32, 28 28"
-        stroke="url(#logo-g2)"
+        stroke={`url(#${g2})`}
         strokeWidth="3"
         strokeLinecap="round"
         fill="none"

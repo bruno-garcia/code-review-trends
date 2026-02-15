@@ -4,11 +4,11 @@
  * Uses CIE76 color distance (Euclidean distance in Lab space) which
  * approximates human perception better than raw RGB distance.
  *
- * Run: npx tsx src/lib/color-check.test.ts
+ * Run: npm test
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { COLORS } from "../components/charts.js";
+import { COLORS } from "./colors.js";
 import { THEME_COLORS } from "./theme.js";
 
 // --- sRGB → CIELAB conversion ---

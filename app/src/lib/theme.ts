@@ -20,5 +20,5 @@ export const THEME = {
   tooltipBg: "#12121a",
 } as const;
 
-/** All theme colors as an array for conflict checking */
-export const THEME_COLORS = Object.values(THEME);
+/** All unique theme colors for conflict checking */
+export const THEME_COLORS = [...new Set(Object.values(THEME))];

@@ -21,17 +21,10 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
 } from "recharts";
+import { THEME } from "@/lib/theme";
 
-export const COLORS = [
-  "#a78bfa", // violet-400 — primary
-  "#67e8f9", // cyan-300 — softer cyan
-  "#fbbf24", // amber-400 — warm gold
-  "#6ee7b7", // emerald-300 — soft green
-  "#f9a8d4", // pink-300 — muted pink
-  "#fdba74", // orange-300 — soft orange
-  "#c4b5fd", // violet-300 — light violet
-  "#fca5a5", // red-300 — muted red
-];
+export { COLORS } from "@/lib/colors";
+import { COLORS } from "@/lib/colors";
 
 function formatWeek(week: string | number) {
   const d = new Date(String(week));
@@ -43,8 +36,6 @@ function formatNumber(n: number) {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toString();
 }
-
-import { THEME } from "@/lib/theme";
 
 const TOOLTIP_STYLE = {
   backgroundColor: THEME.tooltipBg,
