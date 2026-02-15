@@ -31,7 +31,7 @@ export function VersionStamp() {
       onClick={handleCopy}
       data-testid="version-stamp"
       title={`Version: ${shortSha} — click to copy`}
-      className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-400 transition-colors font-mono text-xs cursor-pointer"
+      className="inline-flex items-center gap-1 text-theme-muted/50 hover:text-theme-muted transition-colors font-mono text-xs cursor-pointer"
     >
       <span>{shortSha}</span>
       {copied && (

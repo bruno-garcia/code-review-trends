@@ -68,7 +68,7 @@ export default async function Home() {
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
           AI Code Review Trends
         </h1>
-        <p className="mt-4 text-lg text-gray-400 max-w-2xl mx-auto">
+        <p className="mt-4 text-lg text-theme-muted max-w-2xl mx-auto">
           Tracking the adoption of AI code review bots across public GitHub
           repositories. How is AI changing code review?
         </p>
@@ -79,7 +79,7 @@ export default async function Home() {
         <h2 className="text-2xl font-semibold mb-4">
           AI Share of Code Reviews
         </h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           Percentage of pull request reviews performed by AI bots vs. humans
           over time.
         </p>
@@ -93,10 +93,10 @@ export default async function Home() {
         <h2 className="text-2xl font-semibold mb-4">
           Review Volume by Product
         </h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           Weekly review count for each AI code review product.
           {summaries.length > TOP_N_CHART && (
-            <span className="text-gray-500">
+            <span className="text-theme-muted/70">
               {" "}
               Showing top {TOP_N_CHART} of {summaries.length} products.
             </span>
@@ -124,7 +124,7 @@ export default async function Home() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left" data-testid="leaderboard-table">
-            <thead className="text-gray-400 border-b border-theme-border text-sm">
+            <thead className="text-theme-muted border-b border-theme-border text-sm">
               <tr>
                 <th className="pb-3 pr-4">Product</th>
                 <th className="pb-3 pr-4 text-right">Reviews</th>
@@ -153,7 +153,7 @@ export default async function Home() {
                           alt={product.name}
                           width={20}
                           height={20}
-                          className="rounded-full bg-gray-800 border border-gray-700"
+                          className="rounded-full bg-theme-surface border border-theme-border"
                         />
                       )}
                       <span
@@ -205,10 +205,10 @@ export default async function Home() {
       {/* Top Organizations */}
       <section data-testid="top-orgs-section">
         <h2 className="text-2xl font-semibold mb-4">Top Organizations</h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           Organizations with the most GitHub stars across repos where AI bots review code.
         </p>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <TopOrgsChart data={topOrgs} />
         </div>
       </section>
@@ -216,21 +216,21 @@ export default async function Home() {
       {/* Bot Sentiment */}
       <section data-testid="bot-sentiment-section">
         <h2 className="text-2xl font-semibold mb-4">Bot Sentiment</h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           How developers react to each bot&apos;s review comments — thumbs up, hearts, and thumbs down.
         </p>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <BotReactionLeaderboardChart data={reactionLeaderboard} />
         </div>
       </section>
 
       {/* Data Coverage */}
       {(enrichmentStats.enriched_repos > 0 || enrichmentStats.total_comments > 0) && (
-        <section data-testid="data-coverage" className="text-center text-sm text-gray-500 py-4 border-t border-gray-800">
+        <section data-testid="data-coverage" className="text-center text-sm text-theme-muted/70 py-4 border-t border-theme-border">
           Tracking{" "}
-          <span className="text-gray-300">{enrichmentStats.enriched_repos.toLocaleString()}</span> repos,{" "}
-          <span className="text-gray-300">{enrichmentStats.enriched_prs.toLocaleString()}</span> PRs,{" "}
-          <span className="text-gray-300">{enrichmentStats.total_comments.toLocaleString()}</span> comments
+          <span className="text-theme-text/80">{enrichmentStats.enriched_repos.toLocaleString()}</span> repos,{" "}
+          <span className="text-theme-text/80">{enrichmentStats.enriched_prs.toLocaleString()}</span> PRs,{" "}
+          <span className="text-theme-text/80">{enrichmentStats.total_comments.toLocaleString()}</span> comments
         </section>
       )}
     </div>

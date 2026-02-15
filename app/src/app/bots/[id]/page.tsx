@@ -88,7 +88,7 @@ export default async function ProductPage({
       <div>
         <Link
           href="/bots"
-          className="text-sm text-gray-400 hover:text-white transition-colors"
+          className="text-sm text-theme-muted hover:text-theme-text transition-colors"
         >
           ← Back to all products
         </Link>
@@ -99,7 +99,7 @@ export default async function ProductPage({
               alt={product.name}
               width={48}
               height={48}
-              className="rounded-full bg-gray-800 border border-gray-700"
+              className="rounded-full bg-theme-surface border border-theme-border"
             />
           )}
           <h1
@@ -110,7 +110,7 @@ export default async function ProductPage({
             {product.name}
           </h1>
         </div>
-        <p className="mt-2 text-gray-400">{product.description}</p>
+        <p className="mt-2 text-theme-muted">{product.description}</p>
         <div className="mt-4 flex items-center gap-4 flex-wrap">
           {product.website && (
             <a
@@ -123,18 +123,18 @@ export default async function ProductPage({
             </a>
           )}
           {githubLogins.length > 0 && (
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-theme-muted/70">
               GitHub:{" "}
               {githubLogins.map((login, i) => (
                 <span key={login}>
                   {i > 0 && ", "}
-                  <code className="text-gray-300">{login}</code>
+                  <code className="text-theme-text/80">{login}</code>
                 </span>
               ))}
             </span>
           )}
-          <span className="text-sm text-gray-500">
-            Rank: <span className="text-white font-medium">#{reviewRank}</span>{" "}
+          <span className="text-sm text-theme-muted/70">
+            Rank: <span className="text-theme-text font-medium">#{reviewRank}</span>{" "}
             of {allSummaries.length}
           </span>
         </div>
@@ -183,12 +183,12 @@ export default async function ProductPage({
       {productBots.length > 1 && (
         <section data-testid="bot-history-section">
           <h2 className="text-2xl font-semibold mb-4">Bot History</h2>
-          <p className="text-gray-400 mb-4">
+          <p className="text-theme-muted mb-4">
             This product has operated under multiple bot accounts over time.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-gray-400 border-b border-gray-800">
+              <thead className="text-theme-muted border-b border-theme-border">
                 <tr>
                   <th className="pb-3 pr-4">Bot</th>
                   <th className="pb-3 pr-4">GitHub Login</th>
@@ -202,11 +202,11 @@ export default async function ProductPage({
                 {productBots.map((bot) => (
                   <tr
                     key={`${bot.id}-${bot.github_login}`}
-                    className="border-b border-gray-800/50"
+                    className="border-b border-theme-border/50"
                   >
                     <td className="py-3 pr-4 font-medium">{bot.name}</td>
                     <td className="py-3 pr-4">
-                      <code className="text-gray-300">{bot.github_login}</code>
+                      <code className="text-theme-text/80">{bot.github_login}</code>
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
                       {Number(bot.total_reviews).toLocaleString()}
@@ -214,8 +214,8 @@ export default async function ProductPage({
                     <td className="py-3 pr-4 text-right tabular-nums">
                       {Number(bot.total_comments).toLocaleString()}
                     </td>
-                    <td className="py-3 pr-4 text-gray-400">{bot.first_week}</td>
-                    <td className="py-3 text-gray-400">{bot.last_week}</td>
+                    <td className="py-3 pr-4 text-theme-muted">{bot.first_week}</td>
+                    <td className="py-3 text-theme-muted">{bot.last_week}</td>
                   </tr>
                 ))}
               </tbody>
@@ -228,7 +228,7 @@ export default async function ProductPage({
       {reactionData.length > 0 && (
         <section data-testid="bot-reactions-chart">
           <h2 className="text-2xl font-semibold mb-4">Community Reactions</h2>
-          <p className="text-gray-400 mb-6">
+          <p className="text-theme-muted mb-6">
             Reactions on review comments — a proxy for how useful people find
             this product&apos;s reviews.
           </p>
@@ -243,24 +243,24 @@ export default async function ProductPage({
         <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
         {commentsPerPR.length > 0 ? (
           <div className="bg-theme-surface rounded-xl p-5 border border-theme-border inline-block">
-            <p className="text-sm text-gray-400">Avg Comments / PR</p>
+            <p className="text-sm text-theme-muted">Avg Comments / PR</p>
             <p className="text-3xl font-bold tabular-nums">
               {Number(commentsPerPR[0].avg_comments_per_pr).toFixed(2)}
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-theme-muted/70 mt-1">
               {Number(commentsPerPR[0].total_comments).toLocaleString()} comments across{" "}
               {Number(commentsPerPR[0].total_prs).toLocaleString()} PRs
             </p>
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">No data</p>
+          <p className="text-theme-muted text-sm">No data</p>
         )}
       </section>
 
       {/* Reactions by PR Size */}
       <section data-testid="bot-reactions-by-size">
         <h2 className="text-2xl font-semibold mb-4">Reactions by PR Size</h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           How reactions vary based on the size of the pull request being reviewed.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
@@ -271,7 +271,7 @@ export default async function ProductPage({
       {/* Top Languages */}
       <section data-testid="bot-languages">
         <h2 className="text-2xl font-semibold mb-4">Top Languages</h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           Programming languages of repos where this bot reviews code.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
@@ -293,7 +293,7 @@ function StatCard({
 }) {
   return (
     <div className="bg-theme-surface rounded-xl p-5 border border-theme-border">
-      <p className="text-sm text-gray-400">{label}</p>
+      <p className="text-sm text-theme-muted">{label}</p>
       <p className={`text-2xl font-bold tabular-nums ${color ?? ""}`}>
         {value}
       </p>

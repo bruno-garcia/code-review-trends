@@ -94,7 +94,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
         cy="14"
         r="3.5"
         fill="#c4b5fd"
-        stroke="#0a0a0f"
+        stroke="var(--color-theme-node-stroke)"
         strokeWidth="1.5"
       />
       <circle
@@ -102,7 +102,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
         cy="40"
         r="3.5"
         fill="#7c3aed"
-        stroke="#0a0a0f"
+        stroke="var(--color-theme-node-stroke)"
         strokeWidth="1.5"
       />
       <circle
@@ -110,7 +110,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
         cy="14"
         r="3"
         fill="#a78bfa"
-        stroke="#0a0a0f"
+        stroke="var(--color-theme-node-stroke)"
         strokeWidth="1.5"
       />
       <circle
@@ -118,7 +118,7 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
         cy="26"
         r="3"
         fill="#8b5cf6"
-        stroke="#0a0a0f"
+        stroke="var(--color-theme-node-stroke)"
         strokeWidth="1.5"
         opacity="0.6"
       />
@@ -147,10 +147,10 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
 
 export function LogoWordmark() {
   return (
-    <span className="text-lg font-bold leading-tight tracking-tight">
-      <span className="text-gray-100">Code</span>
-      <span className="text-violet-400">Review</span>
-      <span className="text-violet-600">Trends</span>
+    <span className="text-lg font-bold leading-tight tracking-[-0.5px]">
+      <span className="text-wordmark-code">Code</span>
+      <span className="text-wordmark-review">Review</span>
+      <span className="text-wordmark-trends">Trends</span>
     </span>
   );
 }

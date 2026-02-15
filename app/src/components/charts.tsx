@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -21,7 +21,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
 } from "recharts";
-import { THEME } from "@/lib/theme";
+import { useTheme } from "@/components/theme-provider";
 
 export { COLORS } from "@/lib/colors";
 import { COLORS } from "@/lib/colors";
@@ -37,18 +37,31 @@ function formatNumber(n: number) {
   return n.toString();
 }
 
-const TOOLTIP_STYLE = {
-  backgroundColor: THEME.tooltipBg,
-  border: `1px solid ${THEME.border}`,
-  borderRadius: 8,
-};
-
 /** Ensure the tooltip popup renders above the Legend overlay. */
 const TOOLTIP_WRAPPER_STYLE: React.CSSProperties = { zIndex: 10 };
 
-const GRID_COLOR = THEME.grid;
-const AXIS_COLOR = THEME.axis;
-const LEGEND_STYLE = { color: THEME.mutedText };
+/** Hook that returns chart colors reactive to theme changes */
+function useChartColors() {
+  const { resolved } = useTheme();
+  return useMemo(() => {
+    const isDark = resolved === "dark";
+    return {
+      grid: isDark ? "#1e1e2e" : "#e5e7eb",
+      axis: isDark ? "#555555" : "#9ca3af",
+      muted: isDark ? "#9ca3af" : "#6b7280",
+      tooltipStyle: {
+        backgroundColor: isDark ? "#12121a" : "#ffffff",
+        border: `1px solid ${isDark ? "#1e1e2e" : "#e5e7eb"}`,
+        borderRadius: 8,
+        color: isDark ? "#f3f4f6" : "#111827",
+      },
+      legendStyle: { color: isDark ? "#9ca3af" : "#6b7280" },
+      cartesianGrid: isDark ? "#374151" : "#e5e7eb",
+      barAxis: isDark ? "#9ca3af" : "#6b7280",
+      polarRadius: isDark ? "#2a2a3a" : "#d1d5db",
+    };
+  }, [resolved]);
+}
 
 // --- Toggle button group ---
 
@@ -75,7 +88,7 @@ function ToggleGroup({
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
             value === opt.value
               ? "bg-violet-600 text-white"
-              : "bg-theme-border text-gray-400 hover:text-white"
+              : "bg-theme-border text-theme-muted hover:text-theme-text"
           }`}
           aria-pressed={value === opt.value}
           data-testid={`toggle-${opt.value}`}
@@ -101,6 +114,7 @@ type BotShareData = {
 
 export function BotShareChart({ data }: { data: BotShareData[] }) {
   const [metric, setMetric] = useState("reviews");
+  const c = useChartColors();
 
   const dataKey =
     metric === "reviews" ? "bot_share_pct" : "bot_comment_share_pct";
@@ -119,20 +133,20 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
       />
       <ResponsiveContainer width="100%" height={350}>
         <AreaChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
           <XAxis
             dataKey="week"
             tickFormatter={formatWeek}
-            stroke={AXIS_COLOR}
+            stroke={c.axis}
             tick={{ fontSize: 12 }}
           />
           <YAxis
-            stroke={AXIS_COLOR}
+            stroke={c.axis}
             tick={{ fontSize: 12 }}
             tickFormatter={(v) => `${v}%`}
           />
           <Tooltip
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={c.tooltipStyle}
             labelFormatter={(v) => formatWeek(String(v))}
             formatter={(value) => [
               `${Number(value).toFixed(2)}%`,
@@ -164,28 +178,30 @@ export function ReviewVolumeChart({
   bots: string[];
   colors?: Record<string, string>;
 }) {
+  const c = useChartColors();
+
   return (
     <ResponsiveContainer width="100%" height={350}>
       <AreaChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+        <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
         <XAxis
           dataKey="week"
           tickFormatter={formatWeek}
-          stroke={AXIS_COLOR}
+          stroke={c.axis}
           tick={{ fontSize: 12 }}
         />
         <YAxis
-          stroke={AXIS_COLOR}
+          stroke={c.axis}
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
         <Tooltip
-          contentStyle={TOOLTIP_STYLE}
+          contentStyle={c.tooltipStyle}
           wrapperStyle={TOOLTIP_WRAPPER_STYLE}
           labelFormatter={(v) => formatWeek(String(v))}
           formatter={(value, name) => [formatNumber(Number(value)), name]}
         />
-        <Legend wrapperStyle={LEGEND_STYLE} />
+        <Legend wrapperStyle={c.legendStyle} />
         {bots.map((bot, i) => {
           const color = colors?.[bot] ?? COLORS[i % COLORS.length];
           return (
@@ -217,6 +233,7 @@ type SingleBotData = {
 
 export function SingleBotChart({ data }: { data: SingleBotData[] }) {
   const [metric, setMetric] = useState("reviews");
+  const c = useChartColors();
 
   const lines: Record<string, { keys: string[]; colors: string[]; names: string[] }> = {
     reviews: {
@@ -246,25 +263,25 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
       />
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
           <XAxis
             dataKey="week"
             tickFormatter={formatWeek}
-            stroke={AXIS_COLOR}
+            stroke={c.axis}
             tick={{ fontSize: 12 }}
           />
           <YAxis
-            stroke={AXIS_COLOR}
+            stroke={c.axis}
             tick={{ fontSize: 12 }}
             tickFormatter={formatNumber}
           />
           <Tooltip
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={c.tooltipStyle}
             wrapperStyle={TOOLTIP_WRAPPER_STYLE}
             labelFormatter={(v) => formatWeek(String(v))}
             formatter={(value, name) => [formatNumber(Number(value)), name]}
           />
-          <Legend wrapperStyle={LEGEND_STYLE} />
+          <Legend wrapperStyle={c.legendStyle} />
           {current.keys.map((key, i) => (
             <Line
               key={key}
@@ -293,23 +310,25 @@ type ReactionData = {
 };
 
 export function ReactionChart({ data }: { data: ReactionData[] }) {
+  const c = useChartColors();
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+        <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} />
         <XAxis
           dataKey="week"
           tickFormatter={formatWeek}
-          stroke={AXIS_COLOR}
+          stroke={c.barAxis}
           tick={{ fontSize: 12 }}
         />
         <YAxis
-          stroke={AXIS_COLOR}
+          stroke={c.barAxis}
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
-        <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeek(String(v))} />
-        <Legend wrapperStyle={LEGEND_STYLE} />
+        <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeek(String(v))} />
+        <Legend wrapperStyle={c.legendStyle} />
         <Bar dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
         <Bar dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
         <Bar dataKey="laugh" fill="#f59e0b" name="😄" stackId="a" />
@@ -331,17 +350,19 @@ export function BotRadarChart({
   bots: string[];
   colors?: Record<string, string>;
 }) {
+  const c = useChartColors();
+
   return (
     <ResponsiveContainer width="100%" height={400}>
       <RadarChart data={data}>
-        <PolarGrid stroke={GRID_COLOR} />
+        <PolarGrid stroke={c.grid} />
         <PolarAngleAxis
           dataKey="metric"
-          stroke={AXIS_COLOR}
+          stroke={c.axis}
           tick={{ fontSize: 11 }}
         />
         <PolarRadiusAxis
-          stroke="#2a2a3a"
+          stroke={c.polarRadius}
           tick={{ fontSize: 10 }}
           domain={[0, 100]}
           tickCount={5}
@@ -359,8 +380,8 @@ export function BotRadarChart({
             />
           );
         })}
-        <Legend wrapperStyle={LEGEND_STYLE} />
-        <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
+        <Legend wrapperStyle={c.legendStyle} />
+        <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
       </RadarChart>
     </ResponsiveContainer>
   );
@@ -383,28 +404,30 @@ export function BotReactionLeaderboardChart({
 }: {
   data: BotReactionLeaderboardData[];
 }) {
+  const c = useChartColors();
+
   if (data.length === 0) {
-    return <div data-testid="bot-reaction-leaderboard"><p className="text-gray-500 text-sm">No data</p></div>;
+    return <div data-testid="bot-reaction-leaderboard"><p className="text-theme-muted text-sm">No data</p></div>;
   }
   return (
     <div data-testid="bot-reaction-leaderboard">
       <ResponsiveContainer width="100%" height={data.length * 44 + 40}>
         <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} horizontal={false} />
           <XAxis
             type="number"
-            stroke="#9ca3af"
+            stroke={c.barAxis}
             tick={{ fontSize: 12 }}
             tickFormatter={formatNumber}
           />
           <YAxis
             type="category"
             dataKey="bot_name"
-            stroke="#9ca3af"
+            stroke={c.barAxis}
             tick={{ fontSize: 12 }}
             width={130}
           />
-          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
+          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           <Bar dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" />
           <Bar dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" />
@@ -426,8 +449,10 @@ type BotLanguageData = {
 };
 
 export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
+  const c = useChartColors();
+
   if (data.length === 0) {
-    return <div data-testid="bot-language-chart"><p className="text-gray-500 text-sm">No data</p></div>;
+    return <div data-testid="bot-language-chart"><p className="text-theme-muted text-sm">No data</p></div>;
   }
 
   // Pivot: top 10 languages, bots as grouped bars
@@ -455,18 +480,18 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
     <div data-testid="bot-language-chart">
       <ResponsiveContainer width="100%" height={400}>
         <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} />
           <XAxis
             dataKey="language"
-            stroke="#9ca3af"
+            stroke={c.barAxis}
             tick={{ fontSize: 12 }}
           />
           <YAxis
-            stroke="#9ca3af"
+            stroke={c.barAxis}
             tick={{ fontSize: 12 }}
             tickFormatter={formatNumber}
           />
-          <Tooltip contentStyle={TOOLTIP_STYLE} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
+          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           {bots.map((bot, i) => (
             <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
@@ -493,8 +518,10 @@ export function ReactionsByPRSizeChart({
 }: {
   data: ReactionsByPRSizeData[];
 }) {
+  const c = useChartColors();
+
   if (data.length === 0) {
-    return <div data-testid="reactions-by-pr-size"><p className="text-gray-500 text-sm">No data</p></div>;
+    return <div data-testid="reactions-by-pr-size"><p className="text-theme-muted text-sm">No data</p></div>;
   }
 
   const sorted = [...data].sort(
@@ -505,11 +532,11 @@ export function ReactionsByPRSizeChart({
     <div data-testid="reactions-by-pr-size">
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={sorted}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="size_bucket" stroke="#9ca3af" tick={{ fontSize: 12 }} />
-          <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} />
+          <XAxis dataKey="size_bucket" stroke={c.barAxis} tick={{ fontSize: 12 }} />
+          <YAxis stroke={c.barAxis} tick={{ fontSize: 12 }} />
           <Tooltip
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={c.tooltipStyle}
             wrapperStyle={TOOLTIP_WRAPPER_STYLE}
             formatter={(value, name) => [
               Number(value).toFixed(2),
@@ -538,8 +565,10 @@ type TopOrgData = {
 };
 
 export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
+  const c = useChartColors();
+
   if (data.length === 0) {
-    return <div data-testid="top-orgs-chart"><p className="text-gray-500 text-sm">No data</p></div>;
+    return <div data-testid="top-orgs-chart"><p className="text-theme-muted text-sm">No data</p></div>;
   }
 
   const top20 = data.slice(0, 20);
@@ -548,22 +577,22 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
     <div data-testid="top-orgs-chart">
       <ResponsiveContainer width="100%" height={top20.length * 44 + 40}>
         <BarChart data={top20} layout="vertical" margin={{ left: 10, right: 30 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} horizontal={false} />
           <XAxis
             type="number"
-            stroke="#9ca3af"
+            stroke={c.barAxis}
             tick={{ fontSize: 12 }}
             tickFormatter={formatNumber}
           />
           <YAxis
             type="category"
             dataKey="owner"
-            stroke="#9ca3af"
+            stroke={c.barAxis}
             tick={{ fontSize: 12 }}
             width={130}
           />
           <Tooltip
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={c.tooltipStyle}
             wrapperStyle={TOOLTIP_WRAPPER_STYLE}
             formatter={(value, name) => [
               formatNumber(Number(value)),
@@ -593,19 +622,21 @@ type CommentsPerPRData = {
 };
 
 export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
+  const c = useChartColors();
+
   if (data.length === 0) {
-    return <div data-testid="comments-per-pr-chart"><p className="text-gray-500 text-sm">No data</p></div>;
+    return <div data-testid="comments-per-pr-chart"><p className="text-theme-muted text-sm">No data</p></div>;
   }
 
   return (
     <div data-testid="comments-per-pr-chart">
       <ResponsiveContainer width="100%" height={350}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="bot_name" stroke="#9ca3af" tick={{ fontSize: 12 }} />
-          <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} />
+          <XAxis dataKey="bot_name" stroke={c.barAxis} tick={{ fontSize: 12 }} />
+          <YAxis stroke={c.barAxis} tick={{ fontSize: 12 }} />
           <Tooltip
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={c.tooltipStyle}
             formatter={(value) => [
               Number(value).toFixed(2),
               "Avg Comments/PR",
@@ -639,26 +670,28 @@ export function CompareBarChart({
   label: string;
   formatter?: (v: number) => string;
 }) {
+  const c = useChartColors();
   const fmt = formatter ?? formatNumber;
+
   return (
     <ResponsiveContainer width="100%" height={data.length * 44 + 40}>
       <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={c.grid} horizontal={false} />
         <XAxis
           type="number"
-          stroke={AXIS_COLOR}
+          stroke={c.axis}
           tick={{ fontSize: 12 }}
           tickFormatter={(v) => fmt(v)}
         />
         <YAxis
           type="category"
           dataKey="name"
-          stroke={AXIS_COLOR}
+          stroke={c.axis}
           tick={{ fontSize: 12 }}
           width={130}
         />
         <Tooltip
-          contentStyle={TOOLTIP_STYLE}
+          contentStyle={c.tooltipStyle}
           formatter={(value) => [fmt(Number(value)), label]}
         />
         <Bar dataKey="value" radius={[0, 4, 4, 0]}>
