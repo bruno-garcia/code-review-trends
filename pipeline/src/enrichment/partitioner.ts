@@ -25,7 +25,7 @@ export type WorkerConfig = {
  * @param config - Worker partition config
  * @param column - Column name to hash (default: "repo_name")
  */
-const ALLOWED_COLUMNS = new Set(["repo_name", "pr_number", "bot_id"]);
+const ALLOWED_COLUMNS = new Set(["repo_name", "name", "pr_number", "bot_id"]);
 
 export function partitionWhereClause(
   config: WorkerConfig,
