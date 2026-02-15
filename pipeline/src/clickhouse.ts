@@ -67,12 +67,10 @@ export async function syncBots(
   });
 
   // Write login mappings to bot_logins table
-  const loginRows = bots.flatMap((b) =>
-    b.github_logins.map((login) => ({
-      bot_id: b.id,
-      github_login: login,
-    })),
-  );
+  const loginRows = bots.map((b) => ({
+    bot_id: b.id,
+    github_login: b.github_login,
+  }));
 
   if (loginRows.length > 0) {
     await client.insert({

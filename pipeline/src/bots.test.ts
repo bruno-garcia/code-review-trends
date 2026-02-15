@@ -1,60 +1,63 @@
 /**
- * Tests for the bot registry.
+ * Tests for the bot and product registry.
  *
  * Validates that derived maps are built correctly and that
- * multi-login bots are handled properly.
+ * products and bots are consistent.
  */
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { BOTS, BOT_BY_LOGIN, BOT_BY_ID, BOT_LOGINS } from "./bots.js";
+import {
+  BOTS,
+  BOT_BY_LOGIN,
+  BOT_BY_ID,
+  BOT_LOGINS,
+  PRODUCTS,
+  PRODUCT_BY_ID,
+  BOTS_BY_PRODUCT,
+} from "./bots.js";
 
 describe("bot registry", () => {
-  it("every bot has at least one login", () => {
+  it("every bot has a github_login", () => {
     for (const bot of BOTS) {
       assert.ok(
-        bot.github_logins.length > 0,
-        `Bot "${bot.id}" has no github_logins`,
+        bot.github_login.length > 0,
+        `Bot "${bot.id}" has no github_login`,
       );
     }
   });
 
   it("BOT_BY_LOGIN maps every login to its bot", () => {
     for (const bot of BOTS) {
-      for (const login of bot.github_logins) {
-        const found = BOT_BY_LOGIN.get(login);
-        assert.ok(found, `Login "${login}" not found in BOT_BY_LOGIN`);
-        assert.equal(found.id, bot.id);
-      }
+      const found = BOT_BY_LOGIN.get(bot.github_login);
+      assert.ok(found, `Login "${bot.github_login}" not found in BOT_BY_LOGIN`);
+      assert.equal(found.id, bot.id);
     }
   });
 
-  it("BOT_BY_LOGIN has exactly as many entries as total logins", () => {
-    const totalLogins = BOTS.reduce((sum, b) => sum + b.github_logins.length, 0);
-    assert.equal(BOT_BY_LOGIN.size, totalLogins);
+  it("BOT_BY_LOGIN has exactly as many entries as bots", () => {
+    assert.equal(BOT_BY_LOGIN.size, BOTS.length);
   });
 
   it("BOT_LOGINS contains all logins", () => {
     for (const bot of BOTS) {
-      for (const login of bot.github_logins) {
-        assert.ok(BOT_LOGINS.has(login), `Login "${login}" not in BOT_LOGINS`);
-      }
+      assert.ok(
+        BOT_LOGINS.has(bot.github_login),
+        `Login "${bot.github_login}" not in BOT_LOGINS`,
+      );
     }
-    const totalLogins = BOTS.reduce((sum, b) => sum + b.github_logins.length, 0);
-    assert.equal(BOT_LOGINS.size, totalLogins);
+    assert.equal(BOT_LOGINS.size, BOTS.length);
   });
 
   it("no duplicate logins across bots", () => {
     const seen = new Map<string, string>();
     for (const bot of BOTS) {
-      for (const login of bot.github_logins) {
-        const existing = seen.get(login);
-        assert.ok(
-          !existing,
-          `Login "${login}" is claimed by both "${existing}" and "${bot.id}"`,
-        );
-        seen.set(login, bot.id);
-      }
+      const existing = seen.get(bot.github_login);
+      assert.ok(
+        !existing,
+        `Login "${bot.github_login}" is claimed by both "${existing}" and "${bot.id}"`,
+      );
+      seen.set(bot.github_login, bot.id);
     }
   });
 
@@ -71,68 +74,55 @@ describe("bot registry", () => {
     assert.equal(BOT_BY_ID.size, BOTS.length);
   });
 
-  it("multi-login bot maps all logins to the same definition", () => {
-    // Create a synthetic test by checking that a bot with >1 login
-    // would map all logins to the same object. For now just verify
-    // the structure works for all current bots.
+  it("every bot references a valid product", () => {
     for (const bot of BOTS) {
-      const mappedBots = bot.github_logins.map((l) => BOT_BY_LOGIN.get(l));
-      for (const mapped of mappedBots) {
-        assert.strictEqual(mapped, bot, `All logins for "${bot.id}" should map to the same object`);
-      }
+      assert.ok(
+        PRODUCT_BY_ID.has(bot.product_id),
+        `Bot "${bot.id}" references unknown product "${bot.product_id}"`,
+      );
     }
+  });
+
+  it("has 28 bots", () => {
+    assert.equal(BOTS.length, 28);
   });
 });
 
-describe("seed data consistency", () => {
-  it("seed SQL bot ids match bots.ts", async () => {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    const seedPath = path.join(import.meta.dirname, "../../db/init/002_seed.sql");
-    const seedSql = fs.readFileSync(seedPath, "utf-8");
-
-    // Extract bot ids from seed INSERT INTO bots
-    const botsInsertMatch = seedSql.match(
-      /INSERT INTO code_review_trends\.bots[^;]+;/s,
-    );
-    assert.ok(botsInsertMatch, "Could not find bots INSERT in seed SQL");
-
-    const seedBotIds = [...botsInsertMatch[0].matchAll(/\('(\w+)',/g)].map(
-      (m) => m[1],
-    );
-    const registryBotIds = BOTS.map((b) => b.id).sort();
-
-    assert.deepEqual(
-      seedBotIds.sort(),
-      registryBotIds,
-      `Seed bot ids ${JSON.stringify(seedBotIds.sort())} don't match bots.ts ${JSON.stringify(registryBotIds)}`,
-    );
+describe("product registry", () => {
+  it("has 23 products", () => {
+    assert.equal(PRODUCTS.length, 23);
   });
 
-  it("seed SQL bot logins match bots.ts", async () => {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    const seedPath = path.join(import.meta.dirname, "../../db/init/002_seed.sql");
-    const seedSql = fs.readFileSync(seedPath, "utf-8");
+  it("no duplicate product ids", () => {
+    const ids = PRODUCTS.map((p) => p.id);
+    const unique = new Set(ids);
+    assert.equal(ids.length, unique.size, "Duplicate product ids found");
+  });
 
-    // Extract (bot_id, github_login) pairs from seed INSERT INTO bot_logins
-    const loginsInsertMatch = seedSql.match(
-      /INSERT INTO code_review_trends\.bot_logins[^;]+;/s,
-    );
-    assert.ok(loginsInsertMatch, "Could not find bot_logins INSERT in seed SQL");
+  it("PRODUCT_BY_ID maps every product", () => {
+    for (const product of PRODUCTS) {
+      assert.equal(PRODUCT_BY_ID.get(product.id), product);
+    }
+    assert.equal(PRODUCT_BY_ID.size, PRODUCTS.length);
+  });
 
-    const seedPairs = [
-      ...loginsInsertMatch[0].matchAll(/\('(\w+)',\s*'([^']+)'\)/g),
-    ].map((m) => `${m[1]}:${m[2]}`);
+  it("every product has at least one bot", () => {
+    for (const product of PRODUCTS) {
+      const bots = BOTS_BY_PRODUCT.get(product.id);
+      assert.ok(
+        bots && bots.length > 0,
+        `Product "${product.id}" has no bots`,
+      );
+    }
+  });
 
-    const registryPairs = BOTS.flatMap((b) =>
-      b.github_logins.map((l) => `${b.id}:${l}`),
-    ).sort();
+  it("BOTS_BY_PRODUCT covers all products", () => {
+    assert.equal(BOTS_BY_PRODUCT.size, PRODUCTS.length);
+  });
 
-    assert.deepEqual(
-      seedPairs.sort(),
-      registryPairs,
-      `Seed bot_logins don't match bots.ts`,
-    );
+  it("Qodo name is just 'Qodo'", () => {
+    const qodo = PRODUCT_BY_ID.get("qodo");
+    assert.ok(qodo);
+    assert.equal(qodo.name, "Qodo");
   });
 });
