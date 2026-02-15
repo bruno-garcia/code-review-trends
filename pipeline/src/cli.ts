@@ -275,6 +275,48 @@ async function cmdStatus() {
   await runStatus(process.argv.slice(3));
 }
 
+/** Parse a CREATE TABLE statement to extract column definitions. */
+function parseCreateTableColumns(stmt: string): {
+  database: string;
+  table: string;
+  columns: { name: string; type: string; defaultExpr: string }[];
+} | null {
+  // Match: CREATE TABLE IF NOT EXISTS db.table (\n  col1 Type DEFAULT ..., ...
+  const headerMatch = stmt.match(
+    /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+(\w+)\.(\w+)\s*\(/is,
+  );
+  if (!headerMatch) return null;
+
+  const database = headerMatch[1];
+  const table = headerMatch[2];
+
+  // Extract everything between the outer parens (before ENGINE)
+  const afterParen = stmt.slice(stmt.indexOf("(", headerMatch.index!) + 1);
+  const engineIdx = afterParen.search(/\)\s*ENGINE\s*/i);
+  if (engineIdx === -1) return null;
+  const body = afterParen.slice(0, engineIdx);
+
+  const columns: { name: string; type: string; defaultExpr: string }[] = [];
+  for (const line of body.split(",")) {
+    const trimmed = line.trim().replace(/--.*$/, "").trim();
+    if (!trimmed) continue;
+
+    // Column line: name Type [DEFAULT expr]
+    const colMatch = trimmed.match(
+      /^(\w+)\s+([\w()]+)\s*(DEFAULT\s+.+)?$/i,
+    );
+    if (!colMatch) continue;
+
+    columns.push({
+      name: colMatch[1],
+      type: colMatch[2],
+      defaultExpr: colMatch[3]?.trim() ?? "",
+    });
+  }
+
+  return { database, table, columns };
+}
+
 async function cmdMigrate() {
   const args = parseArgs();
   const dryRun = "--dry-run" in args;
@@ -304,6 +346,20 @@ async function cmdMigrate() {
     for (const stmt of statements) {
       const firstLine = stmt.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? stmt;
       console.log(`  ${firstLine.trim().slice(0, 80)}`);
+    }
+
+    // Also show what ALTER TABLEs would be generated
+    const createStmts = statements.filter((s) =>
+      /CREATE\s+TABLE/i.test(s),
+    );
+    if (createStmts.length > 0) {
+      console.log("\n  (would also check for missing columns and apply ALTER TABLE ADD COLUMN)");
+      for (const stmt of createStmts) {
+        const parsed = parseCreateTableColumns(stmt);
+        if (parsed) {
+          console.log(`  ${parsed.database}.${parsed.table}: ${parsed.columns.map((c) => c.name).join(", ")}`);
+        }
+      }
     }
     return;
   }
@@ -353,11 +409,6 @@ async function cmdMigrate() {
 
   const clickhouseUser = process.env.CLICKHOUSE_USER ?? "default";
 
-  // Apply each statement
-  console.log(`\nApplying ${statements.length} statements...\n`);
-  let applied = 0;
-  let errors = 0;
-
   const { createClient } = await import("@clickhouse/client");
   const client = createClient({
     url: clickhouseUrl,
@@ -365,7 +416,13 @@ async function cmdMigrate() {
     password: clickhousePassword,
   });
 
+  let applied = 0;
+  let errors = 0;
+
   try {
+    // Phase 1: Apply CREATE DATABASE / CREATE TABLE IF NOT EXISTS
+    console.log(`\nPhase 1: Applying ${statements.length} CREATE statements...\n`);
+
     for (const stmt of statements) {
       const firstLine = stmt.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? stmt;
       const preview = firstLine.trim().slice(0, 70);
@@ -379,6 +436,48 @@ async function cmdMigrate() {
         console.error(`  ✗ ${preview}`);
         console.error(`    Error: ${msg.split("\n")[0]}`);
         errors++;
+      }
+    }
+
+    // Phase 2: Add missing columns to existing tables
+    const createStmts = statements.filter((s) => /CREATE\s+TABLE/i.test(s));
+    console.log(`\nPhase 2: Checking ${createStmts.length} tables for missing columns...\n`);
+
+    for (const stmt of createStmts) {
+      const parsed = parseCreateTableColumns(stmt);
+      if (!parsed) continue;
+
+      // Query existing columns from system.columns
+      const result = await client.query({
+        query: `SELECT name FROM system.columns WHERE database = {db:String} AND table = {tbl:String}`,
+        query_params: { db: parsed.database, tbl: parsed.table },
+        format: "JSONEachRow",
+      });
+      const rows = await result.json<{ name: string }>();
+      const existingCols = new Set(rows.map((r) => r.name));
+
+      const missingCols = parsed.columns.filter((c) => !existingCols.has(c.name));
+
+      if (missingCols.length === 0) {
+        console.log(`  ✓ ${parsed.database}.${parsed.table} — all columns present`);
+        continue;
+      }
+
+      for (const col of missingCols) {
+        const defaultClause = col.defaultExpr ? ` ${col.defaultExpr}` : "";
+        const alterSql = `ALTER TABLE ${parsed.database}.${parsed.table} ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}${defaultClause}`;
+        const preview = `ADD COLUMN ${col.name} ${col.type}${defaultClause}`;
+
+        try {
+          await client.command({ query: alterSql });
+          console.log(`  ✓ ${parsed.database}.${parsed.table}: ${preview}`);
+          applied++;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`  ✗ ${parsed.database}.${parsed.table}: ${preview}`);
+          console.error(`    Error: ${msg.split("\n")[0]}`);
+          errors++;
+        }
       }
     }
 
