@@ -387,7 +387,8 @@ export async function getAvgCommentsPerPR(botId?: string): Promise<BotCommentsPe
     `SELECT
       c.bot_id,
       b.name AS bot_name,
-      round(count() / nullIf(countDistinct(c.repo_name, c.pr_number), 0), 2) AS avg_comments_per_pr,
+      round(if(countDistinct(c.repo_name, c.pr_number) > 0,
+        count() / countDistinct(c.repo_name, c.pr_number), 0), 2) AS avg_comments_per_pr,
       countDistinct(c.repo_name, c.pr_number) AS total_prs,
       count() AS total_comments
     FROM pr_comments c
