@@ -135,10 +135,9 @@ export function CompareCharts({
     }
   }
 
-  // Build brand color map — ProductComparison doesn't have brand_color,
-  // so we fall back to the COLORS palette
+  // Build color map — use brand_color from product, fall back to palette
   const productColorMap = new Map(
-    products.map((p, i) => [p.id, COLORS[i % COLORS.length]]),
+    products.map((p, i) => [p.id, p.brand_color || COLORS[i % COLORS.length]]),
   );
 
   // Radar chart data

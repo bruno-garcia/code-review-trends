@@ -116,6 +116,7 @@ export type WeeklyReactions = {
 export type ProductComparison = {
   id: string;
   name: string;
+  brand_color: string;
   total_reviews: number;
   total_comments: number;
   total_repos: number;
@@ -310,6 +311,7 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
     SELECT
       p.id,
       p.name,
+      p.brand_color,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.max_repos, 0) AS total_repos,
