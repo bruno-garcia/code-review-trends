@@ -22,9 +22,12 @@ const EXPECTED_TABLES: Record<string, Record<string, string>> = {
   bots: {
     id: "String",
     name: "String",
-    github_login: "String",
     website: "String",
     description: "String",
+  },
+  bot_logins: {
+    bot_id: "String",
+    github_login: "String",
   },
   review_activity: {
     week: "Date",
@@ -32,6 +35,7 @@ const EXPECTED_TABLES: Record<string, Record<string, string>> = {
     review_count: "UInt64",
     review_comment_count: "UInt64",
     repo_count: "UInt64",
+    org_count: "UInt64",
   },
   human_review_activity: {
     week: "Date",
