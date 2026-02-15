@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Alias deployment to custom subdomain
+        id: alias
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -47,3 +48,46 @@ jobs:
             --scope="$VERCEL_ORG_ID"
 
           echo "✅ Aliased to https://$CUSTOM_DOMAIN"
+
+          # Export for the comment step
+          echo "custom_domain=$CUSTOM_DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH_RAW" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on PR
+        if: steps.alias.outputs.custom_domain
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CUSTOM_DOMAIN="${{ steps.alias.outputs.custom_domain }}"
+          BRANCH="${{ steps.alias.outputs.branch }}"
+          COMMIT_SHA="${{ steps.alias.outputs.commit_sha }}"
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+
+          # Find the PR for this branch
+          PR_NUMBER=$(gh api "repos/${{ github.repository }}/pulls" \
+            --jq --arg branch "$BRANCH" '.[] | select(.head.ref == $branch and .state == "open") | .number' \
+            | head -1)
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No open PR found for branch $BRANCH, skipping comment"
+            exit 0
+          fi
+
+          MARKER="<!-- preview-alias-bot -->"
+          BODY=$(printf '%s\n🔗 **Preview:** https://%s (`%s`)' "$MARKER" "$CUSTOM_DOMAIN" "$SHORT_SHA")
+
+          # Find existing comment by this bot with our marker
+          EXISTING_COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | contains(\"$MARKER\")) | .id" \
+            | head -1)
+
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/${EXISTING_COMMENT_ID}" \
+              --method PATCH --field body="$BODY"
+            echo "✅ Updated comment on PR #${PR_NUMBER}"
+          else
+            gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+              --method POST --field body="$BODY"
+            echo "✅ Posted comment on PR #${PR_NUMBER}"
+          fi
