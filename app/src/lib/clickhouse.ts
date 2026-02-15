@@ -9,18 +9,41 @@ export function getClickHouseClient() {
   });
 }
 
+export type Product = {
+  id: string;
+  name: string;
+  website: string;
+  description: string;
+  brand_color: string;
+  avatar_url: string;
+};
+
 export type Bot = {
   id: string;
   name: string;
-  github_logins: string[];
+  product_id: string;
+  github_login: string;
   website: string;
   description: string;
+  brand_color: string;
+  avatar_url: string;
 };
 
 export type WeeklyActivity = {
   week: string;
   bot_id: string;
   bot_name: string;
+  review_count: number;
+  review_comment_count: number;
+  repo_count: number;
+  org_count: number;
+};
+
+export type WeeklyActivityByProduct = {
+  week: string;
+  product_id: string;
+  product_name: string;
+  brand_color: string;
   review_count: number;
   review_comment_count: number;
   repo_count: number;
@@ -37,11 +60,35 @@ export type WeeklyTotals = {
   bot_comment_share_pct: number;
 };
 
+export type ProductSummary = {
+  id: string;
+  name: string;
+  website: string;
+  description: string;
+  brand_color: string;
+  avatar_url: string;
+  total_reviews: number;
+  total_comments: number;
+  total_repos: number;
+  total_orgs: number;
+  avg_comments_per_review: number;
+  latest_week_reviews: number;
+  growth_pct: number;
+  thumbs_up: number;
+  thumbs_down: number;
+  heart: number;
+  approval_rate: number;
+  comments_per_repo: number;
+  first_seen: string;
+};
+
 export type BotSummary = {
   id: string;
   name: string;
   website: string;
   description: string;
+  brand_color: string;
+  avatar_url: string;
   total_reviews: number;
   total_comments: number;
   total_repos: number;
@@ -66,6 +113,26 @@ export type WeeklyReactions = {
   confused: number;
 };
 
+export type ProductComparison = {
+  id: string;
+  name: string;
+  total_reviews: number;
+  total_comments: number;
+  total_repos: number;
+  total_orgs: number;
+  avg_comments_per_review: number;
+  comments_per_repo: number;
+  reviews_per_org: number;
+  thumbs_up: number;
+  thumbs_down: number;
+  heart: number;
+  approval_rate: number;
+  growth_pct: number;
+  latest_week_reviews: number;
+  latest_week_comments: number;
+  weeks_active: number;
+};
+
 export type BotComparison = {
   id: string;
   name: string;
@@ -86,6 +153,17 @@ export type BotComparison = {
   weeks_active: number;
 };
 
+export type ProductBot = {
+  id: string;
+  name: string;
+  github_login: string;
+  brand_color: string;
+  total_reviews: number;
+  total_comments: number;
+  first_week: string;
+  last_week: string;
+};
+
 async function query<T>(sql: string, params?: Record<string, unknown>): Promise<T[]> {
   const client = getClickHouseClient();
   try {
@@ -100,45 +178,219 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
   }
 }
 
-type BotRow = {
-  id: string;
-  name: string;
-  website: string;
-  description: string;
-};
+// --- Product queries ---
 
-type BotLoginRow = {
-  bot_id: string;
-  github_login: string;
-};
+export async function getProducts(): Promise<Product[]> {
+  return query<Product>("SELECT * FROM products ORDER BY name");
+}
 
-async function assembleBots(botRows: BotRow[]): Promise<Bot[]> {
+export async function getProductById(id: string): Promise<Product | null> {
+  const rows = await query<Product>(
+    "SELECT * FROM products WHERE id = {id:String}",
+    { id },
+  );
+  return rows[0] ?? null;
+}
+
+export async function getProductSummaries(): Promise<ProductSummary[]> {
+  return query<ProductSummary>(`
+    WITH
+      activity_agg AS (
+        SELECT
+          b.product_id,
+          sum(ra.review_count) AS total_reviews,
+          sum(ra.review_comment_count) AS total_comments,
+          max(ra.repo_count) AS max_repos,
+          max(ra.org_count) AS max_orgs,
+          min(ra.week) AS first_seen,
+          sumIf(ra.review_count, ra.week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
+          sumIf(ra.review_count, ra.week >= toDate(now()) - INTERVAL 8 WEEK AND ra.week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+        FROM review_activity ra
+        JOIN bots b ON ra.bot_id = b.id
+        GROUP BY b.product_id
+      ),
+      reaction_agg AS (
+        SELECT
+          b.product_id,
+          sum(rr.thumbs_up) AS thumbs_up,
+          sum(rr.thumbs_down) AS thumbs_down,
+          sum(rr.heart) AS heart
+        FROM review_reactions rr
+        JOIN bots b ON rr.bot_id = b.id
+        GROUP BY b.product_id
+      )
+    SELECT
+      p.id,
+      p.name,
+      p.website,
+      p.description,
+      p.brand_color,
+      p.avatar_url,
+      COALESCE(ra.total_reviews, 0) AS total_reviews,
+      COALESCE(ra.total_comments, 0) AS total_comments,
+      COALESCE(ra.max_repos, 0) AS total_repos,
+      COALESCE(ra.max_orgs, 0) AS total_orgs,
+      round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
+      COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
+      round(
+        if(ra.prev_period_reviews > 0,
+          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+          0),
+        1
+      ) AS growth_pct,
+      COALESCE(rr.thumbs_up, 0) AS thumbs_up,
+      COALESCE(rr.thumbs_down, 0) AS thumbs_down,
+      COALESCE(rr.heart, 0) AS heart,
+      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
+        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
+        0), 1) AS approval_rate,
+      round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
+      COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
+    FROM products p
+    LEFT JOIN activity_agg ra ON p.id = ra.product_id
+    LEFT JOIN reaction_agg rr ON p.id = rr.product_id
+    ORDER BY total_reviews DESC
+  `);
+}
+
+export async function getWeeklyActivityByProduct(
+  productId?: string,
+): Promise<WeeklyActivityByProduct[]> {
+  const where = productId ? "WHERE b.product_id = {productId:String}" : "";
+  return query<WeeklyActivityByProduct>(
+    `
+      SELECT
+        formatDateTime(ra.week, '%Y-%m-%d') AS week,
+        b.product_id,
+        p.name AS product_name,
+        p.brand_color,
+        sum(ra.review_count) AS review_count,
+        sum(ra.review_comment_count) AS review_comment_count,
+        max(ra.repo_count) AS repo_count,
+        max(ra.org_count) AS org_count
+      FROM review_activity ra
+      JOIN bots b ON ra.bot_id = b.id
+      JOIN products p ON b.product_id = p.id
+      ${where}
+      GROUP BY ra.week, b.product_id, p.name, p.brand_color
+      ORDER BY ra.week ASC, review_count DESC
+    `,
+    productId ? { productId } : {},
+  );
+}
+
+export async function getProductComparisons(): Promise<ProductComparison[]> {
+  return query<ProductComparison>(`
+    WITH
+      activity_agg AS (
+        SELECT
+          b.product_id,
+          sum(ra.review_count) AS total_reviews,
+          sum(ra.review_comment_count) AS total_comments,
+          max(ra.repo_count) AS max_repos,
+          max(ra.org_count) AS max_orgs,
+          count(DISTINCT ra.week) AS weeks_active,
+          sumIf(ra.review_count, ra.week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
+          sumIf(ra.review_comment_count, ra.week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
+          sumIf(ra.review_count, ra.week >= toDate(now()) - INTERVAL 8 WEEK AND ra.week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+        FROM review_activity ra
+        JOIN bots b ON ra.bot_id = b.id
+        GROUP BY b.product_id
+      ),
+      reaction_agg AS (
+        SELECT
+          b.product_id,
+          sum(rr.thumbs_up) AS thumbs_up,
+          sum(rr.thumbs_down) AS thumbs_down,
+          sum(rr.heart) AS heart
+        FROM review_reactions rr
+        JOIN bots b ON rr.bot_id = b.id
+        GROUP BY b.product_id
+      )
+    SELECT
+      p.id,
+      p.name,
+      COALESCE(ra.total_reviews, 0) AS total_reviews,
+      COALESCE(ra.total_comments, 0) AS total_comments,
+      COALESCE(ra.max_repos, 0) AS total_repos,
+      COALESCE(ra.max_orgs, 0) AS total_orgs,
+      round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
+      round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
+      round(if(ra.max_orgs > 0, ra.total_reviews / ra.max_orgs, 0), 0) AS reviews_per_org,
+      COALESCE(rr.thumbs_up, 0) AS thumbs_up,
+      COALESCE(rr.thumbs_down, 0) AS thumbs_down,
+      COALESCE(rr.heart, 0) AS heart,
+      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
+        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
+        0), 1) AS approval_rate,
+      round(
+        if(ra.prev_period_reviews > 0,
+          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+          0),
+        1
+      ) AS growth_pct,
+      COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
+      COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
+      COALESCE(ra.weeks_active, 0) AS weeks_active
+    FROM products p
+    LEFT JOIN activity_agg ra ON p.id = ra.product_id
+    LEFT JOIN reaction_agg rr ON p.id = rr.product_id
+    ORDER BY total_reviews DESC
+  `);
+}
+
+export async function getProductBots(productId: string): Promise<ProductBot[]> {
+  return query<ProductBot>(
+    `
+      SELECT
+        b.id,
+        b.name,
+        bl.github_login,
+        b.brand_color,
+        COALESCE(sum(ra.review_count), 0) AS total_reviews,
+        COALESCE(sum(ra.review_comment_count), 0) AS total_comments,
+        COALESCE(formatDateTime(min(ra.week), '%Y-%m-%d'), '') AS first_week,
+        COALESCE(formatDateTime(max(ra.week), '%Y-%m-%d'), '') AS last_week
+      FROM bots b
+      LEFT JOIN bot_logins bl ON b.id = bl.bot_id
+      LEFT JOIN review_activity ra ON b.id = ra.bot_id
+      WHERE b.product_id = {productId:String}
+      GROUP BY b.id, b.name, bl.github_login, b.brand_color
+      ORDER BY total_reviews DESC
+    `,
+    { productId },
+  );
+}
+
+// --- Bot queries (kept for detail views) ---
+
+async function assembleBots(botRows: { id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }[]): Promise<Bot[]> {
   if (botRows.length === 0) return [];
   const botIds = botRows.map((b) => b.id);
-  const loginRows = await query<BotLoginRow>(
+  const loginRows = await query<{ bot_id: string; github_login: string }>(
     "SELECT bot_id, github_login FROM bot_logins WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
     { botIds },
   );
-  const loginsByBot = new Map<string, string[]>();
+  const loginByBot = new Map<string, string>();
   for (const row of loginRows) {
-    const logins = loginsByBot.get(row.bot_id) ?? [];
-    logins.push(row.github_login);
-    loginsByBot.set(row.bot_id, logins);
+    loginByBot.set(row.bot_id, row.github_login);
   }
   return botRows.map((b) => ({
     ...b,
-    github_logins: loginsByBot.get(b.id) ?? [],
+    github_login: loginByBot.get(b.id) ?? "",
   }));
 }
 
 export async function getBots(): Promise<Bot[]> {
-  const rows = await query<BotRow>("SELECT * FROM bots ORDER BY name");
+  const rows = await query<{ id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }>(
+    "SELECT id, name, product_id, website, description, brand_color, avatar_url FROM bots ORDER BY name",
+  );
   return assembleBots(rows);
 }
 
 export async function getBotById(id: string): Promise<Bot | null> {
-  const rows = await query<BotRow>(
-    "SELECT * FROM bots WHERE id = {id:String}",
+  const rows = await query<{ id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }>(
+    "SELECT id, name, product_id, website, description, brand_color, avatar_url FROM bots WHERE id = {id:String}",
     { id },
   );
   if (rows.length === 0) return null;
@@ -219,6 +471,8 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
       b.name,
       b.website,
       b.description,
+      b.brand_color,
+      b.avatar_url,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.max_repos, 0) AS total_repos,
