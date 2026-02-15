@@ -165,9 +165,9 @@ export default async function BotPage({
       </section>
 
       {/* Comments per PR */}
-      {commentsPerPR.length > 0 && (
-        <section data-testid="bot-comments-per-pr">
-          <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
+      <section data-testid="bot-comments-per-pr">
+        <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
+        {commentsPerPR.length > 0 ? (
           <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 inline-block">
             <p className="text-sm text-gray-400">Avg Comments / PR</p>
             <p className="text-3xl font-bold tabular-nums">
@@ -178,8 +178,10 @@ export default async function BotPage({
               {Number(commentsPerPR[0].total_prs).toLocaleString()} PRs
             </p>
           </div>
-        </section>
-      )}
+        ) : (
+          <p className="text-gray-500 text-sm">No data</p>
+        )}
+      </section>
 
       {/* Reactions by PR Size */}
       <section data-testid="bot-reactions-by-size">
