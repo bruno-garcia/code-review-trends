@@ -112,7 +112,7 @@ export async function queryBotReviewActivity(
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "500000000000", // 500GB — BigQuery wildcard estimates are much higher than actual scan
+      "700000000000", // 700GB — BigQuery wildcard estimates are much higher than actual scan
   });
 
   return rows as WeeklyBotReviewRow[];
@@ -170,7 +170,7 @@ export async function queryHumanReviewActivity(
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "500000000000",
+      "700000000000",
   });
 
   return rows as WeeklyHumanReviewRow[];
@@ -212,7 +212,7 @@ export async function discoverBotReviewers(
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "500000000000",
+      "700000000000",
   });
 
   return rows as { login: string; event_count: number; repo_count: number }[];
