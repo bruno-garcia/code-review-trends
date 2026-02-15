@@ -3,19 +3,28 @@
  *
  * GH Archive stores all public GitHub events in BigQuery at:
  *   `githubarchive.day.YYYYMMDD` (daily tables)
- *   `githubarchive.month.YYYYMM` (monthly tables, cheaper for broad scans)
+ *   `githubarchive.month.YYYYMM` (monthly tables)
  *
- * We query PullRequestReviewEvent and PullRequestReviewCommentEvent
- * to get weekly counts of bot vs human reviews.
+ * The `day` dataset contains a `yesterday` view that breaks wildcard queries
+ * (`githubarchive.day.*`). We work around this by using `githubarchive.day.2*`
+ * which matches all date tables (they start with `20...`) but excludes the view.
+ * The `_TABLE_SUFFIX` then contains everything after the `2` prefix,
+ * e.g. table `20250106` has suffix `0250106`.
  *
- * Cost: ~$5/TB scanned. Monthly tables are more efficient for historical backfills.
+ * IMPORTANT: BigQuery only prunes wildcard tables when _TABLE_SUFFIX conditions
+ * use literal values — parameterized values (@param) disable pruning and scan
+ * ALL matching tables (~100GB+). We therefore interpolate suffix values directly
+ * into the SQL string. These are date-derived strings validated by this module,
+ * not user input. Bot logins remain parameterized.
+ *
+ * Cost: ~150MB per day scanned. A 7-day query costs ~1GB.
  */
 
 import { BigQuery } from "@google-cloud/bigquery";
 
 export type BigQueryConfig = {
   projectId?: string;
-  /** If set, limits query cost (in GB). Queries exceeding this are rejected. */
+  /** If set, limits query cost (in bytes). Queries exceeding this are rejected. */
   maxBytesProcessed?: number;
 };
 
@@ -23,6 +32,21 @@ export function createBigQueryClient(config?: BigQueryConfig): BigQuery {
   return new BigQuery({
     projectId: config?.projectId ?? process.env.GCP_PROJECT_ID,
   });
+}
+
+/**
+ * Convert a YYYY-MM-DD date to the _TABLE_SUFFIX format used with
+ * `githubarchive.day.2*`. Strips the leading "2" from YYYYMMDD.
+ * E.g. "2025-01-06" → "0250106"
+ *
+ * Validates format to prevent SQL injection (only digits allowed).
+ */
+function toSuffix(date: string): string {
+  const compact = date.replace(/-/g, "");
+  if (!/^\d{8}$/.test(compact)) {
+    throw new Error(`Invalid date format: "${date}". Expected YYYY-MM-DD.`);
+  }
+  return compact.slice(1); // "20250106" → "0250106"
 }
 
 export type WeeklyBotReviewRow = {
@@ -51,7 +75,11 @@ export async function queryBotReviewActivity(
 ): Promise<WeeklyBotReviewRow[]> {
   if (botLogins.length === 0) return [];
 
-  // Use UNNEST for the bot login filter
+  const startSuffix = toSuffix(startDate);
+  const endSuffix = toSuffix(endDate);
+
+  // Suffix literals are interpolated for wildcard table pruning.
+  // Bot logins remain parameterized to prevent injection.
   const query = `
     WITH events AS (
       SELECT
@@ -59,9 +87,9 @@ export async function queryBotReviewActivity(
         actor.login AS actor_login,
         type,
         JSON_VALUE(payload, '$.pull_request.base.repo.full_name') AS repo_name
-      FROM \`githubarchive.day.*\`
+      FROM \`githubarchive.day.2*\`
       WHERE
-        _TABLE_SUFFIX BETWEEN @start_suffix AND @end_suffix
+        _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
         AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
         AND actor.login IN UNNEST(@bot_logins)
     )
@@ -79,14 +107,12 @@ export async function queryBotReviewActivity(
   const [rows] = await bq.query({
     query,
     params: {
-      start_suffix: startDate.replace(/-/g, ""),
-      end_suffix: endDate.replace(/-/g, ""),
       bot_logins: botLogins,
     },
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "10000000000", // 10GB default
+      "500000000000", // 500GB — BigQuery wildcard estimates are much higher than actual scan
   });
 
   return rows as WeeklyBotReviewRow[];
@@ -110,15 +136,18 @@ export async function queryHumanReviewActivity(
   botLogins: string[],
   config?: BigQueryConfig,
 ): Promise<WeeklyHumanReviewRow[]> {
+  const startSuffix = toSuffix(startDate);
+  const endSuffix = toSuffix(endDate);
+
   const query = `
     WITH events AS (
       SELECT
         DATE_TRUNC(DATE(created_at), WEEK(MONDAY)) AS week,
         type,
         JSON_VALUE(payload, '$.pull_request.base.repo.full_name') AS repo_name
-      FROM \`githubarchive.day.*\`
+      FROM \`githubarchive.day.2*\`
       WHERE
-        _TABLE_SUFFIX BETWEEN @start_suffix AND @end_suffix
+        _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
         AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
         AND actor.login NOT IN UNNEST(@bot_logins)
         AND actor.login NOT LIKE '%[bot]'
@@ -136,14 +165,12 @@ export async function queryHumanReviewActivity(
   const [rows] = await bq.query({
     query,
     params: {
-      start_suffix: startDate.replace(/-/g, ""),
-      end_suffix: endDate.replace(/-/g, ""),
       bot_logins: botLogins,
     },
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "10000000000",
+      "500000000000",
   });
 
   return rows as WeeklyHumanReviewRow[];
@@ -161,14 +188,17 @@ export async function discoverBotReviewers(
   endDate: string,
   config?: BigQueryConfig,
 ): Promise<{ login: string; event_count: number; repo_count: number }[]> {
+  const startSuffix = toSuffix(startDate);
+  const endSuffix = toSuffix(endDate);
+
   const query = `
     SELECT
       actor.login AS login,
       COUNT(*) AS event_count,
       COUNT(DISTINCT repo.name) AS repo_count
-    FROM \`githubarchive.day.*\`
+    FROM \`githubarchive.day.2*\`
     WHERE
-      _TABLE_SUFFIX BETWEEN @start_suffix AND @end_suffix
+      _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
       AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
       AND actor.login LIKE '%[bot]'
     GROUP BY actor.login
@@ -179,14 +209,10 @@ export async function discoverBotReviewers(
 
   const [rows] = await bq.query({
     query,
-    params: {
-      start_suffix: startDate.replace(/-/g, ""),
-      end_suffix: endDate.replace(/-/g, ""),
-    },
     maximumBytesBilled:
       config?.maxBytesProcessed?.toString() ??
       process.env.BQ_MAX_BYTES_BILLED ??
-      "5000000000",
+      "500000000000",
   });
 
   return rows as { login: string; event_count: number; repo_count: number }[];

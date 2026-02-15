@@ -35,6 +35,11 @@ export function createClickHouseVM(
   const startupScript = pulumi
     .all([clickhousePassword, cfg.clickhouseDomain])
     .apply(([password, domain]) => {
+      // Validate domain to prevent injection into the Caddyfile
+      if (!/^[a-zA-Z0-9.-]+$/.test(domain)) {
+        throw new Error(`Invalid domain format: ${domain}`);
+      }
+
       // Escape single quotes in password for shell safety
       const escapedPassword = password.replace(/'/g, "'\\''");
 
@@ -74,7 +79,7 @@ CFGEOF
 
 # Set the default user password and compute SHA256 hash for config
 CH_PASSWORD='${escapedPassword}'
-CH_PASSWORD_HASH=$(echo -n "$CH_PASSWORD" | sha256sum | tr -d ' -')
+CH_PASSWORD_HASH=$(printf "%s" "$CH_PASSWORD" | sha256sum | tr -d ' -')
 
 cat > /etc/clickhouse-server/users.d/default-password.xml <<'PWEOF'
 <clickhouse>
@@ -82,7 +87,8 @@ cat > /etc/clickhouse-server/users.d/default-password.xml <<'PWEOF'
     <default>
       <password_sha256_hex>PLACEHOLDER_HASH</password_sha256_hex>
       <networks>
-        <ip>::/0</ip>
+        <ip>127.0.0.1</ip>
+        <ip>::1</ip>
       </networks>
     </default>
   </users>
