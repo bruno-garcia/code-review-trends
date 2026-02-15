@@ -9,7 +9,9 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 - **`app/`** — Next.js 16 (App Router, TypeScript, Tailwind CSS v4). Server components fetch from ClickHouse; client components render charts with Recharts.
 - **`pipeline/`** — TypeScript data collection service. Pulls data from BigQuery (GH Archive) and GitHub API, writes to ClickHouse. Has CLI tools for dev.
 - **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages the production ClickHouse VM, networking, and firewall rules. See `infra/README.md`.
-- **`db/`** — ClickHouse schema (`db/init/001_schema.sql`) and seed data (`db/init/002_seed.sql`). Init scripts run automatically when ClickHouse container starts.
+- **`db/`** — ClickHouse schema and data, split by environment:
+  - `db/init/` — runs on **all** environments: schema (`001_schema.sql`), bot reference data (`002_bot_data.sql`), and the seed loader script (`003_seed.sh`).
+  - `db/seed/` — runs on **local dev and CI only**: fake data (`001_fake_data.sql`) for realistic growth curves.
 - **`docker-compose.yml`** — Local dev services (ClickHouse).
 
 ## Dev Environment
@@ -70,7 +72,9 @@ npm run pipeline -- help                 # show all commands
 
 10. **Build dev tools, not just features.** Invest in CLI tools (`inspect`, `validate`, `discover-bots`) that make development fast and reduce reliance on CI or prod for feedback.
 
-11. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
+11. **Separate schema from seed data.** `db/init/` contains schema and bot reference data — applied to all environments. `db/seed/` contains fake data — only loaded in local dev (via docker-compose `003_seed.sh`) and CI (via `init-ci.sh`). The `migrate` command applies only `db/init/` files to remote databases.
+
+12. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
 
 ## Key Files
 
@@ -81,8 +85,11 @@ npm run pipeline -- help                 # show all commands
 | `app/src/app/page.tsx` | Home page — AI share, volume, leaderboard |
 | `app/src/app/bots/page.tsx` | Bot listing page |
 | `app/src/app/bots/[id]/page.tsx` | Individual bot detail page |
-| `db/init/001_schema.sql` | ClickHouse table definitions |
-| `db/init/002_seed.sql` | Fake seed data for dev |
+| `db/init/001_schema.sql` | ClickHouse table definitions (all environments) |
+| `db/init/002_bot_data.sql` | Products, bots, bot_logins reference data (all environments) |
+| `db/init/003_seed.sh` | Docker init script that loads db/seed/ (local dev only) |
+| `db/seed/001_fake_data.sql` | Fake review data for local dev and CI only |
+| `db/init-ci.sh` | CI init script — runs db/init/*.sql + db/seed/*.sql via HTTP |
 | `app/e2e/` | Playwright e2e tests |
 | `pipeline/src/bots.ts` | Canonical bot registry |
 | `pipeline/src/clickhouse.ts` | ClickHouse writer (pipeline) |
@@ -104,8 +111,28 @@ npm run pipeline -- help                 # show all commands
 
 1. Add an entry to `pipeline/src/bots.ts`.
 2. Run `npm run pipeline -- sync-bots` to push to ClickHouse.
-3. The UI picks it up automatically — no code changes needed.
-4. Optionally add seed data in `db/init/002_seed.sql` for dev.
+3. Update `db/init/002_bot_data.sql` to match (validated by `bots.test.ts`).
+4. The UI picks it up automatically — no code changes needed.
+5. Optionally add fake data in `db/seed/001_fake_data.sql` for dev.
+
+## Managing Remote Databases
+
+```bash
+# Apply schema + bot data to staging (reads creds from Pulumi)
+npm run pipeline -- migrate --stack staging
+
+# Apply schema + bot data to prod
+npm run pipeline -- migrate --stack prod
+
+# Apply to local ClickHouse (uses env vars or defaults)
+npm run pipeline -- migrate --local
+
+# Preview what would be applied
+npm run pipeline -- migrate --stack staging --dry-run
+
+# Run data import pipeline against any database
+CLICKHOUSE_URL=https://... CLICKHOUSE_PASSWORD=... npm run pipeline -- sync
+```
 
 ## Adding a New Chart / Metric
 
