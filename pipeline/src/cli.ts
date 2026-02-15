@@ -15,9 +15,10 @@
  * All commands are idempotent. Safe to re-run.
  */
 
-import { BOTS, BOT_BY_LOGIN, BOT_LOGINS } from "./bots.js";
+import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import {
   createCHClient,
+  syncProducts,
   syncBots,
   insertReviewActivity,
   insertHumanActivity,
@@ -102,9 +103,11 @@ Environment variables:
 }
 
 async function cmdSyncBots() {
-  console.log(`Syncing ${BOTS.length} bot definitions to ClickHouse...`);
+  console.log(`Syncing ${PRODUCTS.length} products and ${BOTS.length} bots to ClickHouse...`);
   const client = createCHClient();
   try {
+    await syncProducts(client, PRODUCTS);
+    console.log(`✓ Synced ${PRODUCTS.length} products`);
     await syncBots(client, BOTS);
     console.log(`✓ Synced ${BOTS.length} bots`);
   } finally {

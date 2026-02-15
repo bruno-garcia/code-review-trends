@@ -7,7 +7,7 @@
  */
 
 import { createClient, type ClickHouseClient } from "@clickhouse/client";
-import { type BotDefinition } from "./bots.js";
+import { type BotDefinition, type ProductDefinition } from "./bots.js";
 
 export type ClickHouseConfig = {
   url: string;
@@ -32,6 +32,43 @@ export function createCHClient(config?: ClickHouseConfig): ClickHouseClient {
     username: c.username,
     password: c.password,
     database: c.database,
+  });
+}
+
+/**
+ * Sync product definitions into the `products` table.
+ * Uses ReplacingMergeTree so re-inserts update existing rows.
+ */
+export async function syncProducts(
+  client: ClickHouseClient,
+  products: ProductDefinition[],
+): Promise<void> {
+  if (products.length === 0) return;
+
+  // Ensure products table exists (for migration of existing DBs)
+  await client.command({
+    query: `CREATE TABLE IF NOT EXISTS products (
+      id String,
+      name String,
+      website String,
+      description String,
+      brand_color String,
+      avatar_url String
+    ) ENGINE = ReplacingMergeTree()
+    ORDER BY id`,
+  });
+
+  await client.insert({
+    table: "products",
+    values: products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      website: p.website,
+      description: p.description,
+      brand_color: p.brand_color,
+      avatar_url: p.avatar_url,
+    })),
+    format: "JSONEachRow",
   });
 }
 
@@ -62,6 +99,9 @@ export async function syncBots(
       name: b.name,
       website: b.website,
       description: b.description,
+      product_id: b.product_id,
+      brand_color: b.brand_color,
+      avatar_url: b.avatar_url,
     })),
     format: "JSONEachRow",
   });
