@@ -71,7 +71,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "CodeScene",
     website: "https://codescene.com",
     description: "Behavioral code analysis and AI code review.",
-    brand_color: "#4f46e5",
+    brand_color: "#5f72ee",
     avatar_url: "https://avatars.githubusercontent.com/u/38929568?v=4",
   },
   {
@@ -96,7 +96,7 @@ export const PRODUCTS: ProductDefinition[] = [
     website: "https://qodo.ai",
     description:
       "AI agent for code integrity — reviews, tests, and suggestions.",
-    brand_color: "#8b5cf6",
+    brand_color: "#9d75f8",
     avatar_url: "https://avatars.githubusercontent.com/in/484649?v=4",
   },
   {
@@ -113,7 +113,7 @@ export const PRODUCTS: ProductDefinition[] = [
     website: "https://sentry.io",
     description:
       "Application monitoring platform with AI-powered code review and error tracking.",
-    brand_color: "#362d59",
+    brand_color: "#9589c4",
     avatar_url: "https://avatars.githubusercontent.com/u/1396951?v=4",
   },
   {
@@ -130,7 +130,7 @@ export const PRODUCTS: ProductDefinition[] = [
     website: "https://graphite.dev",
     description:
       "Developer productivity platform with AI-assisted code review.",
-    brand_color: "#2563eb",
+    brand_color: "#5b8ef0",
     avatar_url: "https://avatars.githubusercontent.com/in/158384?v=4",
   },
   {
@@ -162,7 +162,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Cursor Bugbot",
     website: "https://cursor.com",
     description: "AI code editor with automated bug detection on pull requests.",
-    brand_color: "#dc2626",
+    brand_color: "#e84e4e",
     avatar_url: "https://avatars.githubusercontent.com/in/1210556?v=4",
   },
   {
@@ -187,7 +187,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Korbit",
     website: "https://korbit.ai",
     description: "AI code review mentor that helps teams improve code quality.",
-    brand_color: "#854d0e",
+    brand_color: "#b07838",
     avatar_url: "https://avatars.githubusercontent.com/in/322216?v=4",
   },
   {
@@ -212,7 +212,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Jazzberry",
     website: "https://jazzberry.ai",
     description: "AI code review tool for automated feedback on pull requests.",
-    brand_color: "#bd0048",
+    brand_color: "#d44d7f",
     avatar_url: "https://avatars.githubusercontent.com/in/1231820?v=4",
   },
   {
@@ -220,7 +220,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Mesa",
     website: "https://mesa.dev",
     description: "AI-powered development workflow with code review automation.",
-    brand_color: "#973c00",
+    brand_color: "#c06a33",
     avatar_url: "https://avatars.githubusercontent.com/in/1050077?v=4",
   },
   {
@@ -229,7 +229,7 @@ export const PRODUCTS: ProductDefinition[] = [
     website: "https://linearb.io",
     description:
       "Dev workflow platform with gitStream automation and AI-powered code review.",
-    brand_color: "#6366f1",
+    brand_color: "#a37ce2",
     avatar_url: "https://avatars.githubusercontent.com/in/1658443?v=4",
   },
   {
@@ -276,7 +276,7 @@ export const BOTS: BotDefinition[] = [
     github_login: "codescene-delta-analysis[bot]",
     website: "https://codescene.com",
     description: "Behavioral code analysis and AI code review.",
-    brand_color: "#4f46e5",
+    brand_color: "#5f72ee",
     avatar_url: "https://avatars.githubusercontent.com/u/38929568?v=4",
   },
   // Sourcery
@@ -310,7 +310,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://qodo.ai",
     description:
       "Legacy CodiumAI PR agent, now part of Qodo's code review suite.",
-    brand_color: "#8b5cf6",
+    brand_color: "#9d75f8",
     avatar_url: "https://avatars.githubusercontent.com/u/54746889?v=4",
   },
   {
@@ -320,7 +320,7 @@ export const BOTS: BotDefinition[] = [
     github_login: "qodo-merge[bot]",
     website: "https://qodo.ai",
     description: "Qodo's AI-powered pull request merge assistant.",
-    brand_color: "#8b5cf6",
+    brand_color: "#9d75f8",
     avatar_url: "https://avatars.githubusercontent.com/u/104026966?v=4",
   },
   {
@@ -331,7 +331,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://qodo.ai",
     description:
       "AI agent for code integrity — reviews, tests, and suggestions.",
-    brand_color: "#8b5cf6",
+    brand_color: "#9d75f8",
     avatar_url: "https://avatars.githubusercontent.com/in/484649?v=4",
   },
   // Greptile
@@ -354,7 +354,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://sentry.io",
     description:
       "Sentry's GitHub bot for issue linking, code review, and error tracking.",
-    brand_color: "#362d59",
+    brand_color: "#9589c4",
     avatar_url: "https://avatars.githubusercontent.com/u/1396951?v=4",
   },
   {
@@ -364,7 +364,7 @@ export const BOTS: BotDefinition[] = [
     github_login: "seer-by-sentry[bot]",
     website: "https://sentry.io",
     description: "Sentry's AI agent for automated root cause analysis.",
-    brand_color: "#362d59",
+    brand_color: "#9589c4",
     avatar_url: "https://avatars.githubusercontent.com/in/801464?v=4",
   },
   {
@@ -375,7 +375,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://codecov.io",
     description:
       "Codecov's AI-powered code review for test coverage insights.",
-    brand_color: "#362d59",
+    brand_color: "#9589c4",
     avatar_url: "https://avatars.githubusercontent.com/in/797565?v=4",
   },
   // Baz
@@ -398,7 +398,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://graphite.dev",
     description:
       "Developer productivity platform with AI-assisted code review.",
-    brand_color: "#2563eb",
+    brand_color: "#5b8ef0",
     avatar_url: "https://avatars.githubusercontent.com/in/158384?v=4",
   },
   // CodeAnt
@@ -442,7 +442,7 @@ export const BOTS: BotDefinition[] = [
     github_login: "cursor[bot]",
     website: "https://cursor.com",
     description: "AI code editor with automated bug detection on pull requests.",
-    brand_color: "#dc2626",
+    brand_color: "#e84e4e",
     avatar_url: "https://avatars.githubusercontent.com/in/1210556?v=4",
   },
   // Gemini Code Assist
@@ -476,7 +476,7 @@ export const BOTS: BotDefinition[] = [
     github_login: "korbit-ai[bot]",
     website: "https://korbit.ai",
     description: "AI code review mentor that helps teams improve code quality.",
-    brand_color: "#854d0e",
+    brand_color: "#b07838",
     avatar_url: "https://avatars.githubusercontent.com/in/322216?v=4",
   },
   // Claude
@@ -510,7 +510,7 @@ export const BOTS: BotDefinition[] = [
     github_login: "jazzberry-ai[bot]",
     website: "https://jazzberry.ai",
     description: "AI code review tool for automated feedback on pull requests.",
-    brand_color: "#bd0048",
+    brand_color: "#d44d7f",
     avatar_url: "https://avatars.githubusercontent.com/in/1231820?v=4",
   },
   // Mesa
@@ -521,7 +521,7 @@ export const BOTS: BotDefinition[] = [
     github_login: "mesa-dot-dev[bot]",
     website: "https://mesa.dev",
     description: "AI-powered development workflow with code review automation.",
-    brand_color: "#973c00",
+    brand_color: "#c06a33",
     avatar_url: "https://avatars.githubusercontent.com/in/1050077?v=4",
   },
   // LinearB (2 bots)
@@ -533,7 +533,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://linearb.io",
     description:
       "LinearB's workflow automation bot for continuous merge management.",
-    brand_color: "#6366f1",
+    brand_color: "#a37ce2",
     avatar_url: "https://avatars.githubusercontent.com/ml/13414?v=4",
   },
   {
@@ -544,7 +544,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://linearb.io",
     description:
       "LinearB's GitHub bot for dev workflow insights and code review.",
-    brand_color: "#6366f1",
+    brand_color: "#a37ce2",
     avatar_url: "https://avatars.githubusercontent.com/in/1658443?v=4",
   },
   // Augment Code

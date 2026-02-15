@@ -147,10 +147,10 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
 
 export function LogoWordmark() {
   return (
-    <span className="text-lg font-bold leading-tight tracking-tight">
-      <span className="text-gray-100">Code</span>
-      <span className="text-violet-400">Review</span>
-      <span className="text-violet-600">Trends</span>
+    <span className="text-lg font-bold leading-tight tracking-[-0.5px]">
+      <span className="text-wordmark-code">Code</span>
+      <span className="text-wordmark-review">Review</span>
+      <span className="text-wordmark-trends">Trends</span>
     </span>
   );
 }
