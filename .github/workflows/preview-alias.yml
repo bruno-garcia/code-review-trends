@@ -5,6 +5,8 @@ on:
 
 jobs:
   alias:
+    permissions:
+      pull-requests: write
     if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Preview'
     runs-on: ubuntu-latest
     steps:
@@ -55,7 +57,7 @@ jobs:
           echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview URL on PR
-        if: steps.alias.outputs.custom_domain
+        if: steps.alias.outputs.custom_domain != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -65,8 +67,9 @@ jobs:
           SHORT_SHA="${COMMIT_SHA:0:7}"
 
           # Find the PR for this branch
+          # Pipe to standalone jq because gh api --jq doesn't support --arg
           PR_NUMBER=$(gh api "repos/${{ github.repository }}/pulls" \
-            --jq --arg branch "$BRANCH" '.[] | select(.head.ref == $branch and .state == "open") | .number' \
+            | jq -r --arg branch "$BRANCH" '.[] | select(.head.ref == $branch and .state == "open") | .number' \
             | head -1)
 
           if [ -z "$PR_NUMBER" ]; then
