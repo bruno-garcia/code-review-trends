@@ -21,3 +21,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Pi agent artifacts
+.pi/
