@@ -6,6 +6,7 @@ on:
 jobs:
   alias:
     permissions:
+      contents: read
       pull-requests: write
     if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Preview'
     runs-on: ubuntu-latest
