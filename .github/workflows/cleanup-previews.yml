@@ -1,0 +1,53 @@
+name: Cleanup Preview Aliases
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # daily at 3am UTC
+  workflow_dispatch: # allow manual trigger
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove stale preview aliases
+        run: |
+          # Collect all remote branch names, sanitized the same way as preview-alias.yml
+          BRANCHES=$(git branch -r --format='%(refname:short)' | sed 's|origin/||')
+          SANITIZED_BRANCHES=""
+          for BRANCH in $BRANCHES; do
+            SLUG=$(echo "$BRANCH" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed 's/[^a-z0-9-]/-/g' \
+              | sed 's/--*/-/g' \
+              | sed 's/^-\|-$//g')
+            SANITIZED_BRANCHES="$SANITIZED_BRANCHES $SLUG"
+          done
+
+          # List all preview aliases
+          ALIASES=$(npx vercel alias ls \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --scope=${{ secrets.VERCEL_ORG_ID }} 2>/dev/null \
+            | grep '\.preview\.codereviewtrends\.com' \
+            | awk '{print $1}')
+
+          if [ -z "$ALIASES" ]; then
+            echo "No preview aliases found, nothing to clean up"
+            exit 0
+          fi
+
+          for ALIAS in $ALIASES; do
+            SLUG=$(echo "$ALIAS" | sed 's/\.preview\.codereviewtrends\.com//')
+
+            if echo "$SANITIZED_BRANCHES" | grep -qw "$SLUG"; then
+              echo "✅ Keeping: $ALIAS (branch exists)"
+            else
+              echo "🗑  Removing: $ALIAS (branch deleted)"
+              npx vercel alias rm "$ALIAS" --yes \
+                --token=${{ secrets.VERCEL_TOKEN }} \
+                --scope=${{ secrets.VERCEL_ORG_ID }}
+            fi
+          done

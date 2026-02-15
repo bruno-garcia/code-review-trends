@@ -1,0 +1,32 @@
+name: Preview Alias
+
+on:
+  deployment_status:
+
+jobs:
+  alias:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Preview'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Alias deployment to custom subdomain
+        run: |
+          # Sanitize branch name for DNS (lowercase, replace non-alphanumeric with hyphens)
+          BRANCH=$(echo "${{ github.event.deployment.ref }}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9-]/-/g' \
+            | sed 's/--*/-/g' \
+            | sed 's/^-\|-$//g')
+
+          if [ -z "$BRANCH" ]; then
+            echo "⚠️ Could not determine branch name, skipping"
+            exit 0
+          fi
+
+          DEPLOYMENT_URL="${{ github.event.deployment_status.target_url }}"
+          CUSTOM_DOMAIN="${BRANCH}.preview.codereviewtrends.com"
+
+          npx vercel alias set "$DEPLOYMENT_URL" "$CUSTOM_DOMAIN" \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --scope=${{ secrets.VERCEL_ORG_ID }}
+
+          echo "✅ Aliased to https://$CUSTOM_DOMAIN"
