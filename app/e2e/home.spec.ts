@@ -104,7 +104,6 @@ test.describe("Home page", () => {
     const volumeSection = page.getByTestId("volume-section");
     // Scroll the chart into view first — it's below the fold
     await volumeSection.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
 
     const chartWrapper = volumeSection.locator(".recharts-wrapper").first();
     await expect(chartWrapper).toBeVisible();
@@ -112,13 +111,19 @@ test.describe("Home page", () => {
     // Hover across the chart area to trigger the Recharts tooltip
     const box = await chartWrapper.boundingBox();
     expect(box).not.toBeNull();
-    for (let xOffset = 0.1; xOffset <= 0.9; xOffset += 0.05) {
-      await page.mouse.move(
-        box!.x + box!.width * xOffset,
-        box!.y + box!.height * 0.3,
-      );
-      await page.waitForTimeout(100);
-    }
+
+    // Perform a smooth mouse movement across the chart to trigger the tooltip.
+    // Using steps lets Playwright interpolate intermediate mousemove events
+    // without arbitrary waitForTimeout calls.
+    await page.mouse.move(
+      box!.x + box!.width * 0.1,
+      box!.y + box!.height * 0.3,
+    );
+    await page.mouse.move(
+      box!.x + box!.width * 0.9,
+      box!.y + box!.height * 0.3,
+      { steps: 20 },
+    );
 
     // The Recharts tooltip wrapper should become visible
     const tooltip = volumeSection.locator(".recharts-tooltip-wrapper");
