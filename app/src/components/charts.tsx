@@ -155,9 +155,11 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
 export function ReviewVolumeChart({
   data,
   bots,
+  colors,
 }: {
   data: Record<string, string | number>[];
   bots: string[];
+  colors?: Record<string, string>;
 }) {
   return (
     <ResponsiveContainer width="100%" height={350}>
@@ -180,17 +182,20 @@ export function ReviewVolumeChart({
           formatter={(value, name) => [formatNumber(Number(value)), name]}
         />
         <Legend wrapperStyle={LEGEND_STYLE} />
-        {bots.map((bot, i) => (
-          <Area
-            key={bot}
-            type="monotone"
-            dataKey={bot}
-            stackId="1"
-            stroke={COLORS[i % COLORS.length]}
-            fill={COLORS[i % COLORS.length]}
-            fillOpacity={0.5}
-          />
-        ))}
+        {bots.map((bot, i) => {
+          const color = colors?.[bot] ?? COLORS[i % COLORS.length];
+          return (
+            <Area
+              key={bot}
+              type="monotone"
+              dataKey={bot}
+              stackId="1"
+              stroke={color}
+              fill={color}
+              fillOpacity={0.5}
+            />
+          );
+        })}
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -315,9 +320,11 @@ export function ReactionChart({ data }: { data: ReactionData[] }) {
 export function BotRadarChart({
   data,
   bots,
+  colors,
 }: {
   data: Record<string, string | number>[];
   bots: string[];
+  colors?: Record<string, string>;
 }) {
   return (
     <ResponsiveContainer width="100%" height={400}>
@@ -334,16 +341,19 @@ export function BotRadarChart({
           domain={[0, 100]}
           tickCount={5}
         />
-        {bots.map((bot, i) => (
-          <Radar
-            key={bot}
-            name={bot}
-            dataKey={bot}
-            stroke={COLORS[i % COLORS.length]}
-            fill={COLORS[i % COLORS.length]}
-            fillOpacity={0.15}
-          />
-        ))}
+        {bots.map((bot, i) => {
+          const color = colors?.[bot] ?? COLORS[i % COLORS.length];
+          return (
+            <Radar
+              key={bot}
+              name={bot}
+              dataKey={bot}
+              stroke={color}
+              fill={color}
+              fillOpacity={0.15}
+            />
+          );
+        })}
         <Legend wrapperStyle={LEGEND_STYLE} />
         <Tooltip contentStyle={TOOLTIP_STYLE} />
       </RadarChart>

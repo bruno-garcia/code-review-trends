@@ -15,9 +15,10 @@
  * All commands are idempotent. Safe to re-run.
  */
 
-import { BOTS, BOT_BY_LOGIN, BOT_LOGINS } from "./bots.js";
+import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import {
   createCHClient,
+  syncProducts,
   syncBots,
   insertReviewActivity,
   insertHumanActivity,
@@ -37,6 +38,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   backfill: cmdBackfill,
   sync: cmdSync,
   status: cmdStatus,
+  migrate: cmdMigrate,
   discover: cmdDiscover,
   enrich: cmdEnrich,
   "enrich-status": cmdEnrichStatus,
@@ -72,6 +74,7 @@ Commands:
   backfill           Full historical import, month by month (resumable)
   sync               Fetch recent weeks (for scheduled/cron runs)
   status             Show pipeline health, data freshness, and coverage
+  migrate            Apply schema to remote ClickHouse (reads creds from Pulumi)
   discover           Discover PR bot events from BigQuery into pr_bot_events
   enrich             Run GitHub API enrichment (repos → PRs → comments)
   enrich-status      Show enrichment progress
@@ -96,6 +99,11 @@ Options for status:
   --check              Exit 1 if data is stale (for monitoring/alerting)
   --max-age N          Days before data is considered stale (default: 14)
 
+Options for migrate:
+  --stack STACK        Pulumi stack name (default: staging)
+  --dry-run            Show what would be applied without running
+  --local              Use local ClickHouse instead of Pulumi creds
+
 Options for discover:
   --start YYYY-MM-DD   Start date (default: 4 weeks ago)
   --end YYYY-MM-DD     End date (default: today)
@@ -117,13 +125,16 @@ Environment variables:
   GCP_PROJECT_ID       GCP project for BigQuery
   BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 700GB)
   GITHUB_TOKEN         GitHub PAT for API enrichment
+  PULUMI_CONFIG_PASSPHRASE  Passphrase for Pulumi secrets (if not using interactive login)
   `);
 }
 
 async function cmdSyncBots() {
-  console.log(`Syncing ${BOTS.length} bot definitions to ClickHouse...`);
+  console.log(`Syncing ${PRODUCTS.length} products and ${BOTS.length} bots to ClickHouse...`);
   const client = createCHClient();
   try {
+    await syncProducts(client, PRODUCTS);
+    console.log(`✓ Synced ${PRODUCTS.length} products`);
     await syncBots(client, BOTS);
     console.log(`✓ Synced ${BOTS.length} bots`);
   } finally {
@@ -262,6 +273,122 @@ async function cmdSync() {
 async function cmdStatus() {
   const { runStatus } = await import("./tools/status.js");
   await runStatus(process.argv.slice(3));
+}
+
+async function cmdMigrate() {
+  const args = parseArgs();
+  const dryRun = "--dry-run" in args;
+  const useLocal = "--local" in args;
+  const stack = args["--stack"] ?? "staging";
+
+  const { readFileSync } = await import("fs");
+  const { resolve, dirname } = await import("path");
+  const { fileURLToPath } = await import("url");
+  const { execSync } = await import("child_process");
+
+  // Find the schema file relative to this script
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const schemaPath = resolve(__dirname, "../../db/init/001_schema.sql");
+  const schema = readFileSync(schemaPath, "utf-8");
+
+  // Extract individual statements (split on semicolons, filter empty)
+  const statements = schema
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  console.log(`Found ${statements.length} SQL statements in ${schemaPath}`);
+
+  if (dryRun) {
+    console.log("\n(dry run — showing statements that would be applied)\n");
+    for (const stmt of statements) {
+      const firstLine = stmt.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? stmt;
+      console.log(`  ${firstLine.trim().slice(0, 80)}`);
+    }
+    return;
+  }
+
+  let clickhouseUrl: string;
+  let clickhousePassword: string;
+
+  if (useLocal) {
+    clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+    clickhousePassword = process.env.CLICKHOUSE_PASSWORD ?? "dev";
+    console.log(`\nUsing local ClickHouse: ${clickhouseUrl}`);
+  } else {
+    // Get credentials from Pulumi stack outputs
+    const infraDir = resolve(__dirname, "../../infra");
+    console.log(`\nReading credentials from Pulumi stack '${stack}'...`);
+
+    try {
+      clickhouseUrl = execSync(
+        `pulumi stack output clickhouseUrl --stack ${stack} --show-secrets`,
+        { cwd: infraDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+      ).trim();
+
+      clickhousePassword = execSync(
+        `pulumi stack output clickhousePassword --stack ${stack} --show-secrets`,
+        { cwd: infraDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+      ).trim();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`\nFailed to read Pulumi outputs. Make sure you're authenticated.`);
+      console.error(`  Stack: ${stack}`);
+      console.error(`  Infra dir: ${infraDir}`);
+      if (msg.includes("invalid_grant") || msg.includes("oauth2")) {
+        console.error(`\nHint: Run 'gcloud auth application-default login' to refresh GCP credentials.`);
+      }
+      if (msg.includes("passphrase")) {
+        console.error(`\nHint: Set PULUMI_CONFIG_PASSPHRASE env var or run 'pulumi login'.`);
+      }
+      console.error(`\nAlternatively, use --local to migrate local ClickHouse,`);
+      console.error(`or set CLICKHOUSE_URL and CLICKHOUSE_PASSWORD env vars directly.`);
+      process.exit(1);
+    }
+
+    // Mask the URL in logs (show host only)
+    const urlObj = new URL(clickhouseUrl);
+    console.log(`  ClickHouse: ${urlObj.hostname}:${urlObj.port}`);
+  }
+
+  const clickhouseUser = process.env.CLICKHOUSE_USER ?? "default";
+
+  // Apply each statement
+  console.log(`\nApplying ${statements.length} statements...\n`);
+  let applied = 0;
+  let errors = 0;
+
+  const { createClient } = await import("@clickhouse/client");
+  const client = createClient({
+    url: clickhouseUrl,
+    username: clickhouseUser,
+    password: clickhousePassword,
+  });
+
+  try {
+    for (const stmt of statements) {
+      const firstLine = stmt.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? stmt;
+      const preview = firstLine.trim().slice(0, 70);
+
+      try {
+        await client.command({ query: stmt });
+        console.log(`  ✓ ${preview}`);
+        applied++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`  ✗ ${preview}`);
+        console.error(`    Error: ${msg.split("\n")[0]}`);
+        errors++;
+      }
+    }
+
+    console.log(`\nDone: ${applied} applied, ${errors} errors`);
+    if (errors > 0) {
+      process.exit(1);
+    }
+  } finally {
+    await client.close();
+  }
 }
 
 async function cmdDiscover() {

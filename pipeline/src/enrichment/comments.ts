@@ -88,7 +88,7 @@ export async function enrichComments(
       continue;
     }
 
-    const loginSet = new Set(bot.github_logins);
+    const loginSet = new Set([bot.github_login]);
 
     await rateLimiter.waitIfNeeded();
 

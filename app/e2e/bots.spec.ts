@@ -52,7 +52,7 @@ test.describe("Bot detail page", () => {
     await expect(toggle).toBeVisible();
     // Toggle to repos view
     await page.getByTestId("toggle-repos").click();
-    await expect(page.getByTestId("toggle-repos")).toHaveClass(/bg-violet-600/);
+    await expect(page.getByTestId("toggle-repos")).toHaveAttribute("aria-pressed", "true");
   });
 
   test("shows reaction chart", async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe("Bot detail page", () => {
 
   test("has back link to bots page", async ({ page }) => {
     await page.goto("/bots/coderabbit");
-    const backLink = page.getByText("← Back to all bots");
+    const backLink = page.getByText("← Back to all products");
     await expect(backLink).toBeVisible();
     await backLink.click();
     await expect(page.getByTestId("bots-grid")).toBeVisible();
