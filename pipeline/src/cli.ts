@@ -88,7 +88,7 @@ Commands:
   backfill           Full historical import, month by month (resumable)
   sync               Fetch recent weeks (for scheduled/cron runs)
   status             Show pipeline health, data freshness, and coverage
-  migrate            Apply schema to remote ClickHouse (reads creds from Pulumi)
+  migrate            Apply schema + bot data to ClickHouse (staging/prod/local)
   discover           Discover PR bot events from BigQuery into pr_bot_events
   enrich             Run GitHub API enrichment (repos → PRs → comments)
   enrich-status      Show enrichment progress
@@ -117,6 +117,10 @@ Options for migrate:
   --stack STACK        Pulumi stack name (default: staging)
   --dry-run            Show what would be applied without running
   --local              Use local ClickHouse instead of Pulumi creds
+
+  Applies all db/init/*.sql files (schema + bot data) and syncs the bot
+  registry from bots.ts. Does NOT apply db/seed/ (fake data).
+  Safe to re-run — all statements are idempotent.
 
 Options for discover:
   --start YYYY-MM-DD   Start date (default: 4 weeks ago)
@@ -289,92 +293,55 @@ async function cmdStatus() {
   await runStatus(process.argv.slice(3));
 }
 
-/** Parse a CREATE TABLE statement to extract column definitions. */
-function parseCreateTableColumns(stmt: string): {
-  database: string;
-  table: string;
-  columns: { name: string; type: string; defaultExpr: string }[];
-} | null {
-  // Match: CREATE TABLE IF NOT EXISTS db.table (\n  col1 Type DEFAULT ..., ...
-  const headerMatch = stmt.match(
-    /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+(\w+)\.(\w+)\s*\(/is,
-  );
-  if (!headerMatch) return null;
-
-  const database = headerMatch[1];
-  const table = headerMatch[2];
-
-  // Extract everything between the outer parens (before ENGINE)
-  const afterParen = stmt.slice(stmt.indexOf("(", headerMatch.index!) + 1);
-  const engineIdx = afterParen.search(/\)\s*ENGINE\s*/i);
-  if (engineIdx === -1) return null;
-  const body = afterParen.slice(0, engineIdx);
-
-  const columns: { name: string; type: string; defaultExpr: string }[] = [];
-  for (const line of body.split(",")) {
-    const trimmed = line.trim().replace(/--.*$/, "").trim();
-    if (!trimmed) continue;
-
-    // Column line: name Type [DEFAULT expr]
-    const colMatch = trimmed.match(
-      /^(\w+)\s+([\w()]+)\s*(DEFAULT\s+.+)?$/i,
-    );
-    if (!colMatch) continue;
-
-    columns.push({
-      name: colMatch[1],
-      type: colMatch[2],
-      defaultExpr: colMatch[3]?.trim() ?? "",
-    });
-  }
-
-  return { database, table, columns };
-}
-
 async function cmdMigrate() {
   const args = parseArgs();
   const dryRun = "--dry-run" in args;
   const useLocal = "--local" in args;
   const stack = args["--stack"] ?? "staging";
 
-  const { readFileSync } = await import("fs");
+  const { readFileSync, readdirSync } = await import("fs");
   const { resolve, dirname } = await import("path");
   const { fileURLToPath } = await import("url");
   const { execSync } = await import("child_process");
 
-  // Find the schema file relative to this script
+  // Find all SQL files in db/init/ (schema + bot data), sorted by name
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const schemaPath = resolve(__dirname, "../../db/init/001_schema.sql");
-  const schema = readFileSync(schemaPath, "utf-8");
+  const initDir = resolve(__dirname, "../../db/init");
+  const sqlFiles = readdirSync(initDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((f) => ({
+      name: f,
+      path: resolve(initDir, f),
+      content: readFileSync(resolve(initDir, f), "utf-8"),
+    }));
 
-  // Extract individual statements (split on semicolons, filter empty)
-  const statements = schema
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  // Collect all statements from all SQL files
+  const allStatements: { file: string; sql: string }[] = [];
+  for (const file of sqlFiles) {
+    const stmts = file.content
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    for (const sql of stmts) {
+      allStatements.push({ file: file.name, sql });
+    }
+  }
 
-  console.log(`Found ${statements.length} SQL statements in ${schemaPath}`);
+  console.log(`Found ${sqlFiles.length} SQL files in db/init/:`);
+  for (const file of sqlFiles) {
+    const count = allStatements.filter((s) => s.file === file.name).length;
+    console.log(`  ${file.name} (${count} statements)`);
+  }
+  console.log(`Total: ${allStatements.length} statements`);
 
   if (dryRun) {
     console.log("\n(dry run — showing statements that would be applied)\n");
-    for (const stmt of statements) {
-      const firstLine = stmt.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? stmt;
-      console.log(`  ${firstLine.trim().slice(0, 80)}`);
+    for (const { file, sql } of allStatements) {
+      const firstLine = sql.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? sql;
+      console.log(`  [${file}] ${firstLine.trim().slice(0, 70)}`);
     }
-
-    // Also show what ALTER TABLEs would be generated
-    const createStmts = statements.filter((s) =>
-      /CREATE\s+TABLE/i.test(s),
-    );
-    if (createStmts.length > 0) {
-      console.log("\n  (would also check for missing columns and apply ALTER TABLE ADD COLUMN)");
-      for (const stmt of createStmts) {
-        const parsed = parseCreateTableColumns(stmt);
-        if (parsed) {
-          console.log(`  ${parsed.database}.${parsed.table}: ${parsed.columns.map((c) => c.name).join(", ")}`);
-        }
-      }
-    }
+    console.log(`\nWould also sync ${PRODUCTS.length} products and ${BOTS.length} bots from registry.`);
     return;
   }
 
@@ -423,6 +390,11 @@ async function cmdMigrate() {
 
   const clickhouseUser = process.env.CLICKHOUSE_USER ?? "default";
 
+  // Apply SQL statements
+  console.log(`\nApplying ${allStatements.length} SQL statements...\n`);
+  let applied = 0;
+  let errors = 0;
+
   const { createClient } = await import("@clickhouse/client");
   const client = createClient({
     url: clickhouseUrl,
@@ -430,72 +402,41 @@ async function cmdMigrate() {
     password: clickhousePassword,
   });
 
-  let applied = 0;
-  let errors = 0;
-
   try {
-    // Phase 1: Apply CREATE DATABASE / CREATE TABLE IF NOT EXISTS
-    console.log(`\nPhase 1: Applying ${statements.length} CREATE statements...\n`);
-
-    for (const stmt of statements) {
-      const firstLine = stmt.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? stmt;
+    for (const { file, sql } of allStatements) {
+      const firstLine = sql.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? sql;
       const preview = firstLine.trim().slice(0, 70);
 
       try {
-        await client.command({ query: stmt });
-        console.log(`  ✓ ${preview}`);
+        await client.command({ query: sql });
+        console.log(`  ✓ [${file}] ${preview}`);
         applied++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(`  ✗ ${preview}`);
+        console.error(`  ✗ [${file}] ${preview}`);
         console.error(`    Error: ${msg.split("\n")[0]}`);
         errors++;
       }
     }
 
-    // Phase 2: Add missing columns to existing tables
-    const createStmts = statements.filter((s) => /CREATE\s+TABLE/i.test(s));
-    console.log(`\nPhase 2: Checking ${createStmts.length} tables for missing columns...\n`);
-
-    for (const stmt of createStmts) {
-      const parsed = parseCreateTableColumns(stmt);
-      if (!parsed) continue;
-
-      // Query existing columns from system.columns
-      const result = await client.query({
-        query: `SELECT name FROM system.columns WHERE database = {db:String} AND table = {tbl:String}`,
-        query_params: { db: parsed.database, tbl: parsed.table },
-        format: "JSONEachRow",
-      });
-      const rows = await result.json<{ name: string }>();
-      const existingCols = new Set(rows.map((r) => r.name));
-
-      const missingCols = parsed.columns.filter((c) => !existingCols.has(c.name));
-
-      if (missingCols.length === 0) {
-        console.log(`  ✓ ${parsed.database}.${parsed.table} — all columns present`);
-        continue;
-      }
-
-      for (const col of missingCols) {
-        const defaultClause = col.defaultExpr ? ` ${col.defaultExpr}` : "";
-        const alterSql = `ALTER TABLE ${parsed.database}.${parsed.table} ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}${defaultClause}`;
-        const preview = `ADD COLUMN ${col.name} ${col.type}${defaultClause}`;
-
-        try {
-          await client.command({ query: alterSql });
-          console.log(`  ✓ ${parsed.database}.${parsed.table}: ${preview}`);
-          applied++;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error(`  ✗ ${parsed.database}.${parsed.table}: ${preview}`);
-          console.error(`    Error: ${msg.split("\n")[0]}`);
-          errors++;
-        }
-      }
+    // Sync bot registry from bots.ts (source of truth)
+    console.log(`\nSyncing bot registry...`);
+    const chClient = createCHClient({
+      url: clickhouseUrl,
+      username: clickhouseUser,
+      password: clickhousePassword,
+      database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
+    });
+    try {
+      await syncProducts(chClient, PRODUCTS);
+      console.log(`  ✓ Synced ${PRODUCTS.length} products`);
+      await syncBots(chClient, BOTS);
+      console.log(`  ✓ Synced ${BOTS.length} bots`);
+    } finally {
+      await chClient.close();
     }
 
-    console.log(`\nDone: ${applied} applied, ${errors} errors`);
+    console.log(`\nDone: ${applied} SQL statements applied, ${errors} errors`);
     if (errors > 0) {
       process.exit(1);
     }
