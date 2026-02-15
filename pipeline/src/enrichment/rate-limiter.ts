@@ -44,6 +44,9 @@ export class RateLimiter {
 
     await sleep(waitMs);
 
+    // Reset remaining so we don't immediately throttle again
+    this.remaining = this.minRemaining;
+
     console.log(`[rate-limiter] Resuming after ${Math.ceil(waitMs / 1000)}s`);
     return waitMs;
   }

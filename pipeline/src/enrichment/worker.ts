@@ -36,10 +36,13 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   const octokit = new Octokit({ auth: options.githubToken });
   const ch = createCHClient();
   const rateLimiter = new RateLimiter();
-  const partition: WorkerConfig = {
-    workerId: options.workerId ?? 0,
-    totalWorkers: options.totalWorkers ?? 1,
-  };
+  const workerId = options.workerId ?? 0;
+  const totalWorkers = options.totalWorkers ?? 1;
+  if (totalWorkers < 1) throw new Error(`totalWorkers must be >= 1, got ${totalWorkers}`);
+  if (workerId < 0 || workerId >= totalWorkers) {
+    throw new Error(`workerId must be in [0, ${totalWorkers - 1}], got ${workerId}`);
+  }
+  const partition: WorkerConfig = { workerId, totalWorkers };
   const limit = options.limit;
 
   console.log(

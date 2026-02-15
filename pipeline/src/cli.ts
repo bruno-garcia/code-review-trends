@@ -331,12 +331,22 @@ async function cmdEnrich() {
 
   const { runEnrichment } = await import("./enrichment/worker.js");
 
+  function parseIntArg(name: string, value: string | undefined): number | undefined {
+    if (value === undefined) return undefined;
+    const n = parseInt(value, 10);
+    if (isNaN(n) || n < 0) {
+      console.error(`Error: ${name} must be a non-negative integer, got "${value}"`);
+      process.exit(1);
+    }
+    return n;
+  }
+
   const result = await runEnrichment({
     githubToken: token,
-    workerId: args["--worker-id"] ? parseInt(args["--worker-id"], 10) : undefined,
-    totalWorkers: args["--total-workers"] ? parseInt(args["--total-workers"], 10) : undefined,
-    limit: args["--limit"] ? parseInt(args["--limit"], 10) : undefined,
-    staleDays: args["--stale-days"] ? parseInt(args["--stale-days"], 10) : undefined,
+    workerId: parseIntArg("--worker-id", args["--worker-id"]),
+    totalWorkers: parseIntArg("--total-workers", args["--total-workers"]),
+    limit: parseIntArg("--limit", args["--limit"]),
+    staleDays: parseIntArg("--stale-days", args["--stale-days"]),
     priority: args["--priority"] as "repos" | "prs" | "comments" | undefined,
   });
 

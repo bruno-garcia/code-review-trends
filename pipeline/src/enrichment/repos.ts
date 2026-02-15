@@ -117,6 +117,7 @@ export async function enrichRepos(
       } else if (status === 403) {
         // Update rate limiter from error response headers if available
         const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
+        const isRateLimit = headers?.["retry-after"] || (headers?.["x-ratelimit-remaining"] === "0");
         if (headers) {
           rateLimiter.update(headers);
           const retryAfter = headers["retry-after"];
@@ -125,16 +126,23 @@ export async function enrichRepos(
           }
         }
 
-        await insertRepos(ch, [{
-          name: repo_name,
-          owner,
-          stars: 0,
-          primary_language: "",
-          fork: false,
-          archived: false,
-          fetch_status: "forbidden",
-        }]);
-        skipped++;
+        if (isRateLimit) {
+          // Rate-limit 403 — don't mark as forbidden, retry on next run
+          console.log(`[repos] Rate-limited on ${repo_name}, will retry later`);
+          skipped++;
+        } else {
+          // Real 403 (DMCA, private, etc.) — mark as forbidden
+          await insertRepos(ch, [{
+            name: repo_name,
+            owner,
+            stars: 0,
+            primary_language: "",
+            fork: false,
+            archived: false,
+            fetch_status: "forbidden",
+          }]);
+          skipped++;
+        }
       } else {
         console.error(`[repos] Error fetching ${repo_name}:`, err instanceof Error ? err.message : err);
         errors++;

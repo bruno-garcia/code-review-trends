@@ -25,12 +25,17 @@ export type WorkerConfig = {
  * @param config - Worker partition config
  * @param column - Column name to hash (default: "repo_name")
  */
+const ALLOWED_COLUMNS = new Set(["repo_name", "pr_number", "bot_id"]);
+
 export function partitionWhereClause(
   config: WorkerConfig,
   column?: string,
 ): { sql: string; params: Record<string, number> } | null {
   if (config.totalWorkers <= 1) return null;
   const col = column ?? "repo_name";
+  if (!ALLOWED_COLUMNS.has(col)) {
+    throw new Error(`Invalid partition column: ${col}. Allowed: ${[...ALLOWED_COLUMNS].join(", ")}`);
+  }
   return {
     sql: `cityHash64(${col}) % {_partTotalWorkers:UInt32} = {_partWorkerId:UInt32}`,
     params: {
