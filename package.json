@@ -1,7 +1,7 @@
 {
   "name": "code-review-trends",
   "private": true,
-  "workspaces": ["app", "pipeline"],
+  "workspaces": ["app", "pipeline", "infra"],
   "scripts": {
     "dev": "docker compose up -d && npm run dev --workspace=app",
     "dev:app": "npm run dev --workspace=app",
@@ -9,7 +9,7 @@
     "dev:down": "docker compose down",
     "build": "npm run build --workspace=app",
     "build:pipeline": "npm run build --workspace=pipeline",
-    "lint": "npm run lint --workspace=app && npm run lint --workspace=pipeline",
+    "lint": "npm run lint --workspace=app && npm run lint --workspace=pipeline && npm run lint --workspace=infra",
     "test": "npm run test --workspace=app",
     "test:e2e": "npm run test:e2e --workspace=app",
     "db:seed": "npm run db:seed --workspace=app",

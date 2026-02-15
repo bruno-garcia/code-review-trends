@@ -8,6 +8,7 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 
 - **`app/`** — Next.js 16 (App Router, TypeScript, Tailwind CSS v4). Server components fetch from ClickHouse; client components render charts with Recharts.
 - **`pipeline/`** — TypeScript data collection service. Pulls data from BigQuery (GH Archive) and GitHub API, writes to ClickHouse. Has CLI tools for dev.
+- **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages the production ClickHouse VM, networking, and firewall rules. See `infra/README.md`.
 - **`db/`** — ClickHouse schema (`db/init/001_schema.sql`) and seed data (`db/init/002_seed.sql`). Init scripts run automatically when ClickHouse container starts.
 - **`docker-compose.yml`** — Local dev services (ClickHouse).
 
@@ -89,6 +90,15 @@ npm run pipeline -- help                 # show all commands
 | `pipeline/src/github.ts` | GitHub API enrichment |
 | `pipeline/src/cli.ts` | Pipeline CLI entry point |
 | `pipeline/src/tools/` | Dev inspection/validation tools |
+| `infra/index.ts` | Pulumi entrypoint — wires all components |
+| `infra/config.ts` | Typed Pulumi config loader |
+| `infra/network.ts` | VPC, subnet, router, NAT, static IP |
+| `infra/firewall.ts` | Firewall rules (SSH, ClickHouse) |
+| `infra/clickhouse.ts` | ClickHouse VM with startup script |
+| `infra/secrets.ts` | Secret Manager + random password generation |
+| `infra/Pulumi.staging.yaml` | Staging stack config (GCP project, machine types) |
+| `infra/tests/infra.test.ts` | Pulumi unit tests (mocked, no cloud calls) |
+| `infra/test-vm.sh` | Integration test (creates real VM, validates, tears down) |
 
 ## Adding a New Bot
 

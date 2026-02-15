@@ -1,0 +1,11 @@
+config:
+  gcp:region: us-central1
+  gcp:zone: us-central1-a
+  code-review-trends:environment: staging
+  code-review-trends:clickhouseMachineType: e2-small
+  code-review-trends:clickhouseDiskSizeGb: "20"
+  gcp:project:
+    secure: v1:pPeFMdNeIwwNUtMk:ZBEWf3Wc4tu/V8VTkVtbQLL9kAQxTnsy7f5OiQ==
+  code-review-trends:clickhouseDomain:
+    secure: v1:WtI0hDYGsugbuqPR:beB4SPLLDn9yw1pLMb+9mZRUqlc/wf91ZWmAZce6VM88K8qhuP0=
+encryptionsalt: v1:AWXWIyh26VY=:v1:Sg6zEq4QvISI5kjW:A7aV13N9kenv/uY9U3IQYM+qiSZTYg==
