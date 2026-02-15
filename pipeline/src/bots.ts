@@ -63,7 +63,7 @@ export const PRODUCTS: ProductDefinition[] = [
     website: "https://github.com/features/copilot",
     description:
       "GitHub's AI pair programmer, also provides code review suggestions.",
-    brand_color: "#1f2937",
+    brand_color: "#e5e7eb",
     avatar_url: "https://avatars.githubusercontent.com/in/946600?v=4",
   },
   {
@@ -265,7 +265,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://github.com/features/copilot",
     description:
       "GitHub's AI pair programmer, also provides code review suggestions.",
-    brand_color: "#1f2937",
+    brand_color: "#e5e7eb",
     avatar_url: "https://avatars.githubusercontent.com/in/946600?v=4",
   },
   // CodeScene

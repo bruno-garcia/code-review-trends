@@ -1,7 +1,7 @@
 -- Seed products — must match pipeline/src/bots.ts PRODUCTS array
 INSERT INTO code_review_trends.products (id, name, website, description, brand_color, avatar_url) VALUES
     ('coderabbit', 'CodeRabbit', 'https://coderabbit.ai', 'AI code review agent that provides contextual feedback on pull requests.', '#f97316', 'https://avatars.githubusercontent.com/in/347564?v=4'),
-    ('copilot', 'GitHub Copilot', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.', '#1f2937', 'https://avatars.githubusercontent.com/in/946600?v=4'),
+    ('copilot', 'GitHub Copilot', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.', '#e5e7eb', 'https://avatars.githubusercontent.com/in/946600?v=4'),
     ('codescene', 'CodeScene', 'https://codescene.com', 'Behavioral code analysis and AI code review.', '#4f46e5', 'https://avatars.githubusercontent.com/u/38929568?v=4'),
     ('sourcery', 'Sourcery', 'https://sourcery.ai', 'AI code reviewer focused on code quality and refactoring.', '#65a30d', 'https://avatars.githubusercontent.com/in/48477?v=4'),
     ('ellipsis', 'Ellipsis', 'https://ellipsis.dev', 'AI-powered code review and bug detection.', '#06b6d4', 'https://avatars.githubusercontent.com/in/64358?v=4'),
@@ -27,7 +27,7 @@ INSERT INTO code_review_trends.products (id, name, website, description, brand_c
 -- Seed bots — must match pipeline/src/bots.ts BOTS array
 INSERT INTO code_review_trends.bots (id, name, product_id, website, description, brand_color, avatar_url) VALUES
     ('coderabbit', 'CodeRabbit', 'coderabbit', 'https://coderabbit.ai', 'AI code review agent that provides contextual feedback on pull requests.', '#f97316', 'https://avatars.githubusercontent.com/in/347564?v=4'),
-    ('copilot', 'GitHub Copilot', 'copilot', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.', '#1f2937', 'https://avatars.githubusercontent.com/in/946600?v=4'),
+    ('copilot', 'GitHub Copilot', 'copilot', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.', '#e5e7eb', 'https://avatars.githubusercontent.com/in/946600?v=4'),
     ('codescene', 'CodeScene', 'codescene', 'https://codescene.com', 'Behavioral code analysis and AI code review.', '#4f46e5', 'https://avatars.githubusercontent.com/u/38929568?v=4'),
     ('sourcery', 'Sourcery', 'sourcery', 'https://sourcery.ai', 'AI code reviewer focused on code quality and refactoring.', '#65a30d', 'https://avatars.githubusercontent.com/in/48477?v=4'),
     ('ellipsis', 'Ellipsis', 'ellipsis', 'https://ellipsis.dev', 'AI-powered code review and bug detection.', '#06b6d4', 'https://avatars.githubusercontent.com/in/64358?v=4'),
