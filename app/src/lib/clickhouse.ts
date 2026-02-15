@@ -678,6 +678,7 @@ export async function getTopOrgsByStars(limit?: number): Promise<OrgByStars[]> {
 export type BotReactions = {
   bot_id: string;
   bot_name: string;
+  product_id: string;
   total_thumbs_up: number;
   total_thumbs_down: number;
   total_heart: number;
@@ -690,6 +691,7 @@ export async function getBotReactionLeaderboard(): Promise<BotReactions[]> {
     SELECT
       c.bot_id,
       b.name AS bot_name,
+      b.product_id,
       sum(c.thumbs_up) AS total_thumbs_up,
       sum(c.thumbs_down) AS total_thumbs_down,
       sum(c.heart) AS total_heart,
@@ -700,7 +702,7 @@ export async function getBotReactionLeaderboard(): Promise<BotReactions[]> {
     FROM pr_comments c
     JOIN bots b ON c.bot_id = b.id
     WHERE c.comment_id > 0
-    GROUP BY c.bot_id, b.name
+    GROUP BY c.bot_id, b.name, b.product_id
     ORDER BY total_thumbs_up DESC
   `);
 }
@@ -708,6 +710,7 @@ export async function getBotReactionLeaderboard(): Promise<BotReactions[]> {
 export type BotCommentsPerPR = {
   bot_id: string;
   bot_name: string;
+  product_id: string;
   avg_comments_per_pr: number;
   total_prs: number;
   total_comments: number;
@@ -719,6 +722,7 @@ export async function getAvgCommentsPerPR(botId?: string): Promise<BotCommentsPe
     `SELECT
       c.bot_id,
       b.name AS bot_name,
+      b.product_id,
       round(if(countDistinct(c.repo_name, c.pr_number) > 0,
         count() / countDistinct(c.repo_name, c.pr_number), 0), 2) AS avg_comments_per_pr,
       countDistinct(c.repo_name, c.pr_number) AS total_prs,
@@ -726,7 +730,7 @@ export async function getAvgCommentsPerPR(botId?: string): Promise<BotCommentsPe
     FROM pr_comments c
     JOIN bots b ON c.bot_id = b.id
     WHERE c.comment_id > 0 ${where}
-    GROUP BY c.bot_id, b.name
+    GROUP BY c.bot_id, b.name, b.product_id
     ORDER BY avg_comments_per_pr DESC`,
     botId ? { botId } : {},
   );
