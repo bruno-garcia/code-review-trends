@@ -39,12 +39,11 @@ export type BigQueryConfig = {
 
 export function createBigQueryClient(config?: BigQueryConfig): BigQuery {
   const projectId = config?.projectId ?? process.env.GCP_PROJECT_ID ?? detectGcloudProject();
-  if (!projectId) {
-    throw new Error(
-      "No GCP project found. Set GCP_PROJECT_ID env var or run: gcloud config set project <project-id>",
-    );
+  if (projectId) {
+    return new BigQuery({ projectId });
   }
-  return new BigQuery({ projectId });
+  // Fall back to BigQuery's built-in project auto-detection (e.g., GCE metadata, service accounts).
+  return new BigQuery();
 }
 
 /**
@@ -58,7 +57,11 @@ function detectGcloudProject(): string | undefined {
       timeout: 5000,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
-    return result || undefined;
+    // gcloud returns the literal string "(unset)" when no project is configured.
+    if (!result || result === "(unset)") {
+      return undefined;
+    }
+    return result;
   } catch {
     return undefined;
   }
