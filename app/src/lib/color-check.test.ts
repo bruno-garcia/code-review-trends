@@ -1,15 +1,17 @@
 /**
- * Validates that chart COLORS don't visually conflict with site theme colors.
+ * Validates that chart COLORS don't visually conflict with site theme colors
+ * and that brand colors used as text are readable on dark backgrounds.
  *
- * Uses CIE76 color distance (Euclidean distance in Lab space) which
- * approximates human perception better than raw RGB distance.
+ * Uses CIE76 color distance (Euclidean distance in Lab space) for chart
+ * colors, and WCAG 2.1 contrast ratio for text readability.
  *
  * Run: npm test
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { COLORS } from "./colors.js";
-import { THEME_COLORS } from "./theme.js";
+import { THEME_COLORS, TEXT_BACKGROUND_COLORS } from "./theme.js";
+import { BRAND_COLORS } from "./brand-colors.js";
 
 // --- sRGB → CIELAB conversion ---
 
@@ -68,6 +70,21 @@ function deltaE(hex1: string, hex2: string): number {
   return Math.sqrt((L1 - L2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2);
 }
 
+// --- WCAG 2.1 contrast ratio ---
+
+function relativeLuminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex);
+  const [lr, lg, lb] = [r, g, b].map(srgbToLinear);
+  return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+}
+
+/** WCAG contrast ratio (1:1 to 21:1). AA requires ≥ 4.5 for normal text. */
+function contrastRatio(hex1: string, hex2: string): number {
+  const l1 = relativeLuminance(hex1);
+  const l2 = relativeLuminance(hex2);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
 // --- Tests ---
 
 /**
@@ -75,6 +92,13 @@ function deltaE(hex1: string, hex2: string): number {
  * ΔE of 25 means colors are clearly distinguishable to most people.
  */
 const MIN_DISTANCE = 25;
+
+/**
+ * Minimum WCAG contrast ratio for brand colors used as text on dark backgrounds.
+ * WCAG AA requires 4.5:1 for normal text, 3:1 for large text.
+ * We use 4.5 since product names appear at normal text sizes.
+ */
+const MIN_CONTRAST_RATIO = 4.5;
 
 describe("Chart color conflicts", () => {
   for (const chartColor of COLORS) {
@@ -100,6 +124,38 @@ describe("Chart color conflicts", () => {
           `Chart colors ${COLORS[i]} and ${COLORS[j]} are too similar ` +
           `(ΔE = ${dist.toFixed(1)}, minimum = 15). ` +
           `Pick more distinct colors.`,
+        );
+      }
+    }
+  });
+});
+
+describe("Brand color text readability", () => {
+  for (const { name, color } of BRAND_COLORS) {
+    for (const bgColor of TEXT_BACKGROUND_COLORS) {
+      it(`${name} (${color}) is readable on ${bgColor}`, () => {
+        const ratio = contrastRatio(color, bgColor);
+        assert.ok(
+          ratio >= MIN_CONTRAST_RATIO,
+          `${name}'s brand color ${color} has insufficient contrast against ` +
+          `background ${bgColor} (ratio = ${ratio.toFixed(2)}, ` +
+          `minimum = ${MIN_CONTRAST_RATIO}). ` +
+          `Choose a lighter/brighter color that maintains WCAG AA readability.`,
+        );
+      });
+    }
+  }
+
+  it("brand colors are mutually distinguishable", () => {
+    for (let i = 0; i < BRAND_COLORS.length; i++) {
+      for (let j = i + 1; j < BRAND_COLORS.length; j++) {
+        const dist = deltaE(BRAND_COLORS[i].color, BRAND_COLORS[j].color);
+        assert.ok(
+          dist >= 10,
+          `Brand colors for ${BRAND_COLORS[i].name} (${BRAND_COLORS[i].color}) and ` +
+          `${BRAND_COLORS[j].name} (${BRAND_COLORS[j].color}) are too similar ` +
+          `(ΔE = ${dist.toFixed(1)}, minimum = 10). ` +
+          `Pick more distinct brand colors.`,
         );
       }
     }

@@ -18,25 +18,25 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="bg-theme-bg text-gray-100 antialiased">
-        <nav className="border-b border-theme-border bg-theme-bg/80 backdrop-blur sticky top-0 z-50">
+        <nav className="border-b border-theme-border bg-theme-nav backdrop-blur sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <Link href="/" className="flex items-center">
                 <Logo />
               </Link>
-              <div className="flex items-center gap-6 text-sm text-gray-400">
-                <Link href="/" className="hover:text-violet-300 transition-colors">
+              <div className="flex items-center gap-6 text-sm text-nav-link">
+                <Link href="/" className="hover:text-violet-400 transition-colors">
                   Dashboard
                 </Link>
                 <Link
                   href="/bots"
-                  className="hover:text-violet-300 transition-colors"
+                  className="hover:text-violet-400 transition-colors"
                 >
                   Bots
                 </Link>
                 <Link
                   href="/compare"
-                  className="hover:text-violet-300 transition-colors"
+                  className="hover:text-violet-400 transition-colors"
                 >
                   Compare
                 </Link>
@@ -44,7 +44,7 @@ export default function RootLayout({
                   href="https://github.com/bruno-garcia/code-review-trends"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-violet-300 transition-colors"
+                  className="hover:text-violet-400 transition-colors"
                 >
                   GitHub
                 </a>
