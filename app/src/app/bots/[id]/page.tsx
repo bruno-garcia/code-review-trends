@@ -186,7 +186,7 @@ export default async function ProductPage({
       {/* Activity chart */}
       <section data-testid="bot-activity-chart">
         <h2 className="text-2xl font-semibold mb-4">Activity Over Time</h2>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <SingleBotChart data={chartData} />
         </div>
       </section>
@@ -244,7 +244,7 @@ export default async function ProductPage({
             Reactions on review comments — a proxy for how useful people find
             this product&apos;s reviews.
           </p>
-          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+          <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
             <ReactionChart data={reactionData} />
           </div>
         </section>
@@ -263,7 +263,7 @@ function StatCard({
   color?: string;
 }) {
   return (
-    <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
+    <div className="bg-theme-surface rounded-xl p-5 border border-theme-border">
       <p className="text-sm text-gray-400">{label}</p>
       <p className={`text-2xl font-bold tabular-nums ${color ?? ""}`}>
         {value}

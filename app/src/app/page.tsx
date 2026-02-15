@@ -72,7 +72,7 @@ export default async function Home() {
           Percentage of pull request reviews performed by AI bots vs. humans
           over time.
         </p>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <BotShareChart data={totals} />
         </div>
       </section>
@@ -91,7 +91,7 @@ export default async function Home() {
             </span>
           )}
         </p>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <ReviewVolumeChart
             data={pivoted}
             bots={productNames}
@@ -106,14 +106,14 @@ export default async function Home() {
           <h2 className="text-2xl font-semibold">Leaderboard</h2>
           <Link
             href="/compare"
-            className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+            className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
           >
             Full comparison →
           </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left" data-testid="leaderboard-table">
-            <thead className="text-gray-400 border-b border-gray-800 text-sm">
+            <thead className="text-gray-400 border-b border-theme-border text-sm">
               <tr>
                 <th className="pb-3 pr-4">Product</th>
                 <th className="pb-3 pr-4 text-right">Reviews</th>
@@ -129,7 +129,7 @@ export default async function Home() {
               {summaries.map((product) => (
                 <tr
                   key={product.id}
-                  className="border-b border-gray-800/50 hover:bg-gray-900/50"
+                  className="border-b border-theme-border/50 hover:bg-theme-surface/50"
                 >
                   <td className="py-3 pr-4">
                     <Link

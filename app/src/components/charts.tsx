@@ -21,17 +21,10 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
 } from "recharts";
+import { THEME } from "@/lib/theme";
 
-export const COLORS = [
-  "#6366f1", // indigo
-  "#f59e0b", // amber
-  "#10b981", // emerald
-  "#ef4444", // red
-  "#8b5cf6", // violet
-  "#06b6d4", // cyan
-  "#f97316", // orange
-  "#ec4899", // pink
-];
+export { COLORS } from "@/lib/colors";
+import { COLORS } from "@/lib/colors";
 
 function formatWeek(week: string | number) {
   const d = new Date(String(week));
@@ -45,10 +38,14 @@ function formatNumber(n: number) {
 }
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "#1f2937",
-  border: "1px solid #374151",
+  backgroundColor: THEME.tooltipBg,
+  border: `1px solid ${THEME.border}`,
   borderRadius: 8,
 };
+
+const GRID_COLOR = THEME.grid;
+const AXIS_COLOR = THEME.axis;
+const LEGEND_STYLE = { color: THEME.mutedText };
 
 // --- Toggle button group ---
 
@@ -74,8 +71,8 @@ function ToggleGroup({
           onClick={() => onChange(opt.value)}
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
             value === opt.value
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-800 text-gray-400 hover:text-white"
+              ? "bg-violet-600 text-white"
+              : "bg-theme-border text-gray-400 hover:text-white"
           }`}
           aria-pressed={value === opt.value}
           data-testid={`toggle-${opt.value}`}
@@ -119,15 +116,15 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
       />
       <ResponsiveContainer width="100%" height={350}>
         <AreaChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
           <XAxis
             dataKey="week"
             tickFormatter={formatWeek}
-            stroke="#9ca3af"
+            stroke={AXIS_COLOR}
             tick={{ fontSize: 12 }}
           />
           <YAxis
-            stroke="#9ca3af"
+            stroke={AXIS_COLOR}
             tick={{ fontSize: 12 }}
             tickFormatter={(v) => `${v}%`}
           />
@@ -142,9 +139,9 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
           <Area
             type="monotone"
             dataKey={dataKey}
-            stroke="#6366f1"
-            fill="#6366f1"
-            fillOpacity={0.3}
+            stroke="#a78bfa"
+            fill="#a78bfa"
+            fillOpacity={0.2}
             name={`AI Share (${label})`}
           />
         </AreaChart>
@@ -167,15 +164,15 @@ export function ReviewVolumeChart({
   return (
     <ResponsiveContainer width="100%" height={350}>
       <AreaChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
         <XAxis
           dataKey="week"
           tickFormatter={formatWeek}
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
         />
         <YAxis
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
@@ -184,7 +181,7 @@ export function ReviewVolumeChart({
           labelFormatter={(v) => formatWeek(String(v))}
           formatter={(value, name) => [formatNumber(Number(value)), name]}
         />
-        <Legend />
+        <Legend wrapperStyle={LEGEND_STYLE} />
         {bots.map((bot, i) => {
           const color = colors?.[bot] ?? COLORS[i % COLORS.length];
           return (
@@ -195,7 +192,7 @@ export function ReviewVolumeChart({
               stackId="1"
               stroke={color}
               fill={color}
-              fillOpacity={0.6}
+              fillOpacity={0.5}
             />
           );
         })}
@@ -220,12 +217,12 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
   const lines: Record<string, { keys: string[]; colors: string[]; names: string[] }> = {
     reviews: {
       keys: ["review_count", "review_comment_count"],
-      colors: ["#6366f1", "#10b981"],
+      colors: ["#a78bfa", "#22d3ee"],
       names: ["Reviews", "Comments"],
     },
     repos: {
       keys: ["repo_count", "org_count"],
-      colors: ["#f59e0b", "#06b6d4"],
+      colors: ["#f59e0b", "#10b981"],
       names: ["Repos", "Organizations"],
     },
   };
@@ -245,15 +242,15 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
       />
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
           <XAxis
             dataKey="week"
             tickFormatter={formatWeek}
-            stroke="#9ca3af"
+            stroke={AXIS_COLOR}
             tick={{ fontSize: 12 }}
           />
           <YAxis
-            stroke="#9ca3af"
+            stroke={AXIS_COLOR}
             tick={{ fontSize: 12 }}
             tickFormatter={formatNumber}
           />
@@ -262,7 +259,7 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
             labelFormatter={(v) => formatWeek(String(v))}
             formatter={(value, name) => [formatNumber(Number(value)), name]}
           />
-          <Legend />
+          <Legend wrapperStyle={LEGEND_STYLE} />
           {current.keys.map((key, i) => (
             <Line
               key={key}
@@ -294,20 +291,20 @@ export function ReactionChart({ data }: { data: ReactionData[] }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
         <XAxis
           dataKey="week"
           tickFormatter={formatWeek}
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
         />
         <YAxis
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
         <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(v) => formatWeek(String(v))} />
-        <Legend />
+        <Legend wrapperStyle={LEGEND_STYLE} />
         <Bar dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
         <Bar dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
         <Bar dataKey="laugh" fill="#f59e0b" name="😄" stackId="a" />
@@ -332,14 +329,14 @@ export function BotRadarChart({
   return (
     <ResponsiveContainer width="100%" height={400}>
       <RadarChart data={data}>
-        <PolarGrid stroke="#374151" />
+        <PolarGrid stroke={GRID_COLOR} />
         <PolarAngleAxis
           dataKey="metric"
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 11 }}
         />
         <PolarRadiusAxis
-          stroke="#4b5563"
+          stroke="#2a2a3a"
           tick={{ fontSize: 10 }}
           domain={[0, 100]}
           tickCount={5}
@@ -357,7 +354,7 @@ export function BotRadarChart({
             />
           );
         })}
-        <Legend />
+        <Legend wrapperStyle={LEGEND_STYLE} />
         <Tooltip contentStyle={TOOLTIP_STYLE} />
       </RadarChart>
     </ResponsiveContainer>
@@ -385,17 +382,17 @@ export function CompareBarChart({
   return (
     <ResponsiveContainer width="100%" height={data.length * 44 + 40}>
       <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
         <XAxis
           type="number"
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
           tickFormatter={(v) => fmt(v)}
         />
         <YAxis
           type="category"
           dataKey="name"
-          stroke="#9ca3af"
+          stroke={AXIS_COLOR}
           tick={{ fontSize: 12 }}
           width={130}
         />

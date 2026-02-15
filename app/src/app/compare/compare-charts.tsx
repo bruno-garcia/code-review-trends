@@ -169,7 +169,7 @@ export function CompareCharts({
         <p className="text-gray-400 mb-4 text-sm">
           Each dimension normalized to 0–100 relative to the top product.
         </p>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <BotRadarChart data={radarData} bots={productNames} />
         </div>
       </section>
@@ -182,9 +182,9 @@ export function CompareCharts({
             className="w-full text-left text-sm"
             data-testid="compare-table"
           >
-            <thead className="text-gray-400 border-b border-gray-800">
+            <thead className="text-gray-400 border-b border-theme-border">
               <tr>
-                <th className="pb-3 pr-4 sticky left-0 bg-gray-950 z-10">
+                <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10">
                   Product
                 </th>
                 {METRICS.map((m) => (
@@ -200,7 +200,7 @@ export function CompareCharts({
                     >
                       {m.label}
                       {sortKey === m.key && (
-                        <span className="text-indigo-400">
+                        <span className="text-violet-400">
                           {sortDir === "desc" ? "↓" : "↑"}
                         </span>
                       )}
@@ -213,9 +213,9 @@ export function CompareCharts({
               {sorted.map((product, rowIdx) => (
                 <tr
                   key={product.id}
-                  className="border-b border-gray-800/50 hover:bg-gray-900/50"
+                  className="border-b border-theme-border/50 hover:bg-theme-surface/50"
                 >
-                  <td className="py-3 pr-4 sticky left-0 bg-gray-950 z-10">
+                  <td className="py-3 pr-4 sticky left-0 bg-theme-bg z-10">
                     <Link
                       href={`/bots/${product.id}`}
                       className="font-medium hover:opacity-80 transition-colors"
@@ -245,7 +245,7 @@ export function CompareCharts({
                       >
                         {m.format(val)}
                         {isTop && !isGrowth && (
-                          <span className="ml-1 text-xs text-indigo-400">
+                          <span className="ml-1 text-xs text-violet-400">
                             ★
                           </span>
                         )}
@@ -287,7 +287,7 @@ export function CompareCharts({
             return (
               <div
                 key={key}
-                className="bg-gray-900 rounded-xl p-5 border border-gray-800"
+                className="bg-theme-surface rounded-xl p-5 border border-theme-border"
               >
                 <h3 className="text-sm font-medium text-gray-300 mb-3">
                   {label}
@@ -301,7 +301,7 @@ export function CompareCharts({
                         <span className="text-xs text-gray-400 w-28 text-right truncate">
                           {item.name}
                         </span>
-                        <div className="flex-1 bg-gray-800 rounded-full h-5 relative overflow-hidden">
+                        <div className="flex-1 bg-theme-border rounded-full h-5 relative overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
                             style={{

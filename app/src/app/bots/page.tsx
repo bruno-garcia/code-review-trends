@@ -17,7 +17,7 @@ export default async function BotsPage() {
         </div>
         <Link
           href="/compare"
-          className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors"
+          className="text-sm bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg transition-colors"
         >
           Compare All →
         </Link>
@@ -31,12 +31,8 @@ export default async function BotsPage() {
           <Link
             key={product.id}
             href={`/bots/${product.id}`}
-            className="block bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-opacity-70 transition-colors"
-            style={{
-              borderColor: undefined,
-            }}
+            className="block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors"
             data-testid={`bot-card-${product.id}`}
-            onMouseEnter={undefined}
           >
             <div className="flex items-center gap-3 mb-3">
               {product.avatar_url && (
@@ -50,7 +46,7 @@ export default async function BotsPage() {
               )}
               <h2
                 className="text-xl font-semibold"
-                style={{ color: product.brand_color || "#818cf8" }}
+                style={{ color: product.brand_color || "#a78bfa" }}
               >
                 {product.name}
               </h2>
