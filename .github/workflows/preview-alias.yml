@@ -41,6 +41,15 @@ jobs:
             exit 0
           fi
 
+          # SSL certs limit common names to 64 chars.
+          # ".preview.codereviewtrends.com" is 30 chars, so branch gets 34.
+          MAX_BRANCH_LEN=34
+          if [ ${#BRANCH} -gt $MAX_BRANCH_LEN ]; then
+            BRANCH="${BRANCH:0:$MAX_BRANCH_LEN}"
+            # Remove trailing hyphen left by truncation
+            BRANCH="${BRANCH%-}"
+          fi
+
           # Strip scheme from deployment URL — Vercel CLI expects a hostname
           DEPLOYMENT_URL="${{ github.event.deployment_status.target_url }}"
           DEPLOYMENT_HOST=$(echo "$DEPLOYMENT_URL" | sed -E 's#^https?://([^/]+)/?.*#\1#')
