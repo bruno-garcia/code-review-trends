@@ -26,6 +26,15 @@ jobs:
       - name: Typecheck pipeline
         run: npm run typecheck --workspace=pipeline
 
+      - name: Typecheck infra
+        run: npm run build --workspace=infra
+
+      - name: Lint infra
+        run: npm run lint --workspace=infra
+
+      - name: Test infra
+        run: npm run test --workspace=infra
+
       - name: Build app
         run: npm run build --workspace=app
         env:
