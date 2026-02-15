@@ -37,6 +37,9 @@ function formatNumber(n: number) {
   return n.toString();
 }
 
+/** Ensure the tooltip popup renders above the Legend overlay. */
+const TOOLTIP_WRAPPER_STYLE: React.CSSProperties = { zIndex: 10 };
+
 /** Hook that returns chart colors reactive to theme changes */
 function useChartColors() {
   const { resolved } = useTheme();
@@ -194,6 +197,7 @@ export function ReviewVolumeChart({
         />
         <Tooltip
           contentStyle={c.tooltipStyle}
+          wrapperStyle={TOOLTIP_WRAPPER_STYLE}
           labelFormatter={(v) => formatWeek(String(v))}
           formatter={(value, name) => [formatNumber(Number(value)), name]}
         />
@@ -273,6 +277,7 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
           />
           <Tooltip
             contentStyle={c.tooltipStyle}
+            wrapperStyle={TOOLTIP_WRAPPER_STYLE}
             labelFormatter={(v) => formatWeek(String(v))}
             formatter={(value, name) => [formatNumber(Number(value)), name]}
           />
@@ -322,7 +327,7 @@ export function ReactionChart({ data }: { data: ReactionData[] }) {
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
-        <Tooltip contentStyle={c.tooltipStyle} labelFormatter={(v) => formatWeek(String(v))} />
+        <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeek(String(v))} />
         <Legend wrapperStyle={c.legendStyle} />
         <Bar dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
         <Bar dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
@@ -376,7 +381,7 @@ export function BotRadarChart({
           );
         })}
         <Legend wrapperStyle={c.legendStyle} />
-        <Tooltip contentStyle={c.tooltipStyle} />
+        <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
       </RadarChart>
     </ResponsiveContainer>
   );
@@ -422,7 +427,7 @@ export function BotReactionLeaderboardChart({
             tick={{ fontSize: 12 }}
             width={130}
           />
-          <Tooltip contentStyle={c.tooltipStyle} />
+          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           <Bar dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" />
           <Bar dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" />
@@ -486,7 +491,7 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
             tick={{ fontSize: 12 }}
             tickFormatter={formatNumber}
           />
-          <Tooltip contentStyle={c.tooltipStyle} />
+          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           {bots.map((bot, i) => (
             <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
@@ -532,6 +537,7 @@ export function ReactionsByPRSizeChart({
           <YAxis stroke={c.barAxis} tick={{ fontSize: 12 }} />
           <Tooltip
             contentStyle={c.tooltipStyle}
+            wrapperStyle={TOOLTIP_WRAPPER_STYLE}
             formatter={(value, name) => [
               Number(value).toFixed(2),
               name === "avg_thumbs_up" ? "Avg 👍" : "Avg 👎",
@@ -587,6 +593,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
           />
           <Tooltip
             contentStyle={c.tooltipStyle}
+            wrapperStyle={TOOLTIP_WRAPPER_STYLE}
             formatter={(value, name) => [
               formatNumber(Number(value)),
               name === "total_stars" ? "⭐ Stars" : "Repos",

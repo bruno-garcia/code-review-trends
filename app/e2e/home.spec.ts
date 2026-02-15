@@ -77,4 +77,61 @@ test.describe("Home page", () => {
     const href = await botLink.getAttribute("href");
     expect(href).toMatch(/^\/bots\//);
   });
+
+  test("volume chart container stacks above leaderboard for tooltip visibility", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const volumeSection = page.getByTestId("volume-section");
+    // The chart wrapper div is the direct parent of .recharts-responsive-container
+    const chartWrapper = volumeSection.locator(
+      "div:has(> .recharts-responsive-container)",
+    );
+
+    // The chart wrapper must create a stacking context above following content
+    const styles = await chartWrapper.evaluate((el) => {
+      const cs = window.getComputedStyle(el);
+      return { zIndex: cs.zIndex, position: cs.position };
+    });
+    expect(Number(styles.zIndex)).toBeGreaterThanOrEqual(10);
+    expect(styles.position).toBe("relative");
+  });
+
+  test("volume chart tooltip appears on hover and is not obscured", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const volumeSection = page.getByTestId("volume-section");
+    // Scroll the chart into view first — it's below the fold
+    await volumeSection.scrollIntoViewIfNeeded();
+
+    const chartWrapper = volumeSection.locator(".recharts-wrapper").first();
+    await expect(chartWrapper).toBeVisible();
+
+    // Hover across the chart area to trigger the Recharts tooltip
+    const box = await chartWrapper.boundingBox();
+    expect(box).not.toBeNull();
+
+    // Perform a smooth mouse movement across the chart to trigger the tooltip.
+    // Using steps lets Playwright interpolate intermediate mousemove events
+    // without arbitrary waitForTimeout calls.
+    await page.mouse.move(
+      box!.x + box!.width * 0.1,
+      box!.y + box!.height * 0.3,
+    );
+    await page.mouse.move(
+      box!.x + box!.width * 0.9,
+      box!.y + box!.height * 0.3,
+      { steps: 20 },
+    );
+
+    // The Recharts tooltip wrapper should become visible
+    const tooltip = volumeSection.locator(".recharts-tooltip-wrapper");
+    await expect(tooltip).toHaveCSS("visibility", "visible", { timeout: 5000 });
+
+    // Verify the tooltip has content and is rendered with non-zero dimensions
+    const tooltipBox = await tooltip.boundingBox();
+    expect(tooltipBox).not.toBeNull();
+    expect(tooltipBox!.height).toBeGreaterThan(0);
+  });
 });

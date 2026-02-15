@@ -102,7 +102,7 @@ export default async function Home() {
             </span>
           )}
         </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border relative z-10">
           <ReviewVolumeChart
             data={pivoted}
             bots={productNames}
