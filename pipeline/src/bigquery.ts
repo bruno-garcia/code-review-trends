@@ -225,3 +225,64 @@ export async function discoverBotReviewers(
 
   return rows as { login: string; event_count: number; repo_count: number }[];
 }
+
+export type BotPREventRow = {
+  repo_name: string; // 'owner/repo' from repo.name
+  pr_number: number; // from JSON_VALUE(payload, '$.pull_request.number')
+  actor_login: string;
+  event_type: string; // 'PullRequestReviewEvent' or 'PullRequestReviewCommentEvent'
+  week: string; // YYYY-MM-DD (Monday)
+};
+
+/**
+ * Query GH Archive for individual bot PR events (not aggregated).
+ *
+ * Returns deduplicated (repo, pr_number, bot, event_type, week) rows
+ * for use as a discovery table — identifying which PRs bots touched.
+ *
+ * @param startDate - Start date (inclusive), format YYYY-MM-DD
+ * @param endDate - End date (inclusive), format YYYY-MM-DD
+ * @param botLogins - GitHub logins to filter for (e.g. ["coderabbitai[bot]"])
+ */
+export async function queryBotPREvents(
+  bq: BigQuery,
+  startDate: string,
+  endDate: string,
+  botLogins: string[],
+  config?: BigQueryConfig,
+): Promise<BotPREventRow[]> {
+  if (botLogins.length === 0) return [];
+
+  const startSuffix = toSuffix(startDate);
+  const endSuffix = toSuffix(endDate);
+
+  const query = `
+    SELECT
+      repo.name AS repo_name,
+      CAST(JSON_VALUE(payload, '$.pull_request.number') AS INT64) AS pr_number,
+      actor.login AS actor_login,
+      type AS event_type,
+      FORMAT_DATE('%Y-%m-%d', DATE_TRUNC(DATE(created_at), WEEK(MONDAY))) AS week
+    FROM \`githubarchive.day.2*\`
+    WHERE
+      _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
+      AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
+      AND actor.login IN UNNEST(@bot_logins)
+      AND JSON_VALUE(payload, '$.pull_request.number') IS NOT NULL
+    GROUP BY repo_name, pr_number, actor_login, event_type, week
+    ORDER BY week ASC, repo_name ASC
+  `;
+
+  const [rows] = await bq.query({
+    query,
+    params: {
+      bot_logins: botLogins,
+    },
+    maximumBytesBilled:
+      config?.maxBytesProcessed?.toString() ??
+      process.env.BQ_MAX_BYTES_BILLED ??
+      DEFAULT_MAX_BYTES_BILLED,
+  });
+
+  return rows as BotPREventRow[];
+}
