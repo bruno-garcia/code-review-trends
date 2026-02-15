@@ -13,11 +13,9 @@ import {
   buildReport,
   countMondaysBetween,
   findMissingMondays,
-  type StatusReport,
 } from "./status.js";
 import {
   createCHClient,
-  query,
   syncBots,
   insertReviewActivity,
   insertHumanActivity,

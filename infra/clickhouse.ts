@@ -82,7 +82,8 @@ cat > /etc/clickhouse-server/users.d/default-password.xml <<'PWEOF'
     <default>
       <password_sha256_hex>PLACEHOLDER_HASH</password_sha256_hex>
       <networks>
-        <ip>::/0</ip>
+        <ip>127.0.0.1</ip>
+        <ip>::1</ip>
       </networks>
     </default>
   </users>

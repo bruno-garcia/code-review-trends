@@ -10,7 +10,7 @@
  *   npm run status                    # full dashboard
  *   npm run status -- --json          # machine-readable output
  *   npm run status -- --check         # exit 1 if data is stale (for alerting)
- *   npm run status -- --check --max-age 48  # stale if latest data is >48h old
+ *   npm run status -- --check --max-age 14  # stale if latest data is >14 days old
  */
 
 import { createCHClient, query } from "../clickhouse.js";
@@ -35,7 +35,15 @@ export async function runStatus(argv: string[]): Promise<void> {
   const args = parseArgv(argv);
   const isJson = "--json" in args;
   const isCheck = "--check" in args;
-  const maxAgeDays = args["--max-age"] ? parseInt(args["--max-age"], 10) : 14;
+  let maxAgeDays = 14;
+  if (args["--max-age"] !== undefined) {
+    const parsed = parseInt(args["--max-age"], 10);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      console.error(`Invalid --max-age value: "${args["--max-age"]}". Must be a positive integer (days).`);
+      process.exit(1);
+    }
+    maxAgeDays = parsed;
+  }
 
   const client = createCHClient();
 
