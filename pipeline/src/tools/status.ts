@@ -72,7 +72,7 @@ async function main() {
 
 export async function buildReport(client: ClickHouseClient, maxAgeDays: number): Promise<StatusReport> {
   // Table row counts
-  const tableNames = ["bots", "review_activity", "human_review_activity", "review_reactions", "repo_bot_usage", "pipeline_state"];
+  const tableNames = ["bots", "bot_logins", "review_activity", "human_review_activity", "review_reactions", "repo_bot_usage", "pipeline_state"];
   const tables: { name: string; rows: number }[] = [];
   for (const name of tableNames) {
     try {

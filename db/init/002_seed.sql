@@ -1,13 +1,24 @@
--- Seed bots
-INSERT INTO code_review_trends.bots (id, name, github_login, website, description) VALUES
-    ('coderabbit', 'CodeRabbit', 'coderabbitai[bot]', 'https://coderabbit.ai', 'AI code review agent that provides contextual feedback on pull requests.'),
-    ('copilot', 'GitHub Copilot', 'copilot[bot]', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.'),
-    ('sentry', 'Seer by Sentry', 'sentry[bot]', 'https://sentry.io', 'Sentry''s AI that reviews code for potential issues and error patterns.'),
-    ('codescene', 'CodeScene', 'codescene[bot]', 'https://codescene.com', 'Behavioral code analysis and AI code review.'),
-    ('sourcery', 'Sourcery', 'sourcery-ai[bot]', 'https://sourcery.ai', 'AI code reviewer focused on code quality and refactoring.'),
-    ('ellipsis', 'Ellipsis', 'ellipsis-dev[bot]', 'https://ellipsis.dev', 'AI-powered code review and bug detection.'),
-    ('codeium', 'Codeium / Windsurf', 'codeiumbot[bot]', 'https://codeium.com', 'AI code completion and review.'),
-    ('qodo', 'Qodo (formerly CodiumAI)', 'qodo-merge-pro[bot]', 'https://www.qodo.ai', 'AI agent for code integrity — reviews, tests, and suggestions.');
+-- Seed bots (display info only, no github_login)
+INSERT INTO code_review_trends.bots (id, name, website, description) VALUES
+    ('coderabbit', 'CodeRabbit', 'https://coderabbit.ai', 'AI code review agent that provides contextual feedback on pull requests.'),
+    ('copilot', 'GitHub Copilot', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.'),
+    ('sentry', 'Seer by Sentry', 'https://sentry.io', 'Sentry''s AI that reviews code for potential issues and error patterns.'),
+    ('codescene', 'CodeScene', 'https://codescene.com', 'Behavioral code analysis and AI code review.'),
+    ('sourcery', 'Sourcery', 'https://sourcery.ai', 'AI code reviewer focused on code quality and refactoring.'),
+    ('ellipsis', 'Ellipsis', 'https://ellipsis.dev', 'AI-powered code review and bug detection.'),
+    ('codeium', 'Codeium / Windsurf', 'https://codeium.com', 'AI code completion and review.'),
+    ('qodo', 'Qodo (formerly CodiumAI)', 'https://www.qodo.ai', 'AI agent for code integrity — reviews, tests, and suggestions.');
+
+-- Seed bot logins (multiple logins per bot supported)
+INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
+    ('coderabbit', 'coderabbitai[bot]'),
+    ('copilot', 'copilot[bot]'),
+    ('sentry', 'sentry[bot]'),
+    ('codescene', 'codescene[bot]'),
+    ('sourcery', 'sourcery-ai[bot]'),
+    ('ellipsis', 'ellipsis-dev[bot]'),
+    ('codeium', 'codeiumbot[bot]'),
+    ('qodo', 'qodo-merge-pro[bot]');
 
 -- Seed review_activity with fake weekly data (2023-01 to 2026-02)
 -- Each bot has distinct growth curves and org/repo ratios
