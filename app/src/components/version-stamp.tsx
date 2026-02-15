@@ -8,7 +8,7 @@ export function VersionStamp() {
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA ?? "unknown";
   const shortSha = commitSha.slice(0, SHORT_SHA_LENGTH);
   const [copied, setCopied] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout>(undefined);
 
   useEffect(() => {
     return () => clearTimeout(timerRef.current);
