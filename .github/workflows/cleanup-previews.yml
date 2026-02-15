@@ -61,7 +61,7 @@ jobs:
           for ALIAS in $ALIASES; do
             SLUG=$(echo "$ALIAS" | sed 's/\.preview\.codereviewtrends\.com//')
 
-            if echo "$SANITIZED_BRANCHES" | grep -qw "$SLUG"; then
+            if echo "$SANITIZED_BRANCHES" | tr ' ' '\n' | grep -qFx "$SLUG"; then
               echo "✅ Keeping: $ALIAS (branch exists)"
             else
               echo "🗑  Removing: $ALIAS (branch deleted)"
