@@ -71,9 +71,11 @@ export function ProductFilterBar() {
             {selectedProducts.map((p) => (
               <button
                 key={p.id}
+                type="button"
                 onClick={() => {
                   setExpanded(true);
                 }}
+                aria-label={`${p.name} — click to open filter picker`}
                 className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap shrink-0 border transition-colors hover:brightness-125"
                 style={{
                   borderColor: p.brand_color + "60",
@@ -94,6 +96,7 @@ export function ProductFilterBar() {
           </div>
 
           <button
+            type="button"
             onClick={() => setExpanded(!expanded)}
             className="shrink-0 p-1.5 rounded text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
             aria-label={expanded ? "Collapse filter" : "Expand filter"}
@@ -114,6 +117,7 @@ export function ProductFilterBar() {
             {/* Quick actions */}
             <div className="flex items-center gap-2 mb-3">
               <button
+                type="button"
                 data-testid="filter-select-all"
                 onClick={selectAll}
                 className="text-xs px-2.5 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
@@ -121,6 +125,7 @@ export function ProductFilterBar() {
                 Select All
               </button>
               <button
+                type="button"
                 data-testid="filter-deselect-all"
                 onClick={deselectAll}
                 className="text-xs px-2.5 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
@@ -128,6 +133,7 @@ export function ProductFilterBar() {
                 Deselect All
               </button>
               <button
+                type="button"
                 data-testid="filter-reset"
                 onClick={resetToTop10}
                 className="text-xs px-2.5 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
@@ -143,6 +149,7 @@ export function ProductFilterBar() {
                 return (
                   <button
                     key={p.id}
+                    type="button"
                     data-testid={`filter-product-${p.id}`}
                     onClick={() => toggleProduct(p.id)}
                     aria-pressed={isSelected}

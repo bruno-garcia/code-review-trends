@@ -107,9 +107,11 @@ export function ProductFilterProvider({
     }
   }, [selectedProductIds]);
 
-  const isDefault =
-    selectedProductIds.length === defaultProductIds.length &&
-    defaultProductIds.every((id) => selectedProductIds.includes(id));
+  const isDefault = useMemo(() => {
+    if (selectedProductIds.length !== defaultProductIds.length) return false;
+    const selectedSet = new Set(selectedProductIds);
+    return defaultProductIds.every((id) => selectedSet.has(id));
+  }, [selectedProductIds, defaultProductIds]);
 
   return (
     <ProductFilterContext value={{
