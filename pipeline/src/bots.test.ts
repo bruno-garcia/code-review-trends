@@ -7,6 +7,9 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   BOTS,
   BOT_BY_LOGIN,
@@ -124,5 +127,106 @@ describe("product registry", () => {
     const qodo = PRODUCT_BY_ID.get("qodo");
     assert.ok(qodo);
     assert.equal(qodo.name, "Qodo");
+  });
+
+  it("every bot appears under its product in BOTS_BY_PRODUCT", () => {
+    for (const bot of BOTS) {
+      const group = BOTS_BY_PRODUCT.get(bot.product_id);
+      assert.ok(group, `No group for product "${bot.product_id}"`);
+      assert.ok(
+        group.some((b) => b.id === bot.id),
+        `Bot "${bot.id}" missing from BOTS_BY_PRODUCT["${bot.product_id}"]`,
+      );
+    }
+  });
+
+  it("multi-bot products have expected bot counts", () => {
+    const expected: Record<string, number> = {
+      qodo: 3,
+      sentry: 3,
+      linearb: 2,
+    };
+    for (const [productId, count] of Object.entries(expected)) {
+      const bots = BOTS_BY_PRODUCT.get(productId);
+      assert.ok(bots, `Product "${productId}" not found`);
+      assert.equal(
+        bots.length,
+        count,
+        `Product "${productId}" expected ${count} bots, got ${bots.length}`,
+      );
+    }
+  });
+});
+
+describe("seed SQL consistency", () => {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const seedSql: string = readFileSync(
+    join(__dirname, "../../db/init/002_seed.sql"),
+    "utf-8",
+  );
+
+  /** Extract quoted values from a single-column pattern in the seed SQL. */
+  function extractInsertValues(
+    table: string,
+    column: string,
+  ): string[] {
+    // Match the INSERT INTO ... (column) VALUES block and extract all single-quoted values
+    const pattern = new RegExp(
+      `INSERT INTO code_review_trends\\.${table}[^(]*\\(${column}[^)]*\\)\\s*VALUES\\s*([\\s\\S]*?)(?:;|$)`,
+    );
+    const match = seedSql.match(pattern);
+    if (!match) return [];
+    const valuesBlock = match[1];
+    const values: string[] = [];
+    const rowPattern = /\(([^)]+)\)/g;
+    let m;
+    while ((m = rowPattern.exec(valuesBlock)) !== null) {
+      // First quoted value in each row
+      const first = m[1].match(/'([^']+)'/);
+      if (first) values.push(first[1]);
+    }
+    return values;
+  }
+
+  it("products INSERT matches PRODUCTS array", () => {
+    const seedProductIds = extractInsertValues("products", "id");
+    const registryIds = PRODUCTS.map((p) => p.id).sort();
+    assert.deepEqual(
+      seedProductIds.sort(),
+      registryIds,
+      "Seed products don't match PRODUCTS registry",
+    );
+  });
+
+  it("bots INSERT matches BOTS array", () => {
+    const seedBotIds = extractInsertValues("bots", "id");
+    const registryIds = BOTS.map((b) => b.id).sort();
+    assert.deepEqual(
+      seedBotIds.sort(),
+      registryIds,
+      "Seed bots don't match BOTS registry",
+    );
+  });
+
+  it("bot_logins INSERT matches all bot logins", () => {
+    // bot_logins rows have (bot_id, login) — extract the logins (second quoted value)
+    const pattern =
+      /INSERT INTO code_review_trends\.bot_logins[^(]*\(([^)]+)\)\s*VALUES\s*([\s\S]*?)(?:;|$)/;
+    const match = seedSql.match(pattern);
+    const seedLogins: string[] = [];
+    if (match) {
+      const rowPattern = /\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/g;
+      let m;
+      while ((m = rowPattern.exec(match[2])) !== null) {
+        seedLogins.push(m[2]);
+      }
+    }
+    const registryLogins = BOTS.map((b) => b.github_login).sort();
+    assert.deepEqual(
+      seedLogins.sort(),
+      registryLogins,
+      "Seed bot_logins don't match bot github_logins",
+    );
   });
 });
