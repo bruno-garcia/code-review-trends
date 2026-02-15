@@ -11,6 +11,7 @@
   --color-theme-muted: var(--theme-muted);
   --color-theme-nav: var(--theme-nav);
   --color-nav-link: var(--theme-nav-link);
+  --color-nav-link-active: var(--theme-nav-link-active);
   --color-wordmark-code: var(--theme-wordmark-code);
   --color-wordmark-review: var(--theme-wordmark-review);
   --color-wordmark-trends: var(--theme-wordmark-trends);
@@ -30,6 +31,7 @@
   --theme-muted: #6b7280;
   --theme-nav: #f9fafb;
   --theme-nav-link: #6b7280;
+  --theme-nav-link-active: #7c3aed;
   --theme-wordmark-code: #111827;
   --theme-wordmark-review: #7c3aed;
   --theme-wordmark-trends: #6d28d9;
@@ -49,6 +51,7 @@
   --theme-muted: #9ca3af;
   --theme-nav: #12121a;
   --theme-nav-link: #9ca3af;
+  --theme-nav-link-active: #a78bfa;
   --theme-wordmark-code: #e0e0ef;
   --theme-wordmark-review: #a78bfa;
   --theme-wordmark-trends: #7c5fcf;

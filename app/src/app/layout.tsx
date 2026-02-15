@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { VersionStamp } from "@/components/version-stamp";
 import { Logo } from "@/components/logo";
+import { NavLinks } from "@/components/nav-links";
 import { ThemeProvider, themeScript } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import "./globals.css";
@@ -32,29 +33,7 @@ export default function RootLayout({
                   <Logo />
                 </Link>
                 <div className="flex items-center gap-6 text-sm text-nav-link">
-                  <Link href="/" className="hover:text-violet-400 transition-colors">
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/bots"
-                    className="hover:text-violet-400 transition-colors"
-                  >
-                    Bots
-                  </Link>
-                  <Link
-                    href="/compare"
-                    className="hover:text-violet-400 transition-colors"
-                  >
-                    Compare
-                  </Link>
-                  <a
-                    href="https://github.com/bruno-garcia/code-review-trends"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-violet-400 transition-colors"
-                  >
-                    GitHub
-                  </a>
+                  <NavLinks />
                   <ThemeToggle />
                 </div>
               </div>
