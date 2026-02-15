@@ -66,6 +66,25 @@ npm run pipeline -- sync              # last 2 weeks (default)
 npm run pipeline -- sync --weeks 4    # last 4 weeks
 ```
 
+### `migrate`
+
+Apply schema and bot reference data to a ClickHouse instance. Reads all `db/init/*.sql` files (schema + bot data) and syncs the bot registry from `bots.ts`. Does **not** apply `db/seed/` (fake data).
+
+```bash
+npm run pipeline -- migrate --stack staging          # staging (reads Pulumi creds)
+npm run pipeline -- migrate --stack prod             # production
+npm run pipeline -- migrate --local                  # local ClickHouse
+npm run pipeline -- migrate --dry-run                # preview without applying
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--stack STACK` | `staging` | Pulumi stack name to read ClickHouse credentials from |
+| `--local` | — | Use local ClickHouse (`CLICKHOUSE_URL` env var or `http://localhost:8123`) |
+| `--dry-run` | — | Show statements that would be applied without executing |
+
+Safe to re-run — all statements are idempotent (`CREATE TABLE IF NOT EXISTS` + `ReplacingMergeTree` for bot data).
+
 ### `status`
 
 Show pipeline health, data freshness, coverage gaps, and per-bot breakdown. This is the primary way to monitor the pipeline on a server.
@@ -205,6 +224,23 @@ npm run pipeline -- status
 | `BQ_MAX_BYTES_BILLED` | `500000000000` (500GB) | Safety limit for BigQuery scans |
 | `GITHUB_TOKEN` | — | GitHub PAT for API enrichment (not needed for BigQuery) |
 
+## Database file organization
+
+```
+db/
+  init/                        ← Applied to ALL environments
+    001_schema.sql             — CREATE TABLE definitions
+    002_bot_data.sql           — Products, bots, bot_logins (reference data)
+    003_seed.sh                — Docker init script that loads db/seed/ (local dev only)
+  seed/                        ← Applied to local dev + CI only
+    001_fake_data.sql          — Fake review data, repos, PRs, etc.
+  init-ci.sh                   — CI script: runs db/init/*.sql + db/seed/*.sql via HTTP
+```
+
+- **Local dev** (`docker compose up`): Runs `001_schema.sql` → `002_bot_data.sql` → `003_seed.sh` (loads fake data). Full dataset for UI development.
+- **CI** (`bash db/init-ci.sh`): Same data via HTTP against the ClickHouse service container.
+- **Staging/prod** (`npm run pipeline -- migrate`): Applies only `db/init/*.sql` + syncs bot registry from `bots.ts`. No fake data.
+
 ## Architecture
 
 ```
@@ -213,7 +249,7 @@ BigQuery (GH Archive)  →  pipeline  →  ClickHouse
                            ├── clickhouse.ts  — ClickHouse writer
                            ├── sync.ts        — orchestration (backfill, incremental)
                            ├── bots.ts        — canonical bot registry
-                           ├── cli.ts         — CLI entry point
+                           ├── cli.ts         — CLI entry point (incl. migrate command)
                            └── tools/
                                ├── status.ts       — health & monitoring
                                ├── inspect-data.ts — data exploration
@@ -255,8 +291,10 @@ The canonical bot list lives in `src/bots.ts`. Current bots:
 To add a new bot:
 
 1. Add an entry to `src/bots.ts`
-2. Run `npm run pipeline -- sync-bots`
-3. Use `npm run discover-bots` to find the correct GitHub login if unsure
+2. Update `db/init/002_bot_data.sql` to match (the `bots.test.ts` validates consistency)
+3. Run `npm run pipeline -- sync-bots` to push to local ClickHouse
+4. For remote databases, run `npm run pipeline -- migrate --stack staging`
+5. Use `npm run discover-bots` to find the correct GitHub login if unsure
 
 ## Tests
 

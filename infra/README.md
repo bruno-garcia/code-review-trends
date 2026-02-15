@@ -98,7 +98,20 @@ gcloud secrets versions access latest --secret=crt-staging-clickhouse-password
 
 ### Apply the schema
 
-Copy the schema file to the VM and execute it with `clickhouse-client`, which supports multi-statement queries natively:
+Use the pipeline's `migrate` command, which applies all `db/init/*.sql` files (schema + bot reference data) and syncs the bot registry from `bots.ts` via the ClickHouse HTTP interface:
+
+```bash
+# Apply to staging (reads creds from Pulumi stack outputs)
+npm run pipeline -- migrate --stack staging
+
+# Preview what would run
+npm run pipeline -- migrate --stack staging --dry-run
+```
+
+This is the recommended approach — no need to SSH into the VM. The command reads the ClickHouse URL and password from `pulumi stack output`.
+
+<details>
+<summary>Manual alternative (via SSH + clickhouse-client)</summary>
 
 ```bash
 # Copy schema to VM
@@ -110,6 +123,7 @@ CH_PASS=$(gcloud secrets versions access latest --secret=crt-staging-clickhouse-
 gcloud compute ssh crt-staging-clickhouse --zone=us-central1-a --tunnel-through-iap -- \
   "clickhouse-client --port 9000 --password \"$CH_PASS\" --database code_review_trends --multiquery < /tmp/001_schema.sql"
 ```
+</details>
 
 ### Set Vercel environment variables
 
