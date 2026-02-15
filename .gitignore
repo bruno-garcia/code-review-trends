@@ -12,6 +12,7 @@ blob-report/
 # Env
 .env
 .env.local
+.env.sentry-build-plugin
 
 # OS
 .DS_Store

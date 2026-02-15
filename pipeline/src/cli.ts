@@ -15,6 +15,9 @@
  * All commands are idempotent. Safe to re-run.
  */
 
+// Sentry must be imported first to instrument all subsequent modules
+import { Sentry } from "./sentry.js";
+
 import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import {
   createCHClient,
@@ -59,7 +62,18 @@ async function main() {
     process.exit(1);
   }
 
-  await handler();
+  await Sentry.startSpan(
+    {
+      op: "pipeline.command",
+      name: `pipeline ${command}`,
+    },
+    async () => {
+      await handler();
+    },
+  );
+
+  // Flush all events before the process exits
+  await Sentry.flush(5000);
 }
 
 async function cmdHelp() {
@@ -675,7 +689,10 @@ function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
+  Sentry.captureException(err);
   console.error("Fatal error:", err);
+  // Flush Sentry events before exiting
+  await Sentry.flush(5000);
   process.exit(1);
 });

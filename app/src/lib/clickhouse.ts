@@ -1,4 +1,5 @@
 import { createClient } from "@clickhouse/client";
+import * as Sentry from "@sentry/nextjs";
 
 export function getClickHouseClient() {
   return createClient({
@@ -166,17 +167,47 @@ export type ProductBot = {
 };
 
 async function query<T>(sql: string, params?: Record<string, unknown>): Promise<T[]> {
-  const client = getClickHouseClient();
+  // Sanitize the SQL for the span description — strip excess whitespace
+  const sanitizedSql = sql.replace(/\s+/g, " ").trim();
+
+  // Extract hostname from URL for span attributes — avoid leaking credentials
+  const clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+  let serverAddress = "localhost";
+  let serverPort = 8123;
   try {
-    const result = await client.query({
-      query: sql,
-      query_params: params ?? {},
-      format: "JSONEachRow",
-    });
-    return (await result.json()) as T[];
-  } finally {
-    await client.close();
+    const parsed = new URL(clickhouseUrl);
+    serverAddress = parsed.hostname;
+    serverPort = parseInt(parsed.port, 10) || 8123;
+  } catch {
+    // fall back to defaults
   }
+
+  return Sentry.startSpan(
+    {
+      op: "db.query",
+      name: sanitizedSql,
+      attributes: {
+        "db.system": "clickhouse",
+        "db.name": process.env.CLICKHOUSE_DB ?? "code_review_trends",
+        "db.statement": sanitizedSql,
+        "server.address": serverAddress,
+        "server.port": serverPort,
+      },
+    },
+    async () => {
+      const client = getClickHouseClient();
+      try {
+        const result = await client.query({
+          query: sql,
+          query_params: params ?? {},
+          format: "JSONEachRow",
+        });
+        return (await result.json()) as T[];
+      } finally {
+        await client.close();
+      }
+    },
+  );
 }
 
 // --- Product queries ---
