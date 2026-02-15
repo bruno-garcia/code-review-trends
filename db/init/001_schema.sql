@@ -1,9 +1,23 @@
 CREATE DATABASE IF NOT EXISTS code_review_trends;
 
+-- Products (companies/tools that own one or more bots)
+CREATE TABLE IF NOT EXISTS code_review_trends.products (
+    id String,
+    name String,
+    website String,
+    description String,
+    brand_color String,
+    avatar_url String
+) ENGINE = ReplacingMergeTree()
+ORDER BY id;
+
 -- Bots we're tracking (display info only)
 CREATE TABLE IF NOT EXISTS code_review_trends.bots (
     id String,
     name String,
+    product_id String,
+    brand_color String,
+    avatar_url String,
     website String,
     description String
 ) ENGINE = ReplacingMergeTree()
