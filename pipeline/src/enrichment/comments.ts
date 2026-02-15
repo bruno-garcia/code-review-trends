@@ -34,14 +34,14 @@ export async function enrichComments(
   errors: number;
 }> {
   const limit = options?.limit ?? 1000;
-  const partitionClause = partitionWhereClause(partition);
+  const partition_clause = partitionWhereClause(partition, "e.repo_name");
 
   // Find PR/bot combos needing comment enrichment.
   const whereFragments = ["c.bot_id IS NULL"];
-  if (partitionClause) {
-    whereFragments.push(
-      partitionClause.replace("repo_name", "e.repo_name"),
-    );
+  const queryParams: Record<string, number> = { limit };
+  if (partition_clause) {
+    whereFragments.push(partition_clause.sql);
+    Object.assign(queryParams, partition_clause.params);
   }
 
   const combos = await query<{
@@ -59,7 +59,7 @@ export async function enrichComments(
      GROUP BY e.repo_name, e.pr_number, e.bot_id
      ORDER BY latest_week DESC
      LIMIT {limit:UInt32}`,
-    { limit },
+    queryParams,
   );
 
   console.log(
@@ -118,7 +118,7 @@ export async function enrichComments(
           rows.push({
             repo_name,
             pr_number,
-            comment_id: comment.id,
+            comment_id: String(comment.id),
             bot_id,
             body_length: comment.body?.length ?? 0,
             created_at: comment.created_at,

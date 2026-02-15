@@ -28,7 +28,7 @@ export async function enrichPullRequests(
   options?: { limit?: number },
 ): Promise<{ fetched: number; skipped: number; errors: number }> {
   const limit = options?.limit ?? 1000;
-  const partitionClause = partitionWhereClause(partition);
+  const partition_clause = partitionWhereClause(partition, "e.repo_name");
 
   // Find PRs needing enrichment (in pr_bot_events but not in pull_requests).
   // Skip repos known to be deleted — no point hitting the API for them.
@@ -36,10 +36,10 @@ export async function enrichPullRequests(
     "p.pr_number IS NULL",
     "e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status = 'not_found')",
   ];
-  if (partitionClause) {
-    whereFragments.push(
-      partitionClause.replace("repo_name", "e.repo_name"),
-    );
+  const queryParams: Record<string, number> = { limit };
+  if (partition_clause) {
+    whereFragments.push(partition_clause.sql);
+    Object.assign(queryParams, partition_clause.params);
   }
 
   const prs = await query<{
@@ -54,7 +54,7 @@ export async function enrichPullRequests(
      GROUP BY e.repo_name, e.pr_number
      ORDER BY latest_week DESC
      LIMIT {limit:UInt32}`,
-    { limit },
+    queryParams,
   );
 
   console.log(

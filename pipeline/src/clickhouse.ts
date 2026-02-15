@@ -287,7 +287,7 @@ export async function insertPullRequests(
 export type PrCommentRow = {
   repo_name: string;
   pr_number: number;
-  comment_id: number;
+  comment_id: string;
   bot_id: string;
   body_length: number;
   created_at: string; // ISO datetime

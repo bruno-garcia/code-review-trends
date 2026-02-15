@@ -30,14 +30,16 @@ export async function enrichRepos(
   options?: { limit?: number },
 ): Promise<{ fetched: number; skipped: number; errors: number }> {
   const limit = options?.limit ?? 1000;
-  const partitionClause = partitionWhereClause(partition);
+  const partition_clause = partitionWhereClause(partition);
 
   // Find repos needing enrichment (in pr_bot_events but not in repos)
   const whereFragments = [
     "repo_name NOT IN (SELECT name FROM repos)",
   ];
-  if (partitionClause) {
-    whereFragments.push(partitionClause);
+  const queryParams: Record<string, number> = { limit };
+  if (partition_clause) {
+    whereFragments.push(partition_clause.sql);
+    Object.assign(queryParams, partition_clause.params);
   }
 
   const repos = await query<{ repo_name: string }>(
@@ -46,7 +48,7 @@ export async function enrichRepos(
      WHERE ${whereFragments.join(" AND ")}
      ORDER BY repo_name
      LIMIT {limit:UInt32}`,
-    { limit },
+    queryParams,
   );
 
   console.log(`[repos] Found ${repos.length} repos needing enrichment`);
@@ -161,14 +163,16 @@ export async function refreshStaleRepos(
 ): Promise<{ refreshed: number }> {
   const staleDays = options?.staleDays ?? 30;
   const limit = options?.limit ?? 500;
-  const partitionClause = partitionWhereClause(partition);
+  const partition_clause = partitionWhereClause(partition, "name");
 
   const whereFragments = [
     "fetch_status = 'ok'",
-    `updated_at < now() - INTERVAL ${staleDays} DAY`,
+    `updated_at < now() - INTERVAL {staleDays:UInt32} DAY`,
   ];
-  if (partitionClause) {
-    whereFragments.push(partitionClause.replace("repo_name", "name"));
+  const queryParams: Record<string, number> = { limit, staleDays };
+  if (partition_clause) {
+    whereFragments.push(partition_clause.sql);
+    Object.assign(queryParams, partition_clause.params);
   }
 
   const staleRepos = await query<{ name: string }>(
@@ -177,7 +181,7 @@ export async function refreshStaleRepos(
      WHERE ${whereFragments.join(" AND ")}
      ORDER BY updated_at ASC
      LIMIT {limit:UInt32}`,
-    { limit },
+    queryParams,
   );
 
   console.log(`[repos] Found ${staleRepos.length} stale repos to refresh`);

@@ -5,10 +5,7 @@
  * with separate GitHub PATs can process disjoint sets of repos concurrently.
  *
  * ClickHouse filtering uses `cityHash64(repo_name) % N = workerId`.
- * Node.js filtering uses a JS reimplementation of CityHash64 — but since
- * exact replication is fragile, the recommended approach is to do all
- * filtering in ClickHouse via `partitionWhereClause`. The `isMyRepo`
- * function queries ClickHouse to check partition membership.
+ * All filtering should happen in ClickHouse via `partitionWhereClause`.
  */
 
 export type WorkerConfig = {
@@ -17,42 +14,28 @@ export type WorkerConfig = {
 };
 
 /**
- * Check if a repo belongs to this worker's partition.
+ * Generate a parameterized WHERE clause fragment for ClickHouse queries
+ * to filter by partition.
  *
- * Uses a simple FNV-1a-style hash for in-process filtering. Note: this
- * will NOT match ClickHouse's cityHash64 exactly. For authoritative
- * partition checks, use `partitionWhereClause` in SQL queries instead.
- *
- * For single-worker setups (totalWorkers=1), always returns true.
- */
-export function isMyRepo(repoName: string, config: WorkerConfig): boolean {
-  if (config.totalWorkers <= 1) return true;
-  const hash = simpleHash(repoName);
-  return hash % config.totalWorkers === config.workerId;
-}
-
-/**
- * Generate a WHERE clause fragment for ClickHouse queries to filter by partition.
- *
- * Uses `cityHash64(repo_name) % totalWorkers = workerId` for deterministic,
+ * Uses `cityHash64(column) % totalWorkers = workerId` for deterministic,
  * consistent partitioning directly in the database.
  *
- * Returns an empty string if totalWorkers <= 1 (single worker, no filtering needed).
+ * Returns null if totalWorkers <= 1 (single worker, no filtering needed).
+ *
+ * @param config - Worker partition config
+ * @param column - Column name to hash (default: "repo_name")
  */
-export function partitionWhereClause(config: WorkerConfig): string {
-  if (config.totalWorkers <= 1) return "";
-  return `cityHash64(repo_name) % ${config.totalWorkers} = ${config.workerId}`;
-}
-
-/**
- * Simple deterministic hash (FNV-1a 32-bit).
- * Used only for in-process filtering when ClickHouse is not available.
- */
-function simpleHash(str: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    hash ^= str.charCodeAt(i);
-    hash = (hash * 0x01000193) >>> 0;
-  }
-  return hash >>> 0;
+export function partitionWhereClause(
+  config: WorkerConfig,
+  column?: string,
+): { sql: string; params: Record<string, number> } | null {
+  if (config.totalWorkers <= 1) return null;
+  const col = column ?? "repo_name";
+  return {
+    sql: `cityHash64(${col}) % {_partTotalWorkers:UInt32} = {_partWorkerId:UInt32}`,
+    params: {
+      _partTotalWorkers: config.totalWorkers,
+      _partWorkerId: config.workerId,
+    },
+  };
 }

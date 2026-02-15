@@ -381,9 +381,8 @@ async function cmdEnrichStatus() {
     }>(
       ch,
       `SELECT
-        count(DISTINCT (repo_name, pr_number)) as total,
-        countIf(DISTINCT (repo_name, pr_number), (repo_name, pr_number) IN (SELECT repo_name, pr_number FROM pull_requests)) as enriched
-      FROM pr_bot_events`,
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events) as total,
+        (SELECT count() FROM pull_requests) as enriched`,
     );
     const prPending = Number(prStats.total) - Number(prStats.enriched);
 
@@ -394,9 +393,8 @@ async function cmdEnrichStatus() {
     }>(
       ch,
       `SELECT
-        count(DISTINCT (repo_name, pr_number, bot_id)) as total,
-        countIf(DISTINCT (repo_name, pr_number, bot_id), (repo_name, pr_number, bot_id) IN (SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_comments)) as enriched
-      FROM pr_bot_events`,
+        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events) as total,
+        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_comments) as enriched`,
     );
     const commentPending = Number(commentStats.total) - Number(commentStats.enriched);
 

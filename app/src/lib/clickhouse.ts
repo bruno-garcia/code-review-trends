@@ -467,8 +467,8 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
     SELECT
       (SELECT count() FROM repos) AS total_discovered_repos,
       (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
-      (SELECT count() FROM pull_requests) AS total_discovered_prs,
-      (SELECT countIf(additions > 0 OR deletions > 0) FROM pull_requests) AS enriched_prs,
+      (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events) AS total_discovered_prs,
+      (SELECT count() FROM pull_requests) AS enriched_prs,
       (SELECT count() FROM pr_comments) AS total_comments
   `);
   return rows[0] ?? {
