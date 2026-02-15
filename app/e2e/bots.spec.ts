@@ -60,6 +60,13 @@ test.describe("Bot detail page", () => {
     await expect(page.getByTestId("bot-reactions-chart")).toBeVisible();
   });
 
+  test("shows new charts and sections", async ({ page }) => {
+    await page.goto("/bots/coderabbit");
+    await expect(page.getByTestId("reactions-by-pr-size")).toBeVisible();
+    await expect(page.getByTestId("bot-language-chart")).toBeVisible();
+    await expect(page.getByTestId("bot-comments-per-pr")).toBeVisible();
+  });
+
   test("returns 404 for unknown bot", async ({ page }) => {
     const response = await page.goto("/bots/nonexistent");
     expect(response?.status()).toBe(404);

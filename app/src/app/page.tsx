@@ -2,8 +2,16 @@ import {
   getWeeklyTotals,
   getWeeklyActivityByProduct,
   getProductSummaries,
+  getTopOrgsByStars,
+  getBotReactionLeaderboard,
+  getEnrichmentStats,
 } from "@/lib/clickhouse";
-import { BotShareChart, ReviewVolumeChart } from "@/components/charts";
+import {
+  BotShareChart,
+  ReviewVolumeChart,
+  TopOrgsChart,
+  BotReactionLeaderboardChart,
+} from "@/components/charts";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +19,13 @@ export const dynamic = "force-dynamic";
 const TOP_N_CHART = 10;
 
 export default async function Home() {
-  const [totals, activity, summaries] = await Promise.all([
+  const [totals, activity, summaries, topOrgs, reactionLeaderboard, enrichmentStats] = await Promise.all([
     getWeeklyTotals(),
     getWeeklyActivityByProduct(),
     getProductSummaries(),
+    getTopOrgsByStars(20),
+    getBotReactionLeaderboard(),
+    getEnrichmentStats(),
   ]);
 
   // Build brand color map from activity data
@@ -190,6 +201,38 @@ export default async function Home() {
           </table>
         </div>
       </section>
+
+      {/* Top Organizations */}
+      <section data-testid="top-orgs-section">
+        <h2 className="text-2xl font-semibold mb-4">Top Organizations</h2>
+        <p className="text-gray-400 mb-6">
+          Organizations with the most GitHub stars across repos where AI bots review code.
+        </p>
+        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+          <TopOrgsChart data={topOrgs} />
+        </div>
+      </section>
+
+      {/* Bot Sentiment */}
+      <section data-testid="bot-sentiment-section">
+        <h2 className="text-2xl font-semibold mb-4">Bot Sentiment</h2>
+        <p className="text-gray-400 mb-6">
+          How developers react to each bot&apos;s review comments — thumbs up, hearts, and thumbs down.
+        </p>
+        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+          <BotReactionLeaderboardChart data={reactionLeaderboard} />
+        </div>
+      </section>
+
+      {/* Data Coverage */}
+      {(enrichmentStats.enriched_repos > 0 || enrichmentStats.total_comments > 0) && (
+        <section data-testid="data-coverage" className="text-center text-sm text-gray-500 py-4 border-t border-gray-800">
+          Tracking{" "}
+          <span className="text-gray-300">{enrichmentStats.enriched_repos.toLocaleString()}</span> repos,{" "}
+          <span className="text-gray-300">{enrichmentStats.enriched_prs.toLocaleString()}</span> PRs,{" "}
+          <span className="text-gray-300">{enrichmentStats.total_comments.toLocaleString()}</span> comments
+        </section>
+      )}
     </div>
   );
 }

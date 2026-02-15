@@ -5,8 +5,16 @@ import {
   getProductBots,
   getWeeklyActivityByProduct,
   getProductReactions,
+  getReactionsByPRSize,
+  getBotsByLanguage,
+  getAvgCommentsPerPR,
 } from "@/lib/clickhouse";
-import { SingleBotChart, ReactionChart } from "@/components/charts";
+import {
+  SingleBotChart,
+  ReactionChart,
+  ReactionsByPRSizeChart,
+  BotLanguageChart,
+} from "@/components/charts";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -17,11 +25,14 @@ export default async function ProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [product, allSummaries, productBots, activity] = await Promise.all([
+  const [product, allSummaries, productBots, activity, reactionsBySize, languageData, commentsPerPR] = await Promise.all([
     getProductById(id),
     getProductSummaries(),
     getProductBots(id),
     getWeeklyActivityByProduct(id),
+    getReactionsByPRSize(id),
+    getBotsByLanguage(id),
+    getAvgCommentsPerPR(id),
   ]);
 
   if (!product) {
@@ -226,6 +237,47 @@ export default async function ProductPage({
           </div>
         </section>
       )}
+
+      {/* Comments per PR */}
+      <section data-testid="bot-comments-per-pr">
+        <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
+        {commentsPerPR.length > 0 ? (
+          <div className="bg-theme-surface rounded-xl p-5 border border-theme-border inline-block">
+            <p className="text-sm text-gray-400">Avg Comments / PR</p>
+            <p className="text-3xl font-bold tabular-nums">
+              {Number(commentsPerPR[0].avg_comments_per_pr).toFixed(2)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {Number(commentsPerPR[0].total_comments).toLocaleString()} comments across{" "}
+              {Number(commentsPerPR[0].total_prs).toLocaleString()} PRs
+            </p>
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm">No data</p>
+        )}
+      </section>
+
+      {/* Reactions by PR Size */}
+      <section data-testid="bot-reactions-by-size">
+        <h2 className="text-2xl font-semibold mb-4">Reactions by PR Size</h2>
+        <p className="text-gray-400 mb-6">
+          How reactions vary based on the size of the pull request being reviewed.
+        </p>
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+          <ReactionsByPRSizeChart data={reactionsBySize} />
+        </div>
+      </section>
+
+      {/* Top Languages */}
+      <section data-testid="bot-languages">
+        <h2 className="text-2xl font-semibold mb-4">Top Languages</h2>
+        <p className="text-gray-400 mb-6">
+          Programming languages of repos where this bot reviews code.
+        </p>
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+          <BotLanguageChart data={languageData} />
+        </div>
+      </section>
     </div>
   );
 }

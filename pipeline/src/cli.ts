@@ -39,6 +39,9 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   sync: cmdSync,
   status: cmdStatus,
   migrate: cmdMigrate,
+  discover: cmdDiscover,
+  enrich: cmdEnrich,
+  "enrich-status": cmdEnrichStatus,
   help: cmdHelp,
 };
 
@@ -72,6 +75,9 @@ Commands:
   sync               Fetch recent weeks (for scheduled/cron runs)
   status             Show pipeline health, data freshness, and coverage
   migrate            Apply schema to remote ClickHouse (reads creds from Pulumi)
+  discover           Discover PR bot events from BigQuery into pr_bot_events
+  enrich             Run GitHub API enrichment (repos → PRs → comments)
+  enrich-status      Show enrichment progress
   help               Show this help message
 
 Options for fetch-bigquery:
@@ -97,6 +103,19 @@ Options for migrate:
   --stack STACK        Pulumi stack name (default: staging)
   --dry-run            Show what would be applied without running
   --local              Use local ClickHouse instead of Pulumi creds
+
+Options for discover:
+  --start YYYY-MM-DD   Start date (default: 4 weeks ago)
+  --end YYYY-MM-DD     End date (default: today)
+  --dry-run            Show what would be fetched without running
+
+Options for enrich:
+  --token TOKEN        GitHub PAT (or set GITHUB_TOKEN env var)
+  --worker-id N        Worker ID for partitioning (default: 0)
+  --total-workers N    Total workers (default: 1)
+  --limit N            Max items per entity type per run
+  --priority TYPE      Start with: repos|prs|comments (default: repos)
+  --stale-days N       Repo refresh threshold in days (default: 7)
 
 Environment variables:
   CLICKHOUSE_URL       ClickHouse HTTP URL (default: http://localhost:8123)
@@ -369,6 +388,161 @@ async function cmdMigrate() {
     }
   } finally {
     await client.close();
+  }
+}
+
+async function cmdDiscover() {
+  const args = parseArgs();
+  const startDate = args["--start"] ?? formatDate(weeksAgo(4));
+  const endDate = args["--end"] ?? formatDate(new Date());
+  const dryRun = "--dry-run" in args;
+
+  const logins = [...BOT_LOGINS];
+  console.log(`Discovering PR bot events: ${startDate} → ${endDate}`);
+  console.log(`Tracking ${logins.length} bot logins`);
+
+  if (dryRun) {
+    console.log("Would query GH Archive for PR-level bot events");
+    console.log(`  Bot logins: ${logins.join(", ")}`);
+    console.log("(dry run — no data will be written)");
+    return;
+  }
+
+  const { queryBotPREvents } = await import("./bigquery.js");
+  const { insertPrBotEvents } = await import("./clickhouse.js");
+
+  const bq = createBigQueryClient();
+  const ch = createCHClient();
+
+  try {
+    console.log("Querying BigQuery for PR bot events...");
+    const rows = await queryBotPREvents(bq, startDate, endDate, logins);
+    console.log(`  Got ${rows.length} PR bot event rows`);
+
+    // Map BigQuery rows to ClickHouse rows
+    const chRows = rows
+      .map((row) => {
+        const bot = BOT_BY_LOGIN.get(row.actor_login);
+        if (!bot) {
+          console.warn(`  Unknown bot login: ${row.actor_login}`);
+          return null;
+        }
+        return {
+          repo_name: row.repo_name,
+          pr_number: Number(row.pr_number),
+          bot_id: bot.id,
+          actor_login: row.actor_login,
+          event_type: row.event_type,
+          event_week: row.week,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    console.log("Writing to ClickHouse...");
+    await insertPrBotEvents(ch, chRows);
+    console.log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
+    console.log("Done!");
+  } finally {
+    await ch.close();
+  }
+}
+
+async function cmdEnrich() {
+  const args = parseArgs();
+  const token = args["--token"] ?? process.env.GITHUB_TOKEN;
+
+  if (!token) {
+    console.error("Error: GitHub token required. Use --token or set GITHUB_TOKEN env var.");
+    process.exit(1);
+  }
+
+  const { runEnrichment } = await import("./enrichment/worker.js");
+
+  function parseIntArg(name: string, value: string | undefined): number | undefined {
+    if (value === undefined) return undefined;
+    const n = parseInt(value, 10);
+    if (isNaN(n) || n < 0) {
+      console.error(`Error: ${name} must be a non-negative integer, got "${value}"`);
+      process.exit(1);
+    }
+    return n;
+  }
+
+  const result = await runEnrichment({
+    githubToken: token,
+    workerId: parseIntArg("--worker-id", args["--worker-id"]),
+    totalWorkers: parseIntArg("--total-workers", args["--total-workers"]),
+    limit: parseIntArg("--limit", args["--limit"]),
+    staleDays: parseIntArg("--stale-days", args["--stale-days"]),
+    priority: args["--priority"] as "repos" | "prs" | "comments" | undefined,
+  });
+
+  console.log("\n=== Enrichment Summary ===");
+  console.log(`Repos:     ${result.repos.fetched} fetched, ${result.repos.skipped} skipped, ${result.repos.errors} errors`);
+  console.log(`PRs:       ${result.pullRequests.fetched} fetched, ${result.pullRequests.skipped} skipped, ${result.pullRequests.errors} errors`);
+  console.log(`Comments:  ${result.comments.fetched} fetched, ${result.comments.skipped} skipped, ${result.comments.replies_filtered} replies filtered, ${result.comments.errors} errors`);
+  console.log(`Stale repos refreshed: ${result.reposRefreshed}`);
+  console.log(`Duration: ${Math.ceil(result.duration / 1000)}s`);
+}
+
+async function cmdEnrichStatus() {
+  const { query } = await import("./clickhouse.js");
+  const ch = createCHClient();
+
+  try {
+    // Total discovered events
+    const [{ total_events }] = await query<{ total_events: string }>(
+      ch,
+      "SELECT count() as total_events FROM pr_bot_events",
+    );
+
+    // Repo stats
+    const [repoStats] = await query<{
+      total: string;
+      enriched: string;
+      not_found: string;
+    }>(
+      ch,
+      `SELECT
+        countDistinct(e.repo_name) as total,
+        countDistinctIf(e.repo_name, r.fetch_status = 'ok') as enriched,
+        countDistinctIf(e.repo_name, r.fetch_status = 'not_found') as not_found
+      FROM pr_bot_events AS e
+      LEFT JOIN repos AS r ON e.repo_name = r.name`,
+    );
+    const repoPending = Number(repoStats.total) - Number(repoStats.enriched) - Number(repoStats.not_found);
+
+    // PR stats
+    const [prStats] = await query<{
+      total: string;
+      enriched: string;
+    }>(
+      ch,
+      `SELECT
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events) as total,
+        (SELECT count() FROM pull_requests) as enriched`,
+    );
+    const prPending = Number(prStats.total) - Number(prStats.enriched);
+
+    // Comment stats
+    const [commentStats] = await query<{
+      total: string;
+      enriched: string;
+    }>(
+      ch,
+      `SELECT
+        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events) as total,
+        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_comments) as enriched`,
+    );
+    const commentPending = Number(commentStats.total) - Number(commentStats.enriched);
+
+    console.log("=== Enrichment Status ===");
+    console.log(`\nDiscovered events: ${total_events}`);
+    console.log(`\nRepos:    ${repoStats.enriched} enriched / ${repoStats.not_found} not found / ${repoPending} pending (${repoStats.total} total)`);
+    console.log(`PRs:      ${prStats.enriched} enriched / ${prPending} pending (${prStats.total} total)`);
+    console.log(`Comments: ${commentStats.enriched} enriched / ${commentPending} pending (${commentStats.total} total)`);
+  } finally {
+    await ch.close();
   }
 }
 

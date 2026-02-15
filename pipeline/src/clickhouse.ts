@@ -230,6 +230,142 @@ export async function insertRepoBotUsage(
   });
 }
 
+export type PrBotEventRow = {
+  repo_name: string;
+  pr_number: number;
+  bot_id: string;
+  actor_login: string;
+  event_type: string;
+  event_week: string; // YYYY-MM-DD
+};
+
+/**
+ * Insert PR bot event rows from GH Archive discovery.
+ */
+export async function insertPrBotEvents(
+  client: ClickHouseClient,
+  rows: PrBotEventRow[],
+): Promise<void> {
+  if (rows.length === 0) return;
+
+  await client.insert({
+    table: "pr_bot_events",
+    values: rows,
+    format: "JSONEachRow",
+  });
+}
+
+export type RepoRow = {
+  name: string;
+  owner: string;
+  stars: number;
+  primary_language: string;
+  fork: boolean;
+  archived: boolean;
+  fetch_status: string;
+};
+
+/**
+ * Insert repo metadata rows.
+ */
+export async function insertRepos(
+  client: ClickHouseClient,
+  rows: RepoRow[],
+): Promise<void> {
+  if (rows.length === 0) return;
+
+  await client.insert({
+    table: "repos",
+    values: rows,
+    format: "JSONEachRow",
+  });
+}
+
+export type RepoLanguageRow = {
+  repo_name: string;
+  language: string;
+  bytes: number;
+};
+
+/**
+ * Insert repo language breakdown rows.
+ */
+export async function insertRepoLanguages(
+  client: ClickHouseClient,
+  rows: RepoLanguageRow[],
+): Promise<void> {
+  if (rows.length === 0) return;
+
+  await client.insert({
+    table: "repo_languages",
+    values: rows,
+    format: "JSONEachRow",
+  });
+}
+
+export type PullRequestRow = {
+  repo_name: string;
+  pr_number: number;
+  title: string;
+  author: string;
+  state: string;
+  created_at: string; // ISO datetime
+  merged_at: string | null;
+  closed_at: string | null;
+  additions: number;
+  deletions: number;
+  changed_files: number;
+};
+
+/**
+ * Insert pull request metadata rows.
+ */
+export async function insertPullRequests(
+  client: ClickHouseClient,
+  rows: PullRequestRow[],
+): Promise<void> {
+  if (rows.length === 0) return;
+
+  await client.insert({
+    table: "pull_requests",
+    values: rows,
+    format: "JSONEachRow",
+  });
+}
+
+export type PrCommentRow = {
+  repo_name: string;
+  pr_number: number;
+  comment_id: string;
+  bot_id: string;
+  body_length: number;
+  created_at: string; // ISO datetime
+  thumbs_up: number;
+  thumbs_down: number;
+  laugh: number;
+  confused: number;
+  heart: number;
+  hooray: number;
+  eyes: number;
+  rocket: number;
+};
+
+/**
+ * Insert bot PR comment rows with reaction counts.
+ */
+export async function insertPrComments(
+  client: ClickHouseClient,
+  rows: PrCommentRow[],
+): Promise<void> {
+  if (rows.length === 0) return;
+
+  await client.insert({
+    table: "pr_comments",
+    values: rows,
+    format: "JSONEachRow",
+  });
+}
+
 /**
  * Run a read query and return typed rows.
  */

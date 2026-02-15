@@ -361,6 +361,260 @@ export function BotRadarChart({
   );
 }
 
+// --- Bot Reaction Leaderboard (horizontal stacked bar) ---
+
+type BotReactionLeaderboardData = {
+  bot_id: string;
+  bot_name: string;
+  total_thumbs_up: number;
+  total_thumbs_down: number;
+  total_heart: number;
+  total_comments: number;
+  approval_rate: number;
+};
+
+export function BotReactionLeaderboardChart({
+  data,
+}: {
+  data: BotReactionLeaderboardData[];
+}) {
+  if (data.length === 0) {
+    return <div data-testid="bot-reaction-leaderboard"><p className="text-gray-500 text-sm">No data</p></div>;
+  }
+  return (
+    <div data-testid="bot-reaction-leaderboard">
+      <ResponsiveContainer width="100%" height={data.length * 44 + 40}>
+        <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+          <XAxis
+            type="number"
+            stroke="#9ca3af"
+            tick={{ fontSize: 12 }}
+            tickFormatter={formatNumber}
+          />
+          <YAxis
+            type="category"
+            dataKey="bot_name"
+            stroke="#9ca3af"
+            tick={{ fontSize: 12 }}
+            width={130}
+          />
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
+          <Legend />
+          <Bar dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" />
+          <Bar dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" />
+          <Bar dataKey="total_thumbs_down" fill="#ef4444" name="👎" stackId="a" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// --- Bot Language Chart (grouped bar) ---
+
+type BotLanguageData = {
+  bot_id: string;
+  bot_name: string;
+  language: string;
+  pr_count: number;
+  comment_count: number;
+};
+
+export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
+  if (data.length === 0) {
+    return <div data-testid="bot-language-chart"><p className="text-gray-500 text-sm">No data</p></div>;
+  }
+
+  // Pivot: top 10 languages, bots as grouped bars
+  const langTotals = new Map<string, number>();
+  for (const d of data) {
+    langTotals.set(d.language, (langTotals.get(d.language) ?? 0) + d.pr_count);
+  }
+  const topLangs = [...langTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([lang]) => lang);
+
+  const bots = [...new Set(data.map((d) => d.bot_name))];
+
+  const chartData = topLangs.map((lang) => {
+    const row: Record<string, string | number> = { language: lang };
+    for (const bot of bots) {
+      const match = data.find((d) => d.language === lang && d.bot_name === bot);
+      row[bot] = match?.pr_count ?? 0;
+    }
+    return row;
+  });
+
+  return (
+    <div data-testid="bot-language-chart">
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <XAxis
+            dataKey="language"
+            stroke="#9ca3af"
+            tick={{ fontSize: 12 }}
+          />
+          <YAxis
+            stroke="#9ca3af"
+            tick={{ fontSize: 12 }}
+            tickFormatter={formatNumber}
+          />
+          <Tooltip contentStyle={TOOLTIP_STYLE} />
+          <Legend />
+          {bots.map((bot, i) => (
+            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// --- Reactions by PR Size Chart ---
+
+type ReactionsByPRSizeData = {
+  size_bucket: string;
+  avg_thumbs_up: number;
+  avg_thumbs_down: number;
+  pr_count: number;
+};
+
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL"];
+
+export function ReactionsByPRSizeChart({
+  data,
+}: {
+  data: ReactionsByPRSizeData[];
+}) {
+  if (data.length === 0) {
+    return <div data-testid="reactions-by-pr-size"><p className="text-gray-500 text-sm">No data</p></div>;
+  }
+
+  const sorted = [...data].sort(
+    (a, b) => SIZE_ORDER.indexOf(a.size_bucket) - SIZE_ORDER.indexOf(b.size_bucket),
+  );
+
+  return (
+    <div data-testid="reactions-by-pr-size">
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={sorted}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <XAxis dataKey="size_bucket" stroke="#9ca3af" tick={{ fontSize: 12 }} />
+          <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            formatter={(value, name) => [
+              Number(value).toFixed(2),
+              name === "avg_thumbs_up" ? "Avg 👍" : "Avg 👎",
+            ]}
+          />
+          <Legend
+            formatter={(value) =>
+              value === "avg_thumbs_up" ? "Avg 👍" : "Avg 👎"
+            }
+          />
+          <Bar dataKey="avg_thumbs_up" fill="#10b981" name="avg_thumbs_up" />
+          <Bar dataKey="avg_thumbs_down" fill="#ef4444" name="avg_thumbs_down" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// --- Top Orgs Chart (horizontal bar) ---
+
+type TopOrgData = {
+  owner: string;
+  total_stars: number;
+  repo_count: number;
+};
+
+export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
+  if (data.length === 0) {
+    return <div data-testid="top-orgs-chart"><p className="text-gray-500 text-sm">No data</p></div>;
+  }
+
+  const top20 = data.slice(0, 20);
+
+  return (
+    <div data-testid="top-orgs-chart">
+      <ResponsiveContainer width="100%" height={top20.length * 44 + 40}>
+        <BarChart data={top20} layout="vertical" margin={{ left: 10, right: 30 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+          <XAxis
+            type="number"
+            stroke="#9ca3af"
+            tick={{ fontSize: 12 }}
+            tickFormatter={formatNumber}
+          />
+          <YAxis
+            type="category"
+            dataKey="owner"
+            stroke="#9ca3af"
+            tick={{ fontSize: 12 }}
+            width={130}
+          />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            formatter={(value, name) => [
+              formatNumber(Number(value)),
+              name === "total_stars" ? "⭐ Stars" : "Repos",
+            ]}
+          />
+          <Legend
+            formatter={(value) =>
+              value === "total_stars" ? "⭐ Stars" : "Repos"
+            }
+          />
+          <Bar dataKey="total_stars" fill="#f59e0b" name="total_stars" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// --- Comments Per PR Chart ---
+
+type CommentsPerPRData = {
+  bot_id: string;
+  bot_name: string;
+  avg_comments_per_pr: number;
+  total_prs: number;
+  total_comments: number;
+};
+
+export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
+  if (data.length === 0) {
+    return <div data-testid="comments-per-pr-chart"><p className="text-gray-500 text-sm">No data</p></div>;
+  }
+
+  return (
+    <div data-testid="comments-per-pr-chart">
+      <ResponsiveContainer width="100%" height={350}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <XAxis dataKey="bot_name" stroke="#9ca3af" tick={{ fontSize: 12 }} />
+          <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            formatter={(value) => [
+              Number(value).toFixed(2),
+              "Avg Comments/PR",
+            ]}
+          />
+          <Bar dataKey="avg_comments_per_pr" fill="#6366f1" name="Avg Comments/PR">
+            {data.map((_, i) => (
+              <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 // --- Horizontal bar chart for comparisons ---
 
 type CompareBarData = {
