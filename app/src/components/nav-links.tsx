@@ -3,18 +3,40 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const links = [
+const navItems = [
   { href: "/", label: "Dashboard" },
   { href: "/bots", label: "Bots" },
   { href: "/compare", label: "Compare" },
+  {
+    href: "https://github.com/bruno-garcia/code-review-trends",
+    label: "GitHub",
+    isExternal: true,
+  },
 ];
+
+const inactiveClasses =
+  "text-nav-link hover:text-nav-link-active transition-colors";
 
 export function NavLinks() {
   const pathname = usePathname();
 
   return (
     <>
-      {links.map(({ href, label }) => {
+      {navItems.map(({ href, label, isExternal }) => {
+        if (isExternal) {
+          return (
+            <a
+              key={href}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={inactiveClasses}
+            >
+              {label}
+            </a>
+          );
+        }
+
         const isActive =
           href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -22,24 +44,17 @@ export function NavLinks() {
           <Link
             key={href}
             href={href}
+            aria-current={isActive ? "page" : undefined}
             className={
               isActive
                 ? "text-nav-link-active font-medium transition-colors"
-                : "text-nav-link hover:text-nav-link-active transition-colors"
+                : inactiveClasses
             }
           >
             {label}
           </Link>
         );
       })}
-      <a
-        href="https://github.com/bruno-garcia/code-review-trends"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-nav-link hover:text-nav-link-active transition-colors"
-      >
-        GitHub
-      </a>
     </>
   );
 }
