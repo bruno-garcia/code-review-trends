@@ -228,7 +228,7 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
           sum(rr.thumbs_down) AS thumbs_down,
           sum(rr.heart) AS heart
         FROM review_reactions rr FINAL
-        JOIN bots b ON rr.bot_id = b.id
+        JOIN bots b FINAL ON rr.bot_id = b.id
         GROUP BY b.product_id
       )
     SELECT
