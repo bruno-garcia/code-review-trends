@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -45,7 +46,7 @@ export function ProductFilterProvider({
   defaultProductIds: string[];
   children: ReactNode;
 }) {
-  const validIds = new Set(allProducts.map((p) => p.id));
+  const validIds = useMemo(() => new Set(allProducts.map((p) => p.id)), [allProducts]);
   const [selectedProductIds, setSelectedRaw] =
     useState<string[]>(defaultProductIds);
   const urlOverride = useRef(false);
@@ -91,8 +92,7 @@ export function ProductFilterProvider({
     } catch {
       // Invalid localStorage data — ignore
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [validIds]);
 
   // Persist to localStorage when selection changes (skip URL overrides)
   useEffect(() => {

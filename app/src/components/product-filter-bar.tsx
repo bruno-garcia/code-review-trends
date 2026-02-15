@@ -145,6 +145,7 @@ export function ProductFilterBar() {
                     key={p.id}
                     data-testid={`filter-product-${p.id}`}
                     onClick={() => toggleProduct(p.id)}
+                    aria-pressed={isSelected}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all border ${
                       isSelected
                         ? "border-opacity-60 text-gray-100"
