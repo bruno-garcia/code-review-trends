@@ -9,19 +9,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { ProductSummary } from "./clickhouse";
-
 const STORAGE_KEY = "crt:selected-products";
-const DEFAULT_COUNT = 10;
 
-// --- Pure helper (works on server and client) ---
-
-export function getDefaultProductIds(summaries: ProductSummary[]): string[] {
-  return [...summaries]
-    .sort((a, b) => b.latest_week_reviews - a.latest_week_reviews)
-    .slice(0, DEFAULT_COUNT)
-    .map((s) => s.id);
-}
+export { getDefaultProductIds } from "./product-filter-defaults";
 
 // --- Context types ---
 

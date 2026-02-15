@@ -5,6 +5,10 @@ import { Logo } from "@/components/logo";
 import { NavLinks } from "@/components/nav-links";
 import { ThemeProvider, themeScript } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { getProductSummaries } from "@/lib/clickhouse";
+import { getDefaultProductIds } from "@/lib/product-filter-defaults";
+import { ProductFilterProvider } from "@/lib/product-filter";
+import { ProductFilterBar } from "@/components/product-filter-bar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,11 +17,20 @@ export const metadata: Metadata = {
     "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const summaries = await getProductSummaries();
+  const defaultProductIds = getDefaultProductIds(summaries);
+  const allProducts = summaries.map((s) => ({
+    id: s.id,
+    name: s.name,
+    brand_color: s.brand_color,
+    avatar_url: s.avatar_url,
+  }));
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -39,9 +52,15 @@ export default function RootLayout({
               </div>
             </div>
           </nav>
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {children}
-          </main>
+          <ProductFilterProvider
+            allProducts={allProducts}
+            defaultProductIds={defaultProductIds}
+          >
+            <ProductFilterBar />
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {children}
+            </main>
+          </ProductFilterProvider>
           <footer className="border-t border-theme-border py-8 text-center text-sm text-theme-muted">
             <p>
               Data sourced from{" "}
