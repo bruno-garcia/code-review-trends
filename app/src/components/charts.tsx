@@ -372,7 +372,7 @@ export function BotReactionLeaderboardChart({
   data: BotReactionLeaderboardData[];
 }) {
   if (data.length === 0) {
-    return <p className="text-gray-500 text-sm">No data</p>;
+    return <div data-testid="bot-reaction-leaderboard"><p className="text-gray-500 text-sm">No data</p></div>;
   }
   return (
     <div data-testid="bot-reaction-leaderboard">
@@ -415,7 +415,7 @@ type BotLanguageData = {
 
 export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
   if (data.length === 0) {
-    return <p className="text-gray-500 text-sm">No data</p>;
+    return <div data-testid="bot-language-chart"><p className="text-gray-500 text-sm">No data</p></div>;
   }
 
   // Pivot: top 10 languages, bots as grouped bars
@@ -482,7 +482,7 @@ export function ReactionsByPRSizeChart({
   data: ReactionsByPRSizeData[];
 }) {
   if (data.length === 0) {
-    return <p className="text-gray-500 text-sm">No data</p>;
+    return <div data-testid="reactions-by-pr-size"><p className="text-gray-500 text-sm">No data</p></div>;
   }
 
   const sorted = [...data].sort(
@@ -526,7 +526,7 @@ type TopOrgData = {
 
 export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
   if (data.length === 0) {
-    return <p className="text-gray-500 text-sm">No data</p>;
+    return <div data-testid="top-orgs-chart"><p className="text-gray-500 text-sm">No data</p></div>;
   }
 
   const top20 = data.slice(0, 20);
@@ -580,7 +580,7 @@ type CommentsPerPRData = {
 
 export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
   if (data.length === 0) {
-    return <p className="text-gray-500 text-sm">No data</p>;
+    return <div data-testid="comments-per-pr-chart"><p className="text-gray-500 text-sm">No data</p></div>;
   }
 
   return (
