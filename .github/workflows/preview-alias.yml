@@ -1,0 +1,49 @@
+name: Preview Alias
+
+on:
+  deployment_status:
+
+jobs:
+  alias:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Preview'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Alias deployment to custom subdomain
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Vercel creates deployments with commit SHAs, not branch names.
+          # Resolve the branch by asking GitHub which branch the SHA is the head of.
+          COMMIT_SHA="${{ github.event.deployment.ref }}"
+          BRANCH_RAW=$(gh api "repos/${{ github.repository }}/commits/${COMMIT_SHA}/branches-where-head" \
+            --jq '.[0].name // empty')
+
+          if [ -z "$BRANCH_RAW" ]; then
+            echo "⚠️ Could not resolve branch for SHA ${COMMIT_SHA}, skipping"
+            exit 0
+          fi
+
+          # Sanitize branch name for DNS (lowercase, replace non-alphanumeric with hyphens)
+          BRANCH=$(echo "$BRANCH_RAW" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9-]/-/g' \
+            | sed 's/--*/-/g' \
+            | sed 's/^-\|-$//g')
+
+          if [ -z "$BRANCH" ]; then
+            echo "⚠️ Could not determine branch name, skipping"
+            exit 0
+          fi
+
+          # Strip scheme from deployment URL — Vercel CLI expects a hostname
+          DEPLOYMENT_URL="${{ github.event.deployment_status.target_url }}"
+          DEPLOYMENT_HOST=$(echo "$DEPLOYMENT_URL" | sed -E 's#^https?://([^/]+)/?.*#\1#')
+          CUSTOM_DOMAIN="${BRANCH}.preview.codereviewtrends.com"
+
+          npx --yes vercel alias set "$DEPLOYMENT_HOST" "$CUSTOM_DOMAIN" \
+            --token="$VERCEL_TOKEN" \
+            --scope="$VERCEL_ORG_ID"
+
+          echo "✅ Aliased to https://$CUSTOM_DOMAIN"
