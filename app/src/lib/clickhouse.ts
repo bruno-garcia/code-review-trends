@@ -376,7 +376,7 @@ export async function getProductBots(productId: string): Promise<ProductBot[]> {
         COALESCE(formatDateTime(min(ra.week), '%Y-%m-%d'), '') AS first_week,
         COALESCE(formatDateTime(max(ra.week), '%Y-%m-%d'), '') AS last_week
       FROM bots b FINAL
-      LEFT JOIN bot_logins bl ON b.id = bl.bot_id
+      LEFT JOIN bot_logins bl FINAL ON b.id = bl.bot_id
       LEFT JOIN review_activity ra ON b.id = ra.bot_id
       WHERE b.product_id = {productId:String}
       GROUP BY b.id, b.name, bl.github_login, b.brand_color
