@@ -39,6 +39,12 @@ test.describe("Compare page", () => {
     await expect(page.getByText("Visual Breakdowns")).toBeVisible();
   });
 
+  test("shows comments per PR chart", async ({ page }) => {
+    await page.goto("/compare");
+    await expect(page.getByTestId("comments-per-pr-section")).toBeVisible();
+    await expect(page.getByTestId("comments-per-pr-chart")).toBeVisible();
+  });
+
   test("bot names in table link to detail pages", async ({ page }) => {
     await page.goto("/compare");
     const botLink = page.getByTestId("compare-table").locator("tbody a").first();

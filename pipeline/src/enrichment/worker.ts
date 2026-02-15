@@ -1,0 +1,103 @@
+/**
+ * Enrichment worker — orchestrates repo → PR → comment enrichment.
+ *
+ * Creates GitHub and ClickHouse clients, runs enrichment in priority order,
+ * then refreshes stale repos. Supports multi-worker partitioning.
+ */
+
+import { Octokit } from "@octokit/rest";
+import { createCHClient } from "../clickhouse.js";
+import { RateLimiter } from "./rate-limiter.js";
+import { enrichRepos, refreshStaleRepos } from "./repos.js";
+import { enrichPullRequests } from "./pull-requests.js";
+import { enrichComments } from "./comments.js";
+import type { WorkerConfig } from "./partitioner.js";
+
+export type EnrichmentOptions = {
+  githubToken: string;
+  workerId?: number;
+  totalWorkers?: number;
+  limit?: number;
+  staleDays?: number;
+  priority?: "repos" | "prs" | "comments";
+};
+
+export type EnrichmentResult = {
+  repos: { fetched: number; skipped: number; errors: number };
+  pullRequests: { fetched: number; skipped: number; errors: number };
+  comments: { fetched: number; skipped: number; replies_filtered: number; errors: number };
+  reposRefreshed: number;
+  duration: number;
+};
+
+export async function runEnrichment(options: EnrichmentOptions): Promise<EnrichmentResult> {
+  const start = Date.now();
+
+  const octokit = new Octokit({ auth: options.githubToken });
+  const ch = createCHClient();
+  const rateLimiter = new RateLimiter();
+  const workerId = options.workerId ?? 0;
+  const totalWorkers = options.totalWorkers ?? 1;
+  if (totalWorkers < 1) throw new Error(`totalWorkers must be >= 1, got ${totalWorkers}`);
+  if (workerId < 0 || workerId >= totalWorkers) {
+    throw new Error(`workerId must be in [0, ${totalWorkers - 1}], got ${workerId}`);
+  }
+  const partition: WorkerConfig = { workerId, totalWorkers };
+  const limit = options.limit;
+
+  console.log(
+    `[worker] Starting enrichment (worker ${partition.workerId}/${partition.totalWorkers}, limit: ${limit ?? "unlimited"})`,
+  );
+
+  // Determine execution order based on priority
+  type Step = "repos" | "prs" | "comments";
+  const defaultOrder: Step[] = ["repos", "prs", "comments"];
+  let order: Step[];
+  if (options.priority && options.priority !== "repos") {
+    // Move priority step to front, keep others in default relative order
+    const rest = defaultOrder.filter((s) => s !== options.priority);
+    order = [options.priority as Step, ...rest];
+  } else {
+    order = defaultOrder;
+  }
+
+  let reposResult = { fetched: 0, skipped: 0, errors: 0 };
+  let prsResult = { fetched: 0, skipped: 0, errors: 0 };
+  let commentsResult = { fetched: 0, skipped: 0, replies_filtered: 0, errors: 0 };
+
+  try {
+    for (const step of order) {
+      switch (step) {
+        case "repos":
+          reposResult = await enrichRepos(octokit, ch, rateLimiter, partition, { limit });
+          break;
+        case "prs":
+          prsResult = await enrichPullRequests(octokit, ch, rateLimiter, partition, { limit });
+          break;
+        case "comments":
+          commentsResult = await enrichComments(octokit, ch, rateLimiter, partition, { limit });
+          break;
+      }
+    }
+
+    // Refresh stale repos
+    console.log("[worker] Refreshing stale repos...");
+    const refreshResult = await refreshStaleRepos(octokit, ch, rateLimiter, partition, {
+      staleDays: options.staleDays ?? 7,
+      limit: limit ? Math.min(limit, 500) : 500,
+    });
+
+    const duration = Date.now() - start;
+    console.log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);
+
+    return {
+      repos: reposResult,
+      pullRequests: prsResult,
+      comments: commentsResult,
+      reposRefreshed: refreshResult.refreshed,
+      duration,
+    };
+  } finally {
+    await ch.close();
+  }
+}
