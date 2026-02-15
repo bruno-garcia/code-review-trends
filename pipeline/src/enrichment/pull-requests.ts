@@ -34,7 +34,7 @@ export async function enrichPullRequests(
   // Skip repos known to be deleted — no point hitting the API for them.
   const whereFragments = [
     "p.pr_number IS NULL",
-    "e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status = 'not_found')",
+    "e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))",
   ];
   const queryParams: Record<string, number> = { limit };
   if (partition_clause) {

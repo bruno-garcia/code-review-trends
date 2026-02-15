@@ -37,7 +37,10 @@ export async function enrichComments(
   const partition_clause = partitionWhereClause(partition, "e.repo_name");
 
   // Find PR/bot combos needing comment enrichment.
-  const whereFragments = ["c.bot_id IS NULL"];
+  const whereFragments = [
+    "c.bot_id IS NULL",
+    "e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))",
+  ];
   const queryParams: Record<string, number> = { limit };
   if (partition_clause) {
     whereFragments.push(partition_clause.sql);
