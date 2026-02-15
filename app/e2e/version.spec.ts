@@ -24,7 +24,13 @@ test.describe("Version stamp", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/");
     const stamp = page.getByTestId("version-stamp");
+    const stampText = (await stamp.textContent())?.trim() ?? "";
     await stamp.click();
     await expect(page.getByTestId("version-copied")).toBeVisible();
+    const clipboardText = await page.evaluate(() =>
+      navigator.clipboard.readText(),
+    );
+    // Clipboard gets the full SHA; displayed text is the short (7-char) prefix
+    expect(clipboardText).toMatch(new RegExp(`^${stampText}`));
   });
 });

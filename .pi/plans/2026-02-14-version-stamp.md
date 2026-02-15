@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-14
 **Status:** Active
-**Directory:** /Users/bruno/git/code-review-trends-2
+**Directory:** (project root)
 
 ## Overview
 
