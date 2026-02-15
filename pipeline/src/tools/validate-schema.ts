@@ -19,11 +19,22 @@ type ColumnInfo = {
 
 // Expected schema definition
 const EXPECTED_TABLES: Record<string, Record<string, string>> = {
-  bots: {
+  products: {
     id: "String",
     name: "String",
     website: "String",
     description: "String",
+    brand_color: "String",
+    avatar_url: "String",
+  },
+  bots: {
+    id: "String",
+    name: "String",
+    product_id: "String",
+    website: "String",
+    description: "String",
+    brand_color: "String",
+    avatar_url: "String",
   },
   bot_logins: {
     bot_id: "String",
