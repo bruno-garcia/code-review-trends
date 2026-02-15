@@ -367,10 +367,11 @@ async function cmdEnrichStatus() {
     }>(
       ch,
       `SELECT
-        countDistinct(repo_name) as total,
-        countDistinctIf(repo_name, repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')) as enriched,
-        countDistinctIf(repo_name, repo_name IN (SELECT name FROM repos WHERE fetch_status = 'not_found')) as not_found
-      FROM pr_bot_events`,
+        countDistinct(e.repo_name) as total,
+        countDistinctIf(e.repo_name, r.fetch_status = 'ok') as enriched,
+        countDistinctIf(e.repo_name, r.fetch_status = 'not_found') as not_found
+      FROM pr_bot_events AS e
+      LEFT JOIN repos AS r ON e.repo_name = r.name`,
     );
     const repoPending = Number(repoStats.total) - Number(repoStats.enriched) - Number(repoStats.not_found);
 

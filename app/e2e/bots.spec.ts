@@ -60,18 +60,10 @@ test.describe("Bot detail page", () => {
     await expect(page.getByTestId("bot-reactions-chart")).toBeVisible();
   });
 
-  test("shows reactions by PR size chart", async ({ page }) => {
+  test("shows new charts and sections", async ({ page }) => {
     await page.goto("/bots/coderabbit");
     await expect(page.getByTestId("reactions-by-pr-size")).toBeVisible();
-  });
-
-  test("shows language breakdown chart", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
     await expect(page.getByTestId("bot-language-chart")).toBeVisible();
-  });
-
-  test("shows comments per PR section", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
     await expect(page.getByTestId("bot-comments-per-pr")).toBeVisible();
   });
 

@@ -167,7 +167,7 @@ export async function refreshStaleRepos(
 
   const whereFragments = [
     "fetch_status = 'ok'",
-    `updated_at < now() - INTERVAL {staleDays:UInt32} DAY`,
+    `updated_at < now() - toIntervalDay({staleDays:UInt32})`,
   ];
   const queryParams: Record<string, number> = { limit, staleDays };
   if (partition_clause) {

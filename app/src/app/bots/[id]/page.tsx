@@ -30,7 +30,7 @@ export default async function BotPage({
     getBotReactions(id),
     getBotSummaries(),
     getReactionsByPRSize(id),
-    getBotsByLanguage(),
+    getBotsByLanguage(id),
     getAvgCommentsPerPR(id),
   ]);
 
@@ -199,7 +199,7 @@ export default async function BotPage({
           Programming languages of repos where this bot reviews code.
         </p>
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-          <BotLanguageChart data={languageData.filter((d) => d.bot_id === id)} />
+          <BotLanguageChart data={languageData} />
         </div>
       </section>
     </div>

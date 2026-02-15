@@ -407,7 +407,8 @@ export type BotByLanguage = {
   comment_count: number;
 };
 
-export async function getBotsByLanguage(): Promise<BotByLanguage[]> {
+export async function getBotsByLanguage(botId?: string): Promise<BotByLanguage[]> {
+  const where = botId ? "AND e.bot_id = {botId:String}" : "";
   return query<BotByLanguage>(`
     SELECT
       e.bot_id,
@@ -418,10 +419,10 @@ export async function getBotsByLanguage(): Promise<BotByLanguage[]> {
     FROM pr_bot_events e
     JOIN bots b ON e.bot_id = b.id
     JOIN repos r ON e.repo_name = r.name
-    WHERE r.primary_language != ''
+    WHERE r.primary_language != '' ${where}
     GROUP BY e.bot_id, b.name, r.primary_language
     ORDER BY pr_count DESC
-  `);
+  `, botId ? { botId } : {});
 }
 
 export type ReactionsByPRSize = {
