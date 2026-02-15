@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { ProductComparison } from "@/lib/clickhouse";
-import { BotRadarChart, COLORS } from "@/components/charts";
+import type { ProductComparison, BotCommentsPerPR } from "@/lib/clickhouse";
+import { BotRadarChart, CommentsPerPRChart, COLORS } from "@/components/charts";
+import { useProductFilter } from "@/lib/product-filter";
 import Link from "next/link";
 
 type SortKey = keyof ProductComparison;
@@ -113,10 +114,18 @@ function normalize(products: ProductComparison[], key: SortKey): number[] {
 }
 
 export function CompareCharts({
-  products,
+  products: allProducts,
+  commentsPerPR: allCommentsPerPR,
 }: {
   products: ProductComparison[];
+  commentsPerPR: BotCommentsPerPR[];
 }) {
+  const { selectedProductIds } = useProductFilter();
+  const products = allProducts.filter((p) => selectedProductIds.includes(p.id));
+  const commentsPerPR = allCommentsPerPR.filter((c) =>
+    selectedProductIds.includes(c.product_id),
+  );
+
   const [sortKey, setSortKey] = useState<SortKey>("total_reviews");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -327,6 +336,17 @@ export function CompareCharts({
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Comments per PR */}
+      <section data-testid="comments-per-pr-section">
+        <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
+        <p className="text-gray-400 mb-6">
+          Average number of review comments each bot leaves per pull request.
+        </p>
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+          <CommentsPerPRChart data={commentsPerPR} />
         </div>
       </section>
     </div>
