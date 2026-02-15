@@ -17,7 +17,7 @@ export default async function BotsPage() {
         </div>
         <Link
           href="/compare"
-          className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors"
+          className="text-sm bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg transition-colors"
         >
           Compare All →
         </Link>
@@ -31,10 +31,10 @@ export default async function BotsPage() {
           <Link
             key={bot.id}
             href={`/bots/${bot.id}`}
-            className="block bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-indigo-500/50 transition-colors"
+            className="block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors"
             data-testid={`bot-card-${bot.id}`}
           >
-            <h2 className="text-xl font-semibold text-indigo-400">
+            <h2 className="text-xl font-semibold text-violet-400">
               {bot.name}
             </h2>
             <p className="mt-2 text-sm text-gray-400 line-clamp-2">

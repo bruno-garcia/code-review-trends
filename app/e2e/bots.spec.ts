@@ -52,7 +52,7 @@ test.describe("Bot detail page", () => {
     await expect(toggle).toBeVisible();
     // Toggle to repos view
     await page.getByTestId("toggle-repos").click();
-    await expect(page.getByTestId("toggle-repos")).toHaveClass(/bg-indigo-600/);
+    await expect(page.getByTestId("toggle-repos")).toHaveClass(/bg-violet-600/);
   });
 
   test("shows reaction chart", async ({ page }) => {
