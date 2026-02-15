@@ -161,6 +161,13 @@ export function CompareCharts({
 
   const productNames = products.map((p) => p.name);
 
+  // Name→color map for charts that use names as series keys
+  const nameColorMap: Record<string, string> = {};
+  for (const p of products) {
+    const i = products.indexOf(p);
+    nameColorMap[p.name] = p.brand_color || COLORS[i % COLORS.length];
+  }
+
   return (
     <div className="space-y-10">
       {/* Radar chart */}
@@ -170,7 +177,7 @@ export function CompareCharts({
           Each dimension normalized to 0–100 relative to the top product.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <BotRadarChart data={radarData} bots={productNames} />
+          <BotRadarChart data={radarData} bots={productNames} colors={nameColorMap} />
         </div>
       </section>
 

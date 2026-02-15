@@ -4,7 +4,7 @@ import {
   getProductSummaries,
   getProductBots,
   getWeeklyActivityByProduct,
-  getBotReactions,
+  getProductReactions,
 } from "@/lib/clickhouse";
 import { SingleBotChart, ReactionChart } from "@/components/charts";
 import Link from "next/link";
@@ -39,38 +39,15 @@ export default async function ProductPage({
     org_count: Number(a.org_count),
   }));
 
-  // Fetch and merge reactions from all bots in this product
-  const botIds = [...new Set(productBots.map((b) => b.id))];
-  const allReactions = await Promise.all(
-    botIds.map((botId) => getBotReactions(botId)),
-  );
-  const reactionMap = new Map<
-    string,
-    { thumbs_up: number; thumbs_down: number; heart: number; laugh: number; confused: number }
-  >();
-  for (const botReactions of allReactions) {
-    for (const r of botReactions) {
-      const existing = reactionMap.get(r.week);
-      if (existing) {
-        existing.thumbs_up += Number(r.thumbs_up);
-        existing.thumbs_down += Number(r.thumbs_down);
-        existing.heart += Number(r.heart);
-        existing.laugh += Number(r.laugh);
-        existing.confused += Number(r.confused);
-      } else {
-        reactionMap.set(r.week, {
-          thumbs_up: Number(r.thumbs_up),
-          thumbs_down: Number(r.thumbs_down),
-          heart: Number(r.heart),
-          laugh: Number(r.laugh),
-          confused: Number(r.confused),
-        });
-      }
-    }
-  }
-  const reactionData = [...reactionMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([week, r]) => ({ week, ...r }));
+  // Fetch reactions aggregated across all bots in this product
+  const reactionData = (await getProductReactions(id)).map((r) => ({
+    week: r.week,
+    thumbs_up: Number(r.thumbs_up),
+    thumbs_down: Number(r.thumbs_down),
+    heart: Number(r.heart),
+    laugh: Number(r.laugh),
+    confused: Number(r.confused),
+  }));
 
   const totalReviews = Number(summary?.total_reviews ?? 0);
   const totalComments = Number(summary?.total_comments ?? 0);
@@ -108,7 +85,7 @@ export default async function ProductPage({
           {product.avatar_url && (
             <img
               src={product.avatar_url}
-              alt=""
+              alt={product.name}
               width={48}
               height={48}
               className="rounded-full bg-gray-800 border border-gray-700"

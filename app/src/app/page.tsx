@@ -139,7 +139,7 @@ export default async function Home() {
                       {product.avatar_url && (
                         <img
                           src={product.avatar_url}
-                          alt=""
+                          alt={product.name}
                           width={20}
                           height={20}
                           className="rounded-full bg-gray-800 border border-gray-700"

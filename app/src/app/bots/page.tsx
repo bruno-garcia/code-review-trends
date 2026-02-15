@@ -38,7 +38,7 @@ export default async function BotsPage() {
               {product.avatar_url && (
                 <img
                   src={product.avatar_url}
-                  alt=""
+                  alt={product.name}
                   width={40}
                   height={40}
                   className="rounded-full bg-gray-800 border border-gray-700"

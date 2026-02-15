@@ -91,6 +91,17 @@ export async function syncBots(
     ORDER BY (bot_id, github_login)`,
   });
 
+  // Ensure bots table has new columns (for migration of existing DBs)
+  await client.command({
+    query: `ALTER TABLE bots ADD COLUMN IF NOT EXISTS product_id String DEFAULT ''`,
+  });
+  await client.command({
+    query: `ALTER TABLE bots ADD COLUMN IF NOT EXISTS brand_color String DEFAULT ''`,
+  });
+  await client.command({
+    query: `ALTER TABLE bots ADD COLUMN IF NOT EXISTS avatar_url String DEFAULT ''`,
+  });
+
   // Write display info to bots table
   await client.insert({
     table: "bots",

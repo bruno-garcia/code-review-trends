@@ -196,19 +196,30 @@ export async function getProductById(id: string): Promise<Product | null> {
 export async function getProductSummaries(): Promise<ProductSummary[]> {
   return query<ProductSummary>(`
     WITH
-      activity_agg AS (
+      weekly_product AS (
         SELECT
           b.product_id,
-          sum(ra.review_count) AS total_reviews,
-          sum(ra.review_comment_count) AS total_comments,
-          max(ra.repo_count) AS max_repos,
-          max(ra.org_count) AS max_orgs,
-          min(ra.week) AS first_seen,
-          sumIf(ra.review_count, ra.week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(ra.review_count, ra.week >= toDate(now()) - INTERVAL 8 WEEK AND ra.week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          ra.week,
+          sum(ra.review_count) AS review_count,
+          sum(ra.review_comment_count) AS review_comment_count,
+          sum(ra.repo_count) AS repo_count,
+          sum(ra.org_count) AS org_count
         FROM review_activity ra FINAL
-        JOIN bots b ON ra.bot_id = b.id
-        GROUP BY b.product_id
+        JOIN bots b FINAL ON ra.bot_id = b.id
+        GROUP BY b.product_id, ra.week
+      ),
+      activity_agg AS (
+        SELECT
+          product_id,
+          sum(review_count) AS total_reviews,
+          sum(review_comment_count) AS total_comments,
+          max(repo_count) AS max_repos,
+          max(org_count) AS max_orgs,
+          min(week) AS first_seen,
+          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
+          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+        FROM weekly_product
+        GROUP BY product_id
       ),
       reaction_agg AS (
         SELECT
@@ -267,11 +278,11 @@ export async function getWeeklyActivityByProduct(
         p.brand_color,
         sum(ra.review_count) AS review_count,
         sum(ra.review_comment_count) AS review_comment_count,
-        max(ra.repo_count) AS repo_count,
-        max(ra.org_count) AS org_count
+        sum(ra.repo_count) AS repo_count,
+        sum(ra.org_count) AS org_count
       FROM review_activity ra FINAL
-      JOIN bots b ON ra.bot_id = b.id
-      JOIN products p ON b.product_id = p.id
+      JOIN bots b FINAL ON ra.bot_id = b.id
+      JOIN products p FINAL ON b.product_id = p.id
       ${where}
       GROUP BY ra.week, b.product_id, p.name, p.brand_color
       ORDER BY ra.week ASC, review_count DESC
@@ -283,20 +294,31 @@ export async function getWeeklyActivityByProduct(
 export async function getProductComparisons(): Promise<ProductComparison[]> {
   return query<ProductComparison>(`
     WITH
-      activity_agg AS (
+      weekly_product AS (
         SELECT
           b.product_id,
-          sum(ra.review_count) AS total_reviews,
-          sum(ra.review_comment_count) AS total_comments,
-          max(ra.repo_count) AS max_repos,
-          max(ra.org_count) AS max_orgs,
-          count(DISTINCT ra.week) AS weeks_active,
-          sumIf(ra.review_count, ra.week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(ra.review_comment_count, ra.week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
-          sumIf(ra.review_count, ra.week >= toDate(now()) - INTERVAL 8 WEEK AND ra.week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          ra.week,
+          sum(ra.review_count) AS review_count,
+          sum(ra.review_comment_count) AS review_comment_count,
+          sum(ra.repo_count) AS repo_count,
+          sum(ra.org_count) AS org_count
         FROM review_activity ra FINAL
-        JOIN bots b ON ra.bot_id = b.id
-        GROUP BY b.product_id
+        JOIN bots b FINAL ON ra.bot_id = b.id
+        GROUP BY b.product_id, ra.week
+      ),
+      activity_agg AS (
+        SELECT
+          product_id,
+          sum(review_count) AS total_reviews,
+          sum(review_comment_count) AS total_comments,
+          max(repo_count) AS max_repos,
+          max(org_count) AS max_orgs,
+          count(DISTINCT week) AS weeks_active,
+          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
+          sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
+          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+        FROM weekly_product
+        GROUP BY product_id
       ),
       reaction_agg AS (
         SELECT
@@ -305,7 +327,7 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
           sum(rr.thumbs_down) AS thumbs_down,
           sum(rr.heart) AS heart
         FROM review_reactions rr FINAL
-        JOIN bots b ON rr.bot_id = b.id
+        JOIN bots b FINAL ON rr.bot_id = b.id
         GROUP BY b.product_id
       )
     SELECT
@@ -519,6 +541,28 @@ export async function getBotReactions(
       ORDER BY week ASC
     `,
     { botId },
+  );
+}
+
+export async function getProductReactions(
+  productId: string,
+): Promise<WeeklyReactions[]> {
+  return query<WeeklyReactions>(
+    `
+      SELECT
+        formatDateTime(rr.week, '%Y-%m-%d') AS week,
+        sum(rr.thumbs_up) AS thumbs_up,
+        sum(rr.thumbs_down) AS thumbs_down,
+        sum(rr.heart) AS heart,
+        sum(rr.laugh) AS laugh,
+        sum(rr.confused) AS confused
+      FROM review_reactions rr FINAL
+      JOIN bots b FINAL ON rr.bot_id = b.id
+      WHERE b.product_id = {productId:String}
+      GROUP BY rr.week
+      ORDER BY week ASC
+    `,
+    { productId },
   );
 }
 
