@@ -116,7 +116,7 @@ async function assembleBots(botRows: BotRow[]): Promise<Bot[]> {
   if (botRows.length === 0) return [];
   const botIds = botRows.map((b) => b.id);
   const loginRows = await query<BotLoginRow>(
-    "SELECT bot_id, github_login FROM bot_logins WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
+    "SELECT bot_id, github_login FROM bot_logins FINAL WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
     { botIds },
   );
   const loginsByBot = new Map<string, string[]>();
@@ -132,13 +132,13 @@ async function assembleBots(botRows: BotRow[]): Promise<Bot[]> {
 }
 
 export async function getBots(): Promise<Bot[]> {
-  const rows = await query<BotRow>("SELECT * FROM bots ORDER BY name");
+  const rows = await query<BotRow>("SELECT * FROM bots FINAL ORDER BY name");
   return assembleBots(rows);
 }
 
 export async function getBotById(id: string): Promise<Bot | null> {
   const rows = await query<BotRow>(
-    "SELECT * FROM bots WHERE id = {id:String}",
+    "SELECT * FROM bots FINAL WHERE id = {id:String}",
     { id },
   );
   if (rows.length === 0) return null;
@@ -160,8 +160,8 @@ export async function getWeeklyActivity(
         ra.review_comment_count,
         ra.repo_count,
         ra.org_count
-      FROM review_activity ra
-      JOIN bots b ON ra.bot_id = b.id
+      FROM review_activity AS ra FINAL
+      JOIN bots AS b FINAL ON ra.bot_id = b.id
       ${where}
       ORDER BY ra.week ASC, ra.review_count DESC
     `,
@@ -179,10 +179,10 @@ export async function getWeeklyTotals(): Promise<WeeklyTotals[]> {
       COALESCE(b.bot_comments, 0) AS bot_comments,
       h.review_comment_count AS human_comments,
       round(COALESCE(b.bot_comments, 0) * 100.0 / (h.review_comment_count + COALESCE(b.bot_comments, 0)), 2) AS bot_comment_share_pct
-    FROM human_review_activity h
+    FROM human_review_activity AS h FINAL
     LEFT JOIN (
       SELECT week, sum(review_count) AS bot_reviews, sum(review_comment_count) AS bot_comments
-      FROM review_activity
+      FROM review_activity FINAL
       GROUP BY week
     ) b ON h.week = b.week
     ORDER BY h.week ASC
@@ -202,7 +202,7 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
           min(week) AS first_seen,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
-        FROM review_activity
+        FROM review_activity FINAL
         GROUP BY bot_id
       ),
       reaction_agg AS (
@@ -211,7 +211,7 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
           sum(thumbs_up) AS thumbs_up,
           sum(thumbs_down) AS thumbs_down,
           sum(heart) AS heart
-        FROM review_reactions
+        FROM review_reactions FINAL
         GROUP BY bot_id
       )
     SELECT
@@ -239,7 +239,7 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
         0), 1) AS approval_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
-    FROM bots b
+    FROM bots AS b FINAL
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
@@ -258,7 +258,7 @@ export async function getBotReactions(
         heart,
         laugh,
         confused
-      FROM review_reactions
+      FROM review_reactions FINAL
       WHERE bot_id = {botId:String}
       ORDER BY week ASC
     `,
@@ -280,7 +280,7 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
-        FROM review_activity
+        FROM review_activity FINAL
         GROUP BY bot_id
       ),
       reaction_agg AS (
@@ -289,7 +289,7 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
           sum(thumbs_up) AS thumbs_up,
           sum(thumbs_down) AS thumbs_down,
           sum(heart) AS heart
-        FROM review_reactions
+        FROM review_reactions FINAL
         GROUP BY bot_id
       )
     SELECT
@@ -317,7 +317,7 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
       COALESCE(ra.weeks_active, 0) AS weeks_active
-    FROM bots b
+    FROM bots AS b FINAL
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC

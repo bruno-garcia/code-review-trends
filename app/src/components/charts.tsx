@@ -23,14 +23,14 @@ import {
 } from "recharts";
 
 export const COLORS = [
-  "#a78bfa", // violet-400
-  "#22d3ee", // cyan-400
-  "#f59e0b", // amber
-  "#10b981", // emerald
-  "#ec4899", // pink
-  "#f97316", // orange
-  "#6d28d9", // violet-700
-  "#ef4444", // red
+  "#a78bfa", // violet-400 — primary
+  "#67e8f9", // cyan-300 — softer cyan
+  "#fbbf24", // amber-400 — warm gold
+  "#6ee7b7", // emerald-300 — soft green
+  "#f9a8d4", // pink-300 — muted pink
+  "#fdba74", // orange-300 — soft orange
+  "#c4b5fd", // violet-300 — light violet
+  "#fca5a5", // red-300 — muted red
 ];
 
 function formatWeek(week: string | number) {
@@ -44,14 +44,17 @@ function formatNumber(n: number) {
   return n.toString();
 }
 
+import { THEME } from "@/lib/theme";
+
 const TOOLTIP_STYLE = {
-  backgroundColor: "#12121a",
-  border: "1px solid #1e1e2e",
+  backgroundColor: THEME.tooltipBg,
+  border: `1px solid ${THEME.border}`,
   borderRadius: 8,
 };
 
-const GRID_COLOR = "#1e1e2e";
-const AXIS_COLOR = "#555";
+const GRID_COLOR = THEME.grid;
+const AXIS_COLOR = THEME.axis;
+const LEGEND_STYLE = { color: THEME.mutedText };
 
 // --- Toggle button group ---
 
@@ -185,7 +188,7 @@ export function ReviewVolumeChart({
           labelFormatter={(v) => formatWeek(String(v))}
           formatter={(value, name) => [formatNumber(Number(value)), name]}
         />
-        <Legend />
+        <Legend wrapperStyle={LEGEND_STYLE} />
         {bots.map((bot, i) => (
           <Area
             key={bot}
@@ -260,7 +263,7 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
             labelFormatter={(v) => formatWeek(String(v))}
             formatter={(value, name) => [formatNumber(Number(value)), name]}
           />
-          <Legend />
+          <Legend wrapperStyle={LEGEND_STYLE} />
           {current.keys.map((key, i) => (
             <Line
               key={key}
@@ -305,7 +308,7 @@ export function ReactionChart({ data }: { data: ReactionData[] }) {
           tickFormatter={formatNumber}
         />
         <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(v) => formatWeek(String(v))} />
-        <Legend />
+        <Legend wrapperStyle={LEGEND_STYLE} />
         <Bar dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
         <Bar dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
         <Bar dataKey="laugh" fill="#f59e0b" name="😄" stackId="a" />
@@ -350,7 +353,7 @@ export function BotRadarChart({
             fillOpacity={0.15}
           />
         ))}
-        <Legend />
+        <Legend wrapperStyle={LEGEND_STYLE} />
         <Tooltip contentStyle={TOOLTIP_STYLE} />
       </RadarChart>
     </ResponsiveContainer>

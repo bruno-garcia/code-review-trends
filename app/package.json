@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "npx tsx --test src/lib/color-check.test.ts",
     "lint": "eslint",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui"
