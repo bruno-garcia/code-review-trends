@@ -10,10 +10,10 @@ import * as Sentry from "@sentry/node";
 const dsn = process.env.SENTRY_DSN;
 
 Sentry.init({
-  dsn: dsn ?? "https://da57fb3ae8cfa9b22b369cf6cc16e6f7@o117736.ingest.us.sentry.io/4510892245385216",
+  dsn,
 
-  // Only enable in production / CI — skip in local dev unless DSN is explicitly set
-  enabled: !!dsn || process.env.CI === "true",
+  // Only enable when DSN is explicitly provided
+  enabled: !!dsn,
 
   tracesSampleRate: 1.0,
 
