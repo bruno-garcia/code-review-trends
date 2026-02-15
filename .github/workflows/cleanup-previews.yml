@@ -13,8 +13,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Remove stale preview aliases
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
+          # Ensure all remote-tracking branches are available
+          git fetch --all --prune --quiet
+
           # Collect all remote branch names, sanitized the same way as preview-alias.yml
           BRANCHES=$(git branch -r --format='%(refname:short)' | sed 's|origin/||')
           SANITIZED_BRANCHES=""
@@ -27,10 +37,19 @@ jobs:
             SANITIZED_BRANCHES="$SANITIZED_BRANCHES $SLUG"
           done
 
-          # List all preview aliases
-          ALIASES=$(npx vercel alias ls \
-            --token=${{ secrets.VERCEL_TOKEN }} \
-            --scope=${{ secrets.VERCEL_ORG_ID }} 2>/dev/null \
+          # List all preview aliases — fail visibly on auth/permission errors
+          ALIASES_OUTPUT=$(npx --yes vercel alias ls \
+            --token="$VERCEL_TOKEN" \
+            --scope="$VERCEL_ORG_ID")
+          VERCEL_EXIT=$?
+
+          if [ $VERCEL_EXIT -ne 0 ]; then
+            echo "Error: failed to list Vercel aliases (exit code $VERCEL_EXIT)" >&2
+            echo "$ALIASES_OUTPUT" >&2
+            exit $VERCEL_EXIT
+          fi
+
+          ALIASES=$(echo "$ALIASES_OUTPUT" \
             | grep '\.preview\.codereviewtrends\.com' \
             | awk '{print $1}')
 
@@ -46,8 +65,8 @@ jobs:
               echo "✅ Keeping: $ALIAS (branch exists)"
             else
               echo "🗑  Removing: $ALIAS (branch deleted)"
-              npx vercel alias rm "$ALIAS" --yes \
-                --token=${{ secrets.VERCEL_TOKEN }} \
-                --scope=${{ secrets.VERCEL_ORG_ID }}
+              npx --yes vercel alias rm "$ALIAS" --yes \
+                --token="$VERCEL_TOKEN" \
+                --scope="$VERCEL_ORG_ID"
             fi
           done

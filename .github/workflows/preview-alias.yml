@@ -9,9 +9,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Alias deployment to custom subdomain
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
+          # The deployment ref from Vercel is a commit SHA, not a branch name.
+          # Extract the branch from the Vercel deployment metadata in the payload.
+          BRANCH_RAW=$(echo '${{ toJson(github.event.deployment.payload) }}' \
+            | jq -r '.vercel.branch // empty')
+
+          # Fallback: try the ref field directly (works for non-Vercel deployments)
+          if [ -z "$BRANCH_RAW" ]; then
+            BRANCH_RAW="${{ github.event.deployment.ref }}"
+          fi
+
           # Sanitize branch name for DNS (lowercase, replace non-alphanumeric with hyphens)
-          BRANCH=$(echo "${{ github.event.deployment.ref }}" \
+          BRANCH=$(echo "$BRANCH_RAW" \
             | tr '[:upper:]' '[:lower:]' \
             | sed 's/[^a-z0-9-]/-/g' \
             | sed 's/--*/-/g' \
@@ -22,11 +35,13 @@ jobs:
             exit 0
           fi
 
+          # Strip scheme from deployment URL — Vercel CLI expects a hostname
           DEPLOYMENT_URL="${{ github.event.deployment_status.target_url }}"
+          DEPLOYMENT_HOST=$(echo "$DEPLOYMENT_URL" | sed -E 's#^https?://([^/]+)/?.*#\1#')
           CUSTOM_DOMAIN="${BRANCH}.preview.codereviewtrends.com"
 
-          npx vercel alias set "$DEPLOYMENT_URL" "$CUSTOM_DOMAIN" \
-            --token=${{ secrets.VERCEL_TOKEN }} \
-            --scope=${{ secrets.VERCEL_ORG_ID }}
+          npx --yes vercel alias set "$DEPLOYMENT_HOST" "$CUSTOM_DOMAIN" \
+            --token="$VERCEL_TOKEN" \
+            --scope="$VERCEL_ORG_ID"
 
           echo "✅ Aliased to https://$CUSTOM_DOMAIN"
