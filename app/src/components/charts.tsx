@@ -81,7 +81,7 @@ function ToggleGroup({
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
             value === opt.value
               ? "bg-violet-600 text-white"
-              : "bg-[#1e1e2e] text-gray-400 hover:text-white"
+              : "bg-theme-border text-gray-400 hover:text-white"
           }`}
           aria-pressed={value === opt.value}
           data-testid={`toggle-${opt.value}`}

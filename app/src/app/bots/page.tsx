@@ -31,7 +31,7 @@ export default async function BotsPage() {
           <Link
             key={bot.id}
             href={`/bots/${bot.id}`}
-            className="block bg-[#12121a] rounded-xl p-6 border border-[#1e1e2e] hover:border-violet-500/50 transition-colors"
+            className="block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors"
             data-testid={`bot-card-${bot.id}`}
           >
             <h2 className="text-xl font-semibold text-violet-400">

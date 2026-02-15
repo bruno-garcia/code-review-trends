@@ -136,7 +136,7 @@ export default async function BotPage({
       {/* Activity chart */}
       <section data-testid="bot-activity-chart">
         <h2 className="text-2xl font-semibold mb-4">Activity Over Time</h2>
-        <div className="bg-[#12121a] rounded-xl p-6 border border-[#1e1e2e]">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <SingleBotChart data={chartData} />
         </div>
       </section>
@@ -148,7 +148,7 @@ export default async function BotPage({
           Reactions on review comments — a proxy for how useful people find this
           bot&apos;s reviews.
         </p>
-        <div className="bg-[#12121a] rounded-xl p-6 border border-[#1e1e2e]">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <ReactionChart data={reactionData} />
         </div>
       </section>
@@ -166,7 +166,7 @@ function StatCard({
   color?: string;
 }) {
   return (
-    <div className="bg-[#12121a] rounded-xl p-5 border border-[#1e1e2e]">
+    <div className="bg-theme-surface rounded-xl p-5 border border-theme-border">
       <p className="text-sm text-gray-400">{label}</p>
       <p className={`text-2xl font-bold tabular-nums ${color ?? ""}`}>
         {value}

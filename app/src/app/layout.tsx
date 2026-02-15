@@ -17,8 +17,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-[#0a0a0f] text-gray-100 antialiased">
-        <nav className="border-b border-[#1e1e2e] bg-[#0a0a0f]/80 backdrop-blur sticky top-0 z-50">
+      <body className="bg-theme-bg text-gray-100 antialiased">
+        <nav className="border-b border-theme-border bg-theme-bg/80 backdrop-blur sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <Link href="/" className="flex items-center">
@@ -55,7 +55,7 @@ export default function RootLayout({
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </main>
-        <footer className="border-t border-[#1e1e2e] py-8 text-center text-sm text-gray-500">
+        <footer className="border-t border-theme-border py-8 text-center text-sm text-gray-500">
           <p>
             Data sourced from{" "}
             <a

@@ -165,7 +165,7 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
         <p className="text-gray-400 mb-4 text-sm">
           Each dimension normalized to 0–100 relative to the top bot.
         </p>
-        <div className="bg-[#12121a] rounded-xl p-6 border border-[#1e1e2e]">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <BotRadarChart data={radarData} bots={botNames} />
         </div>
       </section>
@@ -178,9 +178,9 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
             className="w-full text-left text-sm"
             data-testid="compare-table"
           >
-            <thead className="text-gray-400 border-b border-[#1e1e2e]">
+            <thead className="text-gray-400 border-b border-theme-border">
               <tr>
-                <th className="pb-3 pr-4 sticky left-0 bg-[#0a0a0f] z-10">
+                <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10">
                   Bot
                 </th>
                 {METRICS.map((m) => (
@@ -209,9 +209,9 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
               {sorted.map((bot, rowIdx) => (
                 <tr
                   key={bot.id}
-                  className="border-b border-[#1e1e2e]/50 hover:bg-[#12121a]/50"
+                  className="border-b border-theme-border/50 hover:bg-theme-surface/50"
                 >
-                  <td className="py-3 pr-4 sticky left-0 bg-[#0a0a0f] z-10">
+                  <td className="py-3 pr-4 sticky left-0 bg-theme-bg z-10">
                     <Link
                       href={`/bots/${bot.id}`}
                       className="font-medium hover:text-violet-300 transition-colors"
@@ -278,7 +278,7 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
             return (
               <div
                 key={key}
-                className="bg-[#12121a] rounded-xl p-5 border border-[#1e1e2e]"
+                className="bg-theme-surface rounded-xl p-5 border border-theme-border"
               >
                 <h3 className="text-sm font-medium text-gray-300 mb-3">
                   {label}
@@ -292,7 +292,7 @@ export function CompareCharts({ bots }: { bots: BotComparison[] }) {
                         <span className="text-xs text-gray-400 w-28 text-right truncate">
                           {bot.name}
                         </span>
-                        <div className="flex-1 bg-[#1e1e2e] rounded-full h-5 relative overflow-hidden">
+                        <div className="flex-1 bg-theme-border rounded-full h-5 relative overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
