@@ -381,47 +381,6 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
   );
 }
 
-// --- Reaction chart ---
-
-type ReactionData = {
-  week: string;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
-  laugh: number;
-  confused: number;
-};
-
-export function ReactionChart({ data }: { data: ReactionData[] }) {
-  const c = useChartColors();
-
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} />
-        <XAxis
-          dataKey="week"
-          tickFormatter={formatWeek}
-          stroke={c.barAxis}
-          tick={{ fontSize: 12 }}
-        />
-        <YAxis
-          stroke={c.barAxis}
-          tick={{ fontSize: 12 }}
-          tickFormatter={formatNumber}
-        />
-        <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeekLong(String(v))} />
-        <Legend wrapperStyle={c.legendStyle} />
-        <Bar dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
-        <Bar dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
-        <Bar dataKey="laugh" fill="#f59e0b" name="😄" stackId="a" />
-        <Bar dataKey="confused" fill="#8b5cf6" name="😕" stackId="b" />
-        <Bar dataKey="thumbs_down" fill="#ef4444" name="👎" stackId="b" />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
 // --- Radar comparison chart ---
 
 export function BotRadarChart({
@@ -595,61 +554,6 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
           {bots.map((bot, i) => (
             <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
           ))}
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// --- Reactions by PR Size Chart ---
-
-type ReactionsByPRSizeData = {
-  size_bucket: string;
-  avg_thumbs_up: number;
-  avg_thumbs_down: number;
-  pr_count: number;
-};
-
-const SIZE_ORDER = ["XS", "S", "M", "L", "XL"];
-
-export function ReactionsByPRSizeChart({
-  data,
-}: {
-  data: ReactionsByPRSizeData[];
-}) {
-  const c = useChartColors();
-
-  if (data.length === 0) {
-    return <div data-testid="reactions-by-pr-size"><p className="text-theme-muted text-sm">No data</p></div>;
-  }
-
-  const sorted = [...data].sort(
-    (a, b) => SIZE_ORDER.indexOf(a.size_bucket) - SIZE_ORDER.indexOf(b.size_bucket),
-  );
-
-  return (
-    <div data-testid="reactions-by-pr-size">
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={sorted}>
-          <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} />
-          <XAxis dataKey="size_bucket" stroke={c.barAxis} tick={{ fontSize: 12 }} />
-          <YAxis stroke={c.barAxis} tick={{ fontSize: 12 }} />
-          <Tooltip
-            cursor={false}
-            contentStyle={c.tooltipStyle}
-            wrapperStyle={TOOLTIP_WRAPPER_STYLE}
-            formatter={(value, name) => [
-              Number(value).toFixed(2),
-              name === "avg_thumbs_up" ? "Avg 👍" : "Avg 👎",
-            ]}
-          />
-          <Legend
-            formatter={(value) =>
-              value === "avg_thumbs_up" ? "Avg 👍" : "Avg 👎"
-            }
-          />
-          <Bar dataKey="avg_thumbs_up" fill="#10b981" name="avg_thumbs_up" />
-          <Bar dataKey="avg_thumbs_down" fill="#ef4444" name="avg_thumbs_down" />
         </BarChart>
       </ResponsiveContainer>
     </div>

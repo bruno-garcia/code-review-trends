@@ -112,15 +112,6 @@ export type BotSummary = {
   first_seen: string;
 };
 
-export type WeeklyReactions = {
-  week: string;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
-  laugh: number;
-  confused: number;
-};
-
 export type ProductComparison = {
   id: string;
   name: string;
@@ -606,50 +597,6 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
   `);
 }
 
-export async function getBotReactions(
-  botId: string,
-): Promise<WeeklyReactions[]> {
-  return query<WeeklyReactions>(
-    `
-      SELECT
-        formatDateTime(toStartOfWeek(c.created_at, 1), '%Y-%m-%d') AS week,
-        sum(c.thumbs_up) AS thumbs_up,
-        sum(c.thumbs_down) AS thumbs_down,
-        sum(c.heart) AS heart,
-        sum(c.laugh) AS laugh,
-        sum(c.confused) AS confused
-      FROM pr_comments c FINAL
-      JOIN bots b FINAL ON c.bot_id = b.id
-      WHERE b.id = {botId:String} AND c.comment_id > 0
-      GROUP BY week
-      ORDER BY week ASC
-    `,
-    { botId },
-  );
-}
-
-export async function getProductReactions(
-  productId: string,
-): Promise<WeeklyReactions[]> {
-  return query<WeeklyReactions>(
-    `
-      SELECT
-        formatDateTime(toStartOfWeek(c.created_at, 1), '%Y-%m-%d') AS week,
-        sum(c.thumbs_up) AS thumbs_up,
-        sum(c.thumbs_down) AS thumbs_down,
-        sum(c.heart) AS heart,
-        sum(c.laugh) AS laugh,
-        sum(c.confused) AS confused
-      FROM pr_comments c FINAL
-      JOIN bots b FINAL ON c.bot_id = b.id
-      WHERE b.product_id = {productId:String} AND c.comment_id > 0
-      GROUP BY week
-      ORDER BY week ASC
-    `,
-    { productId },
-  );
-}
-
 export async function getBotComparisons(): Promise<BotComparison[]> {
   return query<BotComparison>(`
     WITH
@@ -820,35 +767,6 @@ export async function getBotsByLanguage(botId?: string): Promise<BotByLanguage[]
   `, botId ? { botId } : {});
 }
 
-export type ReactionsByPRSize = {
-  size_bucket: string;
-  avg_thumbs_up: number;
-  avg_thumbs_down: number;
-  pr_count: number;
-};
-
-export async function getReactionsByPRSize(botId?: string): Promise<ReactionsByPRSize[]> {
-  const where = botId ? "AND c.bot_id = {botId:String}" : "";
-  return query<ReactionsByPRSize>(
-    `SELECT
-      multiIf(
-        p.additions + p.deletions < 10, 'XS',
-        p.additions + p.deletions < 50, 'S',
-        p.additions + p.deletions < 200, 'M',
-        p.additions + p.deletions < 1000, 'L',
-        'XL'
-      ) AS size_bucket,
-      round(avg(c.thumbs_up), 2) AS avg_thumbs_up,
-      round(avg(c.thumbs_down), 2) AS avg_thumbs_down,
-      countDistinct(c.repo_name, c.pr_number) AS pr_count
-    FROM pr_comments c FINAL
-    JOIN pull_requests p ON c.repo_name = p.repo_name AND c.pr_number = p.pr_number
-    WHERE c.comment_id > 0 ${where}
-    GROUP BY size_bucket
-    ORDER BY pr_count DESC`,
-    botId ? { botId } : {},
-  );
-}
 
 export type EnrichmentStats = {
   total_discovered_repos: number;

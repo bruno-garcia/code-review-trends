@@ -135,7 +135,7 @@ export function FilteredBotsPage({
                           alt={product.name}
                           width={20}
                           height={20}
-                          className="rounded-full bg-gray-800 border border-gray-700"
+                          className="rounded-full bg-theme-surface border border-theme-border"
                         />
                       )}
                       <span
@@ -218,7 +218,7 @@ export function FilteredBotsPage({
                   alt={product.name}
                   width={40}
                   height={40}
-                  className="rounded-full bg-gray-800 border border-gray-700"
+                  className="rounded-full bg-theme-surface border border-theme-border"
                 />
               )}
               <h2
