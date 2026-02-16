@@ -288,6 +288,14 @@ export type PullRequestRow = {
   additions: number;
   deletions: number;
   changed_files: number;
+  thumbs_up: number;
+  thumbs_down: number;
+  laugh: number;
+  confused: number;
+  heart: number;
+  hooray: number;
+  eyes: number;
+  rocket: number;
 };
 
 /**
@@ -298,6 +306,17 @@ export async function insertPullRequests(
   rows: PullRequestRow[],
 ): Promise<void> {
   if (rows.length === 0) return;
+
+  // Ensure reaction columns exist (for migration of existing DBs)
+  const reactionCols = [
+    "thumbs_up", "thumbs_down", "laugh", "confused",
+    "heart", "hooray", "eyes", "rocket",
+  ];
+  for (const col of reactionCols) {
+    await client.command({
+      query: `ALTER TABLE pull_requests ADD COLUMN IF NOT EXISTS ${col} UInt32 DEFAULT 0`,
+    });
+  }
 
   await client.insert({
     table: "pull_requests",

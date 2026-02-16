@@ -530,6 +530,14 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         additions: 0, // list endpoint doesn't include these
         deletions: 0,
         changed_files: 0,
+        thumbs_up: 0,
+        thumbs_down: 0,
+        laugh: 0,
+        confused: 0,
+        heart: 0,
+        hooray: 0,
+        eyes: 0,
+        rocket: 0,
       };
       assert.ok(row.author.length > 0, "author should not be empty");
       assert.ok(["merged", "closed", "open"].includes(row.state), `unexpected state: ${row.state}`);
@@ -543,6 +551,13 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         pull_number: prData[0].number,
       });
 
+      const reactions = (detail as unknown as {
+        reactions?: {
+          "+1"?: number; "-1"?: number; laugh?: number; confused?: number;
+          heart?: number; hooray?: number; eyes?: number; rocket?: number;
+        };
+      }).reactions;
+
       const row: PullRequestRow = {
         repo_name: TEST_REPO,
         pr_number: detail.number,
@@ -555,6 +570,14 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         additions: detail.additions,
         deletions: detail.deletions,
         changed_files: detail.changed_files,
+        thumbs_up: reactions?.["+1"] ?? 0,
+        thumbs_down: reactions?.["-1"] ?? 0,
+        laugh: reactions?.laugh ?? 0,
+        confused: reactions?.confused ?? 0,
+        heart: reactions?.heart ?? 0,
+        hooray: reactions?.hooray ?? 0,
+        eyes: reactions?.eyes ?? 0,
+        rocket: reactions?.rocket ?? 0,
       };
       await insertPullRequests(ch, [row]);
 
