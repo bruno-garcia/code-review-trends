@@ -556,7 +556,7 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
           <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           {bots.map((bot, i) => (
-            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
+            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} maxBarSize={80} />
           ))}
         </BarChart>
       </ResponsiveContainer>
