@@ -225,18 +225,20 @@ export default async function ProductPage({
       )}
 
       {/* Reactions chart */}
-      {reactionData.length > 0 && (
-        <section data-testid="bot-reactions-chart">
-          <h2 className="text-2xl font-semibold mb-4">Community Reactions</h2>
-          <p className="text-theme-muted mb-6">
-            Reactions on review comments — a proxy for how useful people find
-            this product&apos;s reviews.
-          </p>
+      <section data-testid="bot-reactions-chart">
+        <h2 className="text-2xl font-semibold mb-4">Community Reactions</h2>
+        <p className="text-theme-muted mb-6">
+          Reactions on review comments — a proxy for how useful people find
+          this product&apos;s reviews.
+        </p>
+        {reactionData.length > 0 ? (
           <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
             <ReactionChart data={reactionData} />
           </div>
-        </section>
-      )}
+        ) : (
+          <p className="text-theme-muted text-sm">No reaction data yet</p>
+        )}
+      </section>
 
       {/* Comments per PR */}
       <section data-testid="bot-comments-per-pr">
