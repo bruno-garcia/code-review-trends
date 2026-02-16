@@ -17,6 +17,7 @@ import {
   queryHumanReviewActivity,
   type WeeklyBotReviewRow,
   type WeeklyHumanReviewRow,
+  type BotPREventRow,
 } from "./bigquery.js";
 import {
   insertReviewActivity,
@@ -24,8 +25,69 @@ import {
   query,
   type ReviewActivityRow,
   type HumanActivityRow,
+  type PrBotEventRow,
 } from "./clickhouse.js";
 import { BOT_BY_LOGIN, BOT_LOGINS } from "./bots.js";
+
+// ── Row mappers (shared with smoke tests) ───────────────────────────────
+
+/** Map BigQuery bot activity rows to ClickHouse ReviewActivityRow format. */
+export function mapBotActivityRows(
+  rows: WeeklyBotReviewRow[],
+  log?: (msg: string) => void,
+): ReviewActivityRow[] {
+  return rows
+    .map((row) => {
+      const bot = BOT_BY_LOGIN.get(row.actor_login);
+      if (!bot) {
+        log?.(`    ⚠ Unknown bot login: ${row.actor_login}`);
+        return null;
+      }
+      return {
+        week: row.week,
+        bot_id: bot.id,
+        review_count: Number(row.review_count),
+        review_comment_count: Number(row.review_comment_count),
+        repo_count: Number(row.repo_count),
+        org_count: Number(row.org_count),
+      };
+    })
+    .filter((r): r is ReviewActivityRow => r !== null);
+}
+
+/** Map BigQuery human activity rows to ClickHouse HumanActivityRow format. */
+export function mapHumanActivityRows(rows: WeeklyHumanReviewRow[]): HumanActivityRow[] {
+  return rows.map((row) => ({
+    week: row.week,
+    review_count: Number(row.review_count),
+    review_comment_count: Number(row.review_comment_count),
+    repo_count: Number(row.repo_count),
+  }));
+}
+
+/** Map BigQuery PR bot event rows to ClickHouse PrBotEventRow format. */
+export function mapPrBotEventRows(
+  rows: BotPREventRow[],
+  log?: (msg: string) => void,
+): PrBotEventRow[] {
+  return rows
+    .map((row) => {
+      const bot = BOT_BY_LOGIN.get(row.actor_login);
+      if (!bot) {
+        log?.(`  Unknown bot login: ${row.actor_login}`);
+        return null;
+      }
+      return {
+        repo_name: row.repo_name,
+        pr_number: Number(row.pr_number),
+        bot_id: bot.id,
+        actor_login: row.actor_login,
+        event_type: row.event_type,
+        event_week: row.week,
+      };
+    })
+    .filter((r): r is PrBotEventRow => r !== null);
+}
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -215,23 +277,7 @@ async function fetchAndStoreChunk(
     () => fetcher.fetchBotActivity(chunk.startDate, chunk.endDate, logins),
   );
 
-  const activityRows: ReviewActivityRow[] = botRaw
-    .map((row) => {
-      const bot = BOT_BY_LOGIN.get(row.actor_login);
-      if (!bot) {
-        log(`    ⚠ Unknown bot login: ${row.actor_login}`);
-        return null;
-      }
-      return {
-        week: row.week,
-        bot_id: bot.id,
-        review_count: Number(row.review_count),
-        review_comment_count: Number(row.review_comment_count),
-        repo_count: Number(row.repo_count),
-        org_count: Number(row.org_count),
-      };
-    })
-    .filter((r): r is ReviewActivityRow => r !== null);
+  const activityRows = mapBotActivityRows(botRaw, log);
 
   log(`  Querying human activity ${chunk.startDate} → ${chunk.endDate}...`);
   const humanRaw = await Sentry.startSpan(
@@ -239,12 +285,7 @@ async function fetchAndStoreChunk(
     () => fetcher.fetchHumanActivity(chunk.startDate, chunk.endDate, logins),
   );
 
-  const humanRows: HumanActivityRow[] = humanRaw.map((row) => ({
-    week: row.week,
-    review_count: Number(row.review_count),
-    review_comment_count: Number(row.review_comment_count),
-    repo_count: Number(row.repo_count),
-  }));
+  const humanRows = mapHumanActivityRows(humanRaw);
 
   // Write to ClickHouse (independent inserts, run in parallel)
   await Sentry.startSpan(

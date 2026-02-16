@@ -38,13 +38,16 @@ import {
   insertPrComments,
   syncBots,
   syncProducts,
-  type ReviewActivityRow,
-  type HumanActivityRow,
   type RepoRow,
   type RepoLanguageRow,
   type PullRequestRow,
   type PrCommentRow,
 } from "./clickhouse.js";
+import {
+  mapBotActivityRows,
+  mapHumanActivityRows,
+  mapPrBotEventRows,
+} from "./sync.js";
 import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import type { ClickHouseClient } from "@clickhouse/client";
 import { Octokit } from "@octokit/rest";
@@ -224,43 +227,10 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
       const humanRows = await queryHumanReviewActivity(bq, TEST_START, TEST_END, logins);
       const eventRows = await queryBotPREvents(bq, TEST_START, TEST_END, logins);
 
-      // Map and write to ClickHouse
-      const activityRows: ReviewActivityRow[] = botRows
-        .map((row) => {
-          const bot = BOT_BY_LOGIN.get(row.actor_login);
-          if (!bot) return null;
-          return {
-            week: row.week,
-            bot_id: bot.id,
-            review_count: Number(row.review_count),
-            review_comment_count: Number(row.review_comment_count),
-            repo_count: Number(row.repo_count),
-            org_count: Number(row.org_count),
-          };
-        })
-        .filter((r): r is ReviewActivityRow => r !== null);
-
-      const humanActivityRows: HumanActivityRow[] = humanRows.map((row) => ({
-        week: row.week,
-        review_count: Number(row.review_count),
-        review_comment_count: Number(row.review_comment_count),
-        repo_count: Number(row.repo_count),
-      }));
-
-      const chEventRows = eventRows
-        .map((row) => {
-          const bot = BOT_BY_LOGIN.get(row.actor_login);
-          if (!bot) return null;
-          return {
-            repo_name: row.repo_name,
-            pr_number: Number(row.pr_number),
-            bot_id: bot.id,
-            actor_login: row.actor_login,
-            event_type: row.event_type,
-            event_week: row.week,
-          };
-        })
-        .filter((r): r is NonNullable<typeof r> => r !== null);
+      // Map and write to ClickHouse — uses the same mappers as production
+      const activityRows = mapBotActivityRows(botRows);
+      const humanActivityRows = mapHumanActivityRows(humanRows);
+      const chEventRows = mapPrBotEventRows(eventRows);
 
       await Promise.all([
         insertReviewActivity(ch, activityRows),
