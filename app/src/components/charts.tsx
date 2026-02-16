@@ -346,11 +346,11 @@ export function ReactionChart({ data }: { data: ReactionData[] }) {
         />
         <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeekLong(String(v))} />
         <Legend wrapperStyle={c.legendStyle} />
-        <Bar dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
-        <Bar dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
-        <Bar dataKey="laugh" fill="#f59e0b" name="😄" stackId="a" />
-        <Bar dataKey="confused" fill="#8b5cf6" name="😕" stackId="b" />
-        <Bar dataKey="thumbs_down" fill="#ef4444" name="👎" stackId="b" />
+        <Bar cursor={false} dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
+        <Bar cursor={false} dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
+        <Bar cursor={false} dataKey="laugh" fill="#f59e0b" name="😄" stackId="a" />
+        <Bar cursor={false} dataKey="confused" fill="#8b5cf6" name="😕" stackId="b" />
+        <Bar cursor={false} dataKey="thumbs_down" fill="#ef4444" name="👎" stackId="b" />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -462,9 +462,9 @@ export function BotReactionLeaderboardChart({
           />
           <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
-          <Bar dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" />
-          <Bar dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" />
-          <Bar dataKey="total_thumbs_down" fill="#ef4444" name="👎" stackId="a" />
+          <Bar cursor={false} dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" />
+          <Bar cursor={false} dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" />
+          <Bar cursor={false} dataKey="total_thumbs_down" fill="#ef4444" name="👎" stackId="a" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -527,7 +527,7 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
           <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           {bots.map((bot, i) => (
-            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
+            <Bar cursor={false} key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
           ))}
         </BarChart>
       </ResponsiveContainer>
@@ -581,8 +581,8 @@ export function ReactionsByPRSizeChart({
               value === "avg_thumbs_up" ? "Avg 👍" : "Avg 👎"
             }
           />
-          <Bar dataKey="avg_thumbs_up" fill="#10b981" name="avg_thumbs_up" />
-          <Bar dataKey="avg_thumbs_down" fill="#ef4444" name="avg_thumbs_down" />
+          <Bar cursor={false} dataKey="avg_thumbs_up" fill="#10b981" name="avg_thumbs_up" />
+          <Bar cursor={false} dataKey="avg_thumbs_down" fill="#ef4444" name="avg_thumbs_down" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -637,7 +637,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
               value === "total_stars" ? "⭐ Stars" : "Repos"
             }
           />
-          <Bar dataKey="total_stars" fill="#f59e0b" name="total_stars" />
+          <Bar cursor={false} dataKey="total_stars" fill="#f59e0b" name="total_stars" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -675,7 +675,7 @@ export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
               "Avg Comments/PR",
             ]}
           />
-          <Bar dataKey="avg_comments_per_pr" fill="#6366f1" name="Avg Comments/PR">
+          <Bar cursor={false} dataKey="avg_comments_per_pr" fill="#6366f1" name="Avg Comments/PR">
             {data.map((_, i) => (
               <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
             ))}
@@ -727,7 +727,7 @@ export function CompareBarChart({
           contentStyle={c.tooltipStyle}
           formatter={(value) => [fmt(Number(value)), label]}
         />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+        <Bar cursor={false} dataKey="value" radius={[0, 4, 4, 0]}>
           {data.map((entry, i) => (
             <Cell key={`cell-${i}`} fill={entry.color} />
           ))}
