@@ -182,6 +182,72 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
   );
 }
 
+// --- Total AI Volume Chart ---
+
+type TotalVolumeData = {
+  week: string;
+  total_reviews: number;
+  total_comments: number;
+  total_pr_comments: number;
+};
+
+export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
+  const [metric, setMetric] = useState("reviews");
+  const c = useChartColors();
+
+  const metricConfig: Record<string, { dataKey: keyof TotalVolumeData; label: string; color: string }> = {
+    reviews: { dataKey: "total_reviews", label: "Reviews", color: "#a78bfa" },
+    comments: { dataKey: "total_comments", label: "Review Comments", color: "#22d3ee" },
+    pr_comments: { dataKey: "total_pr_comments", label: "PR Comments", color: "#f97316" },
+  };
+
+  const { dataKey, label, color } = metricConfig[metric];
+
+  return (
+    <div data-testid="total-volume-chart">
+      <ToggleGroup
+        options={[
+          { value: "reviews", label: "Reviews" },
+          { value: "comments", label: "Review Comments" },
+          { value: "pr_comments", label: "PR Comments" },
+        ]}
+        value={metric}
+        onChange={setMetric}
+        testId="total-volume-toggle"
+      />
+      <ResponsiveContainer width="100%" height={350}>
+        <AreaChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
+          <XAxis
+            dataKey="week"
+            tickFormatter={formatWeek}
+            stroke={c.axis}
+            tick={{ fontSize: 12 }}
+          />
+          <YAxis
+            stroke={c.axis}
+            tick={{ fontSize: 12 }}
+            tickFormatter={formatNumber}
+          />
+          <Tooltip
+            contentStyle={c.tooltipStyle}
+            labelFormatter={(v) => formatWeekLong(String(v))}
+            formatter={(value) => [formatNumber(Number(value)), label]}
+          />
+          <Area
+            type="monotone"
+            dataKey={dataKey}
+            stroke={color}
+            fill={color}
+            fillOpacity={0.2}
+            name={label}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 // --- Stacked review volume ---
 
 export function ReviewVolumeChart({

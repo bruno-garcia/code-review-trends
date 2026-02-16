@@ -178,6 +178,13 @@ export type ProductBot = {
   last_week: string;
 };
 
+export type WeeklyTotalVolume = {
+  week: string;
+  total_reviews: number;
+  total_comments: number;
+  total_pr_comments: number;
+};
+
 async function query<T>(sql: string, params?: Record<string, unknown>): Promise<T[]> {
   // Sanitize the SQL for the span description — strip excess whitespace
   const sanitizedSql = sql.replace(/\s+/g, " ").trim();
@@ -220,6 +227,19 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
       }
     },
   );
+}
+
+export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
+  return query<WeeklyTotalVolume>(`
+    SELECT
+      toString(ra.week) AS week,
+      sum(ra.review_count) AS total_reviews,
+      sum(ra.review_comment_count) AS total_comments,
+      sum(ra.pr_comment_count) AS total_pr_comments
+    FROM review_activity ra FINAL
+    GROUP BY ra.week
+    ORDER BY ra.week
+  `);
 }
 
 // --- Product queries ---
