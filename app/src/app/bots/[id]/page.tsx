@@ -15,24 +15,31 @@ import {
   ReactionsByPRSizeChart,
   BotLanguageChart,
 } from "@/components/charts";
+import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const range = parseTimeRange(sp.range as string | undefined);
+  const since = computeCutoffDate(range) ?? undefined;
+
   const [product, allSummaries, productBots, activity, reactionsBySize, languageData, commentsPerPR] = await Promise.all([
     getProductById(id),
-    getProductSummaries(),
-    getProductBots(id),
-    getWeeklyActivityByProduct(id),
-    getReactionsByPRSize(id),
-    getBotsByLanguage(id),
-    getAvgCommentsPerPR(id),
+    getProductSummaries(since),
+    getProductBots(id, since),
+    getWeeklyActivityByProduct(id, since),
+    getReactionsByPRSize(id, since),
+    getBotsByLanguage(id, since),
+    getAvgCommentsPerPR(id, since),
   ]);
 
   if (!product) {
@@ -52,7 +59,7 @@ export default async function ProductPage({
   }));
 
   // Fetch reactions aggregated across all bots in this product
-  const reactionData = (await getProductReactions(id)).map((r) => ({
+  const reactionData = (await getProductReactions(id, since)).map((r) => ({
     week: r.week,
     thumbs_up: Number(r.thumbs_up),
     thumbs_down: Number(r.thumbs_down),
@@ -243,7 +250,7 @@ export default async function ProductPage({
             <ReactionChart data={reactionData} />
           </div>
         ) : (
-          <p className="text-theme-muted text-sm">No data</p>
+          <p className="text-theme-muted text-sm">No data in selected time range</p>
         )}
       </section>
 

@@ -1,11 +1,20 @@
 import { getProductSummaries } from "@/lib/clickhouse";
 import { FilteredBotsGrid } from "@/components/filtered-bots-grid";
+import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function BotsPage() {
-  const summaries = await getProductSummaries();
+export default async function BotsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const range = parseTimeRange(params.range as string | undefined);
+  const since = computeCutoffDate(range) ?? undefined;
+
+  const summaries = await getProductSummaries(since);
 
   return (
     <div className="space-y-8">
