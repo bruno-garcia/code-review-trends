@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const baseURL = process.env.NEXT_PORT
+  ? `http://localhost:${process.env.NEXT_PORT}`
+  : "http://localhost:3000";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -8,9 +12,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "github" : "html",
   use: {
-    baseURL: process.env.NEXT_PORT
-      ? `http://localhost:${process.env.NEXT_PORT}`
-      : "http://localhost:3000",
+    baseURL,
     trace: "on-first-retry",
   },
   projects: [
@@ -22,10 +24,8 @@ export default defineConfig({
   webServer: {
     command: process.env.NEXT_PORT
       ? `npx next dev --port ${process.env.NEXT_PORT}`
-      : "npm run dev",
-    url: process.env.NEXT_PORT
-      ? `http://localhost:${process.env.NEXT_PORT}`
-      : "http://localhost:3000",
+      : "npx next dev",
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },
