@@ -735,6 +735,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
             repo_name: testRepoName,
             pr_number: testPRNumber,
             bot_id: testBotId,
+            actor_login: "copilot[bot]",
             event_type: "PullRequestReviewEvent",
           },
         ]);
@@ -753,7 +754,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         ]);
 
         // Ensure pull_requests table doesn't have this PR yet
-        const existing = await query(
+        const existing = await query<{ cnt: string }>(
           ch,
           "SELECT count() as cnt FROM pull_requests WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32}",
           { repo: testRepoName, pr: testPRNumber },
@@ -851,7 +852,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
       before(async () => {
         // Set up: pr_bot_events exists, repos exists, pull_requests now exists,
         // but pr_comments should be empty for this PR/bot combo
-        const existing = await query(
+        const existing = await query<{ cnt: string }>(
           ch,
           "SELECT count() as cnt FROM pr_comments WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32} AND bot_id = {bot:String}",
           { repo: testRepoName, pr: testPRNumber, bot: testBotId },
