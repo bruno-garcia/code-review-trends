@@ -19,6 +19,54 @@ test.describe("Compare page", () => {
     await expect(table.getByText("Approval Rate")).toBeVisible();
     await expect(table.getByText("Reviews/Org")).toBeVisible();
     await expect(table.getByText("Comments/Repo")).toBeVisible();
+
+    // Assert that at least one product has non-zero enriched reaction stats
+    const rows = table.locator("tbody tr");
+    const rowCount = await rows.count();
+    expect(rowCount).toBeGreaterThan(0);
+
+    let foundNonZeroApproval = false;
+    let foundNonZeroPRComments = false;
+
+    for (let i = 0; i < rowCount; i++) {
+      const row = rows.nth(i);
+      const cells = row.locator("td");
+      
+      // Get all cell values as text
+      const cellTexts = await Promise.all(
+        Array.from({ length: await cells.count() }).map((_, idx) => 
+          cells.nth(idx).textContent()
+        )
+      );
+
+      // Look for PR Comments and Approval Rate values
+      // PR Comments is typically formatted as a number (e.g., "1,234")
+      // Approval Rate is typically formatted as a percentage (e.g., "85%")
+      for (const text of cellTexts) {
+        if (text) {
+          // Check for percentage values (approval rate)
+          if (text.includes('%')) {
+            const value = parseFloat(text.replace('%', ''));
+            if (value > 0) {
+              foundNonZeroApproval = true;
+            }
+          }
+          // Check for numeric values that could be PR Comments
+          const numericValue = parseInt(text.replace(/,/g, ''), 10);
+          if (!isNaN(numericValue) && numericValue > 100) {
+            // Use a threshold to avoid confusing small numbers from other columns
+            foundNonZeroPRComments = true;
+          }
+        }
+      }
+
+      if (foundNonZeroApproval && foundNonZeroPRComments) {
+        break;
+      }
+    }
+
+    expect(foundNonZeroApproval).toBeTruthy();
+    expect(foundNonZeroPRComments).toBeTruthy();
   });
 
   test("table is sortable by clicking column headers", async ({ page }) => {

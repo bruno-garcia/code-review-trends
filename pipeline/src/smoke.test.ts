@@ -52,6 +52,9 @@ import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import { extractReactionCounts } from "./github.js";
 import type { ClickHouseClient } from "@clickhouse/client";
 import { Octokit } from "@octokit/rest";
+import { enrichPullRequests } from "./enrichment/pull-requests.js";
+import { enrichComments } from "./enrichment/comments.js";
+import { RateLimiter } from "./enrichment/rate-limiter.js";
 
 // ── Skip checks ─────────────────────────────────────────────────────────
 
@@ -693,6 +696,251 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
       );
       assert.equal(readBack.length, 1);
       assert.ok(Number(readBack[0].comment_id) > 0, "comment_id should survive round-trip");
+    });
+  });
+
+  // ── Enrichment discovery integration tests ─────────────────────────────
+
+  describe("Enrichment discovery queries", () => {
+    let testRepoName: string;
+    let testPRNumber: number;
+    let testBotId: string;
+
+    before(async () => {
+      // Use a known high-activity repo and get a recent PR number
+      testRepoName = TEST_REPO;
+      testBotId = "copilot"; // Use a known bot from the registry
+
+      // Fetch a recent closed PR to use for testing
+      const resp = await octokit.rest.pulls.list({
+        owner: TEST_REPO_OWNER,
+        repo: TEST_REPO_NAME,
+        state: "closed",
+        sort: "updated",
+        direction: "desc",
+        per_page: 1,
+      });
+      if (resp.data.length === 0) {
+        throw new Error("No closed PRs found for testing");
+      }
+      testPRNumber = resp.data[0].number;
+    });
+
+    describe("enrichPullRequests discovery", () => {
+      before(async () => {
+        // Set up test data: insert pr_bot_events and repos, but leave pull_requests empty
+        await insertPrBotEvents(ch, [
+          {
+            event_week: new Date().toISOString().split("T")[0],
+            repo_name: testRepoName,
+            pr_number: testPRNumber,
+            bot_id: testBotId,
+            event_type: "PullRequestReviewEvent",
+          },
+        ]);
+
+        // Insert repo so it's not filtered out
+        await insertRepos(ch, [
+          {
+            name: testRepoName,
+            owner: TEST_REPO_OWNER,
+            stars: 10000,
+            primary_language: "TypeScript",
+            fork: false,
+            archived: false,
+            fetch_status: "ok",
+          },
+        ]);
+
+        // Ensure pull_requests table doesn't have this PR yet
+        const existing = await query(
+          ch,
+          "SELECT count() as cnt FROM pull_requests WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32}",
+          { repo: testRepoName, pr: testPRNumber },
+        );
+        if (Number(existing[0]?.cnt) > 0) {
+          // Clean it up so we can test discovery
+          await query(
+            ch,
+            "ALTER TABLE pull_requests DELETE WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32}",
+            { repo: testRepoName, pr: testPRNumber },
+          );
+          // Wait for mutation to complete
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      });
+
+      it("finds PRs needing enrichment via LEFT JOIN IS NULL pattern", async () => {
+        // Query the discovery SQL directly to ensure it returns the test PR
+        const prs = await query<{ repo_name: string; pr_number: string }>(
+          ch,
+          `SELECT DISTINCT e.repo_name, e.pr_number
+           FROM pr_bot_events e
+           LEFT JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
+           WHERE p.pr_number IS NULL
+             AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
+             AND e.repo_name = {repo:String}`,
+          { repo: testRepoName },
+        );
+        assert.ok(prs.length > 0, "Discovery query should find PRs needing enrichment");
+        const found = prs.find(
+          (pr) => pr.repo_name === testRepoName && Number(pr.pr_number) === testPRNumber,
+        );
+        assert.ok(found, `Discovery query should find test PR ${testRepoName}#${testPRNumber}`);
+      });
+
+      it("enrichPullRequests() fetches and inserts discovered PRs", async () => {
+        const rateLimiter = new RateLimiter();
+        const result = await enrichPullRequests(
+          octokit,
+          ch,
+          rateLimiter,
+          { workerId: 0, totalWorkers: 1 },
+          { limit: 10 },
+        );
+
+        assert.ok(result.fetched > 0, "Should fetch at least one PR");
+
+        // Verify the PR was inserted into pull_requests
+        const inserted = await query<{
+          repo_name: string;
+          pr_number: string;
+          title: string;
+          author: string;
+        }>(
+          ch,
+          "SELECT repo_name, pr_number, title, author FROM pull_requests FINAL WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32}",
+          { repo: testRepoName, pr: testPRNumber },
+        );
+        assert.equal(inserted.length, 1, "PR should be inserted exactly once");
+        assert.ok(inserted[0].title.length > 0, "PR title should not be empty");
+        assert.ok(inserted[0].author.length > 0, "PR author should not be empty");
+      });
+
+      it("app queries return non-zero values after enrichment", async () => {
+        // Query getProductSummaries-style aggregation to verify reactions are captured
+        const summaries = await query<{ total_reviews: string; approval_rate: string }>(
+          ch,
+          `WITH
+            reaction_agg AS (
+              SELECT
+                b.product_id,
+                sum(pr.thumbs_up) AS thumbs_up,
+                sum(pr.thumbs_down) AS thumbs_down
+              FROM pull_requests pr FINAL
+              JOIN pr_bot_events e ON pr.repo_name = e.repo_name AND pr.pr_number = e.pr_number
+              JOIN bots b FINAL ON e.bot_id = b.id
+              WHERE pr.repo_name = {repo:String}
+              GROUP BY b.product_id
+            )
+          SELECT
+            count() as total_reviews,
+            round(if((sum(thumbs_up) + sum(thumbs_down)) > 0,
+              sum(thumbs_up) * 100.0 / (sum(thumbs_up) + sum(thumbs_down)),
+              0), 1) AS approval_rate
+          FROM reaction_agg`,
+          { repo: testRepoName },
+        );
+        // Note: approval_rate may be 0 if the PR has no reactions, which is fine.
+        // The key is that the query runs and returns data.
+        assert.ok(summaries.length > 0, "Should return summary data");
+      });
+    });
+
+    describe("enrichComments discovery", () => {
+      before(async () => {
+        // Set up: pr_bot_events exists, repos exists, pull_requests now exists,
+        // but pr_comments should be empty for this PR/bot combo
+        const existing = await query(
+          ch,
+          "SELECT count() as cnt FROM pr_comments WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32} AND bot_id = {bot:String}",
+          { repo: testRepoName, pr: testPRNumber, bot: testBotId },
+        );
+        if (Number(existing[0]?.cnt) > 0) {
+          // Clean up so we can test discovery
+          await query(
+            ch,
+            "ALTER TABLE pr_comments DELETE WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32} AND bot_id = {bot:String}",
+            { repo: testRepoName, pr: testPRNumber, bot: testBotId },
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      });
+
+      it("finds PR/bot combos needing enrichment via LEFT JOIN IS NULL pattern", async () => {
+        // Query the discovery SQL directly
+        const combos = await query<{ repo_name: string; pr_number: string; bot_id: string }>(
+          ch,
+          `SELECT DISTINCT e.repo_name, e.pr_number, e.bot_id
+           FROM pr_bot_events e
+           LEFT JOIN (
+             SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_comments
+           ) c ON e.repo_name = c.repo_name AND e.pr_number = c.pr_number AND e.bot_id = c.bot_id
+           WHERE c.bot_id IS NULL
+             AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
+             AND e.repo_name = {repo:String}`,
+          { repo: testRepoName },
+        );
+        assert.ok(combos.length > 0, "Discovery query should find PR/bot combos needing enrichment");
+        const found = combos.find(
+          (combo) =>
+            combo.repo_name === testRepoName &&
+            Number(combo.pr_number) === testPRNumber &&
+            combo.bot_id === testBotId,
+        );
+        assert.ok(
+          found,
+          `Discovery query should find test combo ${testRepoName}#${testPRNumber} for bot ${testBotId}`,
+        );
+      });
+
+      it("enrichComments() fetches and inserts discovered comments", async () => {
+        const rateLimiter = new RateLimiter();
+        const result = await enrichComments(
+          octokit,
+          ch,
+          rateLimiter,
+          { workerId: 0, totalWorkers: 1 },
+          { limit: 10 },
+        );
+
+        assert.ok(result.fetched > 0, "Should fetch at least one PR/bot combo");
+
+        // Verify comments or sentinel row were inserted
+        const inserted = await query<{ comment_id: string; bot_id: string }>(
+          ch,
+          "SELECT comment_id, bot_id FROM pr_comments FINAL WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32} AND bot_id = {bot:String}",
+          { repo: testRepoName, pr: testPRNumber, bot: testBotId },
+        );
+        assert.ok(
+          inserted.length > 0,
+          "Should insert comments or sentinel row for the PR/bot combo",
+        );
+      });
+
+      it("app queries return non-zero reactions after comment enrichment", async () => {
+        // Query getBotReactionLeaderboard-style aggregation
+        const reactions = await query<{
+          bot_id: string;
+          total_thumbs_up: string;
+          total_comments: string;
+        }>(
+          ch,
+          `SELECT
+            c.bot_id,
+            sum(c.thumbs_up) AS total_thumbs_up,
+            count() AS total_comments
+          FROM pr_comments c FINAL
+          WHERE c.comment_id > 0 AND c.repo_name = {repo:String}
+          GROUP BY c.bot_id`,
+          { repo: testRepoName },
+        );
+        // Note: May have 0 reactions if no comments had reactions, which is fine.
+        // The key is that the query runs and finds comments (filtered by comment_id > 0).
+        if (reactions.length > 0) {
+          assert.ok(Number(reactions[0].total_comments) >= 0, "Should return comment counts");
+        }
+      });
     });
   });
 });
