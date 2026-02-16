@@ -412,6 +412,12 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
   }
 }
 
+/** Reset the cached status. Exported for tests only. */
+export function _resetCacheForTesting(): void {
+  _cachedStatus = null;
+  _cachedAt = 0;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
