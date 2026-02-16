@@ -343,8 +343,9 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     if (_cachedStatus.status === "ok") return _cachedStatus;
   }
 
-  const client = getClickHouseClient();
+  let client;
   try {
+    client = getClickHouseClient();
     await ensureMigrationTables(client);
     const dbVersion = await getSchemaVersion(client);
 
@@ -400,7 +401,7 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     _cachedAt = Date.now();
     return status;
   } catch (err) {
-    // ClickHouse unreachable (e.g., during build) — don't block rendering
+    // ClickHouse unreachable or misconfigured (e.g., empty URL during build)
     return {
       status: "error",
       dbVersion: 0,
@@ -408,7 +409,7 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
       error: err instanceof Error ? err.message : String(err),
     };
   } finally {
-    await client.close();
+    await client?.close();
   }
 }
 
