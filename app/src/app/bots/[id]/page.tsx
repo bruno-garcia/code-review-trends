@@ -4,15 +4,11 @@ import {
   getProductSummaries,
   getProductBots,
   getWeeklyActivityByProduct,
-  getProductReactions,
-  getReactionsByPRSize,
   getBotsByLanguage,
   getAvgCommentsPerPR,
 } from "@/lib/clickhouse";
 import {
   SingleBotChart,
-  ReactionChart,
-  ReactionsByPRSizeChart,
   BotLanguageChart,
 } from "@/components/charts";
 import Link from "next/link";
@@ -25,12 +21,11 @@ export default async function ProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [product, allSummaries, productBots, activity, reactionsBySize, languageData, commentsPerPR] = await Promise.all([
+  const [product, allSummaries, productBots, activity, languageData, commentsPerPR] = await Promise.all([
     getProductById(id),
     getProductSummaries(),
     getProductBots(id),
     getWeeklyActivityByProduct(id),
-    getReactionsByPRSize(id),
     getBotsByLanguage(id),
     getAvgCommentsPerPR(id),
   ]);
@@ -51,16 +46,6 @@ export default async function ProductPage({
     org_count: Number(a.org_count),
   }));
 
-  // Fetch reactions aggregated across all bots in this product
-  const reactionData = (await getProductReactions(id)).map((r) => ({
-    week: r.week,
-    thumbs_up: Number(r.thumbs_up),
-    thumbs_down: Number(r.thumbs_down),
-    heart: Number(r.heart),
-    laugh: Number(r.laugh),
-    confused: Number(r.confused),
-  }));
-
   const totalReviews = Number(summary?.total_reviews ?? 0);
   const totalComments = Number(summary?.total_comments ?? 0);
   const totalPrComments = Number(summary?.total_pr_comments ?? 0);
@@ -68,10 +53,6 @@ export default async function ProductPage({
   const totalOrgs = Number(summary?.total_orgs ?? 0);
   const avgCommentsPerReview = Number(summary?.avg_comments_per_review ?? 0);
   const commentsPerRepo = Number(summary?.comments_per_repo ?? 0);
-  const approvalRate = Number(summary?.approval_rate ?? 0);
-  const thumbsUp = Number(summary?.thumbs_up ?? 0);
-  const thumbsDown = Number(summary?.thumbs_down ?? 0);
-  const hearts = Number(summary?.heart ?? 0);
   const growthPct = Number(summary?.growth_pct ?? 0);
 
   // Rank among all products
@@ -151,7 +132,7 @@ export default async function ProductPage({
           <StatCard label="Active Repos" value={totalRepos.toLocaleString()} />
           <StatCard label="Organizations" value={totalOrgs.toLocaleString()} />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <StatCard
             label="Avg Comments/Review"
             value={avgCommentsPerReview.toFixed(1)}
@@ -160,17 +141,11 @@ export default async function ProductPage({
             label="Comments/Repo"
             value={commentsPerRepo.toLocaleString()}
           />
-          <StatCard label="Approval Rate" value={`${approvalRate.toFixed(0)}%`} />
           <StatCard
             label="Growth (4w)"
             value={`${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`}
             color={growthPct >= 0 ? "text-emerald-400" : "text-red-400"}
           />
-        </div>
-        <div className="grid grid-cols-3 md:grid-cols-3 gap-4">
-          <StatCard label="👍 Thumbs Up" value={thumbsUp.toLocaleString()} />
-          <StatCard label="👎 Thumbs Down" value={thumbsDown.toLocaleString()} />
-          <StatCard label="❤️ Hearts" value={hearts.toLocaleString()} />
         </div>
       </div>
 
@@ -231,22 +206,6 @@ export default async function ProductPage({
         </section>
       )}
 
-      {/* Reactions chart */}
-      <section data-testid="bot-reactions-chart">
-        <h2 className="text-2xl font-semibold mb-4">Community Reactions</h2>
-        <p className="text-theme-muted mb-6">
-          Reactions on review comments — a proxy for how useful people find
-          this product&apos;s reviews.
-        </p>
-        {reactionData.length > 0 ? (
-          <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-            <ReactionChart data={reactionData} />
-          </div>
-        ) : (
-          <p className="text-theme-muted text-sm">No data</p>
-        )}
-      </section>
-
       {/* Comments per PR */}
       <section data-testid="bot-comments-per-pr">
         <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
@@ -264,17 +223,6 @@ export default async function ProductPage({
         ) : (
           <p className="text-theme-muted text-sm">No data</p>
         )}
-      </section>
-
-      {/* Reactions by PR Size */}
-      <section data-testid="bot-reactions-by-size">
-        <h2 className="text-2xl font-semibold mb-4">Reactions by PR Size</h2>
-        <p className="text-theme-muted mb-6">
-          How reactions vary based on the size of the pull request being reviewed.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <ReactionsByPRSizeChart data={reactionsBySize} />
-        </div>
       </section>
 
       {/* Top Languages */}
