@@ -3,12 +3,22 @@
  *
  * Tracks rate-limit headers from GitHub responses and pauses requests
  * when the remaining quota drops below a safety threshold.
+ *
+ * Also accumulates wait-time metrics so callers can understand how much
+ * time is spent blocked on rate limits vs doing real work.
  */
+
+import { log, distributionMetric, countMetric } from "../sentry.js";
 
 export class RateLimiter {
   private remaining: number = 5000;
   private resetAt: Date = new Date(0);
   private readonly minRemaining: number;
+
+  // Accumulated metrics
+  private _totalWaitMs: number = 0;
+  private _waitCount: number = 0;
+  private _secondaryHits: number = 0;
 
   constructor(minRemaining: number = 100) {
     this.minRemaining = minRemaining;
@@ -38,16 +48,22 @@ export class RateLimiter {
     const now = Date.now();
     const waitMs = Math.max(0, this.resetAt.getTime() - now) + 1000; // 1s buffer
 
-    console.log(
+    log(
       `[rate-limiter] Throttled: ${this.remaining} remaining, waiting ${Math.ceil(waitMs / 1000)}s until reset`,
     );
 
     await sleep(waitMs);
 
+    // Track metrics
+    this._totalWaitMs += waitMs;
+    this._waitCount++;
+    distributionMetric("pipeline.ratelimit.wait", waitMs, "millisecond", { trigger: "primary" });
+    countMetric("pipeline.ratelimit.pauses", 1, { trigger: "primary" });
+
     // Reset remaining so we don't immediately throttle again
     this.remaining = this.minRemaining;
 
-    console.log(`[rate-limiter] Resuming after ${Math.ceil(waitMs / 1000)}s`);
+    log(`[rate-limiter] Resuming after ${Math.ceil(waitMs / 1000)}s`);
     return waitMs;
   }
 
@@ -63,13 +79,20 @@ export class RateLimiter {
     const backoffMs = Math.min(1000 * 2 ** attempt, 60_000);
     const waitMs = retryAfterSeconds * 1000 + backoffMs;
 
-    console.log(
+    log(
       `[rate-limiter] Secondary rate limit hit (attempt ${attempt + 1}), waiting ${Math.ceil(waitMs / 1000)}s`,
     );
 
     await sleep(waitMs);
 
-    console.log(
+    // Track metrics
+    this._totalWaitMs += waitMs;
+    this._waitCount++;
+    this._secondaryHits++;
+    distributionMetric("pipeline.ratelimit.wait", waitMs, "millisecond", { trigger: "secondary" });
+    countMetric("pipeline.ratelimit.pauses", 1, { trigger: "secondary" });
+
+    log(
       `[rate-limiter] Resuming after secondary rate limit pause`,
     );
     return waitMs;
@@ -81,6 +104,15 @@ export class RateLimiter {
       remaining: this.remaining,
       resetAt: this.resetAt,
       isThrottled: this.remaining < this.minRemaining,
+    };
+  }
+
+  /** Accumulated rate-limit wait summary for the lifetime of this instance. */
+  waitSummary(): { totalWaitMs: number; waitCount: number; secondaryHits: number } {
+    return {
+      totalWaitMs: this._totalWaitMs,
+      waitCount: this._waitCount,
+      secondaryHits: this._secondaryHits,
     };
   }
 }

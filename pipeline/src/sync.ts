@@ -28,6 +28,7 @@ import {
   type PrBotEventRow,
 } from "./clickhouse.js";
 import { BOT_BY_LOGIN, BOT_LOGINS } from "./bots.js";
+import { log as sentryLog, countMetric } from "./sentry.js";
 
 // ── Row mappers (shared with smoke tests) ───────────────────────────────
 
@@ -128,7 +129,7 @@ export type BackfillOptions = {
   endDate?: string;
   /** Resume from last completed chunk instead of starting over */
   resume?: boolean;
-  /** Log function, default console.log */
+  /** Log function, default timestamped sentryLog */
   log?: (msg: string) => void;
 };
 
@@ -298,9 +299,10 @@ async function fetchAndStoreChunk(
     ]),
   );
 
-  log(
-    `  ✓ ${activityRows.length} bot rows, ${humanRows.length} human rows`,
-  );
+  log(`  ✓ ${activityRows.length} bot rows, ${humanRows.length} human rows`);
+
+  countMetric("pipeline.backfill.bot_rows", activityRows.length, { chunk: chunk.startDate });
+  countMetric("pipeline.backfill.human_rows", humanRows.length, { chunk: chunk.startDate });
 
   return {
     chunk,
@@ -328,7 +330,7 @@ export async function backfill(
   ch: ClickHouseClient,
   opts?: BackfillOptions,
 ): Promise<SyncResult[]> {
-  const log = opts?.log ?? console.log;
+  const log = opts?.log ?? sentryLog;
   const startDate = opts?.startDate ?? "2023-01-01";
   const endDate = opts?.endDate ?? fmtDate(new Date());
   const resume = opts?.resume ?? true;
@@ -411,7 +413,7 @@ export async function syncRecent(
   ch: ClickHouseClient,
   opts?: SyncRecentOptions,
 ): Promise<SyncResult> {
-  const log = opts?.log ?? console.log;
+  const log = opts?.log ?? sentryLog;
   const weeks = opts?.weeks ?? 2;
 
   if (!Number.isFinite(weeks) || weeks < 1) {

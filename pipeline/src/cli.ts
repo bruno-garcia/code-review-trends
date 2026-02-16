@@ -16,7 +16,7 @@
  */
 
 // Sentry must be imported first to instrument all subsequent modules
-import { Sentry } from "./sentry.js";
+import { Sentry, log, withCronMonitor, countMetric } from "./sentry.js";
 
 import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import {
@@ -63,17 +63,28 @@ async function main() {
   }
 
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
-  console.log(`ClickHouse: ${chUrl}`);
+  log(`ClickHouse: ${chUrl}`);
 
-  await Sentry.startSpan(
-    {
-      op: "pipeline.command",
-      name: `pipeline ${command}`,
-    },
-    async () => {
-      await handler();
-    },
+  // Commands that run on a schedule get cron monitoring
+  const cronSchedules: Record<string, { type: "crontab"; value: string }> = {
+    sync:     { type: "crontab", value: "0 */6 * * *" },
+    backfill: { type: "crontab", value: "0 2 * * 1" },
+    discover: { type: "crontab", value: "0 3 * * *" },
+    enrich:   { type: "crontab", value: "0 */4 * * *" },
+  };
+
+  const cronSlug = cronSchedules[command] ? `pipeline-${command}` : undefined;
+
+  const run = async () => Sentry.startSpan(
+    { op: "pipeline.command", name: `pipeline ${command}` },
+    async () => handler(),
   );
+
+  if (cronSlug) {
+    await withCronMonitor(cronSlug, run, cronSchedules[command]);
+  } else {
+    await run();
+  }
 
   // Flush all events before the process exits
   await Sentry.flush(5000);
@@ -150,6 +161,9 @@ Environment variables:
   BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 15TB)
   GITHUB_TOKEN         GitHub PAT for API enrichment
   PULUMI_CONFIG_PASSPHRASE  Passphrase for Pulumi secrets (if not using interactive login)
+
+Global options:
+  --no-sentry          Disable Sentry observability (tracing, crons, metrics)
   `);
 }
 
@@ -470,8 +484,8 @@ async function cmdDiscover() {
   const dryRun = "--dry-run" in args;
 
   const logins = [...BOT_LOGINS];
-  console.log(`Discovering PR bot events: ${startDate} → ${endDate}`);
-  console.log(`Tracking ${logins.length} bot logins`);
+  log(`Discovering PR bot events: ${startDate} → ${endDate}`);
+  log(`Tracking ${logins.length} bot logins`);
 
   if (dryRun) {
     console.log("Would query GH Archive for PR-level bot events");
@@ -493,7 +507,8 @@ async function cmdDiscover() {
       { op: "bigquery", name: `bigquery.discover ${startDate}→${endDate}` },
       () => queryBotPREvents(bq, startDate, endDate, logins),
     ).finally(elapsed);
-    console.log(`  Got ${rows.length} PR bot event rows`);
+    log(`  Got ${rows.length} PR bot event rows`);
+    countMetric("pipeline.discover.bq_rows", rows.length);
 
     // Map BigQuery rows to ClickHouse rows
     const { mapPrBotEventRows } = await import("./sync.js");
@@ -505,8 +520,9 @@ async function cmdDiscover() {
       { op: "db", name: "clickhouse.insert-pr-bot-events" },
       () => insertPrBotEvents(ch, chRows),
     ).finally(elapsedWrite);
-    console.log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
-    console.log("Done!");
+    log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
+    countMetric("pipeline.discover.ch_rows", chRows.length);
+    log("Done!");
   } finally {
     await ch.close();
   }
@@ -542,12 +558,12 @@ async function cmdEnrich() {
     priority: args["--priority"] as "repos" | "prs" | "comments" | undefined,
   });
 
-  console.log("\n=== Enrichment Summary ===");
-  console.log(`Repos:     ${result.repos.fetched} fetched, ${result.repos.skipped} skipped, ${result.repos.errors} errors`);
-  console.log(`PRs:       ${result.pullRequests.fetched} fetched, ${result.pullRequests.skipped} skipped, ${result.pullRequests.errors} errors`);
-  console.log(`Comments:  ${result.comments.fetched} fetched, ${result.comments.skipped} skipped, ${result.comments.replies_filtered} replies filtered, ${result.comments.errors} errors`);
-  console.log(`Stale repos refreshed: ${result.reposRefreshed}`);
-  console.log(`Duration: ${Math.ceil(result.duration / 1000)}s`);
+  log("\n=== Enrichment Summary ===");
+  log(`Repos:     ${result.repos.fetched} fetched, ${result.repos.skipped} skipped, ${result.repos.errors} errors`);
+  log(`PRs:       ${result.pullRequests.fetched} fetched, ${result.pullRequests.skipped} skipped, ${result.pullRequests.errors} errors`);
+  log(`Comments:  ${result.comments.fetched} fetched, ${result.comments.skipped} skipped, ${result.comments.replies_filtered} replies filtered, ${result.comments.errors} errors`);
+  log(`Stale repos refreshed: ${result.reposRefreshed}`);
+  log(`Duration: ${Math.ceil(result.duration / 1000)}s`);
 }
 
 async function cmdEnrichStatus() {
@@ -601,11 +617,53 @@ async function cmdEnrichStatus() {
     );
     const commentPending = Number(commentStats.total) - Number(commentStats.enriched);
 
+    // Pace: repos enriched in last 1h / 24h (based on updated_at)
+    const pace1h = (await query<{ cnt: string }>(
+      ch,
+      `SELECT count() as cnt FROM repos WHERE updated_at > now() - toIntervalHour(1)`,
+    ))[0] ?? { cnt: "0" };
+    const pace24h = (await query<{ cnt: string }>(
+      ch,
+      `SELECT count() as cnt FROM repos WHERE updated_at > now() - toIntervalDay(1)`,
+    ))[0] ?? { cnt: "0" };
+
+    const reposPerHour = Number(pace1h.cnt) || (Number(pace24h.cnt) / 24);
+    const etaReposHours = reposPerHour > 0 ? repoPending / reposPerHour : null;
+
     console.log("=== Enrichment Status ===");
     console.log(`\nDiscovered events: ${total_events}`);
     console.log(`\nRepos:    ${repoStats.enriched} enriched / ${repoStats.not_found} not found / ${repoPending} pending (${repoStats.total} total)`);
     console.log(`PRs:      ${prStats.enriched} enriched / ${prPending} pending (${prStats.total} total)`);
     console.log(`Comments: ${commentStats.enriched} enriched / ${commentPending} pending (${commentStats.total} total)`);
+
+    // Completion percentages
+    const repoPct = Number(repoStats.total) > 0
+      ? (((Number(repoStats.enriched) + Number(repoStats.not_found)) / Number(repoStats.total)) * 100).toFixed(1) : "0";
+    const prPct = Number(prStats.total) > 0
+      ? ((Number(prStats.enriched) / Number(prStats.total)) * 100).toFixed(1) : "0";
+    const commentPct = Number(commentStats.total) > 0
+      ? ((Number(commentStats.enriched) / Number(commentStats.total)) * 100).toFixed(1) : "0";
+
+    console.log(`\n=== Progress ===`);
+    console.log(`Repos:    ${repoPct}% complete`);
+    console.log(`PRs:      ${prPct}% complete`);
+    console.log(`Comments: ${commentPct}% complete`);
+
+    if (reposPerHour > 0) {
+      console.log(`\n=== Pace ===`);
+      console.log(`Repos enriched (last 1h):  ${pace1h.cnt}`);
+      console.log(`Repos enriched (last 24h): ${pace24h.cnt}`);
+      console.log(`Effective rate: ~${Math.round(reposPerHour)} repos/hour`);
+      if (etaReposHours !== null && repoPending > 0) {
+        if (etaReposHours < 1) {
+          console.log(`ETA (repos): ~${Math.round(etaReposHours * 60)} minutes`);
+        } else if (etaReposHours < 48) {
+          console.log(`ETA (repos): ~${etaReposHours.toFixed(1)} hours`);
+        } else {
+          console.log(`ETA (repos): ~${(etaReposHours / 24).toFixed(1)} days`);
+        }
+      }
+    }
   } finally {
     await ch.close();
   }

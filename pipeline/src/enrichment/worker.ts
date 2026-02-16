@@ -6,7 +6,7 @@
  */
 
 import { Octokit } from "@octokit/rest";
-import { Sentry } from "../sentry.js";
+import { Sentry, log, countMetric, distributionMetric, gaugeMetric } from "../sentry.js";
 import { createCHClient } from "../clickhouse.js";
 import { RateLimiter } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
@@ -46,9 +46,12 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   const partition: WorkerConfig = { workerId, totalWorkers };
   const limit = options.limit;
 
-  console.log(
+  log(
     `[worker] Starting enrichment (worker ${partition.workerId}/${partition.totalWorkers}, limit: ${limit ?? "unlimited"})`,
   );
+  if (limit !== undefined) {
+    gaugeMetric("pipeline.enrich.limit", limit);
+  }
 
   // Determine execution order based on priority
   type Step = "repos" | "prs" | "comments";
@@ -91,7 +94,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     }
 
     // Refresh stale repos
-    console.log("[worker] Refreshing stale repos...");
+    log("[worker] Refreshing stale repos...");
     const refreshResult = await Sentry.startSpan(
       { op: "enrichment", name: "enrich.refresh-stale-repos" },
       () => refreshStaleRepos(octokit, ch, rateLimiter, partition, {
@@ -101,7 +104,36 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     );
 
     const duration = Date.now() - start;
-    console.log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);
+    const rl = rateLimiter.waitSummary();
+    const workTime = duration - rl.totalWaitMs;
+    const totalItems = reposResult.fetched + reposResult.skipped + reposResult.errors
+      + prsResult.fetched + prsResult.skipped + prsResult.errors
+      + commentsResult.fetched + commentsResult.skipped + commentsResult.errors;
+    const itemsPerSec = workTime > 0 ? (totalItems / (workTime / 1000)).toFixed(1) : "∞";
+    const rlPct = duration > 0 ? ((rl.totalWaitMs / duration) * 100).toFixed(1) : "0";
+
+    log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);
+    log(`[worker]   Items processed: ${totalItems} (${itemsPerSec} items/s effective)`);
+    log(`[worker]   Rate-limit waits: ${rl.waitCount} pauses, ${Math.ceil(rl.totalWaitMs / 1000)}s total (${rlPct}% of wall time)`);
+    if (rl.secondaryHits > 0) {
+      log(`[worker]   Secondary rate limits: ${rl.secondaryHits}`);
+    }
+
+    // Emit summary metrics
+    countMetric("pipeline.enrich.repos.fetched", reposResult.fetched, { phase: "repos" });
+    countMetric("pipeline.enrich.repos.skipped", reposResult.skipped, { phase: "repos" });
+    countMetric("pipeline.enrich.repos.errors", reposResult.errors, { phase: "repos" });
+    countMetric("pipeline.enrich.prs.fetched", prsResult.fetched, { phase: "prs" });
+    countMetric("pipeline.enrich.prs.skipped", prsResult.skipped, { phase: "prs" });
+    countMetric("pipeline.enrich.prs.errors", prsResult.errors, { phase: "prs" });
+    countMetric("pipeline.enrich.comments.fetched", commentsResult.fetched, { phase: "comments" });
+    countMetric("pipeline.enrich.comments.skipped", commentsResult.skipped, { phase: "comments" });
+    countMetric("pipeline.enrich.comments.errors", commentsResult.errors, { phase: "comments" });
+    distributionMetric("pipeline.enrich.duration", duration, "millisecond");
+    distributionMetric("pipeline.ratelimit.total_wait", rl.totalWaitMs, "millisecond");
+    countMetric("pipeline.ratelimit.total_pauses", rl.waitCount);
+    countMetric("pipeline.ratelimit.secondary_hits", rl.secondaryHits);
+    gaugeMetric("pipeline.enrich.items_per_sec", workTime > 0 ? totalItems / (workTime / 1000) : 0);
 
     return {
       repos: reposResult,
