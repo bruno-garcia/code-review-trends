@@ -188,8 +188,9 @@ export default function AboutPage() {
               reaction (e.g., Sentry adds 🎉 when it finds no issues). GitHub
               has no event type for reactions in its Events API, so these are
               invisible to GH Archive. We capture reactions <em>on</em> bot
-              comments via the GitHub REST API enrichment pipeline, but not
-              reactions added <em>by</em> bots to PR descriptions.
+              comments via the GitHub REST API enrichment pipeline, but do not
+              yet capture reactions added <em>by</em> bots to PR descriptions
+              (this requires an extra API call per PR to resolve who reacted).
             </p>
           </div>
 
@@ -220,7 +221,18 @@ export default function AboutPage() {
             <p className="mt-1 text-gray-300 leading-relaxed">
               Some AI tools operate through regular GitHub user accounts rather
               than App bot accounts. These are not distinguishable from human
-              users in GH Archive data and are counted as human activity.
+              users in GH Archive data. Where we know about these accounts, we
+              track them explicitly — for example, GitHub Copilot appears as
+              both{" "}
+              <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+                copilot-pull-request-reviewer[bot]
+              </code>{" "}
+              and the regular user account{" "}
+              <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+                Copilot
+              </code>
+              , and we include both in our tracking. Any non-bot accounts we
+              don&apos;t know about are counted as human activity.
             </p>
           </div>
 

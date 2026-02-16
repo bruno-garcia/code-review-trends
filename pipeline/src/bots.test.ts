@@ -30,37 +30,59 @@ describe("bot registry", () => {
     }
   });
 
-  it("BOT_BY_LOGIN maps every login to its bot", () => {
+  it("BOT_BY_LOGIN maps every login (including additional) to its bot", () => {
     for (const bot of BOTS) {
       const found = BOT_BY_LOGIN.get(bot.github_login);
       assert.ok(found, `Login "${bot.github_login}" not found in BOT_BY_LOGIN`);
       assert.equal(found.id, bot.id);
+      for (const login of bot.additional_logins ?? []) {
+        const extra = BOT_BY_LOGIN.get(login);
+        assert.ok(extra, `Additional login "${login}" not found in BOT_BY_LOGIN`);
+        assert.equal(extra.id, bot.id);
+      }
     }
   });
 
-  it("BOT_BY_LOGIN has exactly as many entries as bots", () => {
-    assert.equal(BOT_BY_LOGIN.size, BOTS.length);
+  it("BOT_BY_LOGIN has entries for all logins", () => {
+    const totalLogins = BOTS.reduce(
+      (sum, b) => sum + 1 + (b.additional_logins?.length ?? 0),
+      0,
+    );
+    assert.equal(BOT_BY_LOGIN.size, totalLogins);
   });
 
-  it("BOT_LOGINS contains all logins", () => {
+  it("BOT_LOGINS contains all logins (including additional)", () => {
     for (const bot of BOTS) {
       assert.ok(
         BOT_LOGINS.has(bot.github_login),
         `Login "${bot.github_login}" not in BOT_LOGINS`,
       );
+      for (const login of bot.additional_logins ?? []) {
+        assert.ok(
+          BOT_LOGINS.has(login),
+          `Additional login "${login}" not in BOT_LOGINS`,
+        );
+      }
     }
-    assert.equal(BOT_LOGINS.size, BOTS.length);
+    const totalLogins = BOTS.reduce(
+      (sum, b) => sum + 1 + (b.additional_logins?.length ?? 0),
+      0,
+    );
+    assert.equal(BOT_LOGINS.size, totalLogins);
   });
 
-  it("no duplicate logins across bots", () => {
+  it("no duplicate logins across bots (including additional)", () => {
     const seen = new Map<string, string>();
     for (const bot of BOTS) {
-      const existing = seen.get(bot.github_login);
-      assert.ok(
-        !existing,
-        `Login "${bot.github_login}" is claimed by both "${existing}" and "${bot.id}"`,
-      );
-      seen.set(bot.github_login, bot.id);
+      const allLogins = [bot.github_login, ...(bot.additional_logins ?? [])];
+      for (const login of allLogins) {
+        const existing = seen.get(login);
+        assert.ok(
+          !existing,
+          `Login "${login}" is claimed by both "${existing}" and "${bot.id}"`,
+        );
+        seen.set(login, bot.id);
+      }
     }
   });
 
@@ -209,7 +231,7 @@ describe("seed SQL consistency", () => {
     );
   });
 
-  it("bot_logins INSERT matches all bot logins", () => {
+  it("bot_logins INSERT matches all bot logins (including additional)", () => {
     // bot_logins rows have (bot_id, login) — extract the logins (second quoted value)
     const pattern =
       /INSERT INTO code_review_trends\.bot_logins[^(]*\(([^)]+)\)\s*VALUES\s*([\s\S]*?)(?:;|$)/;
@@ -222,11 +244,14 @@ describe("seed SQL consistency", () => {
         seedLogins.push(m[2]);
       }
     }
-    const registryLogins = BOTS.map((b) => b.github_login).sort();
+    const registryLogins = BOTS.flatMap((b) => [
+      b.github_login,
+      ...(b.additional_logins ?? []),
+    ]).sort();
     assert.deepEqual(
       seedLogins.sort(),
       registryLogins,
-      "Seed bot_logins don't match bot github_logins",
+      "Seed bot_logins don't match bot github_logins + additional_logins",
     );
   });
 });

@@ -79,6 +79,7 @@ TRUNCATE TABLE IF EXISTS code_review_trends.bot_logins;
 INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
     ('coderabbit', 'coderabbitai[bot]'),
     ('copilot', 'copilot-pull-request-reviewer[bot]'),
+    ('copilot', 'Copilot'),
     ('codescene', 'codescene-delta-analysis[bot]'),
     ('sourcery', 'sourcery-ai[bot]'),
     ('ellipsis', 'ellipsis-dev[bot]'),
