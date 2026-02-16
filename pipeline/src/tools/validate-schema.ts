@@ -24,6 +24,7 @@ const EXPECTED_TABLES: Record<string, Record<string, string>> = {
     name: "String",
     website: "String",
     description: "String",
+    docs_url: "String",
     brand_color: "String",
     avatar_url: "String",
   },
