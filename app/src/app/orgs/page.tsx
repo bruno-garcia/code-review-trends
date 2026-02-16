@@ -32,7 +32,8 @@ export default async function OrgsPage({
     getProducts(),
   ]);
 
-  const totalPages = Math.ceil(result.total / PAGE_SIZE);
+  const total = Number(result.total);
+  const totalPages = Math.ceil(total / PAGE_SIZE);
   const productOptions = products.map((p) => ({
     id: p.id,
     name: p.name,
@@ -48,7 +49,7 @@ export default async function OrgsPage({
       <div>
         <h1 className="text-3xl font-bold">Organizations</h1>
         <p className="mt-2 text-theme-muted">
-          {result.total.toLocaleString()} organizations using AI code review on GitHub.
+          {total.toLocaleString()} organizations using AI code review on GitHub.
         </p>
       </div>
 
