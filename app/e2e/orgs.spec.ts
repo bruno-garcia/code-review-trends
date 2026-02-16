@@ -42,9 +42,9 @@ test.describe("Organization listing page", () => {
     await expect(page.getByTestId("org-list")).toBeVisible();
   });
 
-  test("nav has Organizations link", async ({ page }) => {
+  test("nav has Orgs link", async ({ page }) => {
     await page.goto("/");
-    const orgLink = page.locator("nav a", { hasText: "Organizations" });
+    const orgLink = page.locator("nav a", { hasText: "Orgs" });
     await expect(orgLink).toBeVisible();
     await orgLink.click();
     await page.waitForURL("/orgs");
