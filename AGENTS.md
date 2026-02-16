@@ -58,7 +58,7 @@ npm run pipeline -- help                 # show all commands
 # GitHub API responses map correctly, app queries work on real data.
 GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
-# Runs weekly in CI (.github/workflows/smoke.yml) + on-demand
+# Runs in CI on every PR (inside the e2e job in .github/workflows/ci.yml, gated on secret availability)
 ```
 
 ## Principles
