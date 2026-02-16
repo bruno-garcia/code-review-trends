@@ -49,6 +49,7 @@ import {
   mapPrBotEventRows,
 } from "./sync.js";
 import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
+import { extractReactionCounts } from "./github.js";
 import type { ClickHouseClient } from "@clickhouse/client";
 import { Octokit } from "@octokit/rest";
 
@@ -551,12 +552,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         pull_number: prData[0].number,
       });
 
-      const reactions = (detail as unknown as {
-        reactions?: {
-          "+1"?: number; "-1"?: number; laugh?: number; confused?: number;
-          heart?: number; hooray?: number; eyes?: number; rocket?: number;
-        };
-      }).reactions;
+      const reactions = extractReactionCounts(detail);
 
       const row: PullRequestRow = {
         repo_name: TEST_REPO,
@@ -570,14 +566,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         additions: detail.additions,
         deletions: detail.deletions,
         changed_files: detail.changed_files,
-        thumbs_up: reactions?.["+1"] ?? 0,
-        thumbs_down: reactions?.["-1"] ?? 0,
-        laugh: reactions?.laugh ?? 0,
-        confused: reactions?.confused ?? 0,
-        heart: reactions?.heart ?? 0,
-        hooray: reactions?.hooray ?? 0,
-        eyes: reactions?.eyes ?? 0,
-        rocket: reactions?.rocket ?? 0,
+        ...reactions,
       };
       await insertPullRequests(ch, [row]);
 

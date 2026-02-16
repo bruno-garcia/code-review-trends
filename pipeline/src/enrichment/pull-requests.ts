@@ -13,6 +13,7 @@ import {
   query,
   type PullRequestRow,
 } from "../clickhouse.js";
+import { extractReactionCounts } from "../github.js";
 import { Sentry } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
@@ -94,14 +95,7 @@ export async function enrichPullRequests(
         state = "open";
       }
 
-      // PR reactions — GitHub returns these on pulls.get since PRs are issues,
-      // but Octokit's types don't include them on the pulls endpoint.
-      const reactions = (data as unknown as {
-        reactions?: {
-          "+1"?: number; "-1"?: number; laugh?: number; confused?: number;
-          heart?: number; hooray?: number; eyes?: number; rocket?: number;
-        };
-      }).reactions;
+      const reactions = extractReactionCounts(data);
 
       const row: PullRequestRow = {
         repo_name,
@@ -115,14 +109,7 @@ export async function enrichPullRequests(
         additions: data.additions,
         deletions: data.deletions,
         changed_files: data.changed_files,
-        thumbs_up: reactions?.["+1"] ?? 0,
-        thumbs_down: reactions?.["-1"] ?? 0,
-        laugh: reactions?.laugh ?? 0,
-        confused: reactions?.confused ?? 0,
-        heart: reactions?.heart ?? 0,
-        hooray: reactions?.hooray ?? 0,
-        eyes: reactions?.eyes ?? 0,
-        rocket: reactions?.rocket ?? 0,
+        ...reactions,
       };
 
       await insertPullRequests(ch, [row]);

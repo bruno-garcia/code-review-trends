@@ -298,16 +298,10 @@ export type PullRequestRow = {
   rocket: number;
 };
 
-/**
- * Insert pull request metadata rows.
- */
-export async function insertPullRequests(
-  client: ClickHouseClient,
-  rows: PullRequestRow[],
-): Promise<void> {
-  if (rows.length === 0) return;
-
-  // Ensure reaction columns exist (for migration of existing DBs)
+/** Ensure reaction columns exist on pull_requests (runs at most once per process). */
+let prReactionsMigrated = false;
+async function ensurePrReactionColumns(client: ClickHouseClient): Promise<void> {
+  if (prReactionsMigrated) return;
   const reactionCols = [
     "thumbs_up", "thumbs_down", "laugh", "confused",
     "heart", "hooray", "eyes", "rocket",
@@ -317,6 +311,19 @@ export async function insertPullRequests(
       query: `ALTER TABLE pull_requests ADD COLUMN IF NOT EXISTS ${col} UInt32 DEFAULT 0`,
     });
   }
+  prReactionsMigrated = true;
+}
+
+/**
+ * Insert pull request metadata rows.
+ */
+export async function insertPullRequests(
+  client: ClickHouseClient,
+  rows: PullRequestRow[],
+): Promise<void> {
+  if (rows.length === 0) return;
+
+  await ensurePrReactionColumns(client);
 
   await client.insert({
     table: "pull_requests",
