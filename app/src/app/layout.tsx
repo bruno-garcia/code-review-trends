@@ -9,6 +9,8 @@ import { getProductSummaries } from "@/lib/clickhouse";
 import { getDefaultProductIds } from "@/lib/product-filter-defaults";
 import { ProductFilterProvider } from "@/lib/product-filter";
 import { ProductFilterBar } from "@/components/product-filter-bar";
+import { SchemaBanner } from "@/components/schema-banner";
+import { getSchemaStatus } from "@/lib/migrations";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,6 +24,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Check schema version and auto-migrate if needed (before data queries).
+  // Cached for 60s per serverless container. Gracefully returns on error.
+  const schemaStatus = await getSchemaStatus();
+
   // Gracefully handle missing ClickHouse during next build (pre-render).
   // Pages are force-dynamic so this only matters for static shells like /_not-found.
   let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
@@ -46,6 +52,7 @@ export default async function RootLayout({
       </head>
       <body className="bg-theme-bg text-theme-text antialiased transition-colors">
         <ThemeProvider>
+          <SchemaBanner status={schemaStatus} />
           <nav className="border-b border-theme-border bg-theme-nav sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between h-16 gap-4">

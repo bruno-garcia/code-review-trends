@@ -131,3 +131,18 @@ CREATE TABLE IF NOT EXISTS code_review_trends.pr_comments (
     updated_at DateTime DEFAULT now()
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (repo_name, pr_number, comment_id);
+
+-- Schema migration tracking (applied versions)
+CREATE TABLE IF NOT EXISTS code_review_trends.schema_migrations (
+    version UInt32,
+    name String,
+    applied_at DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree()
+ORDER BY version;
+
+-- Advisory lock for migration coordination
+CREATE TABLE IF NOT EXISTS code_review_trends.schema_migration_lock (
+    locked_by String,
+    locked_at DateTime DEFAULT now()
+) ENGINE = MergeTree()
+ORDER BY tuple();

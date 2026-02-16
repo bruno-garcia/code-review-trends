@@ -481,6 +481,25 @@ async function cmdMigrate() {
       await chClient.close();
     }
 
+    // Record the schema version in schema_migrations.
+    // This must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts.
+    const SCHEMA_VERSION = 1;
+    console.log(`\nRecording schema version ${SCHEMA_VERSION}...`);
+    await chClient.command({
+      query: `CREATE TABLE IF NOT EXISTS schema_migrations (
+        version UInt32,
+        name String,
+        applied_at DateTime DEFAULT now()
+      ) ENGINE = ReplacingMergeTree()
+      ORDER BY version`,
+    });
+    await chClient.insert({
+      table: "schema_migrations",
+      values: [{ version: SCHEMA_VERSION, name: "initial_schema" }],
+      format: "JSONEachRow",
+    });
+    console.log(`  ✓ Schema version ${SCHEMA_VERSION} recorded`);
+
     console.log(`\nDone: ${applied} SQL statements applied, ${PRODUCTS.length} products and ${BOTS.length} bots synced.`);
   } finally {
     await client.close();
