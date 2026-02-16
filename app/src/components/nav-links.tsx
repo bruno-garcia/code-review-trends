@@ -31,7 +31,7 @@ export function NavLinks() {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className={inactiveClasses}
+              className={`${inactiveClasses} whitespace-nowrap`}
             >
               {label}
             </a>
@@ -48,8 +48,8 @@ export function NavLinks() {
             aria-current={isActive ? "page" : undefined}
             className={
               isActive
-                ? "text-nav-link-active font-medium transition-colors"
-                : inactiveClasses
+                ? "text-nav-link-active font-medium transition-colors whitespace-nowrap"
+                : `${inactiveClasses} whitespace-nowrap`
             }
           >
             {label}

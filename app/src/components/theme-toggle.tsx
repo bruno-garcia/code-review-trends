@@ -12,7 +12,7 @@ export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="flex items-center gap-0.5 bg-theme-surface border border-theme-border rounded-lg p-0.5" data-testid="theme-toggle">
+    <div className="flex items-center gap-0.5 bg-theme-surface border border-theme-border rounded-lg p-0.5 flex-shrink-0" data-testid="theme-toggle">
       {options.map((opt) => (
         <button
           key={opt.value}
