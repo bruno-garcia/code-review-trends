@@ -108,14 +108,14 @@ describe("bot registry", () => {
     }
   });
 
-  it("has 30 bots", () => {
-    assert.equal(BOTS.length, 30);
+  it("has 27 bots", () => {
+    assert.equal(BOTS.length, 27);
   });
 });
 
 describe("product registry", () => {
-  it("has 25 products", () => {
-    assert.equal(PRODUCTS.length, 25);
+  it("has 22 products", () => {
+    assert.equal(PRODUCTS.length, 22);
   });
 
   it("no duplicate product ids", () => {

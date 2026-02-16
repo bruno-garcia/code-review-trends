@@ -113,6 +113,16 @@ export default async function ProductPage({
               {product.website} ↗
             </a>
           )}
+          {product.docs_url && product.docs_url !== product.website && (
+            <a
+              href={product.docs_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-indigo-400 hover:text-indigo-300"
+            >
+              Docs ↗
+            </a>
+          )}
           {githubLogins.length > 0 && (
             <span className="text-sm text-theme-muted/70">
               GitHub:{" "}

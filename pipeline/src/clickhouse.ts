@@ -52,10 +52,16 @@ export async function syncProducts(
       name String,
       website String,
       description String,
+      docs_url String DEFAULT '',
       brand_color String,
       avatar_url String
     ) ENGINE = ReplacingMergeTree()
     ORDER BY id`,
+  });
+
+  // Ensure docs_url column exists (for migration of existing DBs)
+  await client.command({
+    query: `ALTER TABLE products ADD COLUMN IF NOT EXISTS docs_url String DEFAULT ''`,
   });
 
   await client.insert({
@@ -65,6 +71,7 @@ export async function syncProducts(
       name: p.name,
       website: p.website,
       description: p.description,
+      docs_url: p.docs_url,
       brand_color: p.brand_color,
       avatar_url: p.avatar_url,
     })),

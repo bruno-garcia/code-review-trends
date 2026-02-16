@@ -15,6 +15,7 @@ export type Product = {
   name: string;
   website: string;
   description: string;
+  docs_url: string;
   brand_color: string;
   avatar_url: string;
 };
@@ -71,6 +72,7 @@ export type ProductSummary = {
   name: string;
   website: string;
   description: string;
+  docs_url: string;
   brand_color: string;
   avatar_url: string;
   total_reviews: number;
@@ -302,6 +304,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       p.name,
       p.website,
       p.description,
+      p.docs_url,
       p.brand_color,
       p.avatar_url,
       COALESCE(ra.total_reviews, 0) AS total_reviews,

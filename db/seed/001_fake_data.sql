@@ -64,13 +64,10 @@ FROM (
         ('gemini',            11,  35,  9,  6, 120),
         ('augment',            8,  24,  6,  4, 130),
         -- Very new: last 20-40 weeks, very low base
-        ('jazzberry',          5,  15,  4,  3, 140),
         ('cubic',              6,  18,  5,  3, 135),
         ('mesa',               4,  12,  3,  2, 145),
         ('baz',                5,  16,  4,  3, 140),
-        ('codeant',            7,  20,  5,  3, 130),
-        ('kodus',              6,  18,  5,  3, 135),
-        ('corgea',             4,  12,  3,  2, 145)
+        ('codeant',            7,  20,  5,  3, 130)
     ]) AS bot
 );
 
