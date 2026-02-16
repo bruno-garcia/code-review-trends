@@ -33,6 +33,24 @@ test.describe("Bots listing page", () => {
     await page.waitForURL(/\/bots\/.+/);
     await expect(page.getByTestId("bot-name")).toBeVisible({ timeout: 15_000 });
   });
+
+  test("shows review volume chart", async ({ page }) => {
+    await page.goto("/bots");
+    await expect(page.getByTestId("volume-section")).toBeVisible();
+  });
+
+  test("shows leaderboard table", async ({ page }) => {
+    await page.goto("/bots");
+    const table = page.getByTestId("leaderboard-table");
+    await expect(table).toBeVisible();
+    const rows = table.locator("tbody tr");
+    await expect(rows).not.toHaveCount(0);
+  });
+
+  test("shows bot sentiment section", async ({ page }) => {
+    await page.goto("/bots");
+    await expect(page.getByTestId("bot-sentiment-section")).toBeVisible();
+  });
 });
 
 test.describe("Bot detail page", () => {
@@ -45,7 +63,6 @@ test.describe("Bot detail page", () => {
     await expect(stats.getByText("Organizations")).toBeVisible();
     await expect(stats.getByText("Review Comments", { exact: true })).toBeVisible();
     await expect(stats.getByText("PR Comments", { exact: true })).toBeVisible();
-    await expect(stats.getByText("Approval Rate")).toBeVisible();
     await expect(stats.getByText("Comments/Repo")).toBeVisible();
   });
 
@@ -59,14 +76,8 @@ test.describe("Bot detail page", () => {
     await expect(page.getByTestId("toggle-repos")).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("shows reaction chart", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
-    await expect(page.getByTestId("bot-reactions-chart")).toBeVisible();
-  });
-
   test("shows new charts and sections", async ({ page }) => {
     await page.goto("/bots/coderabbit");
-    await expect(page.getByTestId("reactions-by-pr-size")).toBeVisible();
     await expect(page.getByTestId("bot-language-chart")).toBeVisible();
     await expect(page.getByTestId("bot-comments-per-pr")).toBeVisible();
   });

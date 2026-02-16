@@ -112,15 +112,6 @@ export type BotSummary = {
   first_seen: string;
 };
 
-export type WeeklyReactions = {
-  week: string;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
-  laugh: number;
-  confused: number;
-};
-
 export type ProductComparison = {
   id: string;
   name: string;
@@ -178,6 +169,13 @@ export type ProductBot = {
   last_week: string;
 };
 
+export type WeeklyTotalVolume = {
+  week: string;
+  total_reviews: number;
+  total_comments: number;
+  total_pr_comments: number;
+};
+
 async function query<T>(sql: string, params?: Record<string, unknown>): Promise<T[]> {
   // Sanitize the SQL for the span description — strip excess whitespace
   const sanitizedSql = sql.replace(/\s+/g, " ").trim();
@@ -220,6 +218,19 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
       }
     },
   );
+}
+
+export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
+  return query<WeeklyTotalVolume>(`
+    SELECT
+      formatDateTime(ra.week, '%Y-%m-%d') AS week,
+      sum(ra.review_count) AS total_reviews,
+      sum(ra.review_comment_count) AS total_comments,
+      sum(ra.pr_comment_count) AS total_pr_comments
+    FROM review_activity ra FINAL
+    GROUP BY ra.week
+    ORDER BY ra.week
+  `);
 }
 
 // --- Product queries ---
@@ -630,62 +641,6 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
   );
 }
 
-export async function getBotReactions(
-  botId: string,
-  since?: string,
-): Promise<WeeklyReactions[]> {
-  const sinceFilter = since
-    ? "AND toDate(c.created_at) >= toDate({since:String})"
-    : "";
-  const params: Record<string, string> = { botId };
-  if (since) params.since = since;
-  return query<WeeklyReactions>(
-    `
-      SELECT
-        formatDateTime(toStartOfWeek(c.created_at, 1), '%Y-%m-%d') AS week,
-        sum(c.thumbs_up) AS thumbs_up,
-        sum(c.thumbs_down) AS thumbs_down,
-        sum(c.heart) AS heart,
-        sum(c.laugh) AS laugh,
-        sum(c.confused) AS confused
-      FROM pr_comments c FINAL
-      JOIN bots b FINAL ON c.bot_id = b.id
-      WHERE b.id = {botId:String} AND c.comment_id > 0 ${sinceFilter}
-      GROUP BY week
-      ORDER BY week ASC
-    `,
-    params,
-  );
-}
-
-export async function getProductReactions(
-  productId: string,
-  since?: string,
-): Promise<WeeklyReactions[]> {
-  const sinceFilter = since
-    ? "AND toDate(c.created_at) >= toDate({since:String})"
-    : "";
-  const params: Record<string, string> = { productId };
-  if (since) params.since = since;
-  return query<WeeklyReactions>(
-    `
-      SELECT
-        formatDateTime(toStartOfWeek(c.created_at, 1), '%Y-%m-%d') AS week,
-        sum(c.thumbs_up) AS thumbs_up,
-        sum(c.thumbs_down) AS thumbs_down,
-        sum(c.heart) AS heart,
-        sum(c.laugh) AS laugh,
-        sum(c.confused) AS confused
-      FROM pr_comments c FINAL
-      JOIN bots b FINAL ON c.bot_id = b.id
-      WHERE b.product_id = {productId:String} AND c.comment_id > 0 ${sinceFilter}
-      GROUP BY week
-      ORDER BY week ASC
-    `,
-    params,
-  );
-}
-
 export async function getBotComparisons(since?: string): Promise<BotComparison[]> {
   const sinceCond = since
     ? "week >= toDate({since:String})"
@@ -886,41 +841,7 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
   );
 }
 
-export type ReactionsByPRSize = {
-  size_bucket: string;
-  avg_thumbs_up: number;
-  avg_thumbs_down: number;
-  pr_count: number;
-};
 
-export async function getReactionsByPRSize(botId?: string, since?: string): Promise<ReactionsByPRSize[]> {
-  const conditions = ["c.comment_id > 0"];
-  if (botId) conditions.push("c.bot_id = {botId:String}");
-  if (since) conditions.push("toDate(c.created_at) >= toDate({since:String})");
-  const where = `WHERE ${conditions.join(" AND ")}`;
-  const params: Record<string, string> = {};
-  if (botId) params.botId = botId;
-  if (since) params.since = since;
-  return query<ReactionsByPRSize>(
-    `SELECT
-      multiIf(
-        p.additions + p.deletions < 10, 'XS',
-        p.additions + p.deletions < 50, 'S',
-        p.additions + p.deletions < 200, 'M',
-        p.additions + p.deletions < 1000, 'L',
-        'XL'
-      ) AS size_bucket,
-      round(avg(c.thumbs_up), 2) AS avg_thumbs_up,
-      round(avg(c.thumbs_down), 2) AS avg_thumbs_down,
-      countDistinct(c.repo_name, c.pr_number) AS pr_count
-    FROM pr_comments c FINAL
-    JOIN pull_requests p ON c.repo_name = p.repo_name AND c.pr_number = p.pr_number
-    ${where}
-    GROUP BY size_bucket
-    ORDER BY pr_count DESC`,
-    params,
-  );
-}
 
 export type EnrichmentStats = {
   total_discovered_repos: number;

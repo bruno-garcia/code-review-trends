@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Navigation active state", () => {
-  test("Dashboard link is active on home page", async ({ page }) => {
+  test("Overview link is active on home page", async ({ page }) => {
     await page.goto("/");
-    const dashboardLink = page.getByRole("link", { name: "Dashboard" });
-    await expect(dashboardLink).toHaveAttribute("aria-current", "page");
-    await expect(dashboardLink).toHaveClass(/font-medium/);
-    await expect(dashboardLink).toHaveClass(/text-nav-link-active/);
+    const overviewLink = page.getByRole("link", { name: "Overview" });
+    await expect(overviewLink).toHaveAttribute("aria-current", "page");
+    await expect(overviewLink).toHaveClass(/font-medium/);
+    await expect(overviewLink).toHaveClass(/text-nav-link-active/);
   });
 
   test("Bots link is active on bots page", async ({ page }) => {
@@ -15,9 +15,9 @@ test.describe("Navigation active state", () => {
     await expect(botsLink).toHaveAttribute("aria-current", "page");
     await expect(botsLink).toHaveClass(/font-medium/);
 
-    // Dashboard should not be active
-    const dashboardLink = page.getByRole("link", { name: "Dashboard" });
-    await expect(dashboardLink).not.toHaveAttribute("aria-current", "page");
+    // Overview should not be active
+    const overviewLink = page.getByRole("link", { name: "Overview" });
+    await expect(overviewLink).not.toHaveAttribute("aria-current", "page");
   });
 
   test("Bots link stays active on bot detail sub-page", async ({ page }) => {
