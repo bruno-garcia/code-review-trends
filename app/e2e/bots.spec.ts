@@ -22,7 +22,7 @@ test.describe("Bots listing page", () => {
       const card = cards.nth(i);
       
       // Extract approval rate value (format: "XX%")
-      const approvalText = await card.locator('div:has-text("Approval") + p').textContent();
+      const approvalText = await card.locator('div:has-text("Approval") p').textContent();
       if (approvalText) {
         const approvalValue = parseFloat(approvalText.replace('%', ''));
         if (approvalValue > 0) {
@@ -31,7 +31,7 @@ test.describe("Bots listing page", () => {
       }
       
       // Extract PR Comments value
-      const prCommentsText = await card.locator('div:has-text("PR Comments") + p').textContent();
+      const prCommentsText = await card.locator('div:has-text("PR Comments") p').textContent();
       if (prCommentsText) {
         const prCommentsValue = parseInt(prCommentsText.replace(/,/g, ''), 10);
         if (prCommentsValue > 0) {
