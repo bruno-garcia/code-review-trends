@@ -54,23 +54,6 @@ const EXPECTED_TABLES: Record<string, Record<string, string>> = {
     review_comment_count: "UInt64",
     repo_count: "UInt64",
   },
-  repo_bot_usage: {
-    repo_full_name: "String",
-    bot_id: "String",
-    first_seen: "Date",
-    last_seen: "Date",
-    total_reviews: "UInt64",
-    stars: "UInt32",
-  },
-  review_reactions: {
-    week: "Date",
-    bot_id: "String",
-    thumbs_up: "UInt64",
-    thumbs_down: "UInt64",
-    laugh: "UInt64",
-    confused: "UInt64",
-    heart: "UInt64",
-  },
   pr_bot_events: {
     repo_name: "String",
     pr_number: "UInt32",

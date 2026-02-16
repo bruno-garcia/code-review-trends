@@ -228,6 +228,7 @@ async function fetchAndStoreChunk(
         review_count: Number(row.review_count),
         review_comment_count: Number(row.review_comment_count),
         repo_count: Number(row.repo_count),
+        org_count: Number(row.org_count),
       };
     })
     .filter((r): r is ReviewActivityRow => r !== null);

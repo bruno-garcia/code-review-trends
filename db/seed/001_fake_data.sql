@@ -2,8 +2,7 @@
 -- NOT applied to staging or production.
 --
 -- Generates realistic growth curves for review_activity, human_review_activity,
--- review_reactions, repo_bot_usage, repos, repo_languages, pull_requests,
--- pr_comments, and pr_bot_events.
+-- repos, repo_languages, pull_requests, pr_comments, and pr_bot_events.
 
 -- Seed review_activity with fake weekly data (2023-01 to 2026-02)
 -- 163 weeks total. Bots start at different weeks to simulate real adoption timelines.
@@ -81,97 +80,6 @@ SELECT
     toUInt64(1800000 * (1 + number * 0.002) * (1 + (rand() % 20 - 10) / 100.0)) AS review_comment_count,
     toUInt64(350000 * (1 + number * 0.001) * (1 + (rand() % 15 - 7) / 100.0)) AS repo_count
 FROM numbers(163);
-
--- Seed review_reactions with varied sentiment profiles per bot
-INSERT INTO code_review_trends.review_reactions (week, bot_id, thumbs_up, thumbs_down, laugh, confused, heart)
-SELECT
-    toDate(arrayJoin(
-        arrayMap(i -> toDate('2023-01-02') + i * 7, range(163))
-    )) AS week,
-    bot.1 AS bot_id,
-    toUInt64(if(rowNumberInAllBlocks() % 163 >= bot.7,
-        greatest(0, bot.2 * pow(1.01, (rowNumberInAllBlocks() % 163) - bot.7) * (1 + (rand() % 30 - 15) / 100.0)),
-        0)) AS thumbs_up,
-    toUInt64(if(rowNumberInAllBlocks() % 163 >= bot.7,
-        greatest(0, bot.3 * pow(1.01, (rowNumberInAllBlocks() % 163) - bot.7) * (1 + (rand() % 30 - 15) / 100.0)),
-        0)) AS thumbs_down,
-    toUInt64(if(rowNumberInAllBlocks() % 163 >= bot.7,
-        greatest(0, bot.4 * (1 + (rand() % 50 - 25) / 100.0)),
-        0)) AS laugh,
-    toUInt64(if(rowNumberInAllBlocks() % 163 >= bot.7,
-        greatest(0, bot.5 * (1 + (rand() % 50 - 25) / 100.0)),
-        0)) AS confused,
-    toUInt64(if(rowNumberInAllBlocks() % 163 >= bot.7,
-        greatest(0, bot.6 * pow(1.01, (rowNumberInAllBlocks() % 163) - bot.7) * (1 + (rand() % 30 - 15) / 100.0)),
-        0)) AS heart
-FROM (
-    SELECT arrayJoin([
-        -- (bot_id, thumbs_up, thumbs_down, laugh, confused, heart, start_week)
-        ('coderabbit',      30, 5, 3, 2, 8,  0),
-        ('copilot',         25, 8, 4, 3, 6,  0),
-        ('sourcery',        20, 4, 2, 2, 7,  0),
-        ('codescene',       10, 2, 1, 1, 3,  0),
-        ('ellipsis',         5, 1, 1, 1, 2,  0),
-        ('greptile',         8, 2, 1, 1, 3, 10),
-        ('graphite',         7, 2, 1, 1, 3,  5),
-        ('korbit',           6, 1, 1, 1, 2,  0),
-        ('bito',             5, 1, 1, 1, 2, 10),
-        ('codium-pr-agent', 14, 3, 1, 1, 5,  0),
-        ('qodo-merge',      10, 2, 1, 1, 4, 60),
-        ('qodo-merge-pro',  12, 3, 1, 1, 4, 100),
-        ('sentry',           8, 2, 1, 1, 3,  0),
-        ('seer-by-sentry',   4, 1, 0, 1, 2, 50),
-        ('codecov-ai',       5, 1, 0, 1, 2, 50),
-        ('gitstream',        7, 2, 1, 1, 3,  0),
-        ('linearb',          3, 1, 0, 0, 1, 130),
-        ('claude',           6, 1, 1, 1, 3, 125),
-        ('cursor',           5, 1, 1, 1, 2, 120),
-        ('windsurf',         4, 1, 0, 1, 2, 125),
-        ('openai-codex',     5, 1, 1, 1, 2, 130),
-        ('gemini',           5, 1, 1, 1, 2, 120),
-        ('augment',          3, 1, 0, 0, 1, 130),
-        ('jazzberry',        2, 0, 0, 0, 1, 140),
-        ('cubic',            3, 1, 0, 0, 1, 135),
-        ('mesa',             2, 0, 0, 0, 1, 145),
-        ('baz',              2, 0, 0, 0, 1, 140),
-        ('codeant',          3, 1, 0, 0, 1, 130)
-    ]) AS bot
-);
-
--- Seed repo_bot_usage for top repos per bot
-INSERT INTO code_review_trends.repo_bot_usage (repo_full_name, bot_id, first_seen, last_seen, total_reviews, stars)
-SELECT
-    concat(orgs.1, '/', repos.1) AS repo_full_name,
-    bot.1 AS bot_id,
-    toDate('2023-01-02') + rand() % 365 AS first_seen,
-    toDate('2026-01-01') + rand() % 45 AS last_seen,
-    toUInt64(50 + rand() % 500) AS total_reviews,
-    toUInt32(100 + rand() % 50000) AS stars
-FROM (
-    SELECT arrayJoin([
-        ('coderabbit',), ('copilot',), ('codescene',), ('sourcery',),
-        ('ellipsis',), ('codium-pr-agent',), ('qodo-merge',), ('qodo-merge-pro',),
-        ('greptile',), ('sentry',), ('seer-by-sentry',), ('codecov-ai',),
-        ('baz',), ('graphite',), ('codeant',), ('windsurf',), ('cubic',),
-        ('cursor',), ('gemini',), ('bito',), ('korbit',), ('claude',),
-        ('openai-codex',), ('jazzberry',), ('mesa',), ('gitstream',),
-        ('linearb',), ('augment',)
-    ]) AS bot
-) AS bots
-CROSS JOIN (
-    SELECT arrayJoin([
-        ('facebook',), ('google',), ('microsoft',), ('apache',), ('vercel',),
-        ('supabase',), ('tailwindlabs',), ('prisma',), ('remix-run',), ('astro',),
-        ('sveltejs',), ('vuejs',), ('angular',), ('nestjs',), ('strapi',)
-    ]) AS orgs
-) AS orgs_t
-CROSS JOIN (
-    SELECT arrayJoin([
-        ('react',), ('next.js',), ('typescript',), ('vscode',), ('deno',),
-        ('bun',), ('astro',), ('sveltekit',)
-    ]) AS repos
-) AS repos_t
-WHERE rand() % 3 = 0;
 
 -- =============================================================================
 -- Seed data for entity-level tables (repos, repo_languages, pull_requests,
@@ -400,15 +308,16 @@ SELECT
     ) AS bot_id,
     toUInt32(50 + rand() % 5000) AS body_length,
     pr.created_at + toIntervalSecond(600 + rand() % 172800) AS created_at,
-    -- Reactions: mostly 0, some with 1-5, rare higher
-    toUInt32(if(rand() % 3 = 0, rand() % 6, 0)) AS thumbs_up,
-    toUInt32(if(rand() % 10 = 0, rand() % 3, 0)) AS thumbs_down,
-    toUInt32(if(rand() % 15 = 0, rand() % 2, 0)) AS laugh,
-    toUInt32(if(rand() % 20 = 0, rand() % 2, 0)) AS confused,
-    toUInt32(if(rand() % 8 = 0, rand() % 4, 0)) AS heart,
-    toUInt32(if(rand() % 15 = 0, rand() % 2, 0)) AS hooray,
-    toUInt32(if(rand() % 10 = 0, rand() % 3, 0)) AS eyes,
-    toUInt32(if(rand() % 12 = 0, rand() % 3, 0)) AS rocket
+    -- Reactions: use cityHash64 for varied distribution across reaction types
+    -- (ClickHouse rand() can correlate across columns in CROSS JOIN context)
+    toUInt32(cityHash64(pr.repo_name, pr.pr_number, comment_num, 'thumbs_up') % 6) AS thumbs_up,
+    toUInt32(if(cityHash64(pr.repo_name, pr.pr_number, comment_num, 'thumbs_down') % 5 = 0, 1 + cityHash64(pr.repo_name, pr.pr_number, comment_num, 'td2') % 3, 0)) AS thumbs_down,
+    toUInt32(if(cityHash64(pr.repo_name, pr.pr_number, comment_num, 'laugh') % 8 = 0, 1, 0)) AS laugh,
+    toUInt32(if(cityHash64(pr.repo_name, pr.pr_number, comment_num, 'confused') % 10 = 0, 1, 0)) AS confused,
+    toUInt32(if(cityHash64(pr.repo_name, pr.pr_number, comment_num, 'heart') % 4 = 0, 1 + cityHash64(pr.repo_name, pr.pr_number, comment_num, 'h2') % 3, 0)) AS heart,
+    toUInt32(if(cityHash64(pr.repo_name, pr.pr_number, comment_num, 'hooray') % 8 = 0, 1, 0)) AS hooray,
+    toUInt32(if(cityHash64(pr.repo_name, pr.pr_number, comment_num, 'eyes') % 6 = 0, 1 + cityHash64(pr.repo_name, pr.pr_number, comment_num, 'e2') % 2, 0)) AS eyes,
+    toUInt32(if(cityHash64(pr.repo_name, pr.pr_number, comment_num, 'rocket') % 6 = 0, 1, 0)) AS rocket
 FROM code_review_trends.pull_requests AS pr
 -- ~2.5 comments per PR on average
 CROSS JOIN (SELECT arrayJoin([1, 2, 3]) AS comment_num) AS c

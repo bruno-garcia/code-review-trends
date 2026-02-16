@@ -88,6 +88,7 @@ export type WeeklyBotReviewRow = {
   review_count: number;
   review_comment_count: number;
   repo_count: number;
+  org_count: number;
 };
 
 /**
@@ -131,7 +132,8 @@ export async function queryBotReviewActivity(
       actor_login,
       COUNTIF(type = 'PullRequestReviewEvent') AS review_count,
       COUNTIF(type = 'PullRequestReviewCommentEvent') AS review_comment_count,
-      COUNT(DISTINCT repo_name) AS repo_count
+      COUNT(DISTINCT repo_name) AS repo_count,
+      COUNT(DISTINCT SPLIT(repo_name, '/')[OFFSET(0)]) AS org_count
     FROM events
     GROUP BY week, actor_login
     ORDER BY week ASC, review_count DESC

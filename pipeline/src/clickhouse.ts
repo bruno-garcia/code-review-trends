@@ -138,6 +138,7 @@ export type ReviewActivityRow = {
   review_count: number;
   review_comment_count: number;
   repo_count: number;
+  org_count: number;
 };
 
 /**
@@ -174,57 +175,6 @@ export async function insertHumanActivity(
 
   await client.insert({
     table: "human_review_activity",
-    values: rows,
-    format: "JSONEachRow",
-  });
-}
-
-export type ReactionRow = {
-  week: string;
-  bot_id: string;
-  thumbs_up: number;
-  thumbs_down: number;
-  laugh: number;
-  confused: number;
-  heart: number;
-};
-
-/**
- * Insert weekly reaction data for bot reviews.
- */
-export async function insertReactions(
-  client: ClickHouseClient,
-  rows: ReactionRow[],
-): Promise<void> {
-  if (rows.length === 0) return;
-
-  await client.insert({
-    table: "review_reactions",
-    values: rows,
-    format: "JSONEachRow",
-  });
-}
-
-export type RepoBotUsageRow = {
-  repo_full_name: string;
-  bot_id: string;
-  first_seen: string;
-  last_seen: string;
-  total_reviews: number;
-  stars: number;
-};
-
-/**
- * Insert per-repo bot usage records.
- */
-export async function insertRepoBotUsage(
-  client: ClickHouseClient,
-  rows: RepoBotUsageRow[],
-): Promise<void> {
-  if (rows.length === 0) return;
-
-  await client.insert({
-    table: "repo_bot_usage",
     values: rows,
     format: "JSONEachRow",
   });

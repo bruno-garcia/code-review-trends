@@ -255,11 +255,12 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
       reaction_agg AS (
         SELECT
           b.product_id,
-          sum(rr.thumbs_up) AS thumbs_up,
-          sum(rr.thumbs_down) AS thumbs_down,
-          sum(rr.heart) AS heart
-        FROM review_reactions rr FINAL
-        JOIN bots b FINAL ON rr.bot_id = b.id
+          sum(c.thumbs_up) AS thumbs_up,
+          sum(c.thumbs_down) AS thumbs_down,
+          sum(c.heart) AS heart
+        FROM pr_comments c
+        JOIN bots b ON c.bot_id = b.id
+        WHERE c.comment_id > 0
         GROUP BY b.product_id
       )
     SELECT
@@ -354,11 +355,12 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
       reaction_agg AS (
         SELECT
           b.product_id,
-          sum(rr.thumbs_up) AS thumbs_up,
-          sum(rr.thumbs_down) AS thumbs_down,
-          sum(rr.heart) AS heart
-        FROM review_reactions rr FINAL
-        JOIN bots b FINAL ON rr.bot_id = b.id
+          sum(c.thumbs_up) AS thumbs_up,
+          sum(c.thumbs_down) AS thumbs_down,
+          sum(c.heart) AS heart
+        FROM pr_comments c
+        JOIN bots b ON c.bot_id = b.id
+        WHERE c.comment_id > 0
         GROUP BY b.product_id
       )
     SELECT
@@ -514,12 +516,13 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
       ),
       reaction_agg AS (
         SELECT
-          bot_id,
-          sum(thumbs_up) AS thumbs_up,
-          sum(thumbs_down) AS thumbs_down,
-          sum(heart) AS heart
-        FROM review_reactions FINAL
-        GROUP BY bot_id
+          c.bot_id,
+          sum(c.thumbs_up) AS thumbs_up,
+          sum(c.thumbs_down) AS thumbs_down,
+          sum(c.heart) AS heart
+        FROM pr_comments c
+        WHERE c.comment_id > 0
+        GROUP BY c.bot_id
       )
     SELECT
       b.id,
@@ -561,14 +564,16 @@ export async function getBotReactions(
   return query<WeeklyReactions>(
     `
       SELECT
-        formatDateTime(week, '%Y-%m-%d') AS week,
-        thumbs_up,
-        thumbs_down,
-        heart,
-        laugh,
-        confused
-      FROM review_reactions FINAL
-      WHERE bot_id = {botId:String}
+        formatDateTime(toStartOfWeek(c.created_at, 1), '%Y-%m-%d') AS week,
+        sum(c.thumbs_up) AS thumbs_up,
+        sum(c.thumbs_down) AS thumbs_down,
+        sum(c.heart) AS heart,
+        sum(c.laugh) AS laugh,
+        sum(c.confused) AS confused
+      FROM pr_comments c
+      JOIN bots b ON c.bot_id = b.id
+      WHERE b.id = {botId:String} AND c.comment_id > 0
+      GROUP BY week
       ORDER BY week ASC
     `,
     { botId },
@@ -581,16 +586,16 @@ export async function getProductReactions(
   return query<WeeklyReactions>(
     `
       SELECT
-        formatDateTime(rr.week, '%Y-%m-%d') AS week,
-        sum(rr.thumbs_up) AS thumbs_up,
-        sum(rr.thumbs_down) AS thumbs_down,
-        sum(rr.heart) AS heart,
-        sum(rr.laugh) AS laugh,
-        sum(rr.confused) AS confused
-      FROM review_reactions rr FINAL
-      JOIN bots b FINAL ON rr.bot_id = b.id
-      WHERE b.product_id = {productId:String}
-      GROUP BY rr.week
+        formatDateTime(toStartOfWeek(c.created_at, 1), '%Y-%m-%d') AS week,
+        sum(c.thumbs_up) AS thumbs_up,
+        sum(c.thumbs_down) AS thumbs_down,
+        sum(c.heart) AS heart,
+        sum(c.laugh) AS laugh,
+        sum(c.confused) AS confused
+      FROM pr_comments c
+      JOIN bots b ON c.bot_id = b.id
+      WHERE b.product_id = {productId:String} AND c.comment_id > 0
+      GROUP BY week
       ORDER BY week ASC
     `,
     { productId },
@@ -616,12 +621,13 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
       ),
       reaction_agg AS (
         SELECT
-          bot_id,
-          sum(thumbs_up) AS thumbs_up,
-          sum(thumbs_down) AS thumbs_down,
-          sum(heart) AS heart
-        FROM review_reactions FINAL
-        GROUP BY bot_id
+          c.bot_id,
+          sum(c.thumbs_up) AS thumbs_up,
+          sum(c.thumbs_down) AS thumbs_down,
+          sum(c.heart) AS heart
+        FROM pr_comments c
+        WHERE c.comment_id > 0
+        GROUP BY c.bot_id
       )
     SELECT
       b.id,

@@ -43,8 +43,6 @@ async function showOverview() {
       "bot_logins",
       "review_activity",
       "human_review_activity",
-      "review_reactions",
-      "repo_bot_usage",
     ];
 
     for (const table of tables) {
@@ -169,7 +167,7 @@ async function showBotData(botId: string) {
       );
     }
 
-    console.log("\nReactions (last 8 weeks):");
+    console.log("\nReactions (from pr_comments, last 8 weeks):");
     const reactions = await query<{
       week: string;
       thumbs_up: string;
@@ -177,9 +175,14 @@ async function showBotData(botId: string) {
       heart: string;
     }>(
       client,
-      `SELECT toString(week) AS week, thumbs_up, thumbs_down, heart
-       FROM review_reactions
-       WHERE bot_id = {botId:String}
+      `SELECT
+         formatDateTime(toStartOfWeek(created_at, 1), '%Y-%m-%d') AS week,
+         sum(thumbs_up) AS thumbs_up,
+         sum(thumbs_down) AS thumbs_down,
+         sum(heart) AS heart
+       FROM pr_comments
+       WHERE bot_id = {botId:String} AND comment_id > 0
+       GROUP BY week
        ORDER BY week DESC
        LIMIT 8`,
       { botId },
