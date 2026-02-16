@@ -74,10 +74,10 @@ export function FilteredHome({
         <h2 className="text-2xl font-semibold mb-4">
           Review Volume by Product
         </h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           Weekly review count for each AI code review product.
           {filteredSummaries.length < summaries.length && (
-            <span className="text-gray-500">
+            <span className="text-theme-muted-dim">
               {" "}
               Showing {filteredSummaries.length} of {summaries.length} products.
             </span>
@@ -105,7 +105,7 @@ export function FilteredHome({
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left" data-testid="leaderboard-table">
-            <thead className="text-gray-400 border-b border-theme-border text-sm">
+            <thead className="text-theme-muted border-b border-theme-border text-sm">
               <tr>
                 <th className="pb-3 pr-4">Product</th>
                 <th className="pb-3 pr-4 text-right">Reviews</th>
@@ -135,7 +135,7 @@ export function FilteredHome({
                           alt={product.name}
                           width={20}
                           height={20}
-                          className="rounded-full bg-gray-800 border border-gray-700"
+                          className="rounded-full bg-theme-surface-alt border border-theme-border"
                         />
                       )}
                       <span
@@ -190,11 +190,11 @@ export function FilteredHome({
       {/* Bot Sentiment */}
       <section data-testid="bot-sentiment-section">
         <h2 className="text-2xl font-semibold mb-4">Bot Sentiment</h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           How developers react to each bot&apos;s review comments — thumbs up,
           hearts, and thumbs down.
         </p>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <BotReactionLeaderboardChart data={filteredReactions} />
         </div>
       </section>

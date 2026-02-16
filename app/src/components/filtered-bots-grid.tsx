@@ -32,7 +32,7 @@ export function FilteredBotsGrid({
                 alt={product.name}
                 width={40}
                 height={40}
-                className="rounded-full bg-gray-800 border border-gray-700"
+                className="rounded-full bg-theme-surface-alt border border-theme-border"
               />
             )}
             <h2
@@ -42,42 +42,42 @@ export function FilteredBotsGrid({
               {product.name}
             </h2>
           </div>
-          <p className="text-sm text-gray-400 line-clamp-2">
+          <p className="text-sm text-theme-muted line-clamp-2">
             {product.description}
           </p>
           <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
             <div>
-              <span className="text-gray-500">Reviews</span>
+              <span className="text-theme-muted-dim">Reviews</span>
               <p className="font-medium tabular-nums">
                 {Number(product.total_reviews).toLocaleString()}
               </p>
             </div>
             <div>
-              <span className="text-gray-500">PR Comments</span>
+              <span className="text-theme-muted-dim">PR Comments</span>
               <p className="font-medium tabular-nums">
                 {Number(product.total_pr_comments).toLocaleString()}
               </p>
             </div>
             <div>
-              <span className="text-gray-500">Repos</span>
+              <span className="text-theme-muted-dim">Repos</span>
               <p className="font-medium tabular-nums">
                 {Number(product.total_repos).toLocaleString()}
               </p>
             </div>
             <div>
-              <span className="text-gray-500">Orgs</span>
+              <span className="text-theme-muted-dim">Orgs</span>
               <p className="font-medium tabular-nums">
                 {Number(product.total_orgs).toLocaleString()}
               </p>
             </div>
             <div>
-              <span className="text-gray-500">Approval</span>
+              <span className="text-theme-muted-dim">Approval</span>
               <p className="font-medium tabular-nums">
                 {Number(product.approval_rate).toFixed(0)}%
               </p>
             </div>
             <div>
-              <span className="text-gray-500">Growth</span>
+              <span className="text-theme-muted-dim">Growth</span>
               <p
                 className={`font-medium tabular-nums ${Number(product.growth_pct) >= 0 ? "text-emerald-400" : "text-red-400"}`}
               >
