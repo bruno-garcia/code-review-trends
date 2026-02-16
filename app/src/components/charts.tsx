@@ -352,8 +352,13 @@ export function BotRadarChart({
 }) {
   const c = useChartColors();
 
+  // Estimate legend rows: ~5 items per row on desktop, each row ~24px.
+  // Base height covers the chart itself; extra rows push the container taller.
+  const legendRows = Math.ceil(bots.length / 5);
+  const height = 400 + Math.max(0, legendRows - 1) * 24;
+
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ResponsiveContainer width="100%" height={height}>
       <RadarChart data={data}>
         <PolarGrid stroke={c.grid} />
         <PolarAngleAxis
