@@ -625,7 +625,7 @@ async function cmdEnrichStatus() {
  * Start a timer that prints elapsed seconds to stderr every interval.
  * Returns a stop function that clears the timer and prints the final time.
  */
-function startTimer(label: string, intervalSecs = 5): () => void {
+function startTimer(label: string, intervalSecs = 15): () => void {
   const start = Date.now();
   const interval = setInterval(() => {
     const secs = Math.round((Date.now() - start) / 1000);
