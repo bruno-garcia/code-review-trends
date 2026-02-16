@@ -16,7 +16,7 @@ test.describe("Home page", () => {
     ).toBeVisible();
   });
 
-  test("AI share chart toggles between PR Reviews and Review Comments", async ({
+  test("AI share chart toggles between PR Reviews, Review Comments, and PR Comments", async ({
     page,
   }) => {
     await page.goto("/");
@@ -25,12 +25,18 @@ test.describe("Home page", () => {
 
     const reviewsBtn = page.getByTestId("toggle-reviews");
     const commentsBtn = page.getByTestId("toggle-comments");
+    const prCommentsBtn = page.getByTestId("toggle-pr_comments");
     await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");
     await expect(commentsBtn).toHaveAttribute("aria-pressed", "false");
+    await expect(prCommentsBtn).toHaveAttribute("aria-pressed", "false");
 
     await commentsBtn.click();
     await expect(commentsBtn).toHaveAttribute("aria-pressed", "true");
     await expect(reviewsBtn).toHaveAttribute("aria-pressed", "false");
+
+    await prCommentsBtn.click();
+    await expect(prCommentsBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(commentsBtn).toHaveAttribute("aria-pressed", "false");
 
     await reviewsBtn.click();
     await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");
@@ -48,7 +54,8 @@ test.describe("Home page", () => {
     // Check enriched columns exist
     await expect(table.getByText("Orgs")).toBeVisible();
     await expect(table.getByText("Approval")).toBeVisible();
-    await expect(table.getByText("Avg Comments/Review")).toBeVisible();
+    await expect(table.getByText("Avg C/R")).toBeVisible();
+    await expect(table.getByText("PR Comments")).toBeVisible();
     // Should have bot rows
     const rows = table.locator("tbody tr");
     await expect(rows).not.toHaveCount(0);

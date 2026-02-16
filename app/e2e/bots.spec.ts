@@ -8,10 +8,11 @@ test.describe("Bots listing page", () => {
     const cards = grid.locator("[data-testid^='bot-card-']");
     const count = await cards.count();
     expect(count).toBeGreaterThan(0);
-    // Cards should show orgs and approval rate
+    // Cards should show orgs, approval rate, and PR comments
     const firstCard = cards.first();
     await expect(firstCard.getByText("Orgs")).toBeVisible();
     await expect(firstCard.getByText("Approval")).toBeVisible();
+    await expect(firstCard.getByText("PR Comments")).toBeVisible();
   });
 
   test("has compare button linking to compare page", async ({ page }) => {
@@ -39,11 +40,13 @@ test.describe("Bot detail page", () => {
     await page.goto("/bots/coderabbit");
     await expect(page.getByTestId("bot-name")).toHaveText("CodeRabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
-    // Check for new stat labels
-    await expect(page.getByText("Organizations")).toBeVisible();
-    await expect(page.getByText("Avg Comments/Review")).toBeVisible();
-    await expect(page.getByText("Approval Rate")).toBeVisible();
-    await expect(page.getByText("Comments/Repo")).toBeVisible();
+    // Check for stat labels
+    const stats = page.getByTestId("bot-stats");
+    await expect(stats.getByText("Organizations")).toBeVisible();
+    await expect(stats.getByText("Review Comments", { exact: true })).toBeVisible();
+    await expect(stats.getByText("PR Comments", { exact: true })).toBeVisible();
+    await expect(stats.getByText("Approval Rate")).toBeVisible();
+    await expect(stats.getByText("Comments/Repo")).toBeVisible();
   });
 
   test("shows activity chart with toggle", async ({ page }) => {

@@ -117,6 +117,9 @@ type BotShareData = {
   bot_comments: number;
   human_comments: number;
   bot_comment_share_pct: number;
+  bot_pr_comments: number;
+  human_pr_comments: number;
+  bot_pr_comment_share_pct: number;
 };
 
 export function BotShareChart({ data }: { data: BotShareData[] }) {
@@ -124,8 +127,17 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
   const c = useChartColors();
 
   const dataKey =
-    metric === "reviews" ? "bot_share_pct" : "bot_comment_share_pct";
-  const label = metric === "reviews" ? "PR Reviews" : "Review Comments";
+    metric === "reviews"
+      ? "bot_share_pct"
+      : metric === "comments"
+        ? "bot_comment_share_pct"
+        : "bot_pr_comment_share_pct";
+  const label =
+    metric === "reviews"
+      ? "PR Reviews"
+      : metric === "comments"
+        ? "Review Comments"
+        : "PR Comments";
 
   return (
     <div>
@@ -133,6 +145,7 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
         options={[
           { value: "reviews", label: "PR Reviews" },
           { value: "comments", label: "Review Comments" },
+          { value: "pr_comments", label: "PR Comments" },
         ]}
         value={metric}
         onChange={setMetric}
@@ -235,6 +248,7 @@ type SingleBotData = {
   week: string;
   review_count: number;
   review_comment_count: number;
+  pr_comment_count: number;
   repo_count: number;
   org_count: number;
 };
@@ -245,9 +259,9 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
 
   const lines: Record<string, { keys: string[]; colors: string[]; names: string[] }> = {
     reviews: {
-      keys: ["review_count", "review_comment_count"],
-      colors: ["#a78bfa", "#22d3ee"],
-      names: ["Reviews", "Comments"],
+      keys: ["review_count", "review_comment_count", "pr_comment_count"],
+      colors: ["#a78bfa", "#22d3ee", "#f97316"],
+      names: ["Reviews", "Review Comments", "PR Comments"],
     },
     repos: {
       keys: ["repo_count", "org_count"],
