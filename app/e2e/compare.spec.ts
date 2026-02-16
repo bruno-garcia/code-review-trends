@@ -28,7 +28,9 @@ test.describe("Compare page", () => {
     let foundNonZeroApproval = false;
     let foundNonZeroPRComments = false;
     
-    // Threshold to distinguish PR comments from other small numeric values in the table
+    // Threshold to distinguish PR comments from other small numeric values in the table.
+    // Seed data typically has hundreds of PR comments per active product, so 100 is a safe
+    // lower bound that won't false-positive on other metrics like "Repos" or "Orgs" counts.
     const PR_COMMENTS_THRESHOLD = 100;
 
     for (let i = 0; i < rowCount; i++) {

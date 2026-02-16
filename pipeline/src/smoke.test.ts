@@ -845,9 +845,9 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
           FROM reaction_agg`,
           { repo: testRepoName },
         );
-        // Note: approval_rate may be 0 if the PR has no reactions, which is fine.
-        // The key is that the query runs and returns data.
         assert.ok(summaries.length > 0, "Should return summary data");
+        // Verify the enriched PR was found (total_reviews should match our test data)
+        assert.ok(Number(summaries[0].total_reviews) > 0, "Should have found enriched PRs");
       });
     });
 
@@ -939,10 +939,11 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
           GROUP BY c.bot_id`,
           { repo: testRepoName },
         );
-        // Note: May have 0 reactions if no comments had reactions, which is fine.
-        // The key is that the query runs and finds comments (filtered by comment_id > 0).
+        // Verify we found comments for our test bot (may have 0 reactions if no thumbs up)
         if (reactions.length > 0) {
-          assert.ok(Number(reactions[0].total_comments) >= 0, "Should return comment counts");
+          const testBotReactions = reactions.find((r) => r.bot_id === testBotId);
+          assert.ok(testBotReactions, "Should find reactions for test bot");
+          assert.ok(Number(testBotReactions.total_comments) > 0, "Should have found comments for test bot");
         }
       });
     });
