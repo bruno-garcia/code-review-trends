@@ -129,11 +129,14 @@ export async function syncBots(
     format: "JSONEachRow",
   });
 
-  // Write login mappings to bot_logins table
-  const loginRows = bots.map((b) => ({
-    bot_id: b.id,
-    github_login: b.github_login,
-  }));
+  // Write login mappings to bot_logins table (includes additional_logins)
+  const loginRows = bots.flatMap((b) => [
+    { bot_id: b.id, github_login: b.github_login },
+    ...(b.additional_logins ?? []).map((login) => ({
+      bot_id: b.id,
+      github_login: login,
+    })),
+  ]);
 
   if (loginRows.length > 0) {
     await client.insert({

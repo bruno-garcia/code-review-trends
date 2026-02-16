@@ -35,8 +35,16 @@ export type BotDefinition = {
   product_id: string;
   /** Display name */
   name: string;
-  /** GitHub login in the format `name[bot]` */
+  /** Primary GitHub login in the format `name[bot]` */
   github_login: string;
+  /**
+   * Additional GitHub logins this bot operates under.
+   * Some bots use regular user accounts alongside their App bot account
+   * (e.g. GitHub Copilot appears as both `copilot-pull-request-reviewer[bot]`
+   * and `Copilot`). These are included in BigQuery filters and the bot_logins
+   * table so they're correctly attributed.
+   */
+  additional_logins?: string[];
   /** GitHub user ID for cross-referencing */
   github_id: number;
   /** Website URL */
@@ -283,6 +291,7 @@ export const BOTS: BotDefinition[] = [
     product_id: "copilot",
     name: "GitHub Copilot",
     github_login: "copilot-pull-request-reviewer[bot]",
+    additional_logins: ["Copilot"],
     github_id: 175728472,
     website: "https://github.com/features/copilot",
     description:
@@ -635,16 +644,24 @@ export const BOTS: BotDefinition[] = [
   },
 ];
 
-/** Map from GitHub login to bot definition */
+/** Map from GitHub login to bot definition (includes additional_logins) */
 export const BOT_BY_LOGIN = new Map(
-  BOTS.map((b) => [b.github_login, b] as const),
+  BOTS.flatMap((b) => {
+    const entries: [string, BotDefinition][] = [[b.github_login, b]];
+    for (const login of b.additional_logins ?? []) {
+      entries.push([login, b]);
+    }
+    return entries;
+  }),
 );
 
 /** Map from id to bot definition */
 export const BOT_BY_ID = new Map(BOTS.map((b) => [b.id, b]));
 
-/** All GitHub logins as a set (for filtering events) */
-export const BOT_LOGINS = new Set(BOTS.map((b) => b.github_login));
+/** All GitHub logins as a set (for filtering events, includes additional_logins) */
+export const BOT_LOGINS = new Set(
+  BOTS.flatMap((b) => [b.github_login, ...(b.additional_logins ?? [])]),
+);
 
 /** Map from product id to product definition */
 export const PRODUCT_BY_ID = new Map(PRODUCTS.map((p) => [p.id, p]));
