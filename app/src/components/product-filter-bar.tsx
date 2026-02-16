@@ -143,9 +143,9 @@ export function ProductFilterBar() {
               </button>
             </div>
 
-            {/* Product grid */}
+            {/* Product grid — ordered by ranking (total reviews DESC) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {allProducts.map((p) => {
+              {allProducts.map((p, i) => {
                 const isSelected = selectedSet.has(p.id);
                 return (
                   <button
@@ -175,7 +175,10 @@ export function ProductFilterBar() {
                       height={20}
                       className="rounded-full"
                     />
-                    <span className="truncate">{p.name}</span>
+                    <span className="truncate flex-1 text-left">{p.name}</span>
+                    <span className={`text-xs tabular-nums shrink-0 ${isSelected ? "text-gray-400" : "text-gray-600"}`}>
+                      #{i + 1}
+                    </span>
                   </button>
                 );
               })}
