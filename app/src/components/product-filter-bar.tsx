@@ -80,7 +80,7 @@ export function ProductFilterBar() {
   }
 
   return (
-    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-gray-800 bg-gray-950">
+    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Compact row — entire bar is clickable to toggle the picker */}
         <div
@@ -92,7 +92,7 @@ export function ProductFilterBar() {
           aria-label={expanded ? "Collapse filter" : "Expand filter"}
           aria-expanded={expanded}
         >
-          <span className="text-xs text-gray-500 whitespace-nowrap shrink-0">
+          <span className="text-xs text-theme-muted-dim whitespace-nowrap shrink-0">
             Showing {selectedProducts.length} of {allProducts.length} products
           </span>
 
@@ -124,7 +124,7 @@ export function ProductFilterBar() {
           </div>
 
           <span
-            className="shrink-0 p-1.5 rounded text-gray-400"
+            className="shrink-0 p-1.5 rounded text-theme-muted"
             aria-hidden="true"
           >
             <ChevronDown
@@ -146,7 +146,7 @@ export function ProductFilterBar() {
                 type="button"
                 data-testid="filter-select-all"
                 onClick={selectAll}
-                className="text-xs px-2.5 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+                className="text-xs px-2.5 py-1 rounded bg-theme-surface-alt text-theme-text-secondary hover:bg-theme-border transition-colors"
               >
                 Select All
               </button>
@@ -154,7 +154,7 @@ export function ProductFilterBar() {
                 type="button"
                 data-testid="filter-deselect-all"
                 onClick={deselectAll}
-                className="text-xs px-2.5 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+                className="text-xs px-2.5 py-1 rounded bg-theme-surface-alt text-theme-text-secondary hover:bg-theme-border transition-colors"
               >
                 Deselect All
               </button>
@@ -162,7 +162,7 @@ export function ProductFilterBar() {
                 type="button"
                 data-testid="filter-reset"
                 onClick={resetToTop10}
-                className="text-xs px-2.5 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+                className="text-xs px-2.5 py-1 rounded bg-theme-surface-alt text-theme-text-secondary hover:bg-theme-border transition-colors"
               >
                 Reset to Top 10
               </button>
@@ -181,8 +181,8 @@ export function ProductFilterBar() {
                     aria-pressed={isSelected}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all border ${
                       isSelected
-                        ? "border-opacity-60 text-gray-100"
-                        : "border-gray-800 text-gray-500 opacity-50 hover:opacity-75"
+                        ? "border-opacity-60 text-theme-text"
+                        : "border-theme-border text-theme-muted-dim opacity-50 hover:opacity-75"
                     }`}
                     style={
                       isSelected
@@ -201,7 +201,7 @@ export function ProductFilterBar() {
                       className="rounded-full"
                     />
                     <span className="truncate flex-1 text-left">{p.name}</span>
-                    <span className={`text-xs tabular-nums shrink-0 ${isSelected ? "text-gray-400" : "text-gray-600"}`}>
+                    <span className={`text-xs tabular-nums shrink-0 ${isSelected ? "text-theme-muted" : "text-theme-muted-dim"}`}>
                       #{i + 1}
                     </span>
                   </button>
