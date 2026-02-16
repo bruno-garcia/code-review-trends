@@ -15,7 +15,7 @@ import {
   type RepoRow,
   type RepoLanguageRow,
 } from "../clickhouse.js";
-import { Sentry } from "../sentry.js";
+import { Sentry, log, logError, countMetric } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -54,13 +54,25 @@ export async function enrichRepos(
     queryParams,
   );
 
-  console.log(`[repos] Found ${repos.length} repos needing enrichment`);
+  log(`[repos] Found ${repos.length} repos needing enrichment`);
 
   let fetched = 0;
   let skipped = 0;
   let errors = 0;
+  const BATCH_SIZE = 50;
 
   for (const { repo_name } of repos) {
+    // Start a new Sentry span every BATCH_SIZE items
+    const batchIdx = fetched + skipped + errors;
+    if (batchIdx > 0 && batchIdx % BATCH_SIZE === 0) {
+      Sentry.startSpan(
+        { op: "enrichment.batch", name: `repos batch ${batchIdx - BATCH_SIZE}–${batchIdx}` },
+        () => {
+          countMetric("pipeline.enrich.repos.batch", 1, { status: "ok" });
+        },
+      );
+      log(`[repos] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+    }
     const [owner, repo] = repo_name.split("/");
     if (!owner || !repo) {
       skipped++;
@@ -131,7 +143,7 @@ export async function enrichRepos(
 
         if (isRateLimit) {
           // Rate-limit 403 — don't mark as forbidden, retry on next run
-          console.log(`[repos] Rate-limited on ${repo_name}, will retry later`);
+          log(`[repos] Rate-limited on ${repo_name}, will retry later`);
           skipped++;
         } else {
           // Check for enterprise token policy before marking forbidden
@@ -151,17 +163,15 @@ export async function enrichRepos(
         }
       } else {
         Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
-        console.error(`[repos] Error fetching ${repo_name}:`, err instanceof Error ? err.message : err);
+        logError(`[repos] Error fetching ${repo_name}: ${err instanceof Error ? err.message : err}`);
         errors++;
       }
     }
 
-    if ((fetched + skipped + errors) % 50 === 0 && (fetched + skipped + errors) > 0) {
-      console.log(`[repos] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
-    }
+    // Progress logging handled by batch span above
   }
 
-  console.log(`[repos] Done: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+  log(`[repos] Done: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
   return { fetched, skipped, errors };
 }
 
@@ -199,7 +209,7 @@ export async function refreshStaleRepos(
     queryParams,
   );
 
-  console.log(`[repos] Found ${staleRepos.length} stale repos to refresh`);
+  log(`[repos] Found ${staleRepos.length} stale repos to refresh`);
 
   let refreshed = 0;
 
@@ -278,19 +288,19 @@ export async function refreshStaleRepos(
             fetch_status: "forbidden",
           }]);
         } else {
-          console.log(`[repos] Rate-limited refreshing ${name}, will retry later`);
+          log(`[repos] Rate-limited refreshing ${name}, will retry later`);
         }
       } else {
         Sentry.captureException(err, { tags: { repo: name }, contexts: { enrichment: { phase: "repos.refresh", repo: name } } });
-        console.error(`[repos] Error refreshing ${name}:`, err instanceof Error ? err.message : err);
+        logError(`[repos] Error refreshing ${name}: ${err instanceof Error ? err.message : err}`);
       }
     }
 
     if (refreshed % 50 === 0 && refreshed > 0) {
-      console.log(`[repos] Refresh progress: ${refreshed} refreshed`);
+      log(`[repos] Refresh progress: ${refreshed} refreshed`);
     }
   }
 
-  console.log(`[repos] Refresh done: ${refreshed} refreshed`);
+  log(`[repos] Refresh done: ${refreshed} refreshed`);
   return { refreshed };
 }

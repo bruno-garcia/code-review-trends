@@ -14,7 +14,7 @@ import {
   type PullRequestRow,
 } from "../clickhouse.js";
 import { extractReactionCounts } from "../github.js";
-import { Sentry } from "../sentry.js";
+import { Sentry, log, logWarn, logError, countMetric } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -60,15 +60,24 @@ export async function enrichPullRequests(
     queryParams,
   );
 
-  console.log(
-    `[pull-requests] Found ${prs.length} PRs needing enrichment`,
-  );
+  log(`[pull-requests] Found ${prs.length} PRs needing enrichment`);
 
   let fetched = 0;
   let skipped = 0;
   let errors = 0;
+  const BATCH_SIZE = 100;
 
   for (const { repo_name, pr_number } of prs) {
+    const batchIdx = fetched + skipped + errors;
+    if (batchIdx > 0 && batchIdx % BATCH_SIZE === 0) {
+      Sentry.startSpan(
+        { op: "enrichment.batch", name: `prs batch ${batchIdx - BATCH_SIZE}–${batchIdx}` },
+        () => {
+          countMetric("pipeline.enrich.prs.batch", 1, { status: "ok" });
+        },
+      );
+      log(`[pull-requests] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+    }
     const [owner, repo] = repo_name.split("/");
     if (!owner || !repo) {
       skipped++;
@@ -118,9 +127,7 @@ export async function enrichPullRequests(
       const status = (err as { status?: number }).status;
 
       if (status === 404) {
-        console.warn(
-          `[pull-requests] 404 for ${repo_name}#${pr_number}, skipping`,
-        );
+        logWarn(`[pull-requests] 404 for ${repo_name}#${pr_number}, skipping`);
         skipped++;
       } else if (status === 403) {
         const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
@@ -132,31 +139,19 @@ export async function enrichPullRequests(
           }
         }
         if (!handleEnterprisePolicyError(err, repo_name, "pull-requests")) {
-          console.warn(
-            `[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`,
-          );
+          logWarn(`[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`);
         }
         skipped++;
       } else {
         Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
-        console.error(
-          `[pull-requests] Error fetching ${repo_name}#${pr_number}:`,
-          err instanceof Error ? err.message : err,
-        );
+        logError(`[pull-requests] Error fetching ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
         errors++;
       }
     }
 
-    const total = fetched + skipped + errors;
-    if (total % 100 === 0 && total > 0) {
-      console.log(
-        `[pull-requests] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`,
-      );
-    }
+    // Progress logging handled by batch span above
   }
 
-  console.log(
-    `[pull-requests] Done: ${fetched} fetched, ${skipped} skipped, ${errors} errors`,
-  );
+  log(`[pull-requests] Done: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
   return { fetched, skipped, errors };
 }

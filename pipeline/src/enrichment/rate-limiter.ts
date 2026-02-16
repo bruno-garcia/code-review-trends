@@ -5,6 +5,8 @@
  * when the remaining quota drops below a safety threshold.
  */
 
+import { log } from "../sentry.js";
+
 export class RateLimiter {
   private remaining: number = 5000;
   private resetAt: Date = new Date(0);
@@ -38,7 +40,7 @@ export class RateLimiter {
     const now = Date.now();
     const waitMs = Math.max(0, this.resetAt.getTime() - now) + 1000; // 1s buffer
 
-    console.log(
+    log(
       `[rate-limiter] Throttled: ${this.remaining} remaining, waiting ${Math.ceil(waitMs / 1000)}s until reset`,
     );
 
@@ -47,7 +49,7 @@ export class RateLimiter {
     // Reset remaining so we don't immediately throttle again
     this.remaining = this.minRemaining;
 
-    console.log(`[rate-limiter] Resuming after ${Math.ceil(waitMs / 1000)}s`);
+    log(`[rate-limiter] Resuming after ${Math.ceil(waitMs / 1000)}s`);
     return waitMs;
   }
 
@@ -63,13 +65,13 @@ export class RateLimiter {
     const backoffMs = Math.min(1000 * 2 ** attempt, 60_000);
     const waitMs = retryAfterSeconds * 1000 + backoffMs;
 
-    console.log(
+    log(
       `[rate-limiter] Secondary rate limit hit (attempt ${attempt + 1}), waiting ${Math.ceil(waitMs / 1000)}s`,
     );
 
     await sleep(waitMs);
 
-    console.log(
+    log(
       `[rate-limiter] Resuming after secondary rate limit pause`,
     );
     return waitMs;

@@ -6,7 +6,7 @@
  */
 
 import { Octokit } from "@octokit/rest";
-import { Sentry } from "../sentry.js";
+import { Sentry, log, countMetric, distributionMetric, gaugeMetric } from "../sentry.js";
 import { createCHClient } from "../clickhouse.js";
 import { RateLimiter } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
@@ -46,9 +46,10 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   const partition: WorkerConfig = { workerId, totalWorkers };
   const limit = options.limit;
 
-  console.log(
+  log(
     `[worker] Starting enrichment (worker ${partition.workerId}/${partition.totalWorkers}, limit: ${limit ?? "unlimited"})`,
   );
+  gaugeMetric("pipeline.enrich.limit", limit ?? 0, { phase: "start" });
 
   // Determine execution order based on priority
   type Step = "repos" | "prs" | "comments";
@@ -91,7 +92,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     }
 
     // Refresh stale repos
-    console.log("[worker] Refreshing stale repos...");
+    log("[worker] Refreshing stale repos...");
     const refreshResult = await Sentry.startSpan(
       { op: "enrichment", name: "enrich.refresh-stale-repos" },
       () => refreshStaleRepos(octokit, ch, rateLimiter, partition, {
@@ -101,7 +102,17 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     );
 
     const duration = Date.now() - start;
-    console.log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);
+    log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);
+
+    // Emit summary metrics
+    countMetric("pipeline.enrich.repos.fetched", reposResult.fetched, { phase: "repos" });
+    countMetric("pipeline.enrich.repos.skipped", reposResult.skipped, { phase: "repos" });
+    countMetric("pipeline.enrich.repos.errors", reposResult.errors, { phase: "repos" });
+    countMetric("pipeline.enrich.prs.fetched", prsResult.fetched, { phase: "prs" });
+    countMetric("pipeline.enrich.prs.skipped", prsResult.skipped, { phase: "prs" });
+    countMetric("pipeline.enrich.comments.fetched", commentsResult.fetched, { phase: "comments" });
+    countMetric("pipeline.enrich.comments.skipped", commentsResult.skipped, { phase: "comments" });
+    distributionMetric("pipeline.enrich.duration", duration, "millisecond");
 
     return {
       repos: reposResult,

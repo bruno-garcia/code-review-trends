@@ -14,7 +14,7 @@ import {
   type PrCommentRow,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
-import { Sentry } from "../sentry.js";
+import { Sentry, log, logWarn, logError, countMetric } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -67,16 +67,25 @@ export async function enrichComments(
     queryParams,
   );
 
-  console.log(
-    `[comments] Found ${combos.length} PR/bot combos needing comment enrichment`,
-  );
+  log(`[comments] Found ${combos.length} PR/bot combos needing comment enrichment`);
 
   let fetched = 0;
   let skipped = 0;
   let repliesFiltered = 0;
   let errors = 0;
+  const BATCH_SIZE = 50;
 
   for (const { repo_name, pr_number, bot_id } of combos) {
+    const batchIdx = fetched + skipped + errors;
+    if (batchIdx > 0 && batchIdx % BATCH_SIZE === 0) {
+      Sentry.startSpan(
+        { op: "enrichment.batch", name: `comments batch ${batchIdx - BATCH_SIZE}–${batchIdx}` },
+        () => {
+          countMetric("pipeline.enrich.comments.batch", 1, { status: "ok" });
+        },
+      );
+      log(`[comments] Progress: ${fetched} fetched, ${skipped} skipped, ${repliesFiltered} replies filtered, ${errors} errors`);
+    }
     const [owner, repo] = repo_name.split("/");
     if (!owner || !repo) {
       skipped++;
@@ -85,7 +94,7 @@ export async function enrichComments(
 
     const bot = BOT_BY_ID.get(bot_id);
     if (!bot) {
-      console.warn(`[comments] Unknown bot_id "${bot_id}", skipping`);
+      logWarn(`[comments] Unknown bot_id "${bot_id}", skipping`);
       skipped++;
       continue;
     }
@@ -171,9 +180,7 @@ export async function enrichComments(
       const status = (err as { status?: number }).status;
 
       if (status === 404) {
-        console.warn(
-          `[comments] 404 for ${repo_name}#${pr_number}, skipping`,
-        );
+        logWarn(`[comments] 404 for ${repo_name}#${pr_number}, skipping`);
         skipped++;
       } else if (status === 403) {
         const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
@@ -185,32 +192,20 @@ export async function enrichComments(
           }
         }
         if (!handleEnterprisePolicyError(err, repo_name, "comments")) {
-          console.warn(
-            `[comments] 403 for ${repo_name}#${pr_number}, skipping`,
-          );
+          logWarn(`[comments] 403 for ${repo_name}#${pr_number}, skipping`);
         }
         skipped++;
       } else {
         Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "comments", repo: repo_name, pr_number, bot_id } } });
-        console.error(
-          `[comments] Error fetching ${repo_name}#${pr_number}:`,
-          err instanceof Error ? err.message : err,
-        );
+        logError(`[comments] Error fetching ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
         errors++;
       }
     }
 
-    const total = fetched + skipped + errors;
-    if (total % 50 === 0 && total > 0) {
-      console.log(
-        `[comments] Progress: ${fetched} fetched, ${skipped} skipped, ${repliesFiltered} replies filtered, ${errors} errors`,
-      );
-    }
+    // Progress logging handled by batch span above
   }
 
-  console.log(
-    `[comments] Done: ${fetched} fetched, ${skipped} skipped, ${repliesFiltered} replies filtered, ${errors} errors`,
-  );
+  log(`[comments] Done: ${fetched} fetched, ${skipped} skipped, ${repliesFiltered} replies filtered, ${errors} errors`);
   return {
     fetched,
     skipped,
