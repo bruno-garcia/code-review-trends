@@ -31,6 +31,11 @@ function formatWeek(week: string | number) {
   return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 }
 
+function formatWeekLong(week: string | number) {
+  const d = new Date(String(week));
+  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
+
 function formatNumber(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -149,7 +154,7 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
           />
           <Tooltip
             contentStyle={c.tooltipStyle}
-            labelFormatter={(v) => formatWeek(String(v))}
+            labelFormatter={(v) => formatWeekLong(String(v))}
             formatter={(value) => [
               `${Number(value).toFixed(2)}%`,
               `AI Share (${label})`,
@@ -200,7 +205,7 @@ export function ReviewVolumeChart({
         <Tooltip
           contentStyle={c.tooltipStyle}
           wrapperStyle={TOOLTIP_WRAPPER_STYLE}
-          labelFormatter={(v) => formatWeek(String(v))}
+          labelFormatter={(v) => formatWeekLong(String(v))}
           formatter={(value, name) => [formatNumber(Number(value)), name]}
           itemSorter={descendingItemSorter}
         />
@@ -281,7 +286,7 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
           <Tooltip
             contentStyle={c.tooltipStyle}
             wrapperStyle={TOOLTIP_WRAPPER_STYLE}
-            labelFormatter={(v) => formatWeek(String(v))}
+            labelFormatter={(v) => formatWeekLong(String(v))}
             formatter={(value, name) => [formatNumber(Number(value)), name]}
           />
           <Legend wrapperStyle={c.legendStyle} />
@@ -330,7 +335,7 @@ export function ReactionChart({ data }: { data: ReactionData[] }) {
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
-        <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeek(String(v))} />
+        <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeekLong(String(v))} />
         <Legend wrapperStyle={c.legendStyle} />
         <Bar dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
         <Bar dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
