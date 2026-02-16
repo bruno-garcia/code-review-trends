@@ -31,7 +31,7 @@ export default function AboutPage() {
         <div className="space-y-6">
           <div>
             <h3 className="text-lg font-medium text-white">
-              1. Reviews (PullRequestReviewEvent)
+              1. Reviews (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#pullrequestreviewevent" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">PullRequestReviewEvent</a>)
             </h3>
             <p className="mt-2 text-gray-300 leading-relaxed">
               Fired when a review is submitted — approve, request changes, or
@@ -42,7 +42,7 @@ export default function AboutPage() {
 
           <div>
             <h3 className="text-lg font-medium text-white">
-              2. Review Comments (PullRequestReviewCommentEvent)
+              2. Review Comments (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#pullrequestreviewcommentevent" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">PullRequestReviewCommentEvent</a>)
             </h3>
             <p className="mt-2 text-gray-300 leading-relaxed">
               Fired for each inline comment on a PR diff. A single review
@@ -54,17 +54,83 @@ export default function AboutPage() {
 
           <div>
             <h3 className="text-lg font-medium text-white">
-              3. PR Comments (IssueCommentEvent on PRs)
+              3. PR Comments (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#issuecommentevent" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">IssueCommentEvent</a> on PRs)
             </h3>
             <p className="mt-2 text-gray-300 leading-relaxed">
               Top-level comments posted on pull requests (not inline on diffs).
               Many bots use these for summaries, walkthrough guides, or analysis
               reports rather than the formal review API. In GitHub&apos;s data
-              model, PRs are issues — so <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">IssueCommentEvent</code> fires
-              for both. We filter to only include comments on pull requests.
+              model, PRs are issues — so IssueCommentEvent fires for both. We
+              filter to only include comments on pull requests.
             </p>
           </div>
         </div>
+      </section>
+
+      {/* How AI Share Is Calculated */}
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold text-white">
+          How &ldquo;AI Share&rdquo; Is Calculated
+        </h2>
+        <p className="text-gray-300 leading-relaxed">
+          The AI share percentage on the home page uses a simple formula,
+          computed separately for each event type (reviews, review comments, PR
+          comments):
+        </p>
+        <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900 px-6 py-4">
+          <code className="text-sm text-gray-200">
+            AI Share % = tracked_bot_events / (tracked_bot_events +
+            non_bot_events) × 100
+          </code>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">
+            <strong className="text-white">Numerator</strong> (tracked bot
+            events): Only events from the{" "}
+            <span className="tabular-nums">~30</span> bot accounts we
+            explicitly track. If an AI code review tool isn&apos;t in our
+            registry, its activity does not count as &ldquo;AI.&rdquo;
+          </p>
+          <p className="text-gray-300 leading-relaxed">
+            <strong className="text-white">Denominator</strong> (non-bot
+            events): All remaining events after excluding our tracked bots{" "}
+            <em>and</em> any GitHub account with a{" "}
+            <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+              [bot]
+            </code>{" "}
+            suffix. This means non-AI automation bots (like{" "}
+            <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+              dependabot[bot]
+            </code>{" "}
+            or{" "}
+            <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+              renovate[bot]
+            </code>
+            ) are excluded from both sides of the equation — they don&apos;t
+            inflate the human count or the AI count.
+          </p>
+        </div>
+
+        <p className="text-gray-300 leading-relaxed">
+          <strong className="text-white">No double counting</strong>: Each
+          event type is counted and displayed independently — the chart lets you
+          toggle between Reviews, Review Comments, and PR Comments. A bot that
+          submits 1 review with 5 inline comments contributes 1 to the Reviews
+          metric and 5 to the Review Comments metric, but these are never
+          combined. The same counting logic applies to both the bot and
+          non-bot sides, so the ratio is apples-to-apples. Note that we count{" "}
+          <em>events</em>, not unique pull requests — if a bot comments twice on
+          the same PR, that&apos;s two events.
+        </p>
+
+        <p className="text-gray-400 text-sm italic">
+          This means the percentage represents &ldquo;share of non-bot public
+          GitHub code review activity attributable to tracked AI bots.&rdquo;
+          The true share of AI-assisted reviews is likely higher, since we
+          miss private repos, untracked tools, and AI tools operating through
+          regular user accounts.
+        </p>
       </section>
 
       {/* How Bots Differ */}
@@ -72,56 +138,31 @@ export default function AboutPage() {
         <h2 className="text-2xl font-semibold text-white">How Bots Differ</h2>
         <p className="text-gray-300 leading-relaxed">
           Not all bots use the same mix of event types. This affects how they
-          rank depending on which metric you look at:
+          rank depending on which metric you look at. For example:
         </p>
-
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b border-gray-700">
-                <th className="px-4 py-3 text-sm font-semibold text-gray-200">Bot</th>
-                <th className="px-4 py-3 text-sm font-semibold text-gray-200">Reviews</th>
-                <th className="px-4 py-3 text-sm font-semibold text-gray-200">Review Comments</th>
-                <th className="px-4 py-3 text-sm font-semibold text-gray-200">PR Comments</th>
-              </tr>
-            </thead>
-            <tbody className="text-gray-300">
-              <tr className="border-b border-gray-800">
-                <td className="px-4 py-3">CodeRabbit</td>
-                <td className="px-4 py-3">33%</td>
-                <td className="px-4 py-3">47%</td>
-                <td className="px-4 py-3">20%</td>
-              </tr>
-              <tr className="border-b border-gray-800">
-                <td className="px-4 py-3">GitHub Copilot</td>
-                <td className="px-4 py-3">54%</td>
-                <td className="px-4 py-3">46%</td>
-                <td className="px-4 py-3">0%</td>
-              </tr>
-              <tr className="border-b border-gray-800">
-                <td className="px-4 py-3">Gemini Code Assist</td>
-                <td className="px-4 py-3">41%</td>
-                <td className="px-4 py-3">27%</td>
-                <td className="px-4 py-3">32%</td>
-              </tr>
-              <tr className="border-b border-gray-800">
-                <td className="px-4 py-3">Sentry</td>
-                <td className="px-4 py-3">25%</td>
-                <td className="px-4 py-3">27%</td>
-                <td className="px-4 py-3">48%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p className="text-gray-400 text-sm italic">
-          Percentages based on recent public event samples. Individual bot
-          behavior may change over time.
-        </p>
+        <ul className="list-disc space-y-2 pl-6 text-gray-300">
+          <li>
+            Some bots (like GitHub Copilot) use the formal review API almost
+            exclusively — they show up strongly in Reviews and Review Comments
+            but produce few or no PR Comments.
+          </li>
+          <li>
+            CodeRabbit posts walkthrough summaries as top-level PR comments
+            alongside inline review comments, so it generates significant
+            activity across all three event types.
+          </li>
+          <li>
+            Sentry posts inline comments pointing out bugs on specific lines
+            (Review Comments), but when it reviews a PR and finds nothing, it
+            signals this with a 🎉 emoji reaction and a CI status check —
+            neither of which produces a trackable event in GH Archive. This
+            means some of Sentry&apos;s review activity is invisible to our
+            data.
+          </li>
+        </ul>
         <p className="text-gray-300 leading-relaxed">
-          For example, Sentry uses IssueCommentEvent for nearly half its PR
-          interactions. Rankings based only on formal Reviews would significantly
-          undercount Sentry&apos;s actual code review activity.
+          You can see the exact event-type breakdown for each product on its
+          detail page.
         </p>
       </section>
 
@@ -144,20 +185,24 @@ export default function AboutPage() {
             <h3 className="text-lg font-medium text-white">Emoji reactions on PRs</h3>
             <p className="mt-1 text-gray-300 leading-relaxed">
               Some bots indicate they&apos;ve reviewed a PR by adding an emoji
-              reaction (e.g., 👀) to the PR description. GitHub has no event
-              type for reactions in its Events API, so these are invisible to GH
-              Archive. We capture reactions on bot <em>comments</em> via the
-              GitHub REST API enrichment pipeline, but not reactions added{" "}
-              <em>by</em> bots to PR descriptions.
+              reaction (e.g., Sentry adds 🎉 when it finds no issues). GitHub
+              has no event type for reactions in its Events API, so these are
+              invisible to GH Archive. We capture reactions <em>on</em> bot
+              comments via the GitHub REST API enrichment pipeline, but not
+              reactions added <em>by</em> bots to PR descriptions.
             </p>
           </div>
 
           <div>
             <h3 className="text-lg font-medium text-white">Check runs and status checks</h3>
             <p className="mt-1 text-gray-300 leading-relaxed">
-              Some tools (SonarQube, DeepSource) post analysis results as CI
-              check runs (CheckRunEvent/CheckSuiteEvent). These are not code
-              reviews in the traditional sense and are not tracked.
+              Some tools post analysis results as CI check runs or commit
+              statuses (CheckRunEvent/CheckSuiteEvent/StatusEvent). These are
+              not tracked. This affects even bots we do track — for example,
+              Sentry posts a status check when it reviews a PR and finds no
+              issues, so those &ldquo;clean&rdquo; reviews are invisible in our
+              data. Tools like SonarQube and DeepSource report exclusively
+              through check runs and are not tracked at all.
             </p>
           </div>
 
@@ -175,7 +220,20 @@ export default function AboutPage() {
             <p className="mt-1 text-gray-300 leading-relaxed">
               Some AI tools operate through regular GitHub user accounts rather
               than App bot accounts. These are not distinguishable from human
-              users in GH Archive data.
+              users in GH Archive data and are counted as human activity.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium text-white">Untracked bot accounts</h3>
+            <p className="mt-1 text-gray-300 leading-relaxed">
+              We maintain a curated registry of ~30 AI code review bot accounts.
+              Any bot not in this registry is excluded from the AI share
+              numerator. If it has a{" "}
+              <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">[bot]</code>{" "}
+              suffix, it&apos;s also excluded from the denominator (so it
+              doesn&apos;t affect the percentage either way). If it uses a
+              regular user account, it falls into the human count.
             </p>
           </div>
         </div>
