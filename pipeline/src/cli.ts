@@ -18,6 +18,17 @@
 // Sentry must be imported first to instrument all subsequent modules
 import { Sentry } from "./sentry.js";
 
+/**
+ * Expected CLI errors (bad args, missing creds, etc.).
+ * These are reported to Sentry at "warning" level — not as crashes.
+ */
+class CliError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CliError";
+  }
+}
+
 import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import {
   createCHClient,
@@ -57,9 +68,7 @@ async function main() {
 
   const handler = COMMANDS[command];
   if (!handler) {
-    console.error(`Unknown command: ${command}`);
-    console.error(`Run with --help to see available commands.`);
-    process.exit(1);
+    throw new CliError(`Unknown command: ${command}. Run with --help to see available commands.`);
   }
 
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
@@ -283,8 +292,7 @@ async function cmdSync() {
   const weeks = args["--weeks"] ? parseInt(args["--weeks"], 10) : 2;
 
   if (!Number.isFinite(weeks) || weeks < 1) {
-    console.error(`Invalid --weeks value: "${args["--weeks"]}". Must be a positive integer.`);
-    process.exit(1);
+    throw new CliError(`Invalid --weeks value: "${args["--weeks"]}". Must be a positive integer.`);
   }
 
   const fetcher = bigQueryFetcher(createBigQueryClient());
@@ -383,18 +391,21 @@ async function cmdMigrate() {
       ).trim();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`\nFailed to read Pulumi outputs. Make sure you're authenticated.`);
-      console.error(`  Stack: ${stack}`);
-      console.error(`  Infra dir: ${infraDir}`);
+      const hints = [];
       if (msg.includes("invalid_grant") || msg.includes("oauth2")) {
-        console.error(`\nHint: Run 'gcloud auth application-default login' to refresh GCP credentials.`);
+        hints.push("Run 'gcloud auth application-default login' to refresh GCP credentials.");
       }
       if (msg.includes("passphrase")) {
-        console.error(`\nHint: Set PULUMI_CONFIG_PASSPHRASE env var or run 'pulumi login'.`);
+        hints.push("Set PULUMI_CONFIG_PASSPHRASE env var or run 'pulumi login'.");
       }
-      console.error(`\nAlternatively, use --local to migrate local ClickHouse,`);
-      console.error(`or set CLICKHOUSE_URL and CLICKHOUSE_PASSWORD env vars directly.`);
-      process.exit(1);
+      hints.push(
+        "Alternatively, use --local to migrate local ClickHouse,",
+        "or set CLICKHOUSE_URL and CLICKHOUSE_PASSWORD env vars directly.",
+      );
+      throw new CliError(
+        `Failed to read Pulumi outputs (stack: ${stack}, infra: ${infraDir}).\n` +
+          hints.map((h) => `  Hint: ${h}`).join("\n"),
+      );
     }
 
     // Mask the URL in logs (show host only)
@@ -517,8 +528,7 @@ async function cmdEnrich() {
   const token = args["--token"] ?? process.env.GITHUB_TOKEN;
 
   if (!token) {
-    console.error("Error: GitHub token required. Use --token or set GITHUB_TOKEN env var.");
-    process.exit(1);
+    throw new CliError("GitHub token required. Use --token or set GITHUB_TOKEN env var.");
   }
 
   const { runEnrichment } = await import("./enrichment/worker.js");
@@ -527,8 +537,7 @@ async function cmdEnrich() {
     if (value === undefined) return undefined;
     const n = parseInt(value, 10);
     if (isNaN(n) || n < 0) {
-      console.error(`Error: ${name} must be a non-negative integer, got "${value}"`);
-      process.exit(1);
+      throw new CliError(`${name} must be a non-negative integer, got "${value}"`);
     }
     return n;
   }
@@ -665,20 +674,26 @@ function formatDate(d: Date): string {
 
 main().catch(async (err) => {
   const command = process.argv[2] ?? "unknown";
-  const args = process.argv.slice(3).join(" ");
+  const cliArgs = process.argv.slice(3).join(" ");
+  const isCliError = err instanceof CliError;
 
   Sentry.captureException(err, {
+    level: isCliError ? "warning" : "error",
     contexts: {
       pipeline: {
         command,
-        args,
+        args: cliArgs,
         argv: process.argv.join(" "),
         clickhouse_url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123 (default)",
       },
     },
   });
 
-  console.error("Fatal error:", err);
+  if (isCliError) {
+    console.error(`Error: ${err.message}`);
+  } else {
+    console.error("Fatal error:", err);
+  }
   // Flush Sentry events before exiting
   await Sentry.flush(5000);
   process.exit(1);
