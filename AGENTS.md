@@ -151,8 +151,8 @@ CLICKHOUSE_URL=https://... CLICKHOUSE_PASSWORD=... npm run pipeline -- sync
 The pipeline has three stages that must run in order. All are idempotent and reentrant — safe to kill and restart.
 
 ```bash
-# Set target database (staging example)
-export CLICKHOUSE_URL=https://ch-crt.brunogarcia.com:58432
+# Set target database (use migrate --stack to read creds from Pulumi)
+export CLICKHOUSE_URL=https://...
 export CLICKHOUSE_PASSWORD=...
 export GITHUB_TOKEN=...   # GitHub PAT for enrichment
 
