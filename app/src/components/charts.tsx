@@ -39,6 +39,8 @@ function formatNumber(n: number) {
 
 /** Ensure the tooltip popup renders above the Legend overlay. */
 const TOOLTIP_WRAPPER_STYLE: React.CSSProperties = { zIndex: 10 };
+const descendingItemSorter = (item: { value?: string | number | null }) =>
+  -(Number(item.value) || 0);
 
 /** Hook that returns chart colors reactive to theme changes */
 function useChartColors() {
@@ -200,7 +202,7 @@ export function ReviewVolumeChart({
           wrapperStyle={TOOLTIP_WRAPPER_STYLE}
           labelFormatter={(v) => formatWeek(String(v))}
           formatter={(value, name) => [formatNumber(Number(value)), name]}
-          itemSorter={(item) => -(Number(item.value) || 0)}
+          itemSorter={descendingItemSorter}
         />
         <Legend wrapperStyle={c.legendStyle} />
         {bots.map((bot, i) => {
@@ -382,7 +384,7 @@ export function BotRadarChart({
               />
             );
           })}
-          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} itemSorter={(item) => -(Number(item.value) || 0)} />
+          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} itemSorter={descendingItemSorter} />
         </RadarChart>
       </ResponsiveContainer>
       {/* Legend rendered outside the chart so it never overlaps the radar */}
