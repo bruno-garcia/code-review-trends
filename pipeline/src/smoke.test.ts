@@ -384,7 +384,7 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
       const orphans = await query<{ bot_id: string }>(
         ch,
         `SELECT DISTINCT ra.bot_id FROM review_activity ra FINAL
-         LEFT JOIN bots b FINAL ON ra.bot_id = b.id WHERE b.id IS NULL OR b.id = ''`,
+         LEFT JOIN bots b FINAL ON ra.bot_id = b.id WHERE b.id = ''`,
       );
       assert.equal(orphans.length, 0, `Orphan bot_ids: ${orphans.map((r) => r.bot_id).join(", ")}`);
     });

@@ -235,15 +235,17 @@ export default async function ProductPage({
       </section>
 
       {/* Top Languages */}
-      <section data-testid="bot-languages">
-        <h2 className="text-2xl font-semibold mb-4">Top Languages</h2>
-        <p className="text-theme-muted mb-6">
-          Programming languages of repos where this bot reviews code.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <BotLanguageChart data={languageData} />
-        </div>
-      </section>
+      {totalReviews > 0 && languageData.length > 0 && (
+        <section data-testid="bot-languages">
+          <h2 className="text-2xl font-semibold mb-4">Top Languages</h2>
+          <p className="text-theme-muted mb-6">
+            Programming languages of repos where this bot reviews code.
+          </p>
+          <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+            <BotLanguageChart data={languageData} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

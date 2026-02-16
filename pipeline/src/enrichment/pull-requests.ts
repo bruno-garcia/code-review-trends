@@ -35,8 +35,10 @@ export async function enrichPullRequests(
 
   // Find PRs needing enrichment (in pr_bot_events but not in pull_requests).
   // Skip repos known to be deleted — no point hitting the API for them.
+  // Note: ClickHouse non-Nullable columns default to '' (String) or 0 (UInt)
+  // on LEFT JOIN misses — not NULL. Use the empty-string check, not IS NULL.
   const whereFragments = [
-    "p.pr_number IS NULL",
+    "p.repo_name = ''",
     "e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))",
   ];
   const queryParams: Record<string, number> = { limit };

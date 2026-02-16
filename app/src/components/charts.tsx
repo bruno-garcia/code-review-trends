@@ -44,6 +44,7 @@ function formatNumber(n: number) {
 
 /** Ensure the tooltip popup renders above the Legend overlay. */
 const TOOLTIP_WRAPPER_STYLE: React.CSSProperties = { zIndex: 10 };
+const MAX_BAR_SIZE = 80;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const descendingItemSorter = (item: any) => -(Number(item.value) || 0);
 
@@ -556,7 +557,7 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
           <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           {bots.map((bot, i) => (
-            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
+            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} maxBarSize={MAX_BAR_SIZE} />
           ))}
         </BarChart>
       </ResponsiveContainer>

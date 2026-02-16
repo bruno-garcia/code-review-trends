@@ -39,8 +39,10 @@ export async function enrichComments(
   const partition_clause = partitionWhereClause(partition, "e.repo_name");
 
   // Find PR/bot combos needing comment enrichment.
+  // Note: ClickHouse non-Nullable columns default to '' (String) or 0 (UInt)
+  // on LEFT JOIN misses — not NULL. Use the empty-string check, not IS NULL.
   const whereFragments = [
-    "c.bot_id IS NULL",
+    "c.repo_name = ''",
     "e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))",
   ];
   const queryParams: Record<string, number> = { limit };
