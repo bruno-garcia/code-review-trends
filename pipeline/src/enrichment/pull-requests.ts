@@ -15,6 +15,7 @@ import {
 } from "../clickhouse.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
+import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 
 /**
  * Fetch and insert details for PRs discovered in pr_bot_events
@@ -125,9 +126,11 @@ export async function enrichPullRequests(
             await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
           }
         }
-        console.warn(
-          `[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`,
-        );
+        if (!handleEnterprisePolicyError(err, repo_name, "pull-requests")) {
+          console.warn(
+            `[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`,
+          );
+        }
         skipped++;
       } else {
         console.error(

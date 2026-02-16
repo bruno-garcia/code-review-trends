@@ -17,6 +17,7 @@ import {
 } from "../clickhouse.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
+import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 
 /**
  * Fetch and insert metadata for repos discovered in pr_bot_events
@@ -132,7 +133,10 @@ export async function enrichRepos(
           console.log(`[repos] Rate-limited on ${repo_name}, will retry later`);
           skipped++;
         } else {
-          // Real 403 (DMCA, private, etc.) — mark as forbidden
+          // Check for enterprise token policy before marking forbidden
+          handleEnterprisePolicyError(err, repo_name, "repos");
+
+          // Real 403 (DMCA, private, enterprise policy, etc.) — mark as forbidden
           await insertRepos(ch, [{
             name: repo_name,
             owner,
@@ -258,7 +262,10 @@ export async function refreshStaleRepos(
           }
         }
         if (!isRateLimit) {
-          // Real 403 (DMCA, private, etc.) — mark as forbidden
+          // Check for enterprise token policy before marking forbidden
+          handleEnterprisePolicyError(err, name, "repos");
+
+          // Real 403 (DMCA, private, enterprise policy, etc.) — mark as forbidden
           await insertRepos(ch, [{
             name,
             owner,
