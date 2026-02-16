@@ -190,7 +190,7 @@ describe("buildReport integration", () => {
     // Write a known row to a distinctive week that won't collide with seed data
     const testWeek = "2018-01-01"; // Monday, way before any real data
     await insertReviewActivity(ch, [
-      { week: testWeek, bot_id: BOTS[0].id, review_count: 7, review_comment_count: 3, repo_count: 2 },
+      { week: testWeek, bot_id: BOTS[0].id, review_count: 7, review_comment_count: 3, repo_count: 2, org_count: 1 },
     ]);
     await insertHumanActivity(ch, [
       { week: testWeek, review_count: 100, review_comment_count: 50, repo_count: 10 },

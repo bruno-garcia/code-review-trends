@@ -138,6 +138,7 @@ export type ReviewActivityRow = {
   review_count: number;
   review_comment_count: number;
   repo_count: number;
+  org_count: number;
 };
 
 /**
@@ -148,6 +149,11 @@ export async function insertReviewActivity(
   rows: ReviewActivityRow[],
 ): Promise<void> {
   if (rows.length === 0) return;
+
+  // Ensure org_count column exists (for migration of existing DBs)
+  await client.command({
+    query: `ALTER TABLE review_activity ADD COLUMN IF NOT EXISTS org_count UInt64 DEFAULT 0`,
+  });
 
   await client.insert({
     table: "review_activity",
@@ -179,57 +185,6 @@ export async function insertHumanActivity(
   });
 }
 
-export type ReactionRow = {
-  week: string;
-  bot_id: string;
-  thumbs_up: number;
-  thumbs_down: number;
-  laugh: number;
-  confused: number;
-  heart: number;
-};
-
-/**
- * Insert weekly reaction data for bot reviews.
- */
-export async function insertReactions(
-  client: ClickHouseClient,
-  rows: ReactionRow[],
-): Promise<void> {
-  if (rows.length === 0) return;
-
-  await client.insert({
-    table: "review_reactions",
-    values: rows,
-    format: "JSONEachRow",
-  });
-}
-
-export type RepoBotUsageRow = {
-  repo_full_name: string;
-  bot_id: string;
-  first_seen: string;
-  last_seen: string;
-  total_reviews: number;
-  stars: number;
-};
-
-/**
- * Insert per-repo bot usage records.
- */
-export async function insertRepoBotUsage(
-  client: ClickHouseClient,
-  rows: RepoBotUsageRow[],
-): Promise<void> {
-  if (rows.length === 0) return;
-
-  await client.insert({
-    table: "repo_bot_usage",
-    values: rows,
-    format: "JSONEachRow",
-  });
-}
-
 export type PrBotEventRow = {
   repo_name: string;
   pr_number: number;
@@ -241,6 +196,7 @@ export type PrBotEventRow = {
 
 /**
  * Insert PR bot event rows from GH Archive discovery.
+ * Batches large inserts to avoid hitting Node.js string length limits.
  */
 export async function insertPrBotEvents(
   client: ClickHouseClient,
@@ -248,11 +204,14 @@ export async function insertPrBotEvents(
 ): Promise<void> {
   if (rows.length === 0) return;
 
-  await client.insert({
-    table: "pr_bot_events",
-    values: rows,
-    format: "JSONEachRow",
-  });
+  const BATCH_SIZE = 100_000;
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    await client.insert({
+      table: "pr_bot_events",
+      values: rows.slice(i, i + BATCH_SIZE),
+      format: "JSONEachRow",
+    });
+  }
 }
 
 export type RepoRow = {

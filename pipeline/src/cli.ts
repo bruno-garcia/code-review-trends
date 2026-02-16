@@ -95,13 +95,15 @@ Commands:
   help               Show this help message
 
 Options for fetch-bigquery:
-  --start YYYY-MM-DD   Start date (default: 4 weeks ago)
+  --start YYYY-MM-DD   Start date (default: 3 months ago)
   --end YYYY-MM-DD     End date (default: today)
+  --all                Fetch full history from 2023-01-01
   --dry-run            Show what would be fetched without running
 
 Options for backfill:
-  --start YYYY-MM-DD   Start date (default: 2023-01-01)
+  --start YYYY-MM-DD   Start date (default: 3 months ago)
   --end YYYY-MM-DD     End date (default: today)
+  --all                Backfill full history from 2023-01-01
   --no-resume          Ignore previous progress, start from scratch
   --dry-run            Show chunks without running
 
@@ -123,8 +125,9 @@ Options for migrate:
   Safe to re-run — schema uses IF NOT EXISTS, bot data uses TRUNCATE+INSERT.
 
 Options for discover:
-  --start YYYY-MM-DD   Start date (default: 4 weeks ago)
+  --start YYYY-MM-DD   Start date (default: 3 months ago)
   --end YYYY-MM-DD     End date (default: today)
+  --all                Discover full history from 2023-01-01
   --dry-run            Show what would be fetched without running
 
 Options for enrich:
@@ -141,7 +144,7 @@ Environment variables:
   CLICKHOUSE_PASSWORD  ClickHouse password (default: dev)
   CLICKHOUSE_DB        ClickHouse database (default: code_review_trends)
   GCP_PROJECT_ID       GCP project for BigQuery
-  BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 700GB)
+  BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 15TB)
   GITHUB_TOKEN         GitHub PAT for API enrichment
   PULUMI_CONFIG_PASSPHRASE  Passphrase for Pulumi secrets (if not using interactive login)
   `);
@@ -162,8 +165,8 @@ async function cmdSyncBots() {
 
 async function cmdFetchBigQuery() {
   const args = parseArgs();
-  const startDate =
-    args["--start"] ?? formatDate(weeksAgo(4));
+  const all = "--all" in args;
+  const startDate = args["--start"] ?? (all ? FULL_HISTORY_START : defaultStart());
   const endDate = args["--end"] ?? formatDate(new Date());
   const dryRun = "--dry-run" in args;
 
@@ -188,7 +191,8 @@ async function cmdFetchBigQuery() {
   try {
     // Fetch bot activity
     console.log("Querying bot review activity...");
-    const botRows = await queryBotReviewActivity(bq, startDate, endDate, logins);
+    let elapsed = startTimer("  Waiting for BigQuery");
+    const botRows = await queryBotReviewActivity(bq, startDate, endDate, logins).finally(elapsed);
     console.log(`  Got ${botRows.length} bot activity rows`);
 
     // Map BigQuery results to ClickHouse rows
@@ -205,13 +209,15 @@ async function cmdFetchBigQuery() {
           review_count: Number(row.review_count),
           review_comment_count: Number(row.review_comment_count),
           repo_count: Number(row.repo_count),
+          org_count: Number(row.org_count),
         };
       })
       .filter((r): r is ReviewActivityRow => r !== null);
 
     // Fetch human activity
     console.log("Querying human review activity...");
-    const humanRows = await queryHumanReviewActivity(bq, startDate, endDate, logins);
+    elapsed = startTimer("  Waiting for BigQuery");
+    const humanRows = await queryHumanReviewActivity(bq, startDate, endDate, logins).finally(elapsed);
     console.log(`  Got ${humanRows.length} human activity rows`);
 
     const humanActivityRows: HumanActivityRow[] = humanRows.map((row) => ({
@@ -237,7 +243,8 @@ async function cmdFetchBigQuery() {
 
 async function cmdBackfill() {
   const args = parseArgs();
-  const startDate = args["--start"] ?? "2023-01-01";
+  const all = "--all" in args;
+  const startDate = args["--start"] ?? (all ? FULL_HISTORY_START : defaultStart());
   const endDate = args["--end"] ?? formatDate(new Date());
   const noResume = "--no-resume" in args;
   const dryRun = "--dry-run" in args;
@@ -452,7 +459,8 @@ async function cmdMigrate() {
 
 async function cmdDiscover() {
   const args = parseArgs();
-  const startDate = args["--start"] ?? formatDate(weeksAgo(4));
+  const all = "--all" in args;
+  const startDate = args["--start"] ?? (all ? FULL_HISTORY_START : defaultStart());
   const endDate = args["--end"] ?? formatDate(new Date());
   const dryRun = "--dry-run" in args;
 
@@ -475,7 +483,8 @@ async function cmdDiscover() {
 
   try {
     console.log("Querying BigQuery for PR bot events...");
-    const rows = await queryBotPREvents(bq, startDate, endDate, logins);
+    const elapsed = startTimer("  Waiting for BigQuery");
+    const rows = await queryBotPREvents(bq, startDate, endDate, logins).finally(elapsed);
     console.log(`  Got ${rows.length} PR bot event rows`);
 
     // Map BigQuery rows to ClickHouse rows
@@ -498,7 +507,8 @@ async function cmdDiscover() {
       .filter((r): r is NonNullable<typeof r> => r !== null);
 
     console.log("Writing to ClickHouse...");
-    await insertPrBotEvents(ch, chRows);
+    const elapsedWrite = startTimer("  Inserting batches");
+    await insertPrBotEvents(ch, chRows).finally(elapsedWrite);
     console.log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
     console.log("Done!");
   } finally {
@@ -607,6 +617,23 @@ async function cmdEnrichStatus() {
 
 // --- Helpers ---
 
+/**
+ * Start a timer that prints elapsed seconds to stderr every interval.
+ * Returns a stop function that clears the timer and prints the final time.
+ */
+function startTimer(label: string, intervalSecs = 15): () => void {
+  const start = Date.now();
+  const interval = setInterval(() => {
+    const secs = Math.round((Date.now() - start) / 1000);
+    process.stderr.write(`\r${label}... ${secs}s`);
+  }, intervalSecs * 1000);
+  return () => {
+    clearInterval(interval);
+    const secs = Math.round((Date.now() - start) / 1000);
+    process.stderr.write(`\r${label}... done (${secs}s)\n`);
+  };
+}
+
 function parseArgs(): Record<string, string> {
   const result: Record<string, string> = {};
   const args = process.argv.slice(3);
@@ -625,10 +652,15 @@ function parseArgs(): Record<string, string> {
   return result;
 }
 
-function weeksAgo(n: number): Date {
+/** Full historical start date for --all imports. */
+const FULL_HISTORY_START = "2023-01-01";
+
+/** Default start date: 3 months ago (1st of that month to avoid day-overflow). */
+function defaultStart(): string {
   const d = new Date();
-  d.setDate(d.getDate() - n * 7);
-  return d;
+  d.setDate(1); // avoid setMonth overflow (e.g. May 31 → Mar 3)
+  d.setMonth(d.getMonth() - 3);
+  return formatDate(d);
 }
 
 function formatDate(d: Date): string {

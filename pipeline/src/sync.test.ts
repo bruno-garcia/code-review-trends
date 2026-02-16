@@ -52,6 +52,7 @@ function fakeFetcher(opts?: {
           review_count: 42,
           review_comment_count: 100,
           repo_count: 10,
+          org_count: 5,
         });
       }
       return rows;

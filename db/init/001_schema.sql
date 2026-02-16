@@ -50,29 +50,6 @@ CREATE TABLE IF NOT EXISTS code_review_trends.human_review_activity (
 ) ENGINE = ReplacingMergeTree()
 ORDER BY week;
 
--- Per-repo bot adoption (enrichment from GitHub API)
-CREATE TABLE IF NOT EXISTS code_review_trends.repo_bot_usage (
-    repo_full_name String,
-    bot_id String,
-    first_seen Date,
-    last_seen Date,
-    total_reviews UInt64,
-    stars UInt32
-) ENGINE = ReplacingMergeTree()
-ORDER BY (repo_full_name, bot_id);
-
--- Reactions / sentiment on bot reviews (from GitHub API)
-CREATE TABLE IF NOT EXISTS code_review_trends.review_reactions (
-    week Date,
-    bot_id String,
-    thumbs_up UInt64,
-    thumbs_down UInt64,
-    laugh UInt64,
-    confused UInt64,
-    heart UInt64
-) ENGINE = ReplacingMergeTree()
-ORDER BY (week, bot_id);
-
 -- Discovery table: GH Archive events where bots touched PRs
 CREATE TABLE IF NOT EXISTS code_review_trends.pr_bot_events (
     repo_name String,

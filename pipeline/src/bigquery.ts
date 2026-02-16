@@ -29,7 +29,7 @@ import { BigQuery } from "@google-cloud/bigquery";
  * even though actual scans are ~150MB/day. This limit is checked
  * against the estimate, not actual bytes scanned.
  */
-const DEFAULT_MAX_BYTES_BILLED = "700000000000"; // 700GB
+const DEFAULT_MAX_BYTES_BILLED = "15000000000000"; // 15TB (actual scans are ~150MB/day; BigQuery wildcard estimates are wildly pessimistic)
 
 export type BigQueryConfig = {
   projectId?: string;
@@ -88,6 +88,7 @@ export type WeeklyBotReviewRow = {
   review_count: number;
   review_comment_count: number;
   repo_count: number;
+  org_count: number;
 };
 
 /**
@@ -131,7 +132,8 @@ export async function queryBotReviewActivity(
       actor_login,
       COUNTIF(type = 'PullRequestReviewEvent') AS review_count,
       COUNTIF(type = 'PullRequestReviewCommentEvent') AS review_comment_count,
-      COUNT(DISTINCT repo_name) AS repo_count
+      COUNT(DISTINCT repo_name) AS repo_count,
+      COUNT(DISTINCT SPLIT(repo_name, '/')[OFFSET(0)]) AS org_count
     FROM events
     GROUP BY week, actor_login
     ORDER BY week ASC, review_count DESC

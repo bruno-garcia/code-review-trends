@@ -44,9 +44,10 @@ export async function enrichRepos(
 
   const repos = await query<{ repo_name: string }>(
     ch,
-    `SELECT DISTINCT repo_name FROM pr_bot_events
+    `SELECT repo_name, max(event_week) AS latest_week FROM pr_bot_events
      WHERE ${whereFragments.join(" AND ")}
-     ORDER BY repo_name
+     GROUP BY repo_name
+     ORDER BY latest_week DESC
      LIMIT {limit:UInt32}`,
     queryParams,
   );
