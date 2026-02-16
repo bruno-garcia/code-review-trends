@@ -1,5 +1,5 @@
-import { getProductSummaries } from "@/lib/clickhouse";
-import { FilteredBotsGrid } from "@/components/filtered-bots-grid";
+import { getProductSummaries, getWeeklyActivityByProduct, getBotReactionLeaderboard } from "@/lib/clickhouse";
+import { FilteredBotsPage } from "@/components/filtered-bots-page";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 
@@ -14,10 +14,14 @@ export default async function BotsPage({
   const range = parseTimeRange(params.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const summaries = await getProductSummaries(since);
+  const [summaries, activity, reactionLeaderboard] = await Promise.all([
+    getProductSummaries(since),
+    getWeeklyActivityByProduct(undefined, since),
+    getBotReactionLeaderboard(since),
+  ]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">AI Code Review Products</h1>
@@ -32,8 +36,7 @@ export default async function BotsPage({
           Compare All →
         </Link>
       </div>
-
-      <FilteredBotsGrid summaries={summaries} />
+      <FilteredBotsPage activity={activity} summaries={summaries} reactionLeaderboard={reactionLeaderboard} />
     </div>
   );
 }

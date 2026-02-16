@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useProductFilter } from "@/lib/product-filter";
 import { TimeRangeSelector } from "@/components/time-range-selector";
 
@@ -23,6 +24,7 @@ function ChevronDown({ className }: { className?: string }) {
 }
 
 export function ProductFilterBar() {
+  const pathname = usePathname();
   const {
     selectedProductIds,
     setSelectedProductIds,
@@ -53,6 +55,11 @@ export function ProductFilterBar() {
 
   const selectedSet = new Set(selectedProductIds);
   const selectedProducts = allProducts.filter((p) => selectedSet.has(p.id));
+
+  // Only show filter on pages that use it
+  if (pathname !== "/bots" && pathname !== "/compare") {
+    return null;
+  }
 
   function toggleProduct(id: string) {
     if (selectedSet.has(id)) {
