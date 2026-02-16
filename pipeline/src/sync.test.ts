@@ -14,6 +14,7 @@ import {
   monthlyChunks,
   backfill,
   syncRecent,
+  PIPELINE_VERSION,
   type DataFetcher,
   type SyncChunk,
 } from "./sync.js";
@@ -148,9 +149,13 @@ describe("backfill integration", () => {
         chunk_end Date,
         completed_at DateTime DEFAULT now(),
         rows_written UInt64,
-        bot_logins String DEFAULT ''
+        bot_logins String DEFAULT '',
+        pipeline_version UInt32 DEFAULT 0
       ) ENGINE = ReplacingMergeTree(completed_at)
       ORDER BY (job_name, chunk_start)`,
+    });
+    await ch.command({
+      query: `ALTER TABLE pipeline_state ADD COLUMN IF NOT EXISTS pipeline_version UInt32 DEFAULT 0`,
     });
     // Clean up test state from previous runs
     await ch.command({
@@ -320,6 +325,62 @@ describe("backfill integration", () => {
       log: quiet,
     });
     assert.equal(results2.length, 1, "Should only re-fetch January (stale bot set)");
+    assert.equal(calls2[0].startDate, "2019-01-01");
+  });
+
+  it("re-fetches chunks when pipeline version changes", async () => {
+    // Clean state
+    await ch.command({
+      query: `DELETE FROM pipeline_state WHERE job_name = 'backfill'`,
+    });
+
+    const calls1: SyncChunk[] = [];
+    const fetcher1 = fakeFetcher({ calls: calls1 });
+
+    // First run: backfill Jan–Feb 2019
+    await backfill(fetcher1, ch, {
+      startDate: "2019-01-01",
+      endDate: "2019-02-28",
+      resume: true,
+      log: quiet,
+    });
+    assert.equal(calls1.length, 2, "Should process Jan and Feb");
+
+    // Read current bot_logins for January so we only change the version
+    const [janState] = await query<{ bot_logins: string }>(
+      ch,
+      `SELECT bot_logins FROM pipeline_state FINAL
+       WHERE job_name = 'backfill' AND chunk_start = '2019-01-01'`,
+    );
+
+    // Simulate an older pipeline version by overwriting January's state
+    // with the same bot_logins but a lower version
+    await ch.insert({
+      table: "pipeline_state",
+      values: [{
+        job_name: "backfill",
+        chunk_start: "2019-01-01",
+        chunk_end: "2019-01-31",
+        rows_written: 10,
+        bot_logins: janState.bot_logins,
+        pipeline_version: PIPELINE_VERSION - 1,
+        // Explicit future timestamp so this row wins in ReplacingMergeTree
+        completed_at: "2100-01-01 00:00:00",
+      }],
+      format: "JSONEachRow",
+    });
+    await ch.command({ query: `OPTIMIZE TABLE pipeline_state FINAL` });
+
+    // Second run: same range with resume — should re-fetch Jan (stale version), skip Feb
+    const calls2: SyncChunk[] = [];
+    const fetcher2 = fakeFetcher({ calls: calls2 });
+    const results2 = await backfill(fetcher2, ch, {
+      startDate: "2019-01-01",
+      endDate: "2019-02-28",
+      resume: true,
+      log: quiet,
+    });
+    assert.equal(results2.length, 1, "Should only re-fetch January (stale pipeline version)");
     assert.equal(calls2[0].startDate, "2019-01-01");
   });
 
