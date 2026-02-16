@@ -21,7 +21,7 @@
  * Requires GCP_PROJECT_ID environment variable and BigQuery access (unless --marketplace-only).
  */
 
-import { BigQuery } from "@google-cloud/bigquery";
+import type { BigQuery } from "@google-cloud/bigquery";
 import {
   createBigQueryClient,
   discoverBotReviewers,
@@ -49,7 +49,7 @@ function extractMarketplaceSlugs(html: string): string[] {
   for (const m of matches) {
     const slug = m[1];
     // Filter out navigation links that aren't actual apps
-    if (!["models", "new"].includes(slug)) {
+    if (!["models", "new", "category", "collections", "type", "search"].includes(slug)) {
       slugs.add(slug);
     }
   }
@@ -99,6 +99,8 @@ const GITHUB_HEADERS = {
     : {}),
 };
 
+let rateLimitWarned = false;
+
 /**
  * Try to resolve a marketplace slug to a GitHub App via the API.
  * Returns null if the slug doesn't match a GitHub App.
@@ -110,7 +112,13 @@ async function resolveViaApi(
     const res = await fetch(`https://api.github.com/apps/${slug}`, {
       headers: GITHUB_HEADERS,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 403 && !rateLimitWarned) {
+        rateLimitWarned = true;
+        console.warn("  ⚠ Rate limited by GitHub API. Set GITHUB_TOKEN for higher limits.");
+      }
+      return null;
+    }
     const data = (await res.json()) as { slug?: string; name?: string };
     if (!data.slug) return null;
     return { app_slug: data.slug, name: data.name ?? data.slug };
@@ -144,23 +152,29 @@ async function resolveViaMarketplacePage(
     if (!res.ok) return null;
     const html = await res.text();
 
-    // Collect candidate slugs from page content
-    const candidates = new Set<string>();
+    // Collect candidate slugs from page content (capped to limit API calls)
+    const MAX_CANDIDATES = 5;
+    const candidates: string[] = [];
 
-    // Look for @mentions that look like bot/AI accounts
-    for (const m of html.matchAll(/@([a-z0-9][a-z0-9_-]{2,})/gi)) {
+    // Prioritize ownerLogin from embedded JSON (most reliable signal)
+    for (const m of html.matchAll(/"ownerLogin":"([a-zA-Z0-9-]+)"/g)) {
       const login = m[1].toLowerCase();
-      if (
-        login !== marketplace_slug &&
-        !["github", "gmail", "example"].includes(login)
-      ) {
-        candidates.add(login);
+      if (login !== marketplace_slug && !candidates.includes(login)) {
+        candidates.push(login);
       }
     }
 
-    // Look for ownerLogin in embedded JSON
-    for (const m of html.matchAll(/"ownerLogin":"([^"]+)"/g)) {
-      candidates.add(m[1].toLowerCase());
+    // Then look for @mentions that look like bot/AI accounts
+    for (const m of html.matchAll(/@([a-z0-9](?:[a-z0-9-]*[a-z0-9])?)/gi)) {
+      if (candidates.length >= MAX_CANDIDATES) break;
+      const login = m[1].toLowerCase();
+      if (
+        login !== marketplace_slug &&
+        !["github", "gmail", "example"].includes(login) &&
+        !candidates.includes(login)
+      ) {
+        candidates.push(login);
+      }
     }
 
     // Try each candidate via the Apps API
@@ -237,6 +251,13 @@ async function main() {
   const marketplaceOnly = "--marketplace-only" in args;
   const bigqueryOnly = "--bigquery-only" in args;
 
+  if (marketplaceOnly && bigqueryOnly) {
+    console.error(
+      "Flags --marketplace-only and --bigquery-only are mutually exclusive; please specify at most one.",
+    );
+    process.exit(1);
+  }
+
   console.log(`Discovering bot reviewers: ${startDate} → ${endDate}\n`);
 
   // Collect all results: login → { event_count, repo_count, source, tracked }
@@ -282,20 +303,21 @@ async function main() {
       `  Resolved ${apps.length}/${slugs.length} slugs to GitHub Apps\n`,
     );
 
-    // Collect candidate logins not already in results
+    // Collect candidate logins not already in results (deduplicated)
     // Try both slug[bot] and plain slug (for apps like Copilot)
-    const candidateLogins: string[] = [];
+    const candidateLoginSet = new Set<string>();
     const loginToApp = new Map<string, ResolvedApp>();
     for (const app of apps) {
       for (const login of [app.bot_login, app.plain_login]) {
-        if (!results.has(login)) {
-          candidateLogins.push(login);
+        if (!results.has(login) && !candidateLoginSet.has(login)) {
+          candidateLoginSet.add(login);
           loginToApp.set(login, app);
         }
       }
     }
 
-    if (candidateLogins.length > 0 && !marketplaceOnly) {
+    if (candidateLoginSet.size > 0 && !marketplaceOnly) {
+      const candidateLogins = [...candidateLoginSet];
       console.log(
         `  Checking ${candidateLogins.length} candidate logins in BigQuery...`,
       );
@@ -325,15 +347,17 @@ async function main() {
       // Just show marketplace apps without BigQuery verification
       console.log("  (Skipping BigQuery verification — showing all apps)\n");
       for (const app of apps) {
-        if (!results.has(app.bot_login)) {
-          results.set(app.bot_login, {
-            login: app.bot_login,
-            event_count: 0,
-            repo_count: 0,
-            source: "marketplace",
-            tracked: BOT_LOGINS.has(app.bot_login),
-            marketplace_name: app.name,
-          });
+        for (const login of [app.bot_login, app.plain_login]) {
+          if (!results.has(login)) {
+            results.set(login, {
+              login,
+              event_count: 0,
+              repo_count: 0,
+              source: "marketplace",
+              tracked: BOT_LOGINS.has(login),
+              marketplace_name: app.name,
+            });
+          }
         }
       }
     }
