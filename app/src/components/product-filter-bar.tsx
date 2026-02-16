@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProductFilter } from "@/lib/product-filter";
 
 function ChevronDown({ className }: { className?: string }) {
@@ -29,6 +29,26 @@ export function ProductFilterBar() {
     defaultProductIds,
   } = useProductFilter();
   const [expanded, setExpanded] = useState(false);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  // Collapse when clicking outside the filter bar
+  useEffect(() => {
+    if (!expanded) return;
+    function handleClick(e: MouseEvent) {
+      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+        setExpanded(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setExpanded(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [expanded]);
 
   const selectedSet = new Set(selectedProductIds);
   const selectedProducts = allProducts.filter((p) => selectedSet.has(p.id));
@@ -59,7 +79,7 @@ export function ProductFilterBar() {
   }
 
   return (
-    <div data-testid="product-filter-bar" className="border-b border-gray-800 bg-gray-950">
+    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-gray-800 bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Compact row — entire bar is clickable to toggle the picker */}
         <div
