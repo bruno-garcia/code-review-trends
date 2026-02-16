@@ -22,7 +22,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const summaries = await getProductSummaries();
+  // Gracefully handle missing ClickHouse during next build (pre-render).
+  // Pages are force-dynamic so this only matters for static shells like /_not-found.
+  let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
+  try {
+    summaries = await getProductSummaries();
+  } catch {
+    // ClickHouse unavailable (e.g. during build) — render with empty filter list
+  }
   const defaultProductIds = getDefaultProductIds(summaries);
   const allProducts = summaries.map((s) => ({
     id: s.id,
