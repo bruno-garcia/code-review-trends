@@ -423,7 +423,8 @@ async function cmdMigrate() {
 
     if (errors > 0) {
       console.error(`\n${errors} SQL statement(s) failed. Aborting before bot registry sync.`);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     // Sync bot registry from bots.ts (source of truth)
