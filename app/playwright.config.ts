@@ -8,7 +8,9 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "github" : "html",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: process.env.NEXT_PORT
+      ? `http://localhost:${process.env.NEXT_PORT}`
+      : "http://localhost:3000",
     trace: "on-first-retry",
   },
   projects: [
@@ -18,8 +20,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
+    command: process.env.NEXT_PORT
+      ? `npx next dev --port ${process.env.NEXT_PORT}`
+      : "npm run dev",
+    url: process.env.NEXT_PORT
+      ? `http://localhost:${process.env.NEXT_PORT}`
+      : "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },

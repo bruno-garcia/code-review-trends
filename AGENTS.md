@@ -16,19 +16,27 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 
 ## Dev Environment
 
+Each checkout gets **isolated ports** (ClickHouse + Next.js) so multiple checkouts can run concurrently. Ports are auto-assigned and saved to `.env.local`.
+
 ```bash
-# Start ClickHouse + app
-npm run dev
+# Start ClickHouse + app (auto-assigns ports)
+npm run dev            # or: ./dev.sh
 
 # Or separately:
-npm run dev:infra      # docker compose up -d
-npm run dev:app        # next dev (port 3000)
+npm run dev:infra      # ClickHouse only
+npm run dev:app        # Next.js only (assumes ClickHouse is running)
+
+# Show assigned ports
+./dev.sh ports
 
 # Stop containers
 npm run dev:down
+
+# Reset ports (will be re-assigned on next start)
+rm .env.local
 ```
 
-ClickHouse is available at `localhost:8123` (HTTP) and `localhost:9000` (native). Default credentials: `default` / `dev`, database: `code_review_trends`.
+Ports are printed on startup. ClickHouse defaults to `localhost:8123` / `localhost:9000` if no `.env.local` exists (e.g., in CI or manual `docker compose up`). Default credentials: `default` / `dev`, database: `code_review_trends`.
 
 ### Pipeline dev tools
 
