@@ -43,9 +43,22 @@ test.describe("Home page", () => {
     await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("shows total volume section", async ({ page }) => {
+  test("shows total volume section with working toggle", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByTestId("total-volume-section")).toBeVisible();
+    const section = page.getByTestId("total-volume-section");
+    await expect(section).toBeVisible();
+
+    const toggle = section.getByTestId("total-volume-toggle");
+    await expect(toggle).toBeVisible();
+
+    const reviewsBtn = toggle.getByTestId("toggle-reviews");
+    const commentsBtn = toggle.getByTestId("toggle-comments");
+    await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(commentsBtn).toHaveAttribute("aria-pressed", "false");
+
+    await commentsBtn.click();
+    await expect(commentsBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(reviewsBtn).toHaveAttribute("aria-pressed", "false");
   });
 
   test("shows top organizations section", async ({ page }) => {

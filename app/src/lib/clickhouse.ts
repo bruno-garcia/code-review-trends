@@ -223,7 +223,7 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
 export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
   return query<WeeklyTotalVolume>(`
     SELECT
-      toString(ra.week) AS week,
+      formatDateTime(ra.week, '%Y-%m-%d') AS week,
       sum(ra.review_count) AS total_reviews,
       sum(ra.review_comment_count) AS total_comments,
       sum(ra.pr_comment_count) AS total_pr_comments

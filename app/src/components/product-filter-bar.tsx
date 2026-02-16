@@ -57,7 +57,7 @@ export function ProductFilterBar() {
   const selectedProducts = allProducts.filter((p) => selectedSet.has(p.id));
 
   // Only show filter on pages that use it
-  if (!pathname.startsWith("/bots") && !pathname.startsWith("/compare")) {
+  if (pathname !== "/bots" && pathname !== "/compare") {
     return null;
   }
 
