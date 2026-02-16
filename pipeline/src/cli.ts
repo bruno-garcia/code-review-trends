@@ -331,6 +331,7 @@ async function cmdMigrate() {
   const args = parseArgs();
   const dryRun = "--dry-run" in args;
   const useLocal = "--local" in args;
+  const stackExplicitlyProvided = "--stack" in args;
   const stack = args["--stack"] ?? "staging";
 
   const { readFileSync, readdirSync } = await import("fs");
@@ -382,7 +383,8 @@ async function cmdMigrate() {
   let clickhouseUrl: string;
   let clickhousePassword: string;
 
-  if (useLocal) {
+  // Default to local ClickHouse if neither --local nor --stack is explicitly provided
+  if (useLocal || !stackExplicitlyProvided) {
     clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
     clickhousePassword = process.env.CLICKHOUSE_PASSWORD ?? "dev";
     console.log(`\nUsing local ClickHouse: ${clickhouseUrl}`);
