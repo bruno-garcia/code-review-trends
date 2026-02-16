@@ -75,9 +75,9 @@ async function main() {
 
   const cronSlug = cronSchedules[command] ? `pipeline-${command}` : undefined;
 
-  const run = () => Sentry.startSpan(
+  const run = async () => Sentry.startSpan(
     { op: "pipeline.command", name: `pipeline ${command}` },
-    () => handler(),
+    async () => handler(),
   );
 
   if (cronSlug) {

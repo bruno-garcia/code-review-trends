@@ -75,16 +75,12 @@ export async function enrichComments(
   let errors = 0;
   const BATCH_SIZE = 50;
 
-  for (const { repo_name, pr_number, bot_id } of combos) {
-    const batchIdx = fetched + skipped + errors;
-    if (batchIdx > 0 && batchIdx % BATCH_SIZE === 0) {
-      Sentry.startSpan(
-        { op: "enrichment.batch", name: `comments batch ${batchIdx - BATCH_SIZE}–${batchIdx}` },
-        () => {
-          countMetric("pipeline.enrich.comments.batch", 1, { status: "ok" });
-        },
-      );
+  for (let i = 0; i < combos.length; i++) {
+    const { repo_name, pr_number, bot_id } = combos[i];
+
+    if (i > 0 && i % BATCH_SIZE === 0) {
       log(`[comments] Progress: ${fetched} fetched, ${skipped} skipped, ${repliesFiltered} replies filtered, ${errors} errors`);
+      countMetric("pipeline.enrich.comments.batch", 1);
     }
     const [owner, repo] = repo_name.split("/");
     if (!owner || !repo) {

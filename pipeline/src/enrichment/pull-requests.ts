@@ -67,16 +67,12 @@ export async function enrichPullRequests(
   let errors = 0;
   const BATCH_SIZE = 100;
 
-  for (const { repo_name, pr_number } of prs) {
-    const batchIdx = fetched + skipped + errors;
-    if (batchIdx > 0 && batchIdx % BATCH_SIZE === 0) {
-      Sentry.startSpan(
-        { op: "enrichment.batch", name: `prs batch ${batchIdx - BATCH_SIZE}–${batchIdx}` },
-        () => {
-          countMetric("pipeline.enrich.prs.batch", 1, { status: "ok" });
-        },
-      );
+  for (let i = 0; i < prs.length; i++) {
+    const { repo_name, pr_number } = prs[i];
+
+    if (i > 0 && i % BATCH_SIZE === 0) {
       log(`[pull-requests] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+      countMetric("pipeline.enrich.prs.batch", 1);
     }
     const [owner, repo] = repo_name.split("/");
     if (!owner || !repo) {

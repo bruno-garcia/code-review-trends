@@ -49,7 +49,9 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   log(
     `[worker] Starting enrichment (worker ${partition.workerId}/${partition.totalWorkers}, limit: ${limit ?? "unlimited"})`,
   );
-  gaugeMetric("pipeline.enrich.limit", limit ?? 0, { phase: "start" });
+  if (limit !== undefined) {
+    gaugeMetric("pipeline.enrich.limit", limit);
+  }
 
   // Determine execution order based on priority
   type Step = "repos" | "prs" | "comments";
@@ -110,8 +112,10 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     countMetric("pipeline.enrich.repos.errors", reposResult.errors, { phase: "repos" });
     countMetric("pipeline.enrich.prs.fetched", prsResult.fetched, { phase: "prs" });
     countMetric("pipeline.enrich.prs.skipped", prsResult.skipped, { phase: "prs" });
+    countMetric("pipeline.enrich.prs.errors", prsResult.errors, { phase: "prs" });
     countMetric("pipeline.enrich.comments.fetched", commentsResult.fetched, { phase: "comments" });
     countMetric("pipeline.enrich.comments.skipped", commentsResult.skipped, { phase: "comments" });
+    countMetric("pipeline.enrich.comments.errors", commentsResult.errors, { phase: "comments" });
     distributionMetric("pipeline.enrich.duration", duration, "millisecond");
 
     return {

@@ -61,18 +61,15 @@ export async function enrichRepos(
   let errors = 0;
   const BATCH_SIZE = 50;
 
-  for (const { repo_name } of repos) {
-    // Start a new Sentry span every BATCH_SIZE items
-    const batchIdx = fetched + skipped + errors;
-    if (batchIdx > 0 && batchIdx % BATCH_SIZE === 0) {
-      Sentry.startSpan(
-        { op: "enrichment.batch", name: `repos batch ${batchIdx - BATCH_SIZE}–${batchIdx}` },
-        () => {
-          countMetric("pipeline.enrich.repos.batch", 1, { status: "ok" });
-        },
-      );
+  for (let i = 0; i < repos.length; i++) {
+    const { repo_name } = repos[i];
+
+    // Log progress at batch boundaries
+    if (i > 0 && i % BATCH_SIZE === 0) {
       log(`[repos] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+      countMetric("pipeline.enrich.repos.batch", 1);
     }
+
     const [owner, repo] = repo_name.split("/");
     if (!owner || !repo) {
       skipped++;

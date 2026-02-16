@@ -8,8 +8,8 @@
  * - Tracing (spans) for BigQuery queries, GitHub API batches, ClickHouse writes
  * - Cron monitoring (upsert API) for scheduled jobs
  * - Metrics (counters, gauges) for job progress
- * - Structured logs with timestamps
- * - DSN required by default (--no-sentry to opt out)
+ * - Structured logs with UTC timestamps
+ * - DSN from env var (--no-sentry to opt out)
  */
 
 import * as Sentry from "@sentry/node";
@@ -17,6 +17,18 @@ import * as Sentry from "@sentry/node";
 const command = process.argv[2] ?? "unknown";
 const noSentry = process.argv.includes("--no-sentry");
 const clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+
+// Mask credentials from ClickHouse URL (only keep host:port)
+function maskUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ""}`;
+  } catch {
+    return raw; // not a valid URL, pass through
+  }
+}
+
+const maskedClickhouseUrl = maskUrl(clickhouseUrl);
 
 // Determine environment from ClickHouse URL
 function detectEnvironment(): string {
@@ -27,20 +39,22 @@ function detectEnvironment(): string {
 
 const environment = detectEnvironment();
 
-// Parse worker config from argv
+// Parse worker config from argv with validation
 function parseWorkerTag(): string {
   const args = process.argv;
   const wIdx = args.indexOf("--worker-id");
   const tIdx = args.indexOf("--total-workers");
-  const workerId = wIdx >= 0 ? args[wIdx + 1] : "0";
-  const totalWorkers = tIdx >= 0 ? args[tIdx + 1] : "1";
+  const workerId = wIdx >= 0 && wIdx + 1 < args.length && !args[wIdx + 1].startsWith("--")
+    ? args[wIdx + 1] : "0";
+  const totalWorkers = tIdx >= 0 && tIdx + 1 < args.length && !args[tIdx + 1].startsWith("--")
+    ? args[tIdx + 1] : "1";
   return `${workerId}/${totalWorkers}`;
 }
 
-// DSN resolution: env var or hardcoded default
-const dsn = process.env.SENTRY_DSN_CRT_CLI
-  ?? process.env.SENTRY_DSN
-  ?? "https://71eb4a764d735b1d004ec58bd3a3cb86@o117736.ingest.us.sentry.io/4510893515603968";
+const workerTag = parseWorkerTag();
+
+// DSN from env var only — no hardcoded default
+const dsn = process.env.SENTRY_DSN_CRT_CLI ?? process.env.SENTRY_DSN;
 
 if (!noSentry && !dsn) {
   console.error(
@@ -56,22 +70,13 @@ Sentry.init({
   tracesSampleRate: 1.0,
   environment,
 
+  // Tags applied to all events (transactions, errors, etc.)
   initialScope: {
     tags: {
       "pipeline.command": command,
-      "clickhouse.url": clickhouseUrl,
-      "pipeline.worker": parseWorkerTag(),
+      "pipeline.clickhouse_url": maskedClickhouseUrl,
+      "pipeline.worker": workerTag,
     },
-  },
-
-  beforeSendTransaction(event) {
-    event.tags = {
-      ...event.tags,
-      "pipeline.command": command,
-      "clickhouse.url": clickhouseUrl,
-      "pipeline.worker": parseWorkerTag(),
-    };
-    return event;
   },
 
   _experiments: {
@@ -81,23 +86,19 @@ Sentry.init({
 
 // ── Timestamped logger ─────────────────────────────────────────────────
 
-function timestamp(): string {
-  return new Date().toISOString().replace("T", " ").replace("Z", "");
-}
-
 /** Timestamped console.log — use instead of raw console.log in pipeline code. */
 export function log(message: string): void {
-  console.log(`[${timestamp()}] ${message}`);
+  console.log(`[${new Date().toISOString()}] ${message}`);
 }
 
 /** Timestamped console.error */
 export function logError(message: string): void {
-  console.error(`[${timestamp()}] ${message}`);
+  console.error(`[${new Date().toISOString()}] ${message}`);
 }
 
 /** Timestamped console.warn */
 export function logWarn(message: string): void {
-  console.warn(`[${timestamp()}] ${message}`);
+  console.warn(`[${new Date().toISOString()}] ${message}`);
 }
 
 // ── Cron monitoring (upsert API) ───────────────────────────────────────
@@ -105,10 +106,6 @@ export function logWarn(message: string): void {
 /**
  * Wrap a pipeline command as a Sentry cron monitor.
  * Uses the upsert API — creates the monitor if it doesn't exist.
- *
- * @param monitorSlug - Stable identifier for this cron job (e.g., "pipeline-backfill")
- * @param fn - The async function to monitor
- * @param schedule - Cron schedule hint (for upsert creation)
  */
 export async function withCronMonitor<T>(
   monitorSlug: string,
@@ -124,20 +121,17 @@ export async function withCronMonitor<T>(
     timezone: "UTC",
   };
 
-  return Sentry.withMonitor(
-    monitorSlug,
-    fn,
-    monitorConfig,
-  );
+  return Sentry.withMonitor(monitorSlug, fn, monitorConfig);
 }
 
 // ── Metrics helpers ────────────────────────────────────────────────────
 
+// Use same key names as transaction tags for correlation
 const metricAttrs: Record<string, string> = {
-  command,
-  environment,
-  "clickhouse.url": clickhouseUrl,
-  worker: parseWorkerTag(),
+  "pipeline.command": command,
+  "pipeline.environment": environment,
+  "pipeline.clickhouse_url": maskedClickhouseUrl,
+  "pipeline.worker": workerTag,
 };
 
 /** Increment a counter metric with standard pipeline attributes. */
