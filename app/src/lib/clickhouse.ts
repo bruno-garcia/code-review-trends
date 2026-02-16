@@ -36,6 +36,7 @@ export type WeeklyActivity = {
   bot_name: string;
   review_count: number;
   review_comment_count: number;
+  pr_comment_count: number;
   repo_count: number;
   org_count: number;
 };
@@ -47,6 +48,7 @@ export type WeeklyActivityByProduct = {
   brand_color: string;
   review_count: number;
   review_comment_count: number;
+  pr_comment_count: number;
   repo_count: number;
   org_count: number;
 };
@@ -59,6 +61,9 @@ export type WeeklyTotals = {
   bot_comments: number;
   human_comments: number;
   bot_comment_share_pct: number;
+  bot_pr_comments: number;
+  human_pr_comments: number;
+  bot_pr_comment_share_pct: number;
 };
 
 export type ProductSummary = {
@@ -70,6 +75,7 @@ export type ProductSummary = {
   avatar_url: string;
   total_reviews: number;
   total_comments: number;
+  total_pr_comments: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -92,6 +98,7 @@ export type BotSummary = {
   avatar_url: string;
   total_reviews: number;
   total_comments: number;
+  total_pr_comments: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -120,6 +127,7 @@ export type ProductComparison = {
   brand_color: string;
   total_reviews: number;
   total_comments: number;
+  total_pr_comments: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -132,6 +140,7 @@ export type ProductComparison = {
   growth_pct: number;
   latest_week_reviews: number;
   latest_week_comments: number;
+  latest_week_pr_comments: number;
   weeks_active: number;
 };
 
@@ -140,6 +149,7 @@ export type BotComparison = {
   name: string;
   total_reviews: number;
   total_comments: number;
+  total_pr_comments: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -152,6 +162,7 @@ export type BotComparison = {
   growth_pct: number;
   latest_week_reviews: number;
   latest_week_comments: number;
+  latest_week_pr_comments: number;
   weeks_active: number;
 };
 
@@ -162,6 +173,7 @@ export type ProductBot = {
   brand_color: string;
   total_reviews: number;
   total_comments: number;
+  total_pr_comments: number;
   first_week: string;
   last_week: string;
 };
@@ -233,6 +245,7 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
           ra.week,
           sum(ra.review_count) AS review_count,
           sum(ra.review_comment_count) AS review_comment_count,
+          sum(ra.pr_comment_count) AS pr_comment_count,
           sum(ra.repo_count) AS repo_count,
           sum(ra.org_count) AS org_count
         FROM review_activity ra FINAL
@@ -244,6 +257,7 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
           product_id,
           sum(review_count) AS total_reviews,
           sum(review_comment_count) AS total_comments,
+          sum(pr_comment_count) AS total_pr_comments,
           max(repo_count) AS max_repos,
           max(org_count) AS max_orgs,
           min(week) AS first_seen,
@@ -272,6 +286,7 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
       p.avatar_url,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
+      COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
@@ -310,6 +325,7 @@ export async function getWeeklyActivityByProduct(
         p.brand_color,
         sum(ra.review_count) AS review_count,
         sum(ra.review_comment_count) AS review_comment_count,
+        sum(ra.pr_comment_count) AS pr_comment_count,
         sum(ra.repo_count) AS repo_count,
         sum(ra.org_count) AS org_count
       FROM review_activity ra FINAL
@@ -332,6 +348,7 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
           ra.week,
           sum(ra.review_count) AS review_count,
           sum(ra.review_comment_count) AS review_comment_count,
+          sum(ra.pr_comment_count) AS pr_comment_count,
           sum(ra.repo_count) AS repo_count,
           sum(ra.org_count) AS org_count
         FROM review_activity ra FINAL
@@ -343,11 +360,13 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
           product_id,
           sum(review_count) AS total_reviews,
           sum(review_comment_count) AS total_comments,
+          sum(pr_comment_count) AS total_pr_comments,
           max(repo_count) AS max_repos,
           max(org_count) AS max_orgs,
           count(DISTINCT week) AS weeks_active,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
+          sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
         FROM weekly_product
         GROUP BY product_id
@@ -369,6 +388,7 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
       p.brand_color,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
+      COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
@@ -388,6 +408,7 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
       ) AS growth_pct,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
+      COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
       COALESCE(ra.weeks_active, 0) AS weeks_active
     FROM products p FINAL
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
@@ -406,6 +427,7 @@ export async function getProductBots(productId: string): Promise<ProductBot[]> {
         b.brand_color,
         COALESCE(sum(ra.review_count), 0) AS total_reviews,
         COALESCE(sum(ra.review_comment_count), 0) AS total_comments,
+        COALESCE(sum(ra.pr_comment_count), 0) AS total_pr_comments,
         COALESCE(formatDateTime(min(ra.week), '%Y-%m-%d'), '') AS first_week,
         COALESCE(formatDateTime(max(ra.week), '%Y-%m-%d'), '') AS last_week
       FROM bots b FINAL
@@ -467,6 +489,7 @@ export async function getWeeklyActivity(
         b.name AS bot_name,
         ra.review_count,
         ra.review_comment_count,
+        ra.pr_comment_count,
         ra.repo_count,
         ra.org_count
       FROM review_activity AS ra FINAL
@@ -484,13 +507,16 @@ export async function getWeeklyTotals(): Promise<WeeklyTotals[]> {
       formatDateTime(h.week, '%Y-%m-%d') AS week,
       COALESCE(b.bot_reviews, 0) AS bot_reviews,
       h.review_count AS human_reviews,
-      round(COALESCE(b.bot_reviews, 0) * 100.0 / (h.review_count + COALESCE(b.bot_reviews, 0)), 2) AS bot_share_pct,
+      round(if(h.review_count + COALESCE(b.bot_reviews, 0) > 0, COALESCE(b.bot_reviews, 0) * 100.0 / (h.review_count + COALESCE(b.bot_reviews, 0)), 0), 2) AS bot_share_pct,
       COALESCE(b.bot_comments, 0) AS bot_comments,
       h.review_comment_count AS human_comments,
-      round(COALESCE(b.bot_comments, 0) * 100.0 / (h.review_comment_count + COALESCE(b.bot_comments, 0)), 2) AS bot_comment_share_pct
+      round(if(h.review_comment_count + COALESCE(b.bot_comments, 0) > 0, COALESCE(b.bot_comments, 0) * 100.0 / (h.review_comment_count + COALESCE(b.bot_comments, 0)), 0), 2) AS bot_comment_share_pct,
+      COALESCE(b.bot_pr_comments, 0) AS bot_pr_comments,
+      h.pr_comment_count AS human_pr_comments,
+      round(if(h.pr_comment_count + COALESCE(b.bot_pr_comments, 0) > 0, COALESCE(b.bot_pr_comments, 0) * 100.0 / (h.pr_comment_count + COALESCE(b.bot_pr_comments, 0)), 0), 2) AS bot_pr_comment_share_pct
     FROM human_review_activity AS h FINAL
     LEFT JOIN (
-      SELECT week, sum(review_count) AS bot_reviews, sum(review_comment_count) AS bot_comments
+      SELECT week, sum(review_count) AS bot_reviews, sum(review_comment_count) AS bot_comments, sum(pr_comment_count) AS bot_pr_comments
       FROM review_activity FINAL
       GROUP BY week
     ) b ON h.week = b.week
@@ -506,6 +532,7 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
           bot_id,
           sum(review_count) AS total_reviews,
           sum(review_comment_count) AS total_comments,
+          sum(pr_comment_count) AS total_pr_comments,
           max(repo_count) AS max_repos,
           max(org_count) AS max_orgs,
           min(week) AS first_seen,
@@ -533,6 +560,7 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
       b.avatar_url,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
+      COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
@@ -610,11 +638,13 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
           bot_id,
           sum(review_count) AS total_reviews,
           sum(review_comment_count) AS total_comments,
+          sum(pr_comment_count) AS total_pr_comments,
           max(repo_count) AS max_repos,
           max(org_count) AS max_orgs,
           count() AS weeks_active,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
+          sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
         FROM review_activity FINAL
         GROUP BY bot_id
@@ -634,6 +664,7 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
       b.name,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
+      COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
@@ -653,6 +684,7 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
       ) AS growth_pct,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
+      COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
       COALESCE(ra.weeks_active, 0) AS weeks_active
     FROM bots AS b FINAL
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id

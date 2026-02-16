@@ -32,7 +32,9 @@ INSERT INTO code_review_trends.products (id, name, website, description, brand_c
     ('jazzberry', 'Jazzberry', 'https://jazzberry.ai', 'AI code review tool for automated feedback on pull requests.', '#d44d7f', 'https://avatars.githubusercontent.com/in/1231820?v=4'),
     ('mesa', 'Mesa', 'https://mesa.dev', 'AI-powered development workflow with code review automation.', '#c06a33', 'https://avatars.githubusercontent.com/in/1050077?v=4'),
     ('linearb', 'LinearB', 'https://linearb.io', 'Dev workflow platform with gitStream automation and AI-powered code review.', '#a37ce2', 'https://avatars.githubusercontent.com/in/1658443?v=4'),
-    ('augment', 'Augment Code', 'https://augmentcode.com', 'AI coding assistant with automated code review on pull requests.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4');
+    ('augment', 'Augment Code', 'https://augmentcode.com', 'AI coding assistant with automated code review on pull requests.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4'),
+    ('kodus', 'Kodus AI', 'https://kodus.ai', 'AI code review assistant for automated pull request feedback.', '#6366f1', 'https://avatars.githubusercontent.com/u/148880201?v=4'),
+    ('corgea', 'Corgea', 'https://corgea.com', 'AI-powered security code review that finds and fixes vulnerabilities.', '#10b981', 'https://avatars.githubusercontent.com/in/673913?v=4');
 
 -- Bots
 
@@ -66,7 +68,9 @@ INSERT INTO code_review_trends.bots (id, name, product_id, website, description,
     ('mesa', 'Mesa', 'mesa', 'https://mesa.dev', 'AI-powered development workflow with code review automation.', '#c06a33', 'https://avatars.githubusercontent.com/in/1050077?v=4'),
     ('gitstream', 'gitStream', 'linearb', 'https://linearb.io', 'LinearB''s workflow automation bot for continuous merge management.', '#a37ce2', 'https://avatars.githubusercontent.com/ml/13414?v=4'),
     ('linearb', 'LinearB', 'linearb', 'https://linearb.io', 'LinearB''s GitHub bot for dev workflow insights and code review.', '#a37ce2', 'https://avatars.githubusercontent.com/in/1658443?v=4'),
-    ('augment', 'Augment Code', 'augment', 'https://augmentcode.com', 'AI coding assistant with automated code review on pull requests.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4');
+    ('augment', 'Augment Code', 'augment', 'https://augmentcode.com', 'AI coding assistant with automated code review on pull requests.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4'),
+    ('kodus', 'Kodus AI', 'kodus', 'https://kodus.ai', 'AI code review assistant for automated pull request feedback.', '#6366f1', 'https://avatars.githubusercontent.com/u/148880201?v=4'),
+    ('corgea', 'Corgea', 'corgea', 'https://corgea.com', 'AI-powered security code review that finds and fixes vulnerabilities.', '#10b981', 'https://avatars.githubusercontent.com/in/673913?v=4');
 
 -- Bot logins (GitHub usernames)
 
@@ -100,5 +104,7 @@ INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
     ('mesa', 'mesa-dot-dev[bot]'),
     ('gitstream', 'gitstream-cm[bot]'),
     ('linearb', 'linearb[bot]'),
-    ('augment', 'augmentcode[bot]');
+    ('augment', 'augmentcode[bot]'),
+    ('kodus', 'kodus-ai[bot]'),
+    ('corgea', 'corgea[bot]');
 

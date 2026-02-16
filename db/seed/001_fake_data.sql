@@ -9,7 +9,7 @@
 -- start_week: 0 = 2023-01-02. week_idx = rowNumberInAllBlocks() % 163.
 -- Pattern: if(week_idx >= start_week, base * growth * noise, 0)
 
-INSERT INTO code_review_trends.review_activity (week, bot_id, review_count, review_comment_count, repo_count, org_count)
+INSERT INTO code_review_trends.review_activity (week, bot_id, review_count, review_comment_count, repo_count, org_count, pr_comment_count)
 SELECT
     toDate(arrayJoin(
         arrayMap(i -> toDate('2023-01-02') + i * 7, range(163))
@@ -26,7 +26,11 @@ SELECT
         0)) AS repo_count,
     toUInt64(if(rowNumberInAllBlocks() % 163 >= bot.6,
         greatest(1, bot.5 * pow(1.010, (rowNumberInAllBlocks() % 163) - bot.6) * (1 + (rand() % 25 - 12) / 100.0)),
-        0)) AS org_count
+        0)) AS org_count,
+    -- pr_comment_count: ~30% of review_count (varies by bot, simulates IssueCommentEvent)
+    toUInt64(if(rowNumberInAllBlocks() % 163 >= bot.6,
+        greatest(0, bot.2 * 0.3 * pow(1.015, (rowNumberInAllBlocks() % 163) - bot.6) * (1 + (rand() % 50 - 25) / 100.0)),
+        0)) AS pr_comment_count
 FROM (
     SELECT arrayJoin([
         -- (bot_id, base_reviews, base_comments, base_repos, base_orgs, start_week)
@@ -64,7 +68,9 @@ FROM (
         ('cubic',              6,  18,  5,  3, 135),
         ('mesa',               4,  12,  3,  2, 145),
         ('baz',                5,  16,  4,  3, 140),
-        ('codeant',            7,  20,  5,  3, 130)
+        ('codeant',            7,  20,  5,  3, 130),
+        ('kodus',              6,  18,  5,  3, 135),
+        ('corgea',             4,  12,  3,  2, 145)
     ]) AS bot
 );
 
@@ -73,13 +79,15 @@ FROM (
 -- We approximate by having it start early with lower growth.
 
 -- Seed human_review_activity
-INSERT INTO code_review_trends.human_review_activity (week, review_count, review_comment_count, repo_count)
+INSERT INTO code_review_trends.human_review_activity (week, review_count, review_comment_count, repo_count, pr_comment_count)
 SELECT
     toDate('2023-01-02') + number * 7 AS week,
     toUInt64(500000 * (1 + number * 0.002) * (1 + (rand() % 20 - 10) / 100.0)) AS review_count,
     toUInt64(1800000 * (1 + number * 0.002) * (1 + (rand() % 20 - 10) / 100.0)) AS review_comment_count,
-    toUInt64(350000 * (1 + number * 0.001) * (1 + (rand() % 15 - 7) / 100.0)) AS repo_count
+    toUInt64(350000 * (1 + number * 0.001) * (1 + (rand() % 15 - 7) / 100.0)) AS repo_count,
+    toUInt64(2200000 * (1 + number * 0.002) * (1 + (rand() % 20 - 10) / 100.0)) AS pr_comment_count
 FROM numbers(163);
+
 
 -- =============================================================================
 -- Seed data for entity-level tables (repos, repo_languages, pull_requests,

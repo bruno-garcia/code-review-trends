@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS code_review_trends.bots (
     brand_color String,
     avatar_url String,
     website String,
-    description String
+    description String,
+    github_id UInt64 DEFAULT 0
 ) ENGINE = ReplacingMergeTree()
 ORDER BY id;
 
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS code_review_trends.review_activity (
     bot_id String,
     review_count UInt64,
     review_comment_count UInt64,
+    pr_comment_count UInt64 DEFAULT 0,
     repo_count UInt64,
     org_count UInt64
 ) ENGINE = ReplacingMergeTree()
@@ -46,6 +48,7 @@ CREATE TABLE IF NOT EXISTS code_review_trends.human_review_activity (
     week Date,
     review_count UInt64,
     review_comment_count UInt64,
+    pr_comment_count UInt64 DEFAULT 0,
     repo_count UInt64
 ) ENGINE = ReplacingMergeTree()
 ORDER BY week;
