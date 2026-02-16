@@ -618,14 +618,14 @@ async function cmdEnrichStatus() {
     const commentPending = Number(commentStats.total) - Number(commentStats.enriched);
 
     // Pace: repos enriched in last 1h / 24h (based on updated_at)
-    const [pace1h] = await query<{ cnt: string }>(
+    const pace1h = (await query<{ cnt: string }>(
       ch,
       `SELECT count() as cnt FROM repos WHERE updated_at > now() - toIntervalHour(1)`,
-    );
-    const [pace24h] = await query<{ cnt: string }>(
+    ))[0] ?? { cnt: "0" };
+    const pace24h = (await query<{ cnt: string }>(
       ch,
       `SELECT count() as cnt FROM repos WHERE updated_at > now() - toIntervalDay(1)`,
-    );
+    ))[0] ?? { cnt: "0" };
 
     const reposPerHour = Number(pace1h.cnt) || (Number(pace24h.cnt) / 24);
     const etaReposHours = reposPerHour > 0 ? repoPending / reposPerHour : null;
