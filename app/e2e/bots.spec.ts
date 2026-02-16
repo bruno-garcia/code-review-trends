@@ -13,6 +13,49 @@ test.describe("Bots listing page", () => {
     await expect(firstCard.getByText("Orgs")).toBeVisible();
     await expect(firstCard.getByText("Approval")).toBeVisible();
     await expect(firstCard.getByText("PR Comments")).toBeVisible();
+
+    // Assert that at least one bot has non-zero enriched stats.
+    // Each stat cell is: <div><span>Label</span><p>Value</p></div>
+    // Use the span label to locate the sibling <p> value.
+    let foundNonZeroApproval = false;
+    let foundNonZeroPRComments = false;
+    
+    for (let i = 0; i < count; i++) {
+      const card = cards.nth(i);
+      
+      // Extract approval rate value (format: "XX%")
+      const approvalText = await card
+        .locator('span:text-is("Approval")')
+        .locator('..')
+        .locator('p')
+        .textContent();
+      if (approvalText) {
+        const approvalValue = parseFloat(approvalText.replace('%', ''));
+        if (approvalValue > 0) {
+          foundNonZeroApproval = true;
+        }
+      }
+      
+      // Extract PR Comments value
+      const prCommentsText = await card
+        .locator('span:text-is("PR Comments")')
+        .locator('..')
+        .locator('p')
+        .textContent();
+      if (prCommentsText) {
+        const prCommentsValue = parseInt(prCommentsText.replace(/,/g, ''), 10);
+        if (prCommentsValue > 0) {
+          foundNonZeroPRComments = true;
+        }
+      }
+      
+      if (foundNonZeroApproval && foundNonZeroPRComments) {
+        break;
+      }
+    }
+    
+    expect(foundNonZeroApproval).toBeTruthy();
+    expect(foundNonZeroPRComments).toBeTruthy();
   });
 
   test("has compare button linking to compare page", async ({ page }) => {
@@ -20,7 +63,8 @@ test.describe("Bots listing page", () => {
     const btn = page.getByText("Compare All →");
     await expect(btn).toBeVisible();
     await btn.click();
-    await expect(page.getByTestId("compare-table")).toBeVisible();
+    await page.waitForURL("/compare");
+    await expect(page.getByTestId("compare-table")).toBeVisible({ timeout: 15_000 });
   });
 
   test("bot card links to detail page", async ({ page }) => {
@@ -50,6 +94,12 @@ test.describe("Bots listing page", () => {
   test("shows bot sentiment section", async ({ page }) => {
     await page.goto("/bots");
     await expect(page.getByTestId("bot-sentiment-section")).toBeVisible();
+    
+    // Verify that bot sentiment has actual data, not "No data"
+    const chart = page.getByTestId("bot-reaction-leaderboard");
+    await expect(chart).toBeVisible();
+    const noDataText = chart.getByText("No data");
+    await expect(noDataText).not.toBeVisible();
   });
 });
 
