@@ -253,6 +253,52 @@ export async function discoverBotReviewers(
   return rows as { login: string; event_count: number; repo_count: number }[];
 }
 
+/**
+ * Query GH Archive for review activity by specific actor logins.
+ *
+ * Unlike discoverBotReviewers (which filters on `%[bot]`), this searches
+ * for exact logins — catching accounts that don't use the [bot] suffix
+ * (e.g. GitHub Copilot).
+ */
+export async function queryReviewActivityByLogins(
+  bq: BigQuery,
+  startDate: string,
+  endDate: string,
+  logins: string[],
+  config?: BigQueryConfig,
+): Promise<{ login: string; event_count: number; repo_count: number }[]> {
+  if (logins.length === 0) return [];
+
+  const startSuffix = toSuffix(startDate);
+  const endSuffix = toSuffix(endDate);
+
+  const query = `
+    SELECT
+      actor.login AS login,
+      COUNT(*) AS event_count,
+      COUNT(DISTINCT repo.name) AS repo_count
+    FROM \`githubarchive.day.2*\`
+    WHERE
+      _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
+      AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
+      AND actor.login IN UNNEST(@logins)
+    GROUP BY actor.login
+    HAVING event_count > 0
+    ORDER BY event_count DESC
+  `;
+
+  const [rows] = await bq.query({
+    query,
+    params: { logins },
+    maximumBytesBilled:
+      config?.maxBytesProcessed?.toString() ??
+      process.env.BQ_MAX_BYTES_BILLED ??
+      DEFAULT_MAX_BYTES_BILLED,
+  });
+
+  return rows as { login: string; event_count: number; repo_count: number }[];
+}
+
 export type BotPREventRow = {
   repo_name: string; // 'owner/repo' from repo.name
   pr_number: number; // from JSON_VALUE(payload, '$.pull_request.number')
