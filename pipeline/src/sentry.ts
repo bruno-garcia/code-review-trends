@@ -15,7 +15,7 @@
 import * as Sentry from "@sentry/node";
 
 const command = process.argv[2] ?? "unknown";
-const isTestRunner = process.argv[1]?.includes("node_modules") || process.env.NODE_TEST_CONTEXT !== undefined;
+const isTestRunner = process.env.NODE_TEST_CONTEXT !== undefined;
 const noSentry = process.argv.includes("--no-sentry") || isTestRunner;
 const clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
 
