@@ -227,6 +227,7 @@ async function fetchAndStoreChunk(
         bot_id: bot.id,
         review_count: Number(row.review_count),
         review_comment_count: Number(row.review_comment_count),
+        pr_comment_count: Number(row.pr_comment_count),
         repo_count: Number(row.repo_count),
         org_count: Number(row.org_count),
       };
@@ -243,6 +244,7 @@ async function fetchAndStoreChunk(
     week: row.week,
     review_count: Number(row.review_count),
     review_comment_count: Number(row.review_comment_count),
+    pr_comment_count: Number(row.pr_comment_count),
     repo_count: Number(row.repo_count),
   }));
 

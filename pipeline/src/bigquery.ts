@@ -87,6 +87,7 @@ export type WeeklyBotReviewRow = {
   actor_login: string;
   review_count: number;
   review_comment_count: number;
+  pr_comment_count: number;
   repo_count: number;
   org_count: number;
 };
@@ -124,7 +125,11 @@ export async function queryBotReviewActivity(
       FROM \`githubarchive.day.2*\`
       WHERE
         _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
-        AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
+        AND (
+          (type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent'))
+          OR
+          (type = 'IssueCommentEvent' AND JSON_VALUE(payload, '$.issue.pull_request.url') IS NOT NULL)
+        )
         AND actor.login IN UNNEST(@bot_logins)
     )
     SELECT
@@ -132,6 +137,7 @@ export async function queryBotReviewActivity(
       actor_login,
       COUNTIF(type = 'PullRequestReviewEvent') AS review_count,
       COUNTIF(type = 'PullRequestReviewCommentEvent') AS review_comment_count,
+      COUNTIF(type = 'IssueCommentEvent') AS pr_comment_count,
       COUNT(DISTINCT repo_name) AS repo_count,
       COUNT(DISTINCT SPLIT(repo_name, '/')[OFFSET(0)]) AS org_count
     FROM events
@@ -157,6 +163,7 @@ export type WeeklyHumanReviewRow = {
   week: string;
   review_count: number;
   review_comment_count: number;
+  pr_comment_count: number;
   repo_count: number;
 };
 
@@ -183,7 +190,11 @@ export async function queryHumanReviewActivity(
       FROM \`githubarchive.day.2*\`
       WHERE
         _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
-        AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
+        AND (
+          (type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent'))
+          OR
+          (type = 'IssueCommentEvent' AND JSON_VALUE(payload, '$.issue.pull_request.url') IS NOT NULL)
+        )
         AND actor.login NOT IN UNNEST(@bot_logins)
         AND actor.login NOT LIKE '%[bot]'
     )
@@ -191,6 +202,7 @@ export async function queryHumanReviewActivity(
       FORMAT_DATE('%Y-%m-%d', week) AS week,
       COUNTIF(type = 'PullRequestReviewEvent') AS review_count,
       COUNTIF(type = 'PullRequestReviewCommentEvent') AS review_comment_count,
+      COUNTIF(type = 'IssueCommentEvent') AS pr_comment_count,
       COUNT(DISTINCT repo_name) AS repo_count
     FROM events
     GROUP BY week
@@ -234,7 +246,11 @@ export async function discoverBotReviewers(
     FROM \`githubarchive.day.2*\`
     WHERE
       _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
-      AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
+      AND (
+        (type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent'))
+        OR
+        (type = 'IssueCommentEvent' AND JSON_VALUE(payload, '$.issue.pull_request.url') IS NOT NULL)
+      )
       AND actor.login LIKE '%[bot]'
     GROUP BY actor.login
     HAVING event_count > 100
@@ -286,16 +302,23 @@ export async function queryBotPREvents(
   const query = `
     SELECT
       repo.name AS repo_name,
-      CAST(JSON_VALUE(payload, '$.pull_request.number') AS INT64) AS pr_number,
+      CAST(COALESCE(
+        JSON_VALUE(payload, '$.pull_request.number'),
+        JSON_VALUE(payload, '$.issue.number')
+      ) AS INT64) AS pr_number,
       actor.login AS actor_login,
       type AS event_type,
       FORMAT_DATE('%Y-%m-%d', DATE_TRUNC(DATE(created_at), WEEK(MONDAY))) AS week
     FROM \`githubarchive.day.2*\`
     WHERE
       _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
-      AND type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
+      AND (
+        (type IN ('PullRequestReviewEvent', 'PullRequestReviewCommentEvent'))
+        OR
+        (type = 'IssueCommentEvent' AND JSON_VALUE(payload, '$.issue.pull_request.url') IS NOT NULL)
+      )
       AND actor.login IN UNNEST(@bot_logins)
-      AND JSON_VALUE(payload, '$.pull_request.number') IS NOT NULL
+      AND COALESCE(JSON_VALUE(payload, '$.pull_request.number'), JSON_VALUE(payload, '$.issue.number')) IS NOT NULL
     GROUP BY repo_name, pr_number, actor_login, event_type, week
     ORDER BY week ASC, repo_name ASC
   `;

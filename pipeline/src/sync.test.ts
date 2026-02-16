@@ -51,6 +51,7 @@ function fakeFetcher(opts?: {
           actor_login: botLogins[0],
           review_count: 42,
           review_comment_count: 100,
+          pr_comment_count: 50,
           repo_count: 10,
           org_count: 5,
         });
@@ -65,6 +66,7 @@ function fakeFetcher(opts?: {
           week: monday,
           review_count: 5000,
           review_comment_count: 12000,
+          pr_comment_count: 5000,
           repo_count: 800,
         },
       ];
