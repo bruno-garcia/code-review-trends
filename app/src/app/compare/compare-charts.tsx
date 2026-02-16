@@ -164,7 +164,8 @@ export function CompareCharts({
   // Radar chart data
   const radarDimensions = [
     { key: "total_reviews" as SortKey, label: "Reviews" },
-    { key: "total_comments" as SortKey, label: "Comments" },
+    { key: "total_comments" as SortKey, label: "Review Comments" },
+    { key: "total_pr_comments" as SortKey, label: "PR Comments" },
     { key: "total_repos" as SortKey, label: "Repos" },
     { key: "total_orgs" as SortKey, label: "Orgs" },
     { key: "approval_rate" as SortKey, label: "Approval" },

@@ -126,18 +126,13 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
   const [metric, setMetric] = useState("reviews");
   const c = useChartColors();
 
-  const dataKey =
-    metric === "reviews"
-      ? "bot_share_pct"
-      : metric === "comments"
-        ? "bot_comment_share_pct"
-        : "bot_pr_comment_share_pct";
-  const label =
-    metric === "reviews"
-      ? "PR Reviews"
-      : metric === "comments"
-        ? "Review Comments"
-        : "PR Comments";
+  const metricConfig: Record<string, { dataKey: keyof BotShareData; label: string }> = {
+    reviews: { dataKey: "bot_share_pct", label: "PR Reviews" },
+    comments: { dataKey: "bot_comment_share_pct", label: "Review Comments" },
+    pr_comments: { dataKey: "bot_pr_comment_share_pct", label: "PR Comments" },
+  };
+
+  const { dataKey, label } = metricConfig[metric];
 
   return (
     <div>
