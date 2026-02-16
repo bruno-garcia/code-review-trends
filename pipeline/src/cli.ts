@@ -95,13 +95,15 @@ Commands:
   help               Show this help message
 
 Options for fetch-bigquery:
-  --start YYYY-MM-DD   Start date (default: 4 weeks ago)
+  --start YYYY-MM-DD   Start date (default: 3 months ago)
   --end YYYY-MM-DD     End date (default: today)
+  --all                Fetch full history from 2023-01-01
   --dry-run            Show what would be fetched without running
 
 Options for backfill:
-  --start YYYY-MM-DD   Start date (default: 2023-01-01)
+  --start YYYY-MM-DD   Start date (default: 3 months ago)
   --end YYYY-MM-DD     End date (default: today)
+  --all                Backfill full history from 2023-01-01
   --no-resume          Ignore previous progress, start from scratch
   --dry-run            Show chunks without running
 
@@ -123,8 +125,9 @@ Options for migrate:
   Safe to re-run — schema uses IF NOT EXISTS, bot data uses TRUNCATE+INSERT.
 
 Options for discover:
-  --start YYYY-MM-DD   Start date (default: 4 weeks ago)
+  --start YYYY-MM-DD   Start date (default: 3 months ago)
   --end YYYY-MM-DD     End date (default: today)
+  --all                Discover full history from 2023-01-01
   --dry-run            Show what would be fetched without running
 
 Options for enrich:
@@ -141,7 +144,7 @@ Environment variables:
   CLICKHOUSE_PASSWORD  ClickHouse password (default: dev)
   CLICKHOUSE_DB        ClickHouse database (default: code_review_trends)
   GCP_PROJECT_ID       GCP project for BigQuery
-  BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 700GB)
+  BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 15TB)
   GITHUB_TOKEN         GitHub PAT for API enrichment
   PULUMI_CONFIG_PASSPHRASE  Passphrase for Pulumi secrets (if not using interactive login)
   `);
@@ -162,8 +165,8 @@ async function cmdSyncBots() {
 
 async function cmdFetchBigQuery() {
   const args = parseArgs();
-  const startDate =
-    args["--start"] ?? formatDate(weeksAgo(4));
+  const all = "--all" in args;
+  const startDate = args["--start"] ?? (all ? FULL_HISTORY_START : defaultStart());
   const endDate = args["--end"] ?? formatDate(new Date());
   const dryRun = "--dry-run" in args;
 
@@ -242,7 +245,8 @@ async function cmdFetchBigQuery() {
 
 async function cmdBackfill() {
   const args = parseArgs();
-  const startDate = args["--start"] ?? "2023-01-01";
+  const all = "--all" in args;
+  const startDate = args["--start"] ?? (all ? FULL_HISTORY_START : defaultStart());
   const endDate = args["--end"] ?? formatDate(new Date());
   const noResume = "--no-resume" in args;
   const dryRun = "--dry-run" in args;
@@ -457,7 +461,8 @@ async function cmdMigrate() {
 
 async function cmdDiscover() {
   const args = parseArgs();
-  const startDate = args["--start"] ?? formatDate(weeksAgo(4));
+  const all = "--all" in args;
+  const startDate = args["--start"] ?? (all ? FULL_HISTORY_START : defaultStart());
   const endDate = args["--end"] ?? formatDate(new Date());
   const dryRun = "--dry-run" in args;
 
@@ -649,6 +654,16 @@ function parseArgs(): Record<string, string> {
     }
   }
   return result;
+}
+
+/** Full historical start date for --all imports. */
+const FULL_HISTORY_START = "2023-01-01";
+
+/** Default start date: 3 months ago. */
+function defaultStart(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 3);
+  return formatDate(d);
 }
 
 function weeksAgo(n: number): Date {
