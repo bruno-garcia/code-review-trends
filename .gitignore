@@ -18,6 +18,10 @@ blob-report/
 .DS_Store
 Thumbs.db
 
+# Temp
+tmp/
+review.md
+
 # IDE
 .idea/
 .vscode/

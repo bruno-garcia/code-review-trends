@@ -93,6 +93,9 @@ export async function syncBots(
 
   // Ensure bots table has new columns (for migration of existing DBs)
   await client.command({
+    query: `ALTER TABLE bots ADD COLUMN IF NOT EXISTS github_id UInt64 DEFAULT 0`,
+  });
+  await client.command({
     query: `ALTER TABLE bots ADD COLUMN IF NOT EXISTS product_id String DEFAULT ''`,
   });
   await client.command({
@@ -100,6 +103,14 @@ export async function syncBots(
   });
   await client.command({
     query: `ALTER TABLE bots ADD COLUMN IF NOT EXISTS avatar_url String DEFAULT ''`,
+  });
+
+  // Ensure activity tables have pr_comment_count (for migration of existing DBs)
+  await client.command({
+    query: `ALTER TABLE review_activity ADD COLUMN IF NOT EXISTS pr_comment_count UInt64 DEFAULT 0`,
+  });
+  await client.command({
+    query: `ALTER TABLE human_review_activity ADD COLUMN IF NOT EXISTS pr_comment_count UInt64 DEFAULT 0`,
   });
 
   // Write display info to bots table
@@ -110,6 +121,7 @@ export async function syncBots(
       name: b.name,
       website: b.website,
       description: b.description,
+      github_id: b.github_id,
       product_id: b.product_id,
       brand_color: b.brand_color,
       avatar_url: b.avatar_url,
@@ -137,6 +149,7 @@ export type ReviewActivityRow = {
   bot_id: string;
   review_count: number;
   review_comment_count: number;
+  pr_comment_count: number;
   repo_count: number;
   org_count: number;
 };
@@ -166,6 +179,7 @@ export type HumanActivityRow = {
   week: string;
   review_count: number;
   review_comment_count: number;
+  pr_comment_count: number;
   repo_count: number;
 };
 

@@ -197,6 +197,7 @@ describe("Pipeline smoke tests (BigQuery → ClickHouse → App queries)", { ski
         week: row.week,
         review_count: Number(row.review_count),
         review_comment_count: Number(row.review_comment_count),
+        pr_comment_count: Number(row.pr_comment_count),
         repo_count: Number(row.repo_count),
       }));
 
