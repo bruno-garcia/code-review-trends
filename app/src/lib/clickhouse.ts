@@ -236,8 +236,17 @@ export async function getProductById(id: string): Promise<Product | null> {
   return rows[0] ?? null;
 }
 
-export async function getProductSummaries(): Promise<ProductSummary[]> {
-  return query<ProductSummary>(`
+export async function getProductSummaries(since?: string): Promise<ProductSummary[]> {
+  // Don't filter the CTE — apply since via sumIf so growth_pct always has
+  // access to the full 8-week window it needs for comparison.
+  const sinceCond = since
+    ? "week >= toDate({since:String})"
+    : "1";
+  const reactionSinceFilter = since
+    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    : "";
+  return query<ProductSummary>(
+    `
     WITH
       weekly_product AS (
         SELECT
@@ -255,12 +264,12 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
       activity_agg AS (
         SELECT
           product_id,
-          sum(review_count) AS total_reviews,
-          sum(review_comment_count) AS total_comments,
-          sum(pr_comment_count) AS total_pr_comments,
-          max(repo_count) AS max_repos,
-          max(org_count) AS max_orgs,
-          min(week) AS first_seen,
+          sumIf(review_count, ${sinceCond}) AS total_reviews,
+          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
+          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
+          maxIf(repo_count, ${sinceCond}) AS max_repos,
+          maxIf(org_count, ${sinceCond}) AS max_orgs,
+          minIf(week, ${sinceCond}) AS first_seen,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
         FROM weekly_product
@@ -274,7 +283,7 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
           sum(c.heart) AS heart
         FROM pr_comments c FINAL
         JOIN bots b FINAL ON c.bot_id = b.id
-        WHERE c.comment_id > 0
+        WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY b.product_id
       )
     SELECT
@@ -309,13 +318,22 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY total_reviews DESC
-  `);
+    `,
+    since ? { since } : {},
+  );
 }
 
 export async function getWeeklyActivityByProduct(
   productId?: string,
+  since?: string,
 ): Promise<WeeklyActivityByProduct[]> {
-  const where = productId ? "WHERE b.product_id = {productId:String}" : "";
+  const conditions: string[] = [];
+  if (productId) conditions.push("b.product_id = {productId:String}");
+  if (since) conditions.push("ra.week >= toDate({since:String})");
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const params: Record<string, string> = {};
+  if (productId) params.productId = productId;
+  if (since) params.since = since;
   return query<WeeklyActivityByProduct>(
     `
       SELECT
@@ -335,12 +353,19 @@ export async function getWeeklyActivityByProduct(
       GROUP BY ra.week, b.product_id, p.name, p.brand_color
       ORDER BY ra.week ASC, review_count DESC
     `,
-    productId ? { productId } : {},
+    params,
   );
 }
 
-export async function getProductComparisons(): Promise<ProductComparison[]> {
-  return query<ProductComparison>(`
+export async function getProductComparisons(since?: string): Promise<ProductComparison[]> {
+  const sinceCond = since
+    ? "week >= toDate({since:String})"
+    : "1";
+  const reactionSinceFilter = since
+    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    : "";
+  return query<ProductComparison>(
+    `
     WITH
       weekly_product AS (
         SELECT
@@ -358,12 +383,12 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
       activity_agg AS (
         SELECT
           product_id,
-          sum(review_count) AS total_reviews,
-          sum(review_comment_count) AS total_comments,
-          sum(pr_comment_count) AS total_pr_comments,
-          max(repo_count) AS max_repos,
-          max(org_count) AS max_orgs,
-          count(DISTINCT week) AS weeks_active,
+          sumIf(review_count, ${sinceCond}) AS total_reviews,
+          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
+          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
+          maxIf(repo_count, ${sinceCond}) AS max_repos,
+          maxIf(org_count, ${sinceCond}) AS max_orgs,
+          countIf(DISTINCT week, ${sinceCond}) AS weeks_active,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
           sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
@@ -379,7 +404,7 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
           sum(c.heart) AS heart
         FROM pr_comments c FINAL
         JOIN bots b FINAL ON c.bot_id = b.id
-        WHERE c.comment_id > 0
+        WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY b.product_id
       )
     SELECT
@@ -414,10 +439,15 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY total_reviews DESC
-  `);
+    `,
+    since ? { since } : {},
+  );
 }
 
-export async function getProductBots(productId: string): Promise<ProductBot[]> {
+export async function getProductBots(productId: string, since?: string): Promise<ProductBot[]> {
+  const sinceFilter = since ? "AND ra.week >= toDate({since:String})" : "";
+  const params: Record<string, string> = { productId };
+  if (since) params.since = since;
   return query<ProductBot>(
     `
       SELECT
@@ -432,12 +462,12 @@ export async function getProductBots(productId: string): Promise<ProductBot[]> {
         COALESCE(formatDateTime(max(ra.week), '%Y-%m-%d'), '') AS last_week
       FROM bots b FINAL
       LEFT JOIN bot_logins bl FINAL ON b.id = bl.bot_id
-      LEFT JOIN review_activity ra FINAL ON b.id = ra.bot_id
+      LEFT JOIN review_activity ra FINAL ON b.id = ra.bot_id ${sinceFilter}
       WHERE b.product_id = {productId:String}
       GROUP BY b.id, b.name, bl.github_login, b.brand_color
       ORDER BY total_reviews DESC
     `,
-    { productId },
+    params,
   );
 }
 
@@ -501,8 +531,10 @@ export async function getWeeklyActivity(
   );
 }
 
-export async function getWeeklyTotals(): Promise<WeeklyTotals[]> {
-  return query<WeeklyTotals>(`
+export async function getWeeklyTotals(since?: string): Promise<WeeklyTotals[]> {
+  const sinceFilter = since ? "WHERE h.week >= toDate({since:String})" : "";
+  return query<WeeklyTotals>(
+    `
     SELECT
       formatDateTime(h.week, '%Y-%m-%d') AS week,
       COALESCE(b.bot_reviews, 0) AS bot_reviews,
@@ -520,22 +552,32 @@ export async function getWeeklyTotals(): Promise<WeeklyTotals[]> {
       FROM review_activity FINAL
       GROUP BY week
     ) b ON h.week = b.week
+    ${sinceFilter}
     ORDER BY h.week ASC
-  `);
+    `,
+    since ? { since } : {},
+  );
 }
 
-export async function getBotSummaries(): Promise<BotSummary[]> {
-  return query<BotSummary>(`
+export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
+  const sinceCond = since
+    ? "week >= toDate({since:String})"
+    : "1";
+  const reactionSinceFilter = since
+    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    : "";
+  return query<BotSummary>(
+    `
     WITH
       activity_agg AS (
         SELECT
           bot_id,
-          sum(review_count) AS total_reviews,
-          sum(review_comment_count) AS total_comments,
-          sum(pr_comment_count) AS total_pr_comments,
-          max(repo_count) AS max_repos,
-          max(org_count) AS max_orgs,
-          min(week) AS first_seen,
+          sumIf(review_count, ${sinceCond}) AS total_reviews,
+          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
+          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
+          maxIf(repo_count, ${sinceCond}) AS max_repos,
+          maxIf(org_count, ${sinceCond}) AS max_orgs,
+          minIf(week, ${sinceCond}) AS first_seen,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
         FROM review_activity FINAL
@@ -548,7 +590,7 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
           sum(c.thumbs_down) AS thumbs_down,
           sum(c.heart) AS heart
         FROM pr_comments c FINAL
-        WHERE c.comment_id > 0
+        WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY c.bot_id
       )
     SELECT
@@ -583,12 +625,20 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
-  `);
+    `,
+    since ? { since } : {},
+  );
 }
 
 export async function getBotReactions(
   botId: string,
+  since?: string,
 ): Promise<WeeklyReactions[]> {
+  const sinceFilter = since
+    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    : "";
+  const params: Record<string, string> = { botId };
+  if (since) params.since = since;
   return query<WeeklyReactions>(
     `
       SELECT
@@ -600,17 +650,23 @@ export async function getBotReactions(
         sum(c.confused) AS confused
       FROM pr_comments c FINAL
       JOIN bots b FINAL ON c.bot_id = b.id
-      WHERE b.id = {botId:String} AND c.comment_id > 0
+      WHERE b.id = {botId:String} AND c.comment_id > 0 ${sinceFilter}
       GROUP BY week
       ORDER BY week ASC
     `,
-    { botId },
+    params,
   );
 }
 
 export async function getProductReactions(
   productId: string,
+  since?: string,
 ): Promise<WeeklyReactions[]> {
+  const sinceFilter = since
+    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    : "";
+  const params: Record<string, string> = { productId };
+  if (since) params.since = since;
   return query<WeeklyReactions>(
     `
       SELECT
@@ -622,26 +678,33 @@ export async function getProductReactions(
         sum(c.confused) AS confused
       FROM pr_comments c FINAL
       JOIN bots b FINAL ON c.bot_id = b.id
-      WHERE b.product_id = {productId:String} AND c.comment_id > 0
+      WHERE b.product_id = {productId:String} AND c.comment_id > 0 ${sinceFilter}
       GROUP BY week
       ORDER BY week ASC
     `,
-    { productId },
+    params,
   );
 }
 
-export async function getBotComparisons(): Promise<BotComparison[]> {
-  return query<BotComparison>(`
+export async function getBotComparisons(since?: string): Promise<BotComparison[]> {
+  const sinceCond = since
+    ? "week >= toDate({since:String})"
+    : "1";
+  const reactionSinceFilter = since
+    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    : "";
+  return query<BotComparison>(
+    `
     WITH
       activity_agg AS (
         SELECT
           bot_id,
-          sum(review_count) AS total_reviews,
-          sum(review_comment_count) AS total_comments,
-          sum(pr_comment_count) AS total_pr_comments,
-          max(repo_count) AS max_repos,
-          max(org_count) AS max_orgs,
-          count() AS weeks_active,
+          sumIf(review_count, ${sinceCond}) AS total_reviews,
+          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
+          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
+          maxIf(repo_count, ${sinceCond}) AS max_repos,
+          maxIf(org_count, ${sinceCond}) AS max_orgs,
+          countIf(${sinceCond}) AS weeks_active,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
           sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
@@ -656,7 +719,7 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
           sum(c.thumbs_down) AS thumbs_down,
           sum(c.heart) AS heart
         FROM pr_comments c FINAL
-        WHERE c.comment_id > 0
+        WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY c.bot_id
       )
     SELECT
@@ -690,7 +753,9 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
-  `);
+    `,
+    since ? { since } : {},
+  );
 }
 
 // --- New entity-level queries ---
@@ -724,8 +789,12 @@ export type BotReactions = {
   approval_rate: number;
 };
 
-export async function getBotReactionLeaderboard(): Promise<BotReactions[]> {
-  return query<BotReactions>(`
+export async function getBotReactionLeaderboard(since?: string): Promise<BotReactions[]> {
+  const sinceFilter = since
+    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    : "";
+  return query<BotReactions>(
+    `
     SELECT
       c.bot_id,
       b.name AS bot_name,
@@ -739,10 +808,12 @@ export async function getBotReactionLeaderboard(): Promise<BotReactions[]> {
         0), 1) AS approval_rate
     FROM pr_comments c FINAL
     JOIN bots b FINAL ON c.bot_id = b.id
-    WHERE c.comment_id > 0
+    WHERE c.comment_id > 0 ${sinceFilter}
     GROUP BY c.bot_id, b.name, b.product_id
     ORDER BY total_thumbs_up DESC
-  `);
+    `,
+    since ? { since } : {},
+  );
 }
 
 export type BotCommentsPerPR = {
@@ -754,8 +825,14 @@ export type BotCommentsPerPR = {
   total_comments: number;
 };
 
-export async function getAvgCommentsPerPR(botId?: string): Promise<BotCommentsPerPR[]> {
-  const where = botId ? "AND c.bot_id = {botId:String}" : "";
+export async function getAvgCommentsPerPR(botId?: string, since?: string): Promise<BotCommentsPerPR[]> {
+  const conditions = ["c.comment_id > 0"];
+  if (botId) conditions.push("c.bot_id = {botId:String}");
+  if (since) conditions.push("toDate(c.created_at) >= toDate({since:String})");
+  const where = `WHERE ${conditions.join(" AND ")}`;
+  const params: Record<string, string> = {};
+  if (botId) params.botId = botId;
+  if (since) params.since = since;
   return query<BotCommentsPerPR>(
     `SELECT
       c.bot_id,
@@ -767,10 +844,10 @@ export async function getAvgCommentsPerPR(botId?: string): Promise<BotCommentsPe
       count() AS total_comments
     FROM pr_comments c FINAL
     JOIN bots b FINAL ON c.bot_id = b.id
-    WHERE c.comment_id > 0 ${where}
+    ${where}
     GROUP BY c.bot_id, b.name, b.product_id
     ORDER BY avg_comments_per_pr DESC`,
-    botId ? { botId } : {},
+    params,
   );
 }
 
@@ -782,9 +859,16 @@ export type BotByLanguage = {
   comment_count: number;
 };
 
-export async function getBotsByLanguage(botId?: string): Promise<BotByLanguage[]> {
-  const where = botId ? "AND e.bot_id = {botId:String}" : "";
-  return query<BotByLanguage>(`
+export async function getBotsByLanguage(botId?: string, since?: string): Promise<BotByLanguage[]> {
+  const conditions = ["r.primary_language != ''"];
+  if (botId) conditions.push("e.bot_id = {botId:String}");
+  if (since) conditions.push("e.event_week >= toDate({since:String})");
+  const where = `WHERE ${conditions.join(" AND ")}`;
+  const params: Record<string, string> = {};
+  if (botId) params.botId = botId;
+  if (since) params.since = since;
+  return query<BotByLanguage>(
+    `
     SELECT
       e.bot_id,
       b.name AS bot_name,
@@ -794,10 +878,12 @@ export async function getBotsByLanguage(botId?: string): Promise<BotByLanguage[]
     FROM pr_bot_events e
     JOIN bots b ON e.bot_id = b.id
     JOIN repos r ON e.repo_name = r.name
-    WHERE r.primary_language != '' ${where}
+    ${where}
     GROUP BY e.bot_id, b.name, r.primary_language
     ORDER BY pr_count DESC
-  `, botId ? { botId } : {});
+    `,
+    params,
+  );
 }
 
 export type ReactionsByPRSize = {
@@ -807,8 +893,14 @@ export type ReactionsByPRSize = {
   pr_count: number;
 };
 
-export async function getReactionsByPRSize(botId?: string): Promise<ReactionsByPRSize[]> {
-  const where = botId ? "AND c.bot_id = {botId:String}" : "";
+export async function getReactionsByPRSize(botId?: string, since?: string): Promise<ReactionsByPRSize[]> {
+  const conditions = ["c.comment_id > 0"];
+  if (botId) conditions.push("c.bot_id = {botId:String}");
+  if (since) conditions.push("toDate(c.created_at) >= toDate({since:String})");
+  const where = `WHERE ${conditions.join(" AND ")}`;
+  const params: Record<string, string> = {};
+  if (botId) params.botId = botId;
+  if (since) params.since = since;
   return query<ReactionsByPRSize>(
     `SELECT
       multiIf(
@@ -823,10 +915,10 @@ export async function getReactionsByPRSize(botId?: string): Promise<ReactionsByP
       countDistinct(c.repo_name, c.pr_number) AS pr_count
     FROM pr_comments c FINAL
     JOIN pull_requests p ON c.repo_name = p.repo_name AND c.pr_number = p.pr_number
-    WHERE c.comment_id > 0 ${where}
+    ${where}
     GROUP BY size_bucket
     ORDER BY pr_count DESC`,
-    botId ? { botId } : {},
+    params,
   );
 }
 

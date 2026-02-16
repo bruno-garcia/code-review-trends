@@ -11,16 +11,25 @@ import {
   TopOrgsChart,
 } from "@/components/charts";
 import { FilteredHome } from "@/components/filtered-home";
+import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const range = parseTimeRange(params.range as string | undefined);
+  const since = computeCutoffDate(range) ?? undefined;
+
   const [totals, activity, summaries, topOrgs, reactionLeaderboard, enrichmentStats] = await Promise.all([
-    getWeeklyTotals(),
-    getWeeklyActivityByProduct(),
-    getProductSummaries(),
+    getWeeklyTotals(since),
+    getWeeklyActivityByProduct(undefined, since),
+    getProductSummaries(since),
     getTopOrgsByStars(20),
-    getBotReactionLeaderboard(),
+    getBotReactionLeaderboard(since),
     getEnrichmentStats(),
   ]);
 

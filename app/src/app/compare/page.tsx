@@ -1,12 +1,21 @@
 import { getProductComparisons, getAvgCommentsPerPR } from "@/lib/clickhouse";
+import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import { CompareCharts } from "./compare-charts";
 
 export const dynamic = "force-dynamic";
 
-export default async function ComparePage() {
+export default async function ComparePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const range = parseTimeRange(params.range as string | undefined);
+  const since = computeCutoffDate(range) ?? undefined;
+
   const [products, commentsPerPR] = await Promise.all([
-    getProductComparisons(),
-    getAvgCommentsPerPR(),
+    getProductComparisons(since),
+    getAvgCommentsPerPR(undefined, since),
   ]);
 
   return (

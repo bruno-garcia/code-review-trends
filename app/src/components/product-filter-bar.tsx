@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useProductFilter } from "@/lib/product-filter";
+import { TimeRangeSelector } from "@/components/time-range-selector";
 
 function ChevronDown({ className }: { className?: string }) {
   return (
@@ -94,6 +95,10 @@ export function ProductFilterBar() {
           <span className="text-xs text-gray-500 whitespace-nowrap shrink-0">
             Showing {selectedProducts.length} of {allProducts.length} products
           </span>
+
+          <div className="border-l border-theme-border pl-3 ml-1" onClick={(e) => e.stopPropagation()}>
+            <TimeRangeSelector />
+          </div>
 
           <div className="flex-1 flex flex-wrap items-center gap-1.5">
             {selectedProducts.map((p) => (
