@@ -107,7 +107,7 @@ export function ProductFilterBar() {
             <TimeRangeSelector />
           </div>
 
-          <div className="flex-1 flex flex-wrap items-center gap-1.5">
+          <div className="flex-1 hidden sm:flex flex-wrap items-center gap-1.5">
             {selectedProducts.map((p) => (
               <span
                 key={p.id}
