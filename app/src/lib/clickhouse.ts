@@ -1135,3 +1135,83 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
     total_comments: 0,
   };
 }
+
+// --- Data collection stats (for /about page) ---
+
+export type DataCollectionStats = {
+  // BigQuery backfill
+  bigquery_first_week: string;
+  bigquery_last_week: string;
+  bigquery_total_weeks: number;
+  bigquery_last_run: string | null;
+  bigquery_completed_chunks: number;
+  // GitHub enrichment — repos
+  repos_total: number;
+  repos_ok: number;
+  repos_not_found: number;
+  repos_pending: number;
+  // GitHub enrichment — PRs
+  prs_discovered: number;
+  prs_enriched: number;
+  // GitHub enrichment — comments
+  comments_discovered: number;
+  comments_enriched: number;
+};
+
+export async function getDataCollectionStats(): Promise<DataCollectionStats> {
+  const rows = await query<DataCollectionStats>(`
+    SELECT
+      -- BigQuery backfill range
+      (SELECT toString(min(week)) FROM review_activity FINAL) AS bigquery_first_week,
+      (SELECT toString(max(week)) FROM review_activity FINAL) AS bigquery_last_week,
+      (SELECT uniqExact(week) FROM review_activity FINAL) AS bigquery_total_weeks,
+      -- Repos enrichment
+      (SELECT count() FROM repos FINAL) AS repos_total,
+      (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
+      (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
+      (SELECT countIf(fetch_status NOT IN ('ok', 'not_found')) FROM repos FINAL) AS repos_pending,
+      -- PRs
+      (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events FINAL) AS prs_discovered,
+      (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
+      -- Comments: discovered = distinct (repo, pr, bot) combos in pr_bot_events,
+      -- enriched = distinct combos in pr_comments
+      (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events FINAL) AS comments_discovered,
+      (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_comments FINAL) AS comments_enriched
+  `);
+
+  // Backfill state from pipeline_state (may not exist)
+  let bigqueryLastRun: string | null = null;
+  let bigqueryCompletedChunks = 0;
+  try {
+    const stateRows = await query<{ last_run: string; chunks: number }>(`
+      SELECT
+        toString(max(completed_at)) AS last_run,
+        count() AS chunks
+      FROM pipeline_state FINAL
+      WHERE job_name = 'backfill'
+    `);
+    if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
+      bigqueryLastRun = stateRows[0].last_run;
+      bigqueryCompletedChunks = Number(stateRows[0].chunks);
+    }
+  } catch {
+    // pipeline_state table may not exist
+  }
+
+  const base = rows[0];
+  return {
+    bigquery_first_week: base?.bigquery_first_week ?? "",
+    bigquery_last_week: base?.bigquery_last_week ?? "",
+    bigquery_total_weeks: Number(base?.bigquery_total_weeks ?? 0),
+    bigquery_last_run: bigqueryLastRun,
+    bigquery_completed_chunks: bigqueryCompletedChunks,
+    repos_total: Number(base?.repos_total ?? 0),
+    repos_ok: Number(base?.repos_ok ?? 0),
+    repos_not_found: Number(base?.repos_not_found ?? 0),
+    repos_pending: Number(base?.repos_pending ?? 0),
+    prs_discovered: Number(base?.prs_discovered ?? 0),
+    prs_enriched: Number(base?.prs_enriched ?? 0),
+    comments_discovered: Number(base?.comments_discovered ?? 0),
+    comments_enriched: Number(base?.comments_enriched ?? 0),
+  };
+}
