@@ -410,13 +410,13 @@ export function ReactionChart({ data }: { data: ReactionData[] }) {
           tick={{ fontSize: 12 }}
           tickFormatter={formatNumber}
         />
-        <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeekLong(String(v))} />
+        <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} labelFormatter={(v) => formatWeekLong(String(v))} />
         <Legend wrapperStyle={c.legendStyle} />
-        <Bar cursor={false} dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
-        <Bar cursor={false} dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
-        <Bar cursor={false} dataKey="laugh" fill="#f59e0b" name="😄" stackId="a" />
-        <Bar cursor={false} dataKey="confused" fill="#8b5cf6" name="😕" stackId="b" />
-        <Bar cursor={false} dataKey="thumbs_down" fill="#ef4444" name="👎" stackId="b" />
+        <Bar dataKey="thumbs_up" fill="#10b981" name="👍" stackId="a" />
+        <Bar dataKey="heart" fill="#ec4899" name="❤️" stackId="a" />
+        <Bar dataKey="laugh" fill="#f59e0b" name="😄" stackId="a" />
+        <Bar dataKey="confused" fill="#8b5cf6" name="😕" stackId="b" />
+        <Bar dataKey="thumbs_down" fill="#ef4444" name="👎" stackId="b" />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -526,11 +526,11 @@ export function BotReactionLeaderboardChart({
             tick={{ fontSize: 12 }}
             width={130}
           />
-          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
+          <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
-          <Bar cursor={false} dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" />
-          <Bar cursor={false} dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" />
-          <Bar cursor={false} dataKey="total_thumbs_down" fill="#ef4444" name="👎" stackId="a" />
+          <Bar dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" />
+          <Bar dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" />
+          <Bar dataKey="total_thumbs_down" fill="#ef4444" name="👎" stackId="a" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -590,10 +590,10 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
             tick={{ fontSize: 12 }}
             tickFormatter={formatNumber}
           />
-          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
+          <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           {bots.map((bot, i) => (
-            <Bar cursor={false} key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
+            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} />
           ))}
         </BarChart>
       </ResponsiveContainer>
@@ -635,6 +635,7 @@ export function ReactionsByPRSizeChart({
           <XAxis dataKey="size_bucket" stroke={c.barAxis} tick={{ fontSize: 12 }} />
           <YAxis stroke={c.barAxis} tick={{ fontSize: 12 }} />
           <Tooltip
+            cursor={false}
             contentStyle={c.tooltipStyle}
             wrapperStyle={TOOLTIP_WRAPPER_STYLE}
             formatter={(value, name) => [
@@ -647,8 +648,8 @@ export function ReactionsByPRSizeChart({
               value === "avg_thumbs_up" ? "Avg 👍" : "Avg 👎"
             }
           />
-          <Bar cursor={false} dataKey="avg_thumbs_up" fill="#10b981" name="avg_thumbs_up" />
-          <Bar cursor={false} dataKey="avg_thumbs_down" fill="#ef4444" name="avg_thumbs_down" />
+          <Bar dataKey="avg_thumbs_up" fill="#10b981" name="avg_thumbs_up" />
+          <Bar dataKey="avg_thumbs_down" fill="#ef4444" name="avg_thumbs_down" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -691,6 +692,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
             width={130}
           />
           <Tooltip
+            cursor={false}
             contentStyle={c.tooltipStyle}
             wrapperStyle={TOOLTIP_WRAPPER_STYLE}
             formatter={(value, name) => [
@@ -703,7 +705,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
               value === "total_stars" ? "⭐ Stars" : "Repos"
             }
           />
-          <Bar cursor={false} dataKey="total_stars" fill="#f59e0b" name="total_stars" />
+          <Bar dataKey="total_stars" fill="#f59e0b" name="total_stars" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -735,13 +737,14 @@ export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
           <XAxis dataKey="bot_name" stroke={c.barAxis} tick={{ fontSize: 12 }} />
           <YAxis stroke={c.barAxis} tick={{ fontSize: 12 }} />
           <Tooltip
+            cursor={false}
             contentStyle={c.tooltipStyle}
             formatter={(value) => [
               Number(value).toFixed(2),
               "Avg Comments/PR",
             ]}
           />
-          <Bar cursor={false} dataKey="avg_comments_per_pr" fill="#6366f1" name="Avg Comments/PR">
+          <Bar dataKey="avg_comments_per_pr" fill="#6366f1" name="Avg Comments/PR">
             {data.map((_, i) => (
               <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
             ))}
@@ -790,10 +793,11 @@ export function CompareBarChart({
           width={130}
         />
         <Tooltip
+          cursor={false}
           contentStyle={c.tooltipStyle}
           formatter={(value) => [fmt(Number(value)), label]}
         />
-        <Bar cursor={false} dataKey="value" radius={[0, 4, 4, 0]}>
+        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
           {data.map((entry, i) => (
             <Cell key={`cell-${i}`} fill={entry.color} />
           ))}
