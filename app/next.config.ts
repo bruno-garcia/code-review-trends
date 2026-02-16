@@ -18,10 +18,10 @@ function getGitCommitSha(): string {
 const commitSha = getGitCommitSha();
 
 const nextConfig: NextConfig = {
-  // Enables built-in deployment skew protection: Next.js bakes this into
-  // the client bundle and sends it as x-deployment-id on RSC navigations.
-  // If the server's ID differs, the client hard-reloads automatically.
-  deploymentId: commitSha,
+  // On Vercel, deployment skew protection is handled automatically — Vercel
+  // injects NEXT_DEPLOYMENT_ID. Setting deploymentId here would conflict.
+  // Only set it for non-Vercel builds (local dev, self-hosted).
+  ...(process.env.VERCEL ? {} : { deploymentId: commitSha }),
 
   // Expose the SHA to client components for the version stamp
   env: {

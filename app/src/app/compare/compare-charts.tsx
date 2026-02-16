@@ -356,7 +356,7 @@ export function CompareCharts({
       {/* Comments per PR */}
       <section data-testid="comments-per-pr-section">
         <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           Average number of review comments each bot leaves per pull request.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">

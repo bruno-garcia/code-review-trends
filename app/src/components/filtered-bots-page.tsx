@@ -77,7 +77,7 @@ export function FilteredBotsPage({
         <p className="text-theme-muted mb-6">
           Weekly review count for each AI code review product.
           {filteredSummaries.length < summaries.length && (
-            <span className="text-theme-muted/70">
+            <span className="text-theme-muted-dim">
               {" "}
               Showing {filteredSummaries.length} of {summaries.length} products.
             </span>
@@ -135,7 +135,7 @@ export function FilteredBotsPage({
                           alt={product.name}
                           width={20}
                           height={20}
-                          className="rounded-full bg-theme-surface border border-theme-border"
+                          className="rounded-full bg-theme-surface-alt border border-theme-border"
                         />
                       )}
                       <span
