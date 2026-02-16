@@ -1,8 +1,13 @@
 -- Bot reference data — products, bots, and bot_logins.
 -- Must match pipeline/src/bots.ts. Applied to ALL environments (local, CI, staging, prod).
 -- The bots.test.ts test validates consistency between this file and the TypeScript registry.
+--
+-- TRUNCATE + INSERT ensures re-running this file is fully idempotent.
+-- These are small reference tables so the cost is negligible.
 
 -- Products
+
+TRUNCATE TABLE IF EXISTS code_review_trends.products;
 
 INSERT INTO code_review_trends.products (id, name, website, description, brand_color, avatar_url) VALUES
     ('coderabbit', 'CodeRabbit', 'https://coderabbit.ai', 'AI code review agent that provides contextual feedback on pull requests.', '#f97316', 'https://avatars.githubusercontent.com/in/347564?v=4'),
@@ -30,6 +35,9 @@ INSERT INTO code_review_trends.products (id, name, website, description, brand_c
     ('augment', 'Augment Code', 'https://augmentcode.com', 'AI coding assistant with automated code review on pull requests.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4');
 
 -- Bots
+
+TRUNCATE TABLE IF EXISTS code_review_trends.bots;
+
 INSERT INTO code_review_trends.bots (id, name, product_id, website, description, brand_color, avatar_url) VALUES
     ('coderabbit', 'CodeRabbit', 'coderabbit', 'https://coderabbit.ai', 'AI code review agent that provides contextual feedback on pull requests.', '#f97316', 'https://avatars.githubusercontent.com/in/347564?v=4'),
     ('copilot', 'GitHub Copilot', 'copilot', 'https://github.com/features/copilot', 'GitHub''s AI pair programmer, also provides code review suggestions.', '#e5e7eb', 'https://avatars.githubusercontent.com/in/946600?v=4'),
@@ -61,6 +69,9 @@ INSERT INTO code_review_trends.bots (id, name, product_id, website, description,
     ('augment', 'Augment Code', 'augment', 'https://augmentcode.com', 'AI coding assistant with automated code review on pull requests.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4');
 
 -- Bot logins (GitHub usernames)
+
+TRUNCATE TABLE IF EXISTS code_review_trends.bot_logins;
+
 INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
     ('coderabbit', 'coderabbitai[bot]'),
     ('copilot', 'copilot-pull-request-reviewer[bot]'),
