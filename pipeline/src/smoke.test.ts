@@ -268,74 +268,161 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
       ]);
     });
 
-    it("product summaries have non-zero orgs", async () => {
-      const rows = await query<{ id: string; total_orgs: string }>(
+    // ── Product-level queries ──────────────────────────────────────────
+
+    it("getProductSummaries: non-zero reviews, repos, orgs", async () => {
+      const rows = await query<{
+        id: string; total_reviews: string; total_comments: string;
+        total_repos: string; total_orgs: string; avg_comments_per_review: string;
+        first_seen: string;
+      }>(
         ch,
-        `WITH weekly_product AS (
-          SELECT b.product_id, ra.week, sum(ra.org_count) AS org_count
-          FROM review_activity ra FINAL JOIN bots b FINAL ON ra.bot_id = b.id
-          WHERE ra.week >= {start:Date}
-          GROUP BY b.product_id, ra.week
-        )
-        SELECT product_id AS id, max(org_count) AS total_orgs
-        FROM weekly_product
-        GROUP BY product_id
-        HAVING total_orgs > 0
-        ORDER BY total_orgs DESC
-        LIMIT 5`,
-        { start: TEST_START },
+        `WITH
+          weekly_product AS (
+            SELECT b.product_id, ra.week,
+              sum(ra.review_count) AS review_count, sum(ra.review_comment_count) AS review_comment_count,
+              sum(ra.repo_count) AS repo_count, sum(ra.org_count) AS org_count
+            FROM review_activity ra FINAL JOIN bots b FINAL ON ra.bot_id = b.id
+            GROUP BY b.product_id, ra.week
+          ),
+          activity_agg AS (
+            SELECT product_id, sum(review_count) AS total_reviews, sum(review_comment_count) AS total_comments,
+              max(repo_count) AS max_repos, max(org_count) AS max_orgs, min(week) AS first_seen
+            FROM weekly_product GROUP BY product_id
+          )
+        SELECT p.id,
+          COALESCE(ra.total_reviews, 0) AS total_reviews, COALESCE(ra.total_comments, 0) AS total_comments,
+          COALESCE(ra.max_repos, 0) AS total_repos, COALESCE(ra.max_orgs, 0) AS total_orgs,
+          round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
+          COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
+        FROM products p FINAL LEFT JOIN activity_agg ra ON p.id = ra.product_id
+        ORDER BY total_reviews DESC`,
       );
-      assert.ok(rows.length > 0, "No products have org_count > 0 after pipeline run");
-      assert.ok(Number(rows[0].total_orgs) > 0, `Top product has total_orgs=${rows[0].total_orgs}`);
+      assert.ok(rows.length > 0, "No product summaries returned");
+      const active = rows.filter((r) => Number(r.total_reviews) > 0);
+      assert.ok(active.length > 0, "No products have total_reviews > 0");
+      assert.ok(active.some((r) => Number(r.total_repos) > 0), "All products have total_repos=0");
+      assert.ok(active.some((r) => Number(r.total_orgs) > 0), "All products have total_orgs=0");
+      assert.ok(active.some((r) => Number(r.avg_comments_per_review) > 0), "All products have avg_comments_per_review=0");
+      assert.ok(active.some((r) => r.first_seen.length > 0), "No products have first_seen populated");
     });
 
-    it("product summaries have non-zero repos", async () => {
-      const rows = await query<{ id: string; total_repos: string }>(
+    it("getProductComparisons: reviews_per_org and comments_per_repo", async () => {
+      const rows = await query<{
+        id: string; total_repos: string; total_orgs: string;
+        comments_per_repo: string; reviews_per_org: string; weeks_active: string;
+      }>(
         ch,
-        `WITH weekly_product AS (
-          SELECT b.product_id, ra.week, sum(ra.repo_count) AS repo_count
-          FROM review_activity ra FINAL JOIN bots b FINAL ON ra.bot_id = b.id
-          WHERE ra.week >= {start:Date}
-          GROUP BY b.product_id, ra.week
-        )
-        SELECT product_id AS id, max(repo_count) AS total_repos
-        FROM weekly_product
-        GROUP BY product_id
-        HAVING total_repos > 0
-        LIMIT 5`,
-        { start: TEST_START },
+        `WITH
+          weekly_product AS (
+            SELECT b.product_id, ra.week,
+              sum(ra.review_count) AS review_count, sum(ra.review_comment_count) AS review_comment_count,
+              sum(ra.repo_count) AS repo_count, sum(ra.org_count) AS org_count
+            FROM review_activity ra FINAL JOIN bots b FINAL ON ra.bot_id = b.id
+            GROUP BY b.product_id, ra.week
+          ),
+          activity_agg AS (
+            SELECT product_id, sum(review_count) AS total_reviews, sum(review_comment_count) AS total_comments,
+              max(repo_count) AS max_repos, max(org_count) AS max_orgs, count(DISTINCT week) AS weeks_active
+            FROM weekly_product GROUP BY product_id
+          )
+        SELECT p.id, COALESCE(ra.max_repos, 0) AS total_repos, COALESCE(ra.max_orgs, 0) AS total_orgs,
+          round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
+          round(if(ra.max_orgs > 0, ra.total_reviews / ra.max_orgs, 0), 0) AS reviews_per_org,
+          COALESCE(ra.weeks_active, 0) AS weeks_active
+        FROM products p FINAL LEFT JOIN activity_agg ra ON p.id = ra.product_id
+        ORDER BY total_repos DESC`,
       );
-      assert.ok(rows.length > 0, "No products have repo_count > 0 after pipeline run");
+      const active = rows.filter((r) => Number(r.total_repos) > 0);
+      assert.ok(active.length > 0, "No products with repos");
+      assert.ok(active.some((r) => Number(r.reviews_per_org) > 0), "All products have reviews_per_org=0");
+      assert.ok(active.some((r) => Number(r.comments_per_repo) > 0), "All products have comments_per_repo=0");
+      assert.ok(active.some((r) => Number(r.weeks_active) > 0), "All products have weeks_active=0");
     });
 
-    it("weekly totals show bot share > 0", async () => {
-      const rows = await query<{ bot_share_pct: string }>(
+    // ── Bot-level queries ───────────────────────────────────────────────
+
+    it("getBotSummaries: non-zero reviews, repos, orgs per bot", async () => {
+      const rows = await query<{
+        id: string; total_reviews: string; total_repos: string; total_orgs: string;
+      }>(
         ch,
-        `SELECT round(b.bot_reviews * 100.0 / (h.review_count + b.bot_reviews), 2) AS bot_share_pct
+        `WITH activity_agg AS (
+          SELECT bot_id, sum(review_count) AS total_reviews,
+            max(repo_count) AS max_repos, max(org_count) AS max_orgs
+          FROM review_activity FINAL GROUP BY bot_id
+        )
+        SELECT b.id, COALESCE(ra.total_reviews, 0) AS total_reviews,
+          COALESCE(ra.max_repos, 0) AS total_repos, COALESCE(ra.max_orgs, 0) AS total_orgs
+        FROM bots b FINAL LEFT JOIN activity_agg ra ON b.id = ra.bot_id
+        ORDER BY total_reviews DESC`,
+      );
+      assert.ok(rows.length > 0, "No bot summaries returned");
+      const active = rows.filter((r) => Number(r.total_reviews) > 0);
+      assert.ok(active.length > 0, "No bots have total_reviews > 0");
+      assert.ok(active.some((r) => Number(r.total_repos) > 0), "All bots have total_repos=0");
+      assert.ok(active.some((r) => Number(r.total_orgs) > 0), "All bots have total_orgs=0");
+    });
+
+    // ── Weekly totals ───────────────────────────────────────────────────
+
+    it("getWeeklyTotals: bot share between 0-100, humans > bots", async () => {
+      const rows = await query<{
+        week: string; bot_reviews: string; human_reviews: string; bot_share_pct: string;
+      }>(
+        ch,
+        `SELECT formatDateTime(h.week, '%Y-%m-%d') AS week,
+          COALESCE(b.bot_reviews, 0) AS bot_reviews, h.review_count AS human_reviews,
+          round(COALESCE(b.bot_reviews, 0) * 100.0 / (h.review_count + COALESCE(b.bot_reviews, 0)), 2) AS bot_share_pct
          FROM human_review_activity h FINAL
-         JOIN (SELECT week, sum(review_count) AS bot_reviews FROM review_activity FINAL GROUP BY week) b ON h.week = b.week
-         WHERE h.week >= {start:Date}
-         LIMIT 1`,
-        { start: TEST_START },
+         LEFT JOIN (SELECT week, sum(review_count) AS bot_reviews FROM review_activity FINAL GROUP BY week) b ON h.week = b.week
+         ORDER BY h.week ASC`,
       );
       assert.ok(rows.length > 0, "No weekly totals found");
       assert.ok(Number(rows[0].bot_share_pct) > 0, "Bot share is 0%");
+      for (const r of rows) {
+        const pct = Number(r.bot_share_pct);
+        assert.ok(pct > 0 && pct < 100, `bot_share_pct out of range: ${pct}`);
+        assert.ok(
+          Number(r.human_reviews) > Number(r.bot_reviews),
+          `human (${r.human_reviews}) should exceed bot (${r.bot_reviews}) reviews`,
+        );
+      }
     });
+
+    // ── Discovery data ──────────────────────────────────────────────────
 
     it("pr_bot_events have valid repo/PR data", async () => {
       const rows = await query<{ total: string; with_repo: string; with_pr: string }>(
         ch,
-        `SELECT
-          count() AS total,
+        `SELECT count() AS total,
           countIf(repo_name != '' AND repo_name LIKE '%/%') AS with_repo,
           countIf(pr_number > 0) AS with_pr
-         FROM pr_bot_events
-         WHERE event_week >= {start:Date}`,
+         FROM pr_bot_events WHERE event_week >= {start:Date}`,
         { start: TEST_START },
       );
       assert.ok(Number(rows[0].total) > 0, "No pr_bot_events found");
       assert.equal(rows[0].total, rows[0].with_repo, "Some pr_bot_events have invalid repo_name");
       assert.equal(rows[0].total, rows[0].with_pr, "Some pr_bot_events have invalid pr_number");
+    });
+
+    // ── Cross-table consistency ─────────────────────────────────────────
+
+    it("every bot in review_activity exists in bots table", async () => {
+      const orphans = await query<{ bot_id: string }>(
+        ch,
+        `SELECT DISTINCT ra.bot_id FROM review_activity ra FINAL
+         LEFT JOIN bots b FINAL ON ra.bot_id = b.id WHERE b.id IS NULL OR b.id = ''`,
+      );
+      assert.equal(orphans.length, 0, `Orphan bot_ids: ${orphans.map((r) => r.bot_id).join(", ")}`);
+    });
+
+    it("org_count <= repo_count in review_activity", async () => {
+      const violations = await query<{ bot_id: string; org_count: string; repo_count: string }>(
+        ch,
+        `SELECT bot_id, org_count, repo_count FROM review_activity FINAL WHERE org_count > repo_count`,
+      );
+      assert.equal(violations.length, 0, `org_count > repo_count: ${JSON.stringify(violations.slice(0, 3))}`);
     });
   });
 });

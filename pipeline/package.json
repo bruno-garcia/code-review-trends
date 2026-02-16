@@ -12,10 +12,8 @@
     "validate": "tsx src/tools/validate-schema.ts",
     "discover-bots": "tsx src/tools/discover-bots.ts",
     "status": "tsx src/tools/status.ts",
-    "test": "node --import tsx --test src/**/*.test.ts --test-skip-pattern='smoke|app-queries'",
-    "test:smoke": "node --import tsx --test src/smoke.test.ts",
-    "test:app-queries": "node --import tsx --test src/app-queries.test.ts",
-    "test:integration": "node --import tsx --test src/smoke.test.ts src/app-queries.test.ts"
+    "test": "node --import tsx --test src/**/*.test.ts --test-skip-pattern=smoke",
+    "test:smoke": "node --import tsx --test src/smoke.test.ts"
   },
   "dependencies": {
     "@clickhouse/client": "^1.17.0",
