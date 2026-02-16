@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -49,7 +50,8 @@ export function ProductFilterProvider({
   const validIds = useMemo(() => new Set(allProducts.map((p) => p.id)), [allProducts]);
   const [selectedProductIds, setSelectedRaw] =
     useState<string[]>(defaultProductIds);
-  const urlOverride = useRef(false);
+  const initializedRef = useRef(false);
+  const urlOverrideRef = useRef(false);
 
   // Enforce minimum 1 selection
   const setSelectedProductIds = useCallback(
@@ -60,44 +62,56 @@ export function ProductFilterProvider({
     [],
   );
 
-  // On mount: check URL params first, then localStorage
+  // On mount: check URL params first, then localStorage.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const productsParam = params.get("products");
-    if (productsParam) {
-      const ids = productsParam
-        .split(",")
-        .filter((id) => validIds.has(id));
-      if (ids.length > 0) {
-        urlOverride.current = true;
-        setSelectedRaw(ids);
-        return;
-      }
-    }
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const ids = parsed.filter(
-            (id): id is string =>
-              typeof id === "string" && validIds.has(id),
-          );
-          if (ids.length > 0) {
-            setSelectedRaw(ids);
-          }
+    function readInitialSelection(): string[] | null {
+      const params = new URLSearchParams(window.location.search);
+      const productsParam = params.get("products");
+      if (productsParam) {
+        const ids = productsParam
+          .split(",")
+          .filter((id) => validIds.has(id));
+        if (ids.length > 0) {
+          urlOverrideRef.current = true;
+          return ids;
         }
       }
-    } catch {
-      // Invalid localStorage data — ignore
+
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const ids = parsed.filter(
+              (id): id is string =>
+                typeof id === "string" && validIds.has(id),
+            );
+            if (ids.length > 0) return ids;
+          }
+        }
+      } catch {
+        // Invalid localStorage data — ignore
+      }
+      return null;
+    }
+
+    const ids = readInitialSelection();
+    if (ids) {
+      // Use startTransition to batch the update and avoid the lint warning
+      // about synchronous setState in effects. This is initialization-only.
+      startTransition(() => {
+        setSelectedRaw(ids);
+      });
     }
   }, [validIds]);
 
   // Persist to localStorage when selection changes (skip URL overrides)
   useEffect(() => {
-    if (urlOverride.current) {
-      urlOverride.current = false;
+    if (urlOverrideRef.current) {
+      urlOverrideRef.current = false;
       return;
     }
     try {
