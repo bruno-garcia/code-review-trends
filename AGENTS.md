@@ -50,6 +50,22 @@ npm run pipeline -- fetch-bigquery --dry-run  # preview without running
 npm run pipeline -- help                 # show all commands
 ```
 
+### Integration & smoke tests
+
+```bash
+# App query integration tests — fixture-based, runs in CI (~2s, no external APIs)
+npm run test:app-queries --workspace=pipeline
+
+# Full smoke tests — hits real BigQuery + GitHub API (~30s, needs GCP + GITHUB_TOKEN)
+GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
+
+# Both together
+npm run test:integration --workspace=pipeline
+
+# Recapture fixtures after BigQuery/schema changes
+GITHUB_TOKEN=... npx tsx pipeline/src/fixtures/capture.ts
+```
+
 ## Principles
 
 1. **Server-first rendering.** Pages are server components that query ClickHouse directly. Only chart components are client-side (`"use client"`). No API routes unless needed by external consumers.
@@ -96,6 +112,9 @@ npm run pipeline -- help                 # show all commands
 | `pipeline/src/bigquery.ts` | GH Archive queries |
 | `pipeline/src/github.ts` | GitHub API enrichment |
 | `pipeline/src/cli.ts` | Pipeline CLI entry point |
+| `pipeline/src/smoke.test.ts` | Smoke tests — BigQuery + GitHub API → ClickHouse (needs GCP/token) |
+| `pipeline/src/app-queries.test.ts` | App query integration tests — fixture-based, runs in CI |
+| `pipeline/src/fixtures/` | Captured pipeline data for fixture-based tests |
 | `pipeline/src/tools/` | Dev inspection/validation tools |
 | `infra/index.ts` | Pulumi entrypoint — wires all components |
 | `infra/config.ts` | Typed Pulumi config loader |

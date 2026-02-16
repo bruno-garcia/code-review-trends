@@ -1,14 +1,17 @@
 /**
  * Smoke tests for the data pipeline — BigQuery → ClickHouse → App queries.
  *
- * These tests hit REAL BigQuery and write to REAL (local) ClickHouse to verify
- * the full data flow end-to-end. They catch issues like:
+ * These tests hit REAL external APIs (BigQuery, GitHub) and write to
+ * REAL (local) ClickHouse to verify the full data flow end-to-end.
+ * They catch issues like:
  * - BigQuery schema changes (e.g. payload fields returning NULL)
+ * - GitHub API response shape changes
  * - Missing columns in pipeline mappings
  * - App queries returning 0 for fields that should have data
  *
  * Requires:
  * - GCP credentials (gcloud auth application-default login)
+ * - GITHUB_TOKEN env var (for enrichment tests)
  * - ClickHouse running locally (npm run dev:infra)
  *
  * Skipped automatically if GCP credentials are not available.
@@ -29,17 +32,26 @@ import {
   insertReviewActivity,
   insertHumanActivity,
   insertPrBotEvents,
+  insertRepos,
+  insertRepoLanguages,
+  insertPullRequests,
+  insertPrComments,
   syncBots,
   syncProducts,
   type ReviewActivityRow,
   type HumanActivityRow,
+  type RepoRow,
+  type RepoLanguageRow,
+  type PullRequestRow,
+  type PrCommentRow,
 } from "./clickhouse.js";
 import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import type { ClickHouseClient } from "@clickhouse/client";
+import { Octokit } from "@octokit/rest";
 
-// ── Skip if no GCP credentials ─────────────────────────────────────────
+// ── Skip checks ─────────────────────────────────────────────────────────
 
-let skipAll = false;
+let skipBigQuery = false;
 try {
   const { execFileSync } = await import("node:child_process");
   const project = execFileSync("gcloud", ["config", "get-value", "project"], {
@@ -47,10 +59,12 @@ try {
     timeout: 5000,
     stdio: ["pipe", "pipe", "pipe"],
   }).trim();
-  if (!project || project === "(unset)") skipAll = true;
+  if (!project || project === "(unset)") skipBigQuery = true;
 } catch {
-  skipAll = true;
+  skipBigQuery = true;
 }
+
+const skipGitHub = !process.env.GITHUB_TOKEN;
 
 // Use a recent 1-week range to minimize BigQuery cost (~150MB)
 const TEST_START = formatMonday(-1); // last Monday
@@ -64,13 +78,26 @@ function formatMonday(weeksOffset: number): string {
   return d.toISOString().split("T")[0];
 }
 
-describe("Pipeline smoke tests (BigQuery → ClickHouse → App queries)", { skip: skipAll ? "No GCP credentials available" : false }, () => {
+/** Convert ISO datetime to ClickHouse-compatible format. */
+function toCHDateTime(iso: string | null): string | null {
+  if (!iso) return null;
+  return iso.replace("T", " ").replace("Z", "").replace(/\.\d+$/, "");
+}
+
+// ── Known stable test targets ──────────────────────────────────────────
+// Use high-traffic public repos where bot activity is guaranteed.
+const TEST_REPO = "vercel/next.js";
+const TEST_REPO_OWNER = "vercel";
+const TEST_REPO_NAME = "next.js";
+
+// ── BigQuery smoke tests ───────────────────────────────────────────────
+
+describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : false }, () => {
   let ch: ClickHouseClient;
   const logins = [...BOT_LOGINS];
 
   before(async () => {
     ch = createCHClient();
-    // Ensure bots are synced so JOINs work
     await syncProducts(ch, PRODUCTS);
     await syncBots(ch, BOTS);
   });
@@ -81,7 +108,7 @@ describe("Pipeline smoke tests (BigQuery → ClickHouse → App queries)", { ski
 
   // ── BigQuery: bot review activity ───────────────────────────────────
 
-  describe("BigQuery bot review activity", () => {
+  describe("bot review activity", () => {
     let rows: Awaited<ReturnType<typeof queryBotReviewActivity>>;
 
     before(async () => {
@@ -102,12 +129,21 @@ describe("Pipeline smoke tests (BigQuery → ClickHouse → App queries)", { ski
 
     it("has non-zero repo_count", () => {
       const withRepos = rows.filter((r) => Number(r.repo_count) > 0);
-      assert.ok(withRepos.length > 0, `All rows have repo_count=0 — repo.name extraction may be broken`);
+      assert.ok(withRepos.length > 0, "All rows have repo_count=0 — repo.name extraction may be broken");
     });
 
     it("has non-zero org_count", () => {
       const withOrgs = rows.filter((r) => Number(r.org_count) > 0);
-      assert.ok(withOrgs.length > 0, `All rows have org_count=0 — org extraction may be broken`);
+      assert.ok(withOrgs.length > 0, "All rows have org_count=0 — org extraction may be broken");
+    });
+
+    it("org_count <= repo_count for each row", () => {
+      for (const r of rows) {
+        assert.ok(
+          Number(r.org_count) <= Number(r.repo_count),
+          `org_count (${r.org_count}) > repo_count (${r.repo_count}) for ${r.actor_login}`,
+        );
+      }
     });
 
     it("actor_logins match known bots", () => {
@@ -118,7 +154,7 @@ describe("Pipeline smoke tests (BigQuery → ClickHouse → App queries)", { ski
 
   // ── BigQuery: human review activity ─────────────────────────────────
 
-  describe("BigQuery human review activity", () => {
+  describe("human review activity", () => {
     let rows: Awaited<ReturnType<typeof queryHumanReviewActivity>>;
 
     before(async () => {
@@ -143,7 +179,7 @@ describe("Pipeline smoke tests (BigQuery → ClickHouse → App queries)", { ski
 
   // ── BigQuery: PR bot events (discover) ──────────────────────────────
 
-  describe("BigQuery PR bot events", () => {
+  describe("PR bot events (discover)", () => {
     let rows: Awaited<ReturnType<typeof queryBotPREvents>>;
 
     before(async () => {
@@ -164,11 +200,21 @@ describe("Pipeline smoke tests (BigQuery → ClickHouse → App queries)", { ski
       const valid = rows.filter((r) => Number(r.pr_number) > 0);
       assert.ok(valid.length > 0, "No rows have valid pr_number");
     });
+
+    it("all event types are expected values", () => {
+      const types = new Set(rows.map((r) => r.event_type));
+      for (const t of types) {
+        assert.ok(
+          ["PullRequestReviewEvent", "PullRequestReviewCommentEvent"].includes(t),
+          `Unexpected event_type: ${t}`,
+        );
+      }
+    });
   });
 
   // ── Full pipeline: BigQuery → ClickHouse → App query ────────────────
 
-  describe("End-to-end: BigQuery → ClickHouse → app query", () => {
+  describe("End-to-end: BigQuery → ClickHouse → app queries", () => {
     before(async () => {
       const bq = createBigQueryClient();
 
@@ -290,6 +336,293 @@ describe("Pipeline smoke tests (BigQuery → ClickHouse → App queries)", { ski
       assert.ok(Number(rows[0].total) > 0, "No pr_bot_events found");
       assert.equal(rows[0].total, rows[0].with_repo, "Some pr_bot_events have invalid repo_name");
       assert.equal(rows[0].total, rows[0].with_pr, "Some pr_bot_events have invalid pr_number");
+    });
+  });
+});
+
+// ── GitHub API smoke tests ─────────────────────────────────────────────
+
+describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : false }, () => {
+  let octokit: Octokit;
+  let ch: ClickHouseClient;
+
+  before(async () => {
+    octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+    ch = createCHClient();
+    await syncProducts(ch, PRODUCTS);
+    await syncBots(ch, BOTS);
+  });
+
+  after(async () => {
+    await ch?.close();
+  });
+
+  describe("repo metadata", () => {
+    let repoData: Awaited<ReturnType<typeof octokit.rest.repos.get>>["data"];
+    let languages: Record<string, number>;
+
+    before(async () => {
+      const resp = await octokit.rest.repos.get({
+        owner: TEST_REPO_OWNER,
+        repo: TEST_REPO_NAME,
+      });
+      repoData = resp.data;
+
+      const langResp = await octokit.rest.repos.listLanguages({
+        owner: TEST_REPO_OWNER,
+        repo: TEST_REPO_NAME,
+      });
+      languages = langResp.data as Record<string, number>;
+    });
+
+    it("has stars > 0", () => {
+      assert.ok(repoData.stargazers_count > 0, "stars should be > 0");
+    });
+
+    it("has primary language", () => {
+      assert.ok(repoData.language, "primary language should not be null");
+    });
+
+    it("has language breakdown", () => {
+      assert.ok(Object.keys(languages).length > 0, "language breakdown should not be empty");
+      assert.ok(languages["TypeScript"]! > 0, "TypeScript bytes should be > 0");
+    });
+
+    it("maps cleanly to RepoRow", () => {
+      const row: RepoRow = {
+        name: repoData.full_name,
+        owner: repoData.owner.login,
+        stars: repoData.stargazers_count,
+        primary_language: repoData.language ?? "",
+        fork: repoData.fork,
+        archived: repoData.archived,
+        fetch_status: "ok",
+      };
+      assert.ok(row.name.includes("/"), "full_name should be owner/repo");
+      assert.ok(row.owner.length > 0, "owner should not be empty");
+      assert.ok(row.stars > 0, "stars should be > 0");
+    });
+
+    it("writes and reads back from ClickHouse", async () => {
+      const row: RepoRow = {
+        name: repoData.full_name,
+        owner: repoData.owner.login,
+        stars: repoData.stargazers_count,
+        primary_language: repoData.language ?? "",
+        fork: repoData.fork,
+        archived: repoData.archived,
+        fetch_status: "ok",
+      };
+      await insertRepos(ch, [row]);
+
+      const langRows: RepoLanguageRow[] = Object.entries(languages).map(
+        ([language, bytes]) => ({ repo_name: repoData.full_name, language, bytes }),
+      );
+      await insertRepoLanguages(ch, langRows);
+
+      const readBack = await query<{ name: string; stars: string; primary_language: string }>(
+        ch,
+        "SELECT name, stars, primary_language FROM repos FINAL WHERE name = {name:String}",
+        { name: repoData.full_name },
+      );
+      assert.equal(readBack.length, 1);
+      assert.ok(Number(readBack[0].stars) > 0, "stars should survive round-trip");
+      assert.ok(readBack[0].primary_language.length > 0, "language should survive round-trip");
+    });
+  });
+
+  describe("pull request metadata", () => {
+    let prData: Awaited<ReturnType<typeof octokit.rest.pulls.list>>["data"];
+
+    before(async () => {
+      const resp = await octokit.rest.pulls.list({
+        owner: TEST_REPO_OWNER,
+        repo: TEST_REPO_NAME,
+        state: "closed",
+        sort: "updated",
+        direction: "desc",
+        per_page: 5,
+      });
+      prData = resp.data;
+    });
+
+    it("returns PRs", () => {
+      assert.ok(prData.length > 0, "Expected closed PRs");
+    });
+
+    it("PRs have required fields", () => {
+      const pr = prData[0];
+      assert.ok(pr.title.length > 0, "title should not be empty");
+      assert.ok(pr.user?.login, "author should not be null");
+      assert.ok(pr.number > 0, "pr_number should be > 0");
+      assert.ok(pr.created_at, "created_at should not be null");
+    });
+
+    it("maps cleanly to PullRequestRow", () => {
+      const pr = prData[0];
+      const row: PullRequestRow = {
+        repo_name: TEST_REPO,
+        pr_number: pr.number,
+        title: pr.title,
+        author: pr.user?.login ?? "",
+        state: pr.merged_at ? "merged" : pr.closed_at ? "closed" : "open",
+        created_at: pr.created_at,
+        merged_at: pr.merged_at ?? null,
+        closed_at: pr.closed_at ?? null,
+        additions: 0, // list endpoint doesn't include these
+        deletions: 0,
+        changed_files: 0,
+      };
+      assert.ok(row.author.length > 0, "author should not be empty");
+      assert.ok(["merged", "closed", "open"].includes(row.state), `unexpected state: ${row.state}`);
+    });
+
+    it("writes and reads back from ClickHouse", async () => {
+      // Fetch full PR detail for additions/deletions
+      const { data: detail } = await octokit.rest.pulls.get({
+        owner: TEST_REPO_OWNER,
+        repo: TEST_REPO_NAME,
+        pull_number: prData[0].number,
+      });
+
+      const row: PullRequestRow = {
+        repo_name: TEST_REPO,
+        pr_number: detail.number,
+        title: detail.title,
+        author: detail.user?.login ?? "",
+        state: detail.merged_at ? "merged" : detail.closed_at ? "closed" : "open",
+        created_at: toCHDateTime(detail.created_at)!,
+        merged_at: toCHDateTime(detail.merged_at ?? null),
+        closed_at: toCHDateTime(detail.closed_at ?? null),
+        additions: detail.additions,
+        deletions: detail.deletions,
+        changed_files: detail.changed_files,
+      };
+      await insertPullRequests(ch, [row]);
+
+      const readBack = await query<{
+        repo_name: string;
+        pr_number: string;
+        title: string;
+        additions: string;
+      }>(
+        ch,
+        "SELECT repo_name, pr_number, title, additions FROM pull_requests FINAL WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32}",
+        { repo: TEST_REPO, pr: detail.number },
+      );
+      assert.equal(readBack.length, 1);
+      assert.ok(readBack[0].title.length > 0, "title should survive round-trip");
+    });
+  });
+
+  describe("review comments with reactions", () => {
+    let comments: Awaited<ReturnType<typeof octokit.rest.pulls.listReviewComments>>["data"];
+    let testPRNumber: number;
+
+    before(async () => {
+      // Find a PR with bot review comments by looking at recent pr_bot_events
+      // Fall back to a hardcoded approach: just fetch comments from a recent PR
+      const resp = await octokit.rest.pulls.list({
+        owner: TEST_REPO_OWNER,
+        repo: TEST_REPO_NAME,
+        state: "closed",
+        sort: "updated",
+        direction: "desc",
+        per_page: 10,
+      });
+
+      // Try each PR until we find one with review comments
+      for (const pr of resp.data) {
+        const commentResp = await octokit.rest.pulls.listReviewComments({
+          owner: TEST_REPO_OWNER,
+          repo: TEST_REPO_NAME,
+          pull_number: pr.number,
+          per_page: 5,
+        });
+        if (commentResp.data.length > 0) {
+          comments = commentResp.data;
+          testPRNumber = pr.number;
+          break;
+        }
+      }
+    });
+
+    it("finds review comments", () => {
+      assert.ok(comments && comments.length > 0, "Expected to find review comments on at least one PR");
+    });
+
+    it("comments have required fields", () => {
+      const c = comments[0];
+      assert.ok(c.id > 0, "comment_id should be > 0");
+      assert.ok(c.user?.login, "comment author should not be null");
+      assert.ok(c.body !== undefined, "body should not be undefined");
+      assert.ok(c.created_at, "created_at should not be null");
+    });
+
+    it("comments have reactions object", () => {
+      const c = comments[0];
+      assert.ok(c.reactions !== undefined, "reactions should be present on review comments");
+      // Reactions should have the standard keys
+      const reactions = c.reactions!;
+      const keys = Object.keys(reactions);
+      for (const expected of ["+1", "-1", "laugh", "confused", "heart", "hooray", "eyes", "rocket"]) {
+        assert.ok(keys.includes(expected), `Missing reaction key: ${expected}`);
+      }
+    });
+
+    it("maps cleanly to PrCommentRow", () => {
+      const c = comments[0];
+      const row: PrCommentRow = {
+        repo_name: TEST_REPO,
+        pr_number: testPRNumber,
+        comment_id: String(c.id),
+        bot_id: "test-bot",
+        body_length: c.body?.length ?? 0,
+        created_at: c.created_at,
+        thumbs_up: c.reactions?.["+1"] ?? 0,
+        thumbs_down: c.reactions?.["-1"] ?? 0,
+        laugh: c.reactions?.laugh ?? 0,
+        confused: c.reactions?.confused ?? 0,
+        heart: c.reactions?.heart ?? 0,
+        hooray: c.reactions?.hooray ?? 0,
+        eyes: c.reactions?.eyes ?? 0,
+        rocket: c.reactions?.rocket ?? 0,
+      };
+      assert.ok(Number(row.comment_id) > 0, "comment_id should be numeric and > 0");
+      assert.ok(row.body_length >= 0, "body_length should be >= 0");
+    });
+
+    it("writes and reads back from ClickHouse", async () => {
+      const c = comments[0];
+      const row: PrCommentRow = {
+        repo_name: TEST_REPO,
+        pr_number: testPRNumber,
+        comment_id: String(c.id),
+        bot_id: "test-smoke",
+        body_length: c.body?.length ?? 0,
+        created_at: toCHDateTime(c.created_at)!,
+        thumbs_up: c.reactions?.["+1"] ?? 0,
+        thumbs_down: c.reactions?.["-1"] ?? 0,
+        laugh: c.reactions?.laugh ?? 0,
+        confused: c.reactions?.confused ?? 0,
+        heart: c.reactions?.heart ?? 0,
+        hooray: c.reactions?.hooray ?? 0,
+        eyes: c.reactions?.eyes ?? 0,
+        rocket: c.reactions?.rocket ?? 0,
+      };
+      await insertPrComments(ch, [row]);
+
+      const readBack = await query<{
+        comment_id: string;
+        body_length: string;
+        thumbs_up: string;
+      }>(
+        ch,
+        "SELECT comment_id, body_length, thumbs_up FROM pr_comments FINAL WHERE repo_name = {repo:String} AND comment_id = {cid:UInt64}",
+        { repo: TEST_REPO, cid: c.id },
+      );
+      assert.equal(readBack.length, 1);
+      assert.ok(Number(readBack[0].comment_id) > 0, "comment_id should survive round-trip");
     });
   });
 });
