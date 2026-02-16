@@ -52,16 +52,23 @@ import { Octokit } from "@octokit/rest";
 // ── Skip checks ─────────────────────────────────────────────────────────
 
 let skipBigQuery = false;
-try {
-  const { execFileSync } = await import("node:child_process");
-  const project = execFileSync("gcloud", ["config", "get-value", "project"], {
-    encoding: "utf-8",
-    timeout: 5000,
-    stdio: ["pipe", "pipe", "pipe"],
-  }).trim();
-  if (!project || project === "(unset)") skipBigQuery = true;
-} catch {
-  skipBigQuery = true;
+// In CI (google-github-actions/auth), ADC credentials are set via env vars.
+// Locally, gcloud CLI provides credentials. Check both paths.
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_GHA_CREDS_PATH) {
+  // CI environment — credentials injected by google-github-actions/auth
+  skipBigQuery = false;
+} else {
+  try {
+    const { execFileSync } = await import("node:child_process");
+    const project = execFileSync("gcloud", ["config", "get-value", "project"], {
+      encoding: "utf-8",
+      timeout: 5000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    if (!project || project === "(unset)") skipBigQuery = true;
+  } catch {
+    skipBigQuery = true;
+  }
 }
 
 const skipGitHub = !process.env.GITHUB_TOKEN;
@@ -76,12 +83,6 @@ function formatMonday(weeksOffset: number): string {
   const diff = d.getDate() - day + (day === 0 ? -6 : 1) + weeksOffset * 7;
   d.setDate(diff);
   return d.toISOString().split("T")[0];
-}
-
-/** Convert ISO datetime to ClickHouse-compatible format. */
-function toCHDateTime(iso: string | null): string | null {
-  if (!iso) return null;
-  return iso.replace("T", " ").replace("Z", "").replace(/\.\d+$/, "");
 }
 
 // ── Known stable test targets ──────────────────────────────────────────
@@ -578,9 +579,9 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         title: detail.title,
         author: detail.user?.login ?? "",
         state: detail.merged_at ? "merged" : detail.closed_at ? "closed" : "open",
-        created_at: toCHDateTime(detail.created_at)!,
-        merged_at: toCHDateTime(detail.merged_at ?? null),
-        closed_at: toCHDateTime(detail.closed_at ?? null),
+        created_at: detail.created_at,
+        merged_at: detail.merged_at ?? null,
+        closed_at: detail.closed_at ?? null,
         additions: detail.additions,
         deletions: detail.deletions,
         changed_files: detail.changed_files,
@@ -687,7 +688,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         comment_id: String(c.id),
         bot_id: "test-smoke",
         body_length: c.body?.length ?? 0,
-        created_at: toCHDateTime(c.created_at)!,
+        created_at: c.created_at,
         thumbs_up: c.reactions?.["+1"] ?? 0,
         thumbs_down: c.reactions?.["-1"] ?? 0,
         laugh: c.reactions?.laugh ?? 0,
