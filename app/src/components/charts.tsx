@@ -44,8 +44,8 @@ function formatNumber(n: number) {
 
 /** Ensure the tooltip popup renders above the Legend overlay. */
 const TOOLTIP_WRAPPER_STYLE: React.CSSProperties = { zIndex: 10 };
-const descendingItemSorter = (item: { value?: string | number | null }) =>
-  -(Number(item.value) || 0);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const descendingItemSorter = (item: any) => -(Number(item.value) || 0);
 
 /** Hook that returns chart colors reactive to theme changes */
 function useChartColors() {
