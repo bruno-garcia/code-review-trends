@@ -45,7 +45,7 @@ export function FilteredBotsPage({
     return map;
   }, [activity]);
 
-  // Pivot activity data for stacked chart (filtered only)
+  // Pivot activity data for stacked chart (filtered by product selection)
   const { pivoted, productNames } = useMemo(() => {
     const filtered = activity.filter((a) => selectedSet.has(a.product_id));
     const names = [...new Set(filtered.map((a) => a.product_name))];

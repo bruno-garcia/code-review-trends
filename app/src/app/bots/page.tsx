@@ -1,14 +1,23 @@
 import { getProductSummaries, getWeeklyActivityByProduct, getBotReactionLeaderboard } from "@/lib/clickhouse";
 import { FilteredBotsPage } from "@/components/filtered-bots-page";
+import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function BotsPage() {
+export default async function BotsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const range = parseTimeRange(params.range as string | undefined);
+  const since = computeCutoffDate(range) ?? undefined;
+
   const [summaries, activity, reactionLeaderboard] = await Promise.all([
-    getProductSummaries(),
-    getWeeklyActivityByProduct(),
-    getBotReactionLeaderboard(),
+    getProductSummaries(since),
+    getWeeklyActivityByProduct(undefined, since),
+    getBotReactionLeaderboard(since),
   ]);
 
   return (

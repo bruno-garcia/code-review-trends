@@ -11,23 +11,30 @@ import {
   SingleBotChart,
   BotLanguageChart,
 } from "@/components/charts";
+import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const range = parseTimeRange(sp.range as string | undefined);
+  const since = computeCutoffDate(range) ?? undefined;
+
   const [product, allSummaries, productBots, activity, languageData, commentsPerPR] = await Promise.all([
     getProductById(id),
-    getProductSummaries(),
-    getProductBots(id),
-    getWeeklyActivityByProduct(id),
-    getBotsByLanguage(id),
-    getAvgCommentsPerPR(id),
+    getProductSummaries(since),
+    getProductBots(id, since),
+    getWeeklyActivityByProduct(id, since),
+    getBotsByLanguage(id, since),
+    getAvgCommentsPerPR(id, since),
   ]);
 
   if (!product) {
@@ -45,6 +52,7 @@ export default async function ProductPage({
     repo_count: Number(a.repo_count),
     org_count: Number(a.org_count),
   }));
+
 
   const totalReviews = Number(summary?.total_reviews ?? 0);
   const totalComments = Number(summary?.total_comments ?? 0);
@@ -205,6 +213,7 @@ export default async function ProductPage({
           </div>
         </section>
       )}
+
 
       {/* Comments per PR */}
       <section data-testid="bot-comments-per-pr">
