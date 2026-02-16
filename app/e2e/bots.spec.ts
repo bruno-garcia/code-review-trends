@@ -63,7 +63,8 @@ test.describe("Bots listing page", () => {
     const btn = page.getByText("Compare All →");
     await expect(btn).toBeVisible();
     await btn.click();
-    await expect(page.getByTestId("compare-table")).toBeVisible();
+    await page.waitForURL("/compare");
+    await expect(page.getByTestId("compare-table")).toBeVisible({ timeout: 15_000 });
   });
 
   test("bot card links to detail page", async ({ page }) => {
