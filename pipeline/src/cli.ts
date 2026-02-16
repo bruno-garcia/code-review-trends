@@ -188,7 +188,9 @@ async function cmdFetchBigQuery() {
   try {
     // Fetch bot activity
     console.log("Querying bot review activity...");
+    let elapsed = startTimer("  Waiting for BigQuery");
     const botRows = await queryBotReviewActivity(bq, startDate, endDate, logins);
+    elapsed();
     console.log(`  Got ${botRows.length} bot activity rows`);
 
     // Map BigQuery results to ClickHouse rows
@@ -212,7 +214,9 @@ async function cmdFetchBigQuery() {
 
     // Fetch human activity
     console.log("Querying human review activity...");
+    elapsed = startTimer("  Waiting for BigQuery");
     const humanRows = await queryHumanReviewActivity(bq, startDate, endDate, logins);
+    elapsed();
     console.log(`  Got ${humanRows.length} human activity rows`);
 
     const humanActivityRows: HumanActivityRow[] = humanRows.map((row) => ({
@@ -476,7 +480,9 @@ async function cmdDiscover() {
 
   try {
     console.log("Querying BigQuery for PR bot events...");
+    const elapsed = startTimer("  Waiting for BigQuery");
     const rows = await queryBotPREvents(bq, startDate, endDate, logins);
+    elapsed();
     console.log(`  Got ${rows.length} PR bot event rows`);
 
     // Map BigQuery rows to ClickHouse rows
@@ -499,7 +505,9 @@ async function cmdDiscover() {
       .filter((r): r is NonNullable<typeof r> => r !== null);
 
     console.log("Writing to ClickHouse...");
+    const elapsedWrite = startTimer("  Inserting batches");
     await insertPrBotEvents(ch, chRows);
+    elapsedWrite();
     console.log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
     console.log("Done!");
   } finally {
@@ -607,6 +615,23 @@ async function cmdEnrichStatus() {
 }
 
 // --- Helpers ---
+
+/**
+ * Start a timer that prints elapsed seconds to stderr every interval.
+ * Returns a stop function that clears the timer and prints the final time.
+ */
+function startTimer(label: string, intervalSecs = 5): () => void {
+  const start = Date.now();
+  const interval = setInterval(() => {
+    const secs = Math.round((Date.now() - start) / 1000);
+    process.stderr.write(`\r${label}... ${secs}s`);
+  }, intervalSecs * 1000);
+  return () => {
+    clearInterval(interval);
+    const secs = Math.round((Date.now() - start) / 1000);
+    process.stderr.write(`\r${label}... done (${secs}s)\n`);
+  };
+}
 
 function parseArgs(): Record<string, string> {
   const result: Record<string, string> = {};
