@@ -100,6 +100,14 @@ CREATE TABLE IF NOT EXISTS code_review_trends.pull_requests (
     additions UInt32,
     deletions UInt32,
     changed_files UInt32,
+    thumbs_up UInt32 DEFAULT 0,
+    thumbs_down UInt32 DEFAULT 0,
+    laugh UInt32 DEFAULT 0,
+    confused UInt32 DEFAULT 0,
+    heart UInt32 DEFAULT 0,
+    hooray UInt32 DEFAULT 0,
+    eyes UInt32 DEFAULT 0,
+    rocket UInt32 DEFAULT 0,
     updated_at DateTime DEFAULT now()
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (repo_name, pr_number);

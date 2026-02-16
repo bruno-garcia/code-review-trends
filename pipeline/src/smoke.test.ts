@@ -49,6 +49,7 @@ import {
   mapPrBotEventRows,
 } from "./sync.js";
 import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
+import { extractReactionCounts } from "./github.js";
 import type { ClickHouseClient } from "@clickhouse/client";
 import { Octokit } from "@octokit/rest";
 
@@ -530,6 +531,14 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         additions: 0, // list endpoint doesn't include these
         deletions: 0,
         changed_files: 0,
+        thumbs_up: 0,
+        thumbs_down: 0,
+        laugh: 0,
+        confused: 0,
+        heart: 0,
+        hooray: 0,
+        eyes: 0,
+        rocket: 0,
       };
       assert.ok(row.author.length > 0, "author should not be empty");
       assert.ok(["merged", "closed", "open"].includes(row.state), `unexpected state: ${row.state}`);
@@ -543,6 +552,8 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         pull_number: prData[0].number,
       });
 
+      const reactions = extractReactionCounts(detail);
+
       const row: PullRequestRow = {
         repo_name: TEST_REPO,
         pr_number: detail.number,
@@ -555,6 +566,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         additions: detail.additions,
         deletions: detail.deletions,
         changed_files: detail.changed_files,
+        ...reactions,
       };
       await insertPullRequests(ch, [row]);
 

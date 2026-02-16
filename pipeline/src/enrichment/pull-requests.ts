@@ -13,6 +13,7 @@ import {
   query,
   type PullRequestRow,
 } from "../clickhouse.js";
+import { extractReactionCounts } from "../github.js";
 import { Sentry } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
@@ -94,6 +95,8 @@ export async function enrichPullRequests(
         state = "open";
       }
 
+      const reactions = extractReactionCounts(data);
+
       const row: PullRequestRow = {
         repo_name,
         pr_number,
@@ -106,6 +109,7 @@ export async function enrichPullRequests(
         additions: data.additions,
         deletions: data.deletions,
         changed_files: data.changed_files,
+        ...reactions,
       };
 
       await insertPullRequests(ch, [row]);
