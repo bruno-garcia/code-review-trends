@@ -192,8 +192,7 @@ async function cmdFetchBigQuery() {
     // Fetch bot activity
     console.log("Querying bot review activity...");
     let elapsed = startTimer("  Waiting for BigQuery");
-    const botRows = await queryBotReviewActivity(bq, startDate, endDate, logins);
-    elapsed();
+    const botRows = await queryBotReviewActivity(bq, startDate, endDate, logins).finally(elapsed);
     console.log(`  Got ${botRows.length} bot activity rows`);
 
     // Map BigQuery results to ClickHouse rows
@@ -218,8 +217,7 @@ async function cmdFetchBigQuery() {
     // Fetch human activity
     console.log("Querying human review activity...");
     elapsed = startTimer("  Waiting for BigQuery");
-    const humanRows = await queryHumanReviewActivity(bq, startDate, endDate, logins);
-    elapsed();
+    const humanRows = await queryHumanReviewActivity(bq, startDate, endDate, logins).finally(elapsed);
     console.log(`  Got ${humanRows.length} human activity rows`);
 
     const humanActivityRows: HumanActivityRow[] = humanRows.map((row) => ({
@@ -486,8 +484,7 @@ async function cmdDiscover() {
   try {
     console.log("Querying BigQuery for PR bot events...");
     const elapsed = startTimer("  Waiting for BigQuery");
-    const rows = await queryBotPREvents(bq, startDate, endDate, logins);
-    elapsed();
+    const rows = await queryBotPREvents(bq, startDate, endDate, logins).finally(elapsed);
     console.log(`  Got ${rows.length} PR bot event rows`);
 
     // Map BigQuery rows to ClickHouse rows
@@ -511,8 +508,7 @@ async function cmdDiscover() {
 
     console.log("Writing to ClickHouse...");
     const elapsedWrite = startTimer("  Inserting batches");
-    await insertPrBotEvents(ch, chRows);
-    elapsedWrite();
+    await insertPrBotEvents(ch, chRows).finally(elapsedWrite);
     console.log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
     console.log("Done!");
   } finally {
@@ -659,17 +655,12 @@ function parseArgs(): Record<string, string> {
 /** Full historical start date for --all imports. */
 const FULL_HISTORY_START = "2023-01-01";
 
-/** Default start date: 3 months ago. */
+/** Default start date: 3 months ago (1st of that month to avoid day-overflow). */
 function defaultStart(): string {
   const d = new Date();
+  d.setDate(1); // avoid setMonth overflow (e.g. May 31 → Mar 3)
   d.setMonth(d.getMonth() - 3);
   return formatDate(d);
-}
-
-function weeksAgo(n: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - n * 7);
-  return d;
 }
 
 function formatDate(d: Date): string {

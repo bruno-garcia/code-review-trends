@@ -150,6 +150,11 @@ export async function insertReviewActivity(
 ): Promise<void> {
   if (rows.length === 0) return;
 
+  // Ensure org_count column exists (for migration of existing DBs)
+  await client.command({
+    query: `ALTER TABLE review_activity ADD COLUMN IF NOT EXISTS org_count UInt64 DEFAULT 0`,
+  });
+
   await client.insert({
     table: "review_activity",
     values: rows,

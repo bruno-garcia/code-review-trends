@@ -258,8 +258,8 @@ export async function getProductSummaries(): Promise<ProductSummary[]> {
           sum(c.thumbs_up) AS thumbs_up,
           sum(c.thumbs_down) AS thumbs_down,
           sum(c.heart) AS heart
-        FROM pr_comments c
-        JOIN bots b ON c.bot_id = b.id
+        FROM pr_comments c FINAL
+        JOIN bots b FINAL ON c.bot_id = b.id
         WHERE c.comment_id > 0
         GROUP BY b.product_id
       )
@@ -358,8 +358,8 @@ export async function getProductComparisons(): Promise<ProductComparison[]> {
           sum(c.thumbs_up) AS thumbs_up,
           sum(c.thumbs_down) AS thumbs_down,
           sum(c.heart) AS heart
-        FROM pr_comments c
-        JOIN bots b ON c.bot_id = b.id
+        FROM pr_comments c FINAL
+        JOIN bots b FINAL ON c.bot_id = b.id
         WHERE c.comment_id > 0
         GROUP BY b.product_id
       )
@@ -520,7 +520,7 @@ export async function getBotSummaries(): Promise<BotSummary[]> {
           sum(c.thumbs_up) AS thumbs_up,
           sum(c.thumbs_down) AS thumbs_down,
           sum(c.heart) AS heart
-        FROM pr_comments c
+        FROM pr_comments c FINAL
         WHERE c.comment_id > 0
         GROUP BY c.bot_id
       )
@@ -570,8 +570,8 @@ export async function getBotReactions(
         sum(c.heart) AS heart,
         sum(c.laugh) AS laugh,
         sum(c.confused) AS confused
-      FROM pr_comments c
-      JOIN bots b ON c.bot_id = b.id
+      FROM pr_comments c FINAL
+      JOIN bots b FINAL ON c.bot_id = b.id
       WHERE b.id = {botId:String} AND c.comment_id > 0
       GROUP BY week
       ORDER BY week ASC
@@ -592,8 +592,8 @@ export async function getProductReactions(
         sum(c.heart) AS heart,
         sum(c.laugh) AS laugh,
         sum(c.confused) AS confused
-      FROM pr_comments c
-      JOIN bots b ON c.bot_id = b.id
+      FROM pr_comments c FINAL
+      JOIN bots b FINAL ON c.bot_id = b.id
       WHERE b.product_id = {productId:String} AND c.comment_id > 0
       GROUP BY week
       ORDER BY week ASC
@@ -625,7 +625,7 @@ export async function getBotComparisons(): Promise<BotComparison[]> {
           sum(c.thumbs_up) AS thumbs_up,
           sum(c.thumbs_down) AS thumbs_down,
           sum(c.heart) AS heart
-        FROM pr_comments c
+        FROM pr_comments c FINAL
         WHERE c.comment_id > 0
         GROUP BY c.bot_id
       )
@@ -703,8 +703,8 @@ export async function getBotReactionLeaderboard(): Promise<BotReactions[]> {
       round(if((sum(c.thumbs_up) + sum(c.thumbs_down)) > 0,
         sum(c.thumbs_up) * 100.0 / (sum(c.thumbs_up) + sum(c.thumbs_down)),
         0), 1) AS approval_rate
-    FROM pr_comments c
-    JOIN bots b ON c.bot_id = b.id
+    FROM pr_comments c FINAL
+    JOIN bots b FINAL ON c.bot_id = b.id
     WHERE c.comment_id > 0
     GROUP BY c.bot_id, b.name
     ORDER BY total_thumbs_up DESC
@@ -729,8 +729,8 @@ export async function getAvgCommentsPerPR(botId?: string): Promise<BotCommentsPe
         count() / countDistinct(c.repo_name, c.pr_number), 0), 2) AS avg_comments_per_pr,
       countDistinct(c.repo_name, c.pr_number) AS total_prs,
       count() AS total_comments
-    FROM pr_comments c
-    JOIN bots b ON c.bot_id = b.id
+    FROM pr_comments c FINAL
+    JOIN bots b FINAL ON c.bot_id = b.id
     WHERE c.comment_id > 0 ${where}
     GROUP BY c.bot_id, b.name
     ORDER BY avg_comments_per_pr DESC`,
@@ -785,7 +785,7 @@ export async function getReactionsByPRSize(botId?: string): Promise<ReactionsByP
       round(avg(c.thumbs_up), 2) AS avg_thumbs_up,
       round(avg(c.thumbs_down), 2) AS avg_thumbs_down,
       countDistinct(c.repo_name, c.pr_number) AS pr_count
-    FROM pr_comments c
+    FROM pr_comments c FINAL
     JOIN pull_requests p ON c.repo_name = p.repo_name AND c.pr_number = p.pr_number
     WHERE c.comment_id > 0 ${where}
     GROUP BY size_bucket
