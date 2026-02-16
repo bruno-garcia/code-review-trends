@@ -104,7 +104,20 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     );
 
     const duration = Date.now() - start;
+    const rl = rateLimiter.waitSummary();
+    const workTime = duration - rl.totalWaitMs;
+    const totalItems = reposResult.fetched + reposResult.skipped + reposResult.errors
+      + prsResult.fetched + prsResult.skipped + prsResult.errors
+      + commentsResult.fetched + commentsResult.skipped + commentsResult.errors;
+    const itemsPerSec = workTime > 0 ? (totalItems / (workTime / 1000)).toFixed(1) : "∞";
+    const rlPct = duration > 0 ? ((rl.totalWaitMs / duration) * 100).toFixed(1) : "0";
+
     log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);
+    log(`[worker]   Items processed: ${totalItems} (${itemsPerSec} items/s effective)`);
+    log(`[worker]   Rate-limit waits: ${rl.waitCount} pauses, ${Math.ceil(rl.totalWaitMs / 1000)}s total (${rlPct}% of wall time)`);
+    if (rl.secondaryHits > 0) {
+      log(`[worker]   Secondary rate limits: ${rl.secondaryHits}`);
+    }
 
     // Emit summary metrics
     countMetric("pipeline.enrich.repos.fetched", reposResult.fetched, { phase: "repos" });
@@ -117,6 +130,10 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     countMetric("pipeline.enrich.comments.skipped", commentsResult.skipped, { phase: "comments" });
     countMetric("pipeline.enrich.comments.errors", commentsResult.errors, { phase: "comments" });
     distributionMetric("pipeline.enrich.duration", duration, "millisecond");
+    distributionMetric("pipeline.ratelimit.total_wait", rl.totalWaitMs, "millisecond");
+    countMetric("pipeline.ratelimit.total_pauses", rl.waitCount);
+    countMetric("pipeline.ratelimit.secondary_hits", rl.secondaryHits);
+    gaugeMetric("pipeline.enrich.items_per_sec", workTime > 0 ? totalItems / (workTime / 1000) : 0);
 
     return {
       repos: reposResult,

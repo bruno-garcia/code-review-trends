@@ -617,11 +617,53 @@ async function cmdEnrichStatus() {
     );
     const commentPending = Number(commentStats.total) - Number(commentStats.enriched);
 
+    // Pace: repos enriched in last 1h / 24h (based on updated_at)
+    const [pace1h] = await query<{ cnt: string }>(
+      ch,
+      `SELECT count() as cnt FROM repos WHERE updated_at > now() - toIntervalHour(1)`,
+    );
+    const [pace24h] = await query<{ cnt: string }>(
+      ch,
+      `SELECT count() as cnt FROM repos WHERE updated_at > now() - toIntervalDay(1)`,
+    );
+
+    const reposPerHour = Number(pace1h.cnt) || (Number(pace24h.cnt) / 24);
+    const etaReposHours = reposPerHour > 0 ? repoPending / reposPerHour : null;
+
     console.log("=== Enrichment Status ===");
     console.log(`\nDiscovered events: ${total_events}`);
     console.log(`\nRepos:    ${repoStats.enriched} enriched / ${repoStats.not_found} not found / ${repoPending} pending (${repoStats.total} total)`);
     console.log(`PRs:      ${prStats.enriched} enriched / ${prPending} pending (${prStats.total} total)`);
     console.log(`Comments: ${commentStats.enriched} enriched / ${commentPending} pending (${commentStats.total} total)`);
+
+    // Completion percentages
+    const repoPct = Number(repoStats.total) > 0
+      ? (((Number(repoStats.enriched) + Number(repoStats.not_found)) / Number(repoStats.total)) * 100).toFixed(1) : "0";
+    const prPct = Number(prStats.total) > 0
+      ? ((Number(prStats.enriched) / Number(prStats.total)) * 100).toFixed(1) : "0";
+    const commentPct = Number(commentStats.total) > 0
+      ? ((Number(commentStats.enriched) / Number(commentStats.total)) * 100).toFixed(1) : "0";
+
+    console.log(`\n=== Progress ===`);
+    console.log(`Repos:    ${repoPct}% complete`);
+    console.log(`PRs:      ${prPct}% complete`);
+    console.log(`Comments: ${commentPct}% complete`);
+
+    if (reposPerHour > 0) {
+      console.log(`\n=== Pace ===`);
+      console.log(`Repos enriched (last 1h):  ${pace1h.cnt}`);
+      console.log(`Repos enriched (last 24h): ${pace24h.cnt}`);
+      console.log(`Effective rate: ~${Math.round(reposPerHour)} repos/hour`);
+      if (etaReposHours !== null && repoPending > 0) {
+        if (etaReposHours < 1) {
+          console.log(`ETA (repos): ~${Math.round(etaReposHours * 60)} minutes`);
+        } else if (etaReposHours < 48) {
+          console.log(`ETA (repos): ~${etaReposHours.toFixed(1)} hours`);
+        } else {
+          console.log(`ETA (repos): ~${(etaReposHours / 24).toFixed(1)} days`);
+        }
+      }
+    }
   } finally {
     await ch.close();
   }
