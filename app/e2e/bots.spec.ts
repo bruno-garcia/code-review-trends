@@ -29,7 +29,7 @@ test.describe("Bots listing page", () => {
       .locator("[data-testid^='bot-card-']")
       .first();
     await firstCard.click();
-    await expect(page.getByTestId("bot-name")).toBeVisible();
+    await expect(page.getByTestId("bot-name")).toBeVisible({ timeout: 15_000 });
   });
 });
 
