@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS code_review_trends.products (
     name String,
     website String,
     description String,
+    docs_url String DEFAULT '',
     brand_color String,
     avatar_url String
 ) ENGINE = ReplacingMergeTree()
