@@ -487,7 +487,10 @@ async function cmdDiscover() {
   try {
     console.log("Querying BigQuery for PR bot events...");
     const elapsed = startTimer("  Waiting for BigQuery");
-    const rows = await queryBotPREvents(bq, startDate, endDate, logins).finally(elapsed);
+    const rows = await Sentry.startSpan(
+      { op: "bigquery", name: `bigquery.discover ${startDate}→${endDate}` },
+      () => queryBotPREvents(bq, startDate, endDate, logins),
+    ).finally(elapsed);
     console.log(`  Got ${rows.length} PR bot event rows`);
 
     // Map BigQuery rows to ClickHouse rows
@@ -511,7 +514,10 @@ async function cmdDiscover() {
 
     console.log("Writing to ClickHouse...");
     const elapsedWrite = startTimer("  Inserting batches");
-    await insertPrBotEvents(ch, chRows).finally(elapsedWrite);
+    await Sentry.startSpan(
+      { op: "db", name: "clickhouse.insert-pr-bot-events" },
+      () => insertPrBotEvents(ch, chRows),
+    ).finally(elapsedWrite);
     console.log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
     console.log("Done!");
   } finally {
