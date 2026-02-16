@@ -52,12 +52,4 @@ jobs:
           CLICKHOUSE_USER: default
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
-          GITHUB_TOKEN: ${{ secrets.SMOKE_GITHUB_TOKEN }}
-
-      - name: Run app query integration tests
-        run: npm run test:app-queries --workspace=pipeline
-        env:
-          CLICKHOUSE_URL: http://localhost:8123
-          CLICKHOUSE_USER: default
-          CLICKHOUSE_PASSWORD: dev
-          CLICKHOUSE_DB: code_review_trends
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

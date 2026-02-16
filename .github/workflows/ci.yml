@@ -113,7 +113,7 @@ jobs:
           CLICKHOUSE_USER: default
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
-          GITHUB_TOKEN: ${{ secrets.SMOKE_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Playwright tests
         run: npm run test:e2e --workspace=app
