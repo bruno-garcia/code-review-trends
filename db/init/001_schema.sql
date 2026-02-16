@@ -113,6 +113,9 @@ CREATE TABLE IF NOT EXISTS code_review_trends.pull_requests (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (repo_name, pr_number);
 
+-- Schema migrations (idempotent column additions for existing databases)
+ALTER TABLE code_review_trends.products ADD COLUMN IF NOT EXISTS docs_url String DEFAULT '';
+
 -- Bot review comments (direct only, no replies)
 CREATE TABLE IF NOT EXISTS code_review_trends.pr_comments (
     repo_name String,
