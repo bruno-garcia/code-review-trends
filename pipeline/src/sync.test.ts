@@ -154,9 +154,6 @@ describe("backfill integration", () => {
       ) ENGINE = ReplacingMergeTree(completed_at)
       ORDER BY (job_name, chunk_start)`,
     });
-    await ch.command({
-      query: `ALTER TABLE pipeline_state ADD COLUMN IF NOT EXISTS pipeline_version UInt32 DEFAULT 0`,
-    });
     // Clean up test state from previous runs
     await ch.command({
       query: `DELETE FROM pipeline_state WHERE job_name = 'backfill'`,
