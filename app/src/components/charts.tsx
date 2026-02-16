@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   AreaChart,
   Area,
@@ -25,6 +26,7 @@ import { useTheme } from "@/components/theme-provider";
 
 export { COLORS } from "@/lib/colors";
 import { COLORS } from "@/lib/colors";
+import { formatNumber } from "@/lib/format";
 
 function formatWeek(week: string | number) {
   const d = new Date(String(week));
@@ -34,12 +36,6 @@ function formatWeek(week: string | number) {
 function formatWeekLong(week: string | number) {
   const d = new Date(String(week));
   return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-}
-
-function formatNumber(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
 }
 
 /** Ensure the tooltip popup renders above the Legend overlay. */
@@ -588,7 +584,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
           const stars = Number(org.total_stars);
           const pct = maxStars > 0 ? (stars / maxStars) * 100 : 0;
           return (
-            <a
+            <Link
               key={org.owner}
               href={`/orgs/${org.owner}`}
               className="flex items-center gap-4 group"
@@ -620,7 +616,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
                   {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
                 </span>
               </div>
-            </a>
+            </Link>
           );
         })}
       </div>

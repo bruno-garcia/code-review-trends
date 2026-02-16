@@ -869,11 +869,11 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       sum(r.stars) AS total_stars,
       count() AS repo_count,
       groupUniqArray(r.primary_language) AS languages,
-      COALESCE(pr.total_prs, 0) AS total_prs,
-      COALESCE(cm.total_bot_comments, 0) AS total_bot_comments,
-      COALESCE(cm.thumbs_up, 0) AS thumbs_up,
-      COALESCE(cm.thumbs_down, 0) AS thumbs_down,
-      COALESCE(cm.heart, 0) AS heart
+      COALESCE(any(pr.total_prs), 0) AS total_prs,
+      COALESCE(any(cm.total_bot_comments), 0) AS total_bot_comments,
+      COALESCE(any(cm.thumbs_up), 0) AS thumbs_up,
+      COALESCE(any(cm.thumbs_down), 0) AS thumbs_down,
+      COALESCE(any(cm.heart), 0) AS heart
     FROM repos r
     LEFT JOIN (
       SELECT
@@ -881,7 +881,7 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
         countDistinct(e.repo_name, e.pr_number) AS total_prs
       FROM pr_bot_events e
       JOIN repos r2 ON e.repo_name = r2.name
-      WHERE r2.owner = {owner:String}
+      WHERE r2.owner = {owner:String} AND r2.fetch_status = 'ok'
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
     LEFT JOIN (
@@ -891,13 +891,13 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
         sumIf(c.thumbs_up, c.comment_id > 0) AS thumbs_up,
         sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
         sumIf(c.heart, c.comment_id > 0) AS heart
-      FROM pr_comments c
+      FROM pr_comments c FINAL
       JOIN repos r3 ON c.repo_name = r3.name
-      WHERE r3.owner = {owner:String}
+      WHERE r3.owner = {owner:String} AND r3.fetch_status = 'ok'
       GROUP BY r3.owner
     ) cm ON r.owner = cm.owner
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
-    GROUP BY r.owner, pr.total_prs, cm.total_bot_comments, cm.thumbs_up, cm.thumbs_down, cm.heart
+    GROUP BY r.owner
     `,
     { owner },
   );
@@ -925,11 +925,13 @@ export async function getOrgRepos(owner: string): Promise<OrgRepo[]> {
     LEFT JOIN (
       SELECT repo_name, countDistinct(repo_name, pr_number) AS pr_count
       FROM pr_bot_events
+      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
       GROUP BY repo_name
     ) pr ON r.name = pr.repo_name
     LEFT JOIN (
       SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
-      FROM pr_comments
+      FROM pr_comments FINAL
+      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
       GROUP BY repo_name
     ) cm ON r.name = cm.repo_name
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
@@ -999,6 +1001,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
 
   // Build WHERE conditions on the outer query
   const conditions: string[] = ["r.fetch_status = 'ok'"];
+  const havingConditions: string[] = [];
   const params: Record<string, unknown> = {
     limit: limit + 1, // fetch one extra to detect if there are more
     offset,
@@ -1015,7 +1018,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
   let productJoinFilter = "";
   if (productIds && productIds.length > 0) {
     productJoinFilter = "WHERE b.product_id IN ({productIds:Array(String)})";
-    conditions.push("pr.total_prs > 0");
+    havingConditions.push("COALESCE(any(pr.total_prs), 0) > 0");
     params.productIds = productIds;
   }
 
@@ -1025,6 +1028,9 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     "total_stars DESC";
 
   const whereClause = conditions.join(" AND ");
+  const havingClause = havingConditions.length > 0
+    ? `HAVING ${havingConditions.join(" AND ")}`
+    : "";
 
   const dataQuery = `
     SELECT
@@ -1032,8 +1038,8 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       sum(r.stars) AS total_stars,
       count() AS repo_count,
       groupUniqArray(r.primary_language) AS languages,
-      COALESCE(pr.total_prs, 0) AS total_prs,
-      COALESCE(pr.product_ids, []) AS product_ids
+      COALESCE(any(pr.total_prs), 0) AS total_prs,
+      COALESCE(any(pr.product_ids), []) AS product_ids
     FROM repos r
     LEFT JOIN (
       SELECT
@@ -1047,7 +1053,8 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
     WHERE ${whereClause}
-    GROUP BY r.owner, pr.total_prs, pr.product_ids
+    GROUP BY r.owner
+    ${havingClause}
     ORDER BY ${orderBy}
     LIMIT {limit:UInt32}
     OFFSET {offset:UInt32}
@@ -1068,7 +1075,8 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
         GROUP BY r2.owner
       ) pr ON r.owner = pr.owner
       WHERE ${whereClause}
-      GROUP BY r.owner, pr.total_prs
+      GROUP BY r.owner
+      ${havingClause}
     )
   `;
 

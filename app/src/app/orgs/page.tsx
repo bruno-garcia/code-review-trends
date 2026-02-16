@@ -4,17 +4,12 @@ import {
   getOrgLanguageOptions,
   getProducts,
 } from "@/lib/clickhouse";
+import { formatNumber } from "@/lib/format";
 import { OrgFilters } from "./org-filters";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
-
-function formatNumber(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
 
 export default async function OrgsPage({
   searchParams,

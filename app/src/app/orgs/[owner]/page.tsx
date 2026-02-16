@@ -5,14 +5,9 @@ import {
   getOrgRepos,
   getOrgProducts,
 } from "@/lib/clickhouse";
+import { formatNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function formatNumber(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
 
 export default async function OrgPage({
   params,
@@ -75,7 +70,7 @@ export default async function OrgPage({
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="org-stats">
         <StatCard label="Total Stars" value={`⭐ ${formatNumber(summary.total_stars)}`} />
-        <StatCard label="Repos Tracked" value={summary.repo_count.toLocaleString()} />
+        <StatCard label="Repos Tracked" value={formatNumber(summary.repo_count)} />
         <StatCard label="PRs with AI Review" value={formatNumber(summary.total_prs)} />
         <StatCard label="Bot Comments" value={formatNumber(summary.total_bot_comments)} />
       </div>
