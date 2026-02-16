@@ -209,7 +209,7 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
       const types = new Set(rows.map((r) => r.event_type));
       for (const t of types) {
         assert.ok(
-          ["PullRequestReviewEvent", "PullRequestReviewCommentEvent"].includes(t),
+          ["PullRequestReviewEvent", "PullRequestReviewCommentEvent", "IssueCommentEvent"].includes(t),
           `Unexpected event_type: ${t}`,
         );
       }
