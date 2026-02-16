@@ -191,6 +191,7 @@ export type PrBotEventRow = {
 
 /**
  * Insert PR bot event rows from GH Archive discovery.
+ * Batches large inserts to avoid hitting Node.js string length limits.
  */
 export async function insertPrBotEvents(
   client: ClickHouseClient,
@@ -198,11 +199,14 @@ export async function insertPrBotEvents(
 ): Promise<void> {
   if (rows.length === 0) return;
 
-  await client.insert({
-    table: "pr_bot_events",
-    values: rows,
-    format: "JSONEachRow",
-  });
+  const BATCH_SIZE = 100_000;
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    await client.insert({
+      table: "pr_bot_events",
+      values: rows.slice(i, i + BATCH_SIZE),
+      format: "JSONEachRow",
+    });
+  }
 }
 
 export type RepoRow = {
