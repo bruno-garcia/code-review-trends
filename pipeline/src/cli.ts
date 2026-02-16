@@ -23,8 +23,8 @@ import { Sentry } from "./sentry.js";
  * These are reported to Sentry at "warning" level — not as crashes.
  */
 class CliError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "CliError";
   }
 }
@@ -399,12 +399,12 @@ async function cmdMigrate() {
         hints.push("Set PULUMI_CONFIG_PASSPHRASE env var or run 'pulumi login'.");
       }
       hints.push(
-        "Alternatively, use --local to migrate local ClickHouse,",
-        "or set CLICKHOUSE_URL and CLICKHOUSE_PASSWORD env vars directly.",
+        "Alternatively, use --local to migrate local ClickHouse, or set CLICKHOUSE_URL and CLICKHOUSE_PASSWORD env vars directly.",
       );
       throw new CliError(
         `Failed to read Pulumi outputs (stack: ${stack}, infra: ${infraDir}).\n` +
           hints.map((h) => `  Hint: ${h}`).join("\n"),
+        { cause: err },
       );
     }
 
@@ -672,19 +672,36 @@ function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+/** Redact known sensitive flags from CLI args before sending to Sentry. */
+function redactArgs(args: string): string {
+  return args.replace(/(--token\s+)\S+/g, "$1[REDACTED]");
+}
+
+/** Strip credentials from a URL (user:pass in authority). */
+function redactUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.username = "";
+    u.password = "";
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 main().catch(async (err) => {
   const command = process.argv[2] ?? "unknown";
   const cliArgs = process.argv.slice(3).join(" ");
   const isCliError = err instanceof CliError;
+  const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123 (default)";
 
   Sentry.captureException(err, {
     level: isCliError ? "warning" : "error",
     contexts: {
       pipeline: {
         command,
-        args: cliArgs,
-        argv: process.argv.join(" "),
-        clickhouse_url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123 (default)",
+        args: redactArgs(cliArgs),
+        clickhouse_url: redactUrl(chUrl),
       },
     },
   });
