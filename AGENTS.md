@@ -189,6 +189,12 @@ GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --to
 3. Wire it into the appropriate page (server component fetches data, passes to client chart).
 4. Add `data-testid` attributes and write a Playwright test.
 
+## Git Workflow
+
+- **Never commit directly to `main`.** Always create a feature branch and open a pull request. No exceptions.
+- Branch names: `<type>/<short-description>` (e.g., `fix/clickhouse-left-join`, `feat/mobile-nav`).
+- One logical change per PR. Keep PRs focused and reviewable.
+
 ## Conventions
 
 - **SQL files** — numbered prefix for execution order (`001_`, `002_`, etc.).
