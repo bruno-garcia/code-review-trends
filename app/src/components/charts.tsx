@@ -353,37 +353,53 @@ export function BotRadarChart({
   const c = useChartColors();
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <RadarChart data={data}>
-        <PolarGrid stroke={c.grid} />
-        <PolarAngleAxis
-          dataKey="metric"
-          stroke={c.axis}
-          tick={{ fontSize: 11 }}
-        />
-        <PolarRadiusAxis
-          stroke={c.polarRadius}
-          tick={{ fontSize: 10 }}
-          domain={[0, 100]}
-          tickCount={5}
-        />
+    <div>
+      <ResponsiveContainer width="100%" height={400}>
+        <RadarChart data={data}>
+          <PolarGrid stroke={c.grid} />
+          <PolarAngleAxis
+            dataKey="metric"
+            stroke={c.axis}
+            tick={{ fontSize: 11 }}
+          />
+          <PolarRadiusAxis
+            stroke={c.polarRadius}
+            tick={{ fontSize: 10 }}
+            domain={[0, 100]}
+            tickCount={5}
+          />
+          {bots.map((bot, i) => {
+            const color = colors?.[bot] ?? COLORS[i % COLORS.length];
+            return (
+              <Radar
+                key={bot}
+                name={bot}
+                dataKey={bot}
+                stroke={color}
+                fill={color}
+                fillOpacity={0.15}
+              />
+            );
+          })}
+          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
+        </RadarChart>
+      </ResponsiveContainer>
+      {/* Legend rendered outside the chart so it never overlaps the radar */}
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2" style={c.legendStyle}>
         {bots.map((bot, i) => {
           const color = colors?.[bot] ?? COLORS[i % COLORS.length];
           return (
-            <Radar
-              key={bot}
-              name={bot}
-              dataKey={bot}
-              stroke={color}
-              fill={color}
-              fillOpacity={0.15}
-            />
+            <div key={bot} className="flex items-center gap-1.5 text-sm">
+              <span
+                className="inline-block w-3 h-3 rounded-sm shrink-0"
+                style={{ backgroundColor: color }}
+              />
+              <span>{bot}</span>
+            </div>
           );
         })}
-        <Legend wrapperStyle={c.legendStyle} />
-        <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
-      </RadarChart>
-    </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
 
