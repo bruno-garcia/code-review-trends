@@ -34,6 +34,6 @@ export function computeCutoffDate(range: TimeRangeKey): string | null {
   const option = TIME_RANGE_OPTIONS.find((o) => o.key === range);
   if (!option?.weeks) return null;
   const d = new Date();
-  d.setDate(d.getDate() - option.weeks * 7);
+  d.setUTCDate(d.getUTCDate() - option.weeks * 7);
   return d.toISOString().slice(0, 10);
 }

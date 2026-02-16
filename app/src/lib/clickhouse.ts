@@ -237,7 +237,11 @@ export async function getProductById(id: string): Promise<Product | null> {
 }
 
 export async function getProductSummaries(since?: string): Promise<ProductSummary[]> {
-  const sinceFilter = since ? "WHERE ra.week >= toDate({since:String})" : "";
+  // Don't filter the CTE — apply since via sumIf so growth_pct always has
+  // access to the full 8-week window it needs for comparison.
+  const sinceCond = since
+    ? "week >= toDate({since:String})"
+    : "1";
   const reactionSinceFilter = since
     ? "AND toDate(c.created_at) >= toDate({since:String})"
     : "";
@@ -255,18 +259,17 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           sum(ra.org_count) AS org_count
         FROM review_activity ra FINAL
         JOIN bots b FINAL ON ra.bot_id = b.id
-        ${sinceFilter}
         GROUP BY b.product_id, ra.week
       ),
       activity_agg AS (
         SELECT
           product_id,
-          sum(review_count) AS total_reviews,
-          sum(review_comment_count) AS total_comments,
-          sum(pr_comment_count) AS total_pr_comments,
-          max(repo_count) AS max_repos,
-          max(org_count) AS max_orgs,
-          min(week) AS first_seen,
+          sumIf(review_count, ${sinceCond}) AS total_reviews,
+          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
+          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
+          maxIf(repo_count, ${sinceCond}) AS max_repos,
+          maxIf(org_count, ${sinceCond}) AS max_orgs,
+          minIf(week, ${sinceCond}) AS first_seen,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
         FROM weekly_product
@@ -355,7 +358,9 @@ export async function getWeeklyActivityByProduct(
 }
 
 export async function getProductComparisons(since?: string): Promise<ProductComparison[]> {
-  const sinceFilter = since ? "WHERE ra.week >= toDate({since:String})" : "";
+  const sinceCond = since
+    ? "week >= toDate({since:String})"
+    : "1";
   const reactionSinceFilter = since
     ? "AND toDate(c.created_at) >= toDate({since:String})"
     : "";
@@ -373,18 +378,17 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
           sum(ra.org_count) AS org_count
         FROM review_activity ra FINAL
         JOIN bots b FINAL ON ra.bot_id = b.id
-        ${sinceFilter}
         GROUP BY b.product_id, ra.week
       ),
       activity_agg AS (
         SELECT
           product_id,
-          sum(review_count) AS total_reviews,
-          sum(review_comment_count) AS total_comments,
-          sum(pr_comment_count) AS total_pr_comments,
-          max(repo_count) AS max_repos,
-          max(org_count) AS max_orgs,
-          count(DISTINCT week) AS weeks_active,
+          sumIf(review_count, ${sinceCond}) AS total_reviews,
+          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
+          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
+          maxIf(repo_count, ${sinceCond}) AS max_repos,
+          maxIf(org_count, ${sinceCond}) AS max_orgs,
+          countIf(DISTINCT week, ${sinceCond}) AS weeks_active,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
           sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
@@ -556,7 +560,9 @@ export async function getWeeklyTotals(since?: string): Promise<WeeklyTotals[]> {
 }
 
 export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
-  const sinceFilter = since ? "WHERE week >= toDate({since:String})" : "";
+  const sinceCond = since
+    ? "week >= toDate({since:String})"
+    : "1";
   const reactionSinceFilter = since
     ? "AND toDate(c.created_at) >= toDate({since:String})"
     : "";
@@ -566,16 +572,15 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       activity_agg AS (
         SELECT
           bot_id,
-          sum(review_count) AS total_reviews,
-          sum(review_comment_count) AS total_comments,
-          sum(pr_comment_count) AS total_pr_comments,
-          max(repo_count) AS max_repos,
-          max(org_count) AS max_orgs,
-          min(week) AS first_seen,
+          sumIf(review_count, ${sinceCond}) AS total_reviews,
+          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
+          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
+          maxIf(repo_count, ${sinceCond}) AS max_repos,
+          maxIf(org_count, ${sinceCond}) AS max_orgs,
+          minIf(week, ${sinceCond}) AS first_seen,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
         FROM review_activity FINAL
-        ${sinceFilter}
         GROUP BY bot_id
       ),
       reaction_agg AS (
@@ -682,7 +687,9 @@ export async function getProductReactions(
 }
 
 export async function getBotComparisons(since?: string): Promise<BotComparison[]> {
-  const sinceFilter = since ? "WHERE week >= toDate({since:String})" : "";
+  const sinceCond = since
+    ? "week >= toDate({since:String})"
+    : "1";
   const reactionSinceFilter = since
     ? "AND toDate(c.created_at) >= toDate({since:String})"
     : "";
@@ -692,18 +699,17 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
       activity_agg AS (
         SELECT
           bot_id,
-          sum(review_count) AS total_reviews,
-          sum(review_comment_count) AS total_comments,
-          sum(pr_comment_count) AS total_pr_comments,
-          max(repo_count) AS max_repos,
-          max(org_count) AS max_orgs,
-          count() AS weeks_active,
+          sumIf(review_count, ${sinceCond}) AS total_reviews,
+          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
+          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
+          maxIf(repo_count, ${sinceCond}) AS max_repos,
+          maxIf(org_count, ${sinceCond}) AS max_orgs,
+          countIf(${sinceCond}) AS weeks_active,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
           sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
           sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
           sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
         FROM review_activity FINAL
-        ${sinceFilter}
         GROUP BY bot_id
       ),
       reaction_agg AS (

@@ -31,6 +31,8 @@ function TimeRangeSelectorInner() {
 
   return (
     <div
+      role="radiogroup"
+      aria-label="Time range"
       className={`flex items-center gap-1 shrink-0 transition-opacity ${isPending ? "opacity-60" : ""}`}
       data-testid="time-range-selector"
     >
@@ -38,6 +40,8 @@ function TimeRangeSelectorInner() {
         <button
           key={opt.key}
           type="button"
+          role="radio"
+          aria-checked={current === opt.key}
           onClick={(e) => {
             e.stopPropagation();
             setRange(opt.key);
@@ -47,7 +51,6 @@ function TimeRangeSelectorInner() {
               ? "bg-violet-600 text-white"
               : "bg-theme-border text-theme-muted hover:text-theme-text"
           }`}
-          aria-pressed={current === opt.key}
           data-testid={`time-range-${opt.key}`}
         >
           {opt.label}
@@ -62,7 +65,7 @@ export function TimeRangeSelector() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center gap-1 shrink-0" data-testid="time-range-selector">
+        <div role="radiogroup" aria-label="Time range" className="flex items-center gap-1 shrink-0" data-testid="time-range-selector">
           {TIME_RANGE_OPTIONS.map((opt) => (
             <span
               key={opt.key}
