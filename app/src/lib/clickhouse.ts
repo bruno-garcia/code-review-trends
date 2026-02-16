@@ -464,7 +464,7 @@ export async function getProductBots(productId: string, since?: string): Promise
       SELECT
         b.id,
         b.name,
-        bl.github_login,
+        min(bl.github_login) AS github_login,
         b.brand_color,
         COALESCE(sum(ra.review_count), 0) AS total_reviews,
         COALESCE(sum(ra.review_comment_count), 0) AS total_comments,
@@ -475,7 +475,7 @@ export async function getProductBots(productId: string, since?: string): Promise
       LEFT JOIN bot_logins bl FINAL ON b.id = bl.bot_id
       LEFT JOIN review_activity ra FINAL ON b.id = ra.bot_id ${sinceFilter}
       WHERE b.product_id = {productId:String}
-      GROUP BY b.id, b.name, bl.github_login, b.brand_color
+      GROUP BY b.id, b.name, b.brand_color
       ORDER BY total_reviews DESC
     `,
     params,
