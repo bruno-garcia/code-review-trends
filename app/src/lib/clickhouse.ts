@@ -970,6 +970,135 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
   );
 }
 
+// --- Organization listing queries ---
+
+export type OrgListItem = {
+  owner: string;
+  total_stars: number;
+  repo_count: number;
+  languages: string[];
+  total_prs: number;
+  product_ids: string[];
+};
+
+export type OrgListFilters = {
+  languages?: string[];
+  productIds?: string[];
+  sort?: "stars" | "repos" | "prs";
+  limit?: number;
+  offset?: number;
+};
+
+export type OrgListResult = {
+  orgs: OrgListItem[];
+  total: number;
+};
+
+export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListResult> {
+  const { languages, productIds, sort = "stars", limit = 50, offset = 0 } = filters;
+
+  // Build WHERE conditions on the outer query
+  const conditions: string[] = ["r.fetch_status = 'ok'"];
+  const params: Record<string, unknown> = {
+    limit: limit + 1, // fetch one extra to detect if there are more
+    offset,
+  };
+
+  if (languages && languages.length > 0) {
+    conditions.push(
+      "r.owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))"
+    );
+    params.languages = languages;
+  }
+
+  // Product filter: only orgs where pr_bot_events includes these products
+  let productJoinFilter = "";
+  if (productIds && productIds.length > 0) {
+    productJoinFilter = "WHERE b.product_id IN ({productIds:Array(String)})";
+    conditions.push("pr.total_prs > 0");
+    params.productIds = productIds;
+  }
+
+  const orderBy =
+    sort === "repos" ? "repo_count DESC, total_stars DESC" :
+    sort === "prs" ? "total_prs DESC, total_stars DESC" :
+    "total_stars DESC";
+
+  const whereClause = conditions.join(" AND ");
+
+  const dataQuery = `
+    SELECT
+      r.owner,
+      sum(r.stars) AS total_stars,
+      count() AS repo_count,
+      groupUniqArray(r.primary_language) AS languages,
+      COALESCE(pr.total_prs, 0) AS total_prs,
+      COALESCE(pr.product_ids, []) AS product_ids
+    FROM repos r
+    LEFT JOIN (
+      SELECT
+        r2.owner,
+        countDistinct(e.repo_name, e.pr_number) AS total_prs,
+        groupUniqArray(b.product_id) AS product_ids
+      FROM pr_bot_events e
+      JOIN repos r2 ON e.repo_name = r2.name
+      JOIN bots b ON e.bot_id = b.id
+      ${productJoinFilter}
+      GROUP BY r2.owner
+    ) pr ON r.owner = pr.owner
+    WHERE ${whereClause}
+    GROUP BY r.owner, pr.total_prs, pr.product_ids
+    ORDER BY ${orderBy}
+    LIMIT {limit:UInt32}
+    OFFSET {offset:UInt32}
+  `;
+
+  const countQuery = `
+    SELECT count() AS total FROM (
+      SELECT r.owner
+      FROM repos r
+      LEFT JOIN (
+        SELECT
+          r2.owner,
+          countDistinct(e.repo_name, e.pr_number) AS total_prs
+        FROM pr_bot_events e
+        JOIN repos r2 ON e.repo_name = r2.name
+        JOIN bots b ON e.bot_id = b.id
+        ${productJoinFilter}
+        GROUP BY r2.owner
+      ) pr ON r.owner = pr.owner
+      WHERE ${whereClause}
+      GROUP BY r.owner, pr.total_prs
+    )
+  `;
+
+  const [orgs, countRows] = await Promise.all([
+    query<OrgListItem>(dataQuery, params),
+    query<{ total: number }>(countQuery, params),
+  ]);
+
+  return {
+    orgs: orgs.slice(0, limit),
+    total: countRows[0]?.total ?? 0,
+  };
+}
+
+export type OrgFilterOption = {
+  value: string;
+  count: number;
+};
+
+export async function getOrgLanguageOptions(): Promise<OrgFilterOption[]> {
+  return query<OrgFilterOption>(`
+    SELECT primary_language AS value, count(DISTINCT owner) AS count
+    FROM repos
+    WHERE fetch_status = 'ok' AND primary_language != ''
+    GROUP BY primary_language
+    HAVING count >= 10
+    ORDER BY count DESC
+  `);
+}
+
 export type EnrichmentStats = {
   total_discovered_repos: number;
   enriched_repos: number;
