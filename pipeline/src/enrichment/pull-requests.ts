@@ -14,7 +14,7 @@ import {
   type PullRequestRow,
 } from "../clickhouse.js";
 import { extractReactionCounts } from "../github.js";
-import { Sentry, log, logWarn, logError, countMetric } from "../sentry.js";
+import { Sentry, log, logError, countMetric } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -78,7 +78,9 @@ export async function enrichPullRequests(
   }
 
   let fetched = 0;
-  let skipped = 0;
+  let notFound = 0;
+  let forbidden = 0;
+  let rateLimited = 0;
   let errors = 0;
   const BATCH_SIZE = 100;
 
@@ -91,10 +93,7 @@ export async function enrichPullRequests(
       async () => {
         for (const { repo_name, pr_number } of batch) {
           const [owner, repo] = repo_name.split("/");
-          if (!owner || !repo) {
-            skipped++;
-            continue;
-          }
+          if (!owner || !repo) continue;
 
           await rateLimiter.waitIfNeeded();
 
@@ -139,8 +138,7 @@ export async function enrichPullRequests(
             const status = (err as { status?: number }).status;
 
             if (status === 404) {
-              logWarn(`[pull-requests] 404 for ${repo_name}#${pr_number}, skipping`);
-              skipped++;
+              notFound++;
             } else if (status === 403) {
               const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
               if (headers) {
@@ -150,13 +148,15 @@ export async function enrichPullRequests(
                   await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
                 }
               }
-              if (!handleEnterprisePolicyError(err, repo_name, "pull-requests")) {
-                logWarn(`[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`);
+              if (headers?.["retry-after"] || headers?.["x-ratelimit-remaining"] === "0") {
+                rateLimited++;
+              } else {
+                handleEnterprisePolicyError(err, repo_name, "pull-requests");
+                forbidden++;
               }
-              skipped++;
             } else {
               Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
-              logError(`[pull-requests] Error fetching ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
+              logError(`[pull-requests] Error: ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
               errors++;
             }
           }
@@ -164,10 +164,11 @@ export async function enrichPullRequests(
       },
     );
 
-    log(`[pull-requests] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+    const processed = fetched + notFound + forbidden + rateLimited + errors;
+    log(`[pull-requests] Progress: ${processed}/${prs.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.prs.batch", 1);
   }
 
-  log(`[pull-requests] Done: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
-  return { fetched, skipped, errors };
+  log(`[pull-requests] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${errors} errors`);
+  return { fetched, skipped: notFound + forbidden + rateLimited, errors };
 }

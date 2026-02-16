@@ -69,7 +69,9 @@ export async function enrichRepos(
   }
 
   let fetched = 0;
-  let skipped = 0;
+  let notFound = 0;
+  let forbidden = 0;
+  let rateLimited = 0;
   let errors = 0;
   const BATCH_SIZE = 50;
 
@@ -83,10 +85,7 @@ export async function enrichRepos(
       async () => {
         for (const { repo_name } of batch) {
           const [owner, repo] = repo_name.split("/");
-          if (!owner || !repo) {
-            skipped++;
-            continue;
-          }
+          if (!owner || !repo) continue;
 
           await rateLimiter.waitIfNeeded();
 
@@ -129,15 +128,10 @@ export async function enrichRepos(
 
             if (status === 404) {
               await insertRepos(ch, [{
-                name: repo_name,
-                owner,
-                stars: 0,
-                primary_language: "",
-                fork: false,
-                archived: false,
-                fetch_status: "not_found",
+                name: repo_name, owner, stars: 0, primary_language: "",
+                fork: false, archived: false, fetch_status: "not_found",
               }]);
-              skipped++;
+              notFound++;
             } else if (status === 403) {
               const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
               const isRateLimit = headers?.["retry-after"] || (headers?.["x-ratelimit-remaining"] === "0");
@@ -148,22 +142,15 @@ export async function enrichRepos(
                   await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
                 }
               }
-
               if (isRateLimit) {
-                log(`[repos] Rate-limited on ${repo_name}, will retry later`);
-                skipped++;
+                rateLimited++;
               } else {
                 handleEnterprisePolicyError(err, repo_name, "repos");
                 await insertRepos(ch, [{
-                  name: repo_name,
-                  owner,
-                  stars: 0,
-                  primary_language: "",
-                  fork: false,
-                  archived: false,
-                  fetch_status: "forbidden",
+                  name: repo_name, owner, stars: 0, primary_language: "",
+                  fork: false, archived: false, fetch_status: "forbidden",
                 }]);
-                skipped++;
+                forbidden++;
               }
             } else {
               Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
@@ -175,12 +162,13 @@ export async function enrichRepos(
       },
     );
 
-    log(`[repos] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+    const processed = fetched + notFound + forbidden + rateLimited + errors;
+    log(`[repos] Progress: ${processed}/${repos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.repos.batch", 1);
   }
 
-  log(`[repos] Done: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
-  return { fetched, skipped, errors };
+  log(`[repos] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${errors} errors`);
+  return { fetched, skipped: notFound + forbidden + rateLimited, errors };
 }
 
 /**
