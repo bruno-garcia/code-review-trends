@@ -25,3 +25,7 @@ Thumbs.db
 
 # Pi agent artifacts
 .pi/
+
+# This is an npm project — ignore yarn lockfile
+# (yarn is installed globally and sometimes creates this)
+yarn.lock
