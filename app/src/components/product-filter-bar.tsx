@@ -61,27 +61,25 @@ export function ProductFilterBar() {
   return (
     <div data-testid="product-filter-bar" className="border-b border-gray-800 bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Compact row */}
-        <div className="flex items-center gap-3 min-h-12 py-2">
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-gray-500 hover:text-gray-300 whitespace-nowrap shrink-0 transition-colors cursor-pointer"
-            aria-label={expanded ? "Collapse product filter" : "Expand product filter"}
-          >
+        {/* Compact row — entire bar is clickable to toggle the picker */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setExpanded(!expanded)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }}
+          className="flex items-center gap-3 min-h-12 py-2 cursor-pointer"
+          aria-label={expanded ? "Collapse filter" : "Expand filter"}
+          aria-expanded={expanded}
+        >
+          <span className="text-xs text-gray-500 whitespace-nowrap shrink-0">
             Showing {selectedProducts.length} of {allProducts.length} products
-          </button>
+          </span>
 
           <div className="flex-1 flex flex-wrap items-center gap-1.5">
             {selectedProducts.map((p) => (
-              <button
+              <span
                 key={p.id}
-                type="button"
-                onClick={() => {
-                  setExpanded(true);
-                }}
-                aria-label={`${p.name} — click to open filter picker`}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap border transition-colors hover:brightness-125"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap border"
                 style={{
                   borderColor: p.brand_color + "60",
                   backgroundColor: p.brand_color + "15",
@@ -96,20 +94,18 @@ export function ProductFilterBar() {
                   className="rounded-full"
                 />
                 {p.name}
-              </button>
+              </span>
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="shrink-0 p-1.5 rounded text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
-            aria-label={expanded ? "Collapse filter" : "Expand filter"}
+          <span
+            className="shrink-0 p-1.5 rounded text-gray-400"
+            aria-hidden="true"
           >
             <ChevronDown
               className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
             />
-          </button>
+          </span>
         </div>
 
         {/* Expanded picker */}
