@@ -109,9 +109,11 @@ export default function AboutPage() {
             registry, its activity does not count as &ldquo;AI.&rdquo;
           </p>
           <p className="text-gray-300 leading-relaxed">
-            <strong className="text-white">Denominator</strong> (non-bot
-            events): All remaining events after excluding our tracked bots{" "}
-            <em>and</em> any GitHub account with a{" "}
+            <strong className="text-white">Denominator</strong>: The sum of
+            tracked bot events and non-bot events — i.e., the total pool of
+            activity. The non-bot portion is calculated by taking all public
+            events and excluding our tracked bots <em>and</em> any GitHub
+            account with a{" "}
             <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
               [bot]
             </code>{" "}
@@ -123,8 +125,8 @@ export default function AboutPage() {
             <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
               renovate[bot]
             </code>
-            ) are excluded from both sides of the equation — they don&apos;t
-            inflate the human count or the AI count.
+            ) are excluded from both the AI count and the human count, so they
+            don&apos;t inflate either side.
           </p>
         </div>
 
