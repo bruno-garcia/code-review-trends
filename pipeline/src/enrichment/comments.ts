@@ -18,6 +18,7 @@ import { Sentry, log, logWarn, logError, countMetric } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
+import { summarizeOrgs, summarizeRepos } from "./summary.js";
 
 /**
  * Fetch and insert bot review comments with reactions for PRs
@@ -67,7 +68,22 @@ export async function enrichComments(
     queryParams,
   );
 
-  log(`[comments] Found ${combos.length} PR/bot combos needing comment enrichment`);
+  // Total pending for context
+  const [{ total_pending }] = await query<{ total_pending: string }>(
+    ch,
+    `SELECT count(DISTINCT (e.repo_name, e.pr_number, e.bot_id)) as total_pending
+     FROM pr_bot_events e
+     LEFT JOIN (SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_comments) c
+       ON e.repo_name = c.repo_name AND e.pr_number = c.pr_number AND e.bot_id = c.bot_id
+     WHERE c.bot_id IS NULL
+       AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))`,
+  );
+
+  log(`[comments] Processing ${combos.length} of ${total_pending} pending combos`);
+  if (combos.length > 0) {
+    log(`[comments] ${summarizeOrgs(combos.map((c) => c.repo_name))}`);
+    log(`[comments] ${summarizeRepos(combos)}`);
+  }
 
   let fetched = 0;
   let skipped = 0;

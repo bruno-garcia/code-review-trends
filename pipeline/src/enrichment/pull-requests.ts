@@ -18,6 +18,7 @@ import { Sentry, log, logWarn, logError, countMetric } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
+import { summarizeOrgs, summarizeRepos } from "./summary.js";
 
 /**
  * Fetch and insert details for PRs discovered in pr_bot_events
@@ -60,7 +61,21 @@ export async function enrichPullRequests(
     queryParams,
   );
 
-  log(`[pull-requests] Found ${prs.length} PRs needing enrichment`);
+  // Total pending for context
+  const [{ total_pending }] = await query<{ total_pending: string }>(
+    ch,
+    `SELECT count(DISTINCT (e.repo_name, e.pr_number)) as total_pending
+     FROM pr_bot_events e
+     LEFT JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
+     WHERE p.pr_number IS NULL
+       AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))`,
+  );
+
+  log(`[pull-requests] Processing ${prs.length} of ${total_pending} pending PRs`);
+  if (prs.length > 0) {
+    log(`[pull-requests] ${summarizeOrgs(prs.map((p) => p.repo_name))}`);
+    log(`[pull-requests] ${summarizeRepos(prs)}`);
+  }
 
   let fetched = 0;
   let skipped = 0;

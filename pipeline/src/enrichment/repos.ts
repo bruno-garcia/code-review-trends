@@ -19,6 +19,7 @@ import { Sentry, log, logError, countMetric } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
+import { summarizeOrgs } from "./summary.js";
 
 /**
  * Fetch and insert metadata for repos discovered in pr_bot_events
@@ -54,7 +55,18 @@ export async function enrichRepos(
     queryParams,
   );
 
-  log(`[repos] Found ${repos.length} repos needing enrichment`);
+  // Total pending (without limit) for context
+  const [{ total_pending }] = await query<{ total_pending: string }>(
+    ch,
+    `SELECT count(DISTINCT repo_name) as total_pending FROM pr_bot_events
+     WHERE repo_name NOT IN (SELECT name FROM repos)`,
+  );
+
+  // Summarize what this run will work on
+  log(`[repos] Processing ${repos.length} of ${total_pending} pending repos`);
+  if (repos.length > 0) {
+    log(`[repos] ${summarizeOrgs(repos.map((r) => r.repo_name))}`);
+  }
 
   let fetched = 0;
   let skipped = 0;
