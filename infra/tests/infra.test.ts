@@ -170,9 +170,14 @@ describe("clickhouse VM", () => {
     expect(typeof script).toBe("string");
     const s = script as string;
 
-    // ClickHouse installation
+    // ClickHouse installation (skipped on subsequent boots)
     expect(s).toContain("clickhouse-server");
     expect(s).toContain("clickhouse-client");
+    expect(s).toContain("First boot");
+    expect(s).toContain("Packages already installed");
+
+    // GPG keys imported in batch mode (no TTY required)
+    expect(s).toContain("gpg --batch --yes --dearmor");
 
     // ClickHouse listens on localhost only
     expect(s).toContain("<listen_host>127.0.0.1</listen_host>");
@@ -187,11 +192,15 @@ describe("clickhouse VM", () => {
     // Readiness check with error handling
     expect(s).toContain("ClickHouse did not become ready");
 
-    // Caddy installation and config
-    expect(s).toContain("apt-get install -y caddy");
+    // Caddy config uses explicit IPv4 (not 'localhost' which resolves to ::1)
     expect(s).toContain("ch-test.example.com");
     expect(s).toContain(String(CADDY_HTTPS_PORT));
-    expect(s).toContain("reverse_proxy localhost:");
+    expect(s).toContain("reverse_proxy 127.0.0.1:");
+    expect(s).not.toContain("reverse_proxy localhost:");
+
+    // Health-check watchdog restarts Caddy if it stops responding
+    expect(s).toContain("caddy-watchdog");
+    expect(s).toContain("systemctl restart caddy");
 
     // Database creation
     expect(s).toContain("CREATE DATABASE IF NOT EXISTS code_review_trends");

@@ -52,22 +52,39 @@ echo "Starting ClickHouse + Caddy setup at $(date)"
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 echo "nameserver 8.8.4.4" >> /etc/resolv.conf
 
-apt-get update
-apt-get install -y apt-transport-https ca-certificates curl gnupg debian-keyring debian-archive-keyring
+# ---- Install packages (first boot only) ----
 
-# ---- ClickHouse ----
+if ! command -v clickhouse-server &>/dev/null || ! command -v caddy &>/dev/null; then
+  echo "First boot — installing packages"
 
-curl -fsSL 'https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key' | \\
-  gpg --dearmor -o /usr/share/keyrings/clickhouse-keyring.gpg
+  apt-get update
+  apt-get install -y apt-transport-https ca-certificates curl gnupg debian-keyring debian-archive-keyring
 
-echo "deb [signed-by=/usr/share/keyrings/clickhouse-keyring.gpg] \\
-  https://packages.clickhouse.com/deb stable main" | \\
-  tee /etc/apt/sources.list.d/clickhouse.list
+  # ClickHouse repo
+  curl -fsSL 'https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key' | \\
+    gpg --batch --yes --dearmor -o /usr/share/keyrings/clickhouse-keyring.gpg
 
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y \\
-  clickhouse-server \\
-  clickhouse-client
+  echo "deb [signed-by=/usr/share/keyrings/clickhouse-keyring.gpg] \\
+    https://packages.clickhouse.com/deb stable main" | \\
+    tee /etc/apt/sources.list.d/clickhouse.list
+
+  # Caddy repo
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | \\
+    gpg --batch --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | \\
+    tee /etc/apt/sources.list.d/caddy-stable.list
+
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y \\
+    clickhouse-server \\
+    clickhouse-client \\
+    caddy
+else
+  echo "Packages already installed — skipping installation"
+fi
+
+# ---- Configure ClickHouse ----
 
 # Listen on localhost only — Caddy handles external access
 cat > /etc/clickhouse-server/config.d/listen.xml <<'CFGEOF'
@@ -99,26 +116,61 @@ sed -i "s/PLACEHOLDER_HASH/$CH_PASSWORD_HASH/" /etc/clickhouse-server/users.d/de
 systemctl enable clickhouse-server
 systemctl restart clickhouse-server
 
-# ---- Caddy ----
+# ---- Configure Caddy ----
 
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | \\
-  gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | \\
-  tee /etc/apt/sources.list.d/caddy-stable.list
-
-apt-get update
-apt-get install -y caddy
-
-# Caddy config: TLS reverse proxy on non-standard port
+# Use 127.0.0.1 explicitly — 'localhost' resolves to ::1 on Debian 12
+# and ClickHouse only binds to IPv4
 cat > /etc/caddy/Caddyfile <<'CADDYEOF'
 ${domain}:${CADDY_HTTPS_PORT} {
-  reverse_proxy localhost:${CLICKHOUSE_HTTP_PORT}
+  reverse_proxy 127.0.0.1:${CLICKHOUSE_HTTP_PORT}
 }
 CADDYEOF
 
 systemctl enable caddy
 systemctl restart caddy
+
+# ---- Health-check watchdog ----
+# Restarts Caddy if it accepts TCP connections but stops responding to HTTP.
+# Runs every 2 minutes via systemd timer.
+
+cat > /etc/systemd/system/caddy-watchdog.service <<'WDEOF'
+[Unit]
+Description=Caddy health-check watchdog
+After=caddy.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/caddy-watchdog.sh
+WDEOF
+
+cat > /etc/systemd/system/caddy-watchdog.timer <<'WTEOF'
+[Unit]
+Description=Run Caddy watchdog every 2 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target
+WTEOF
+
+cat > /usr/local/bin/caddy-watchdog.sh <<'WATCHEOF'
+#!/bin/bash
+# Check if Caddy responds to a local HTTP request within 5 seconds.
+# If not, restart it. Logs to journald via systemd.
+if ! curl -sf --max-time 5 -o /dev/null "http://localhost:80" 2>/dev/null; then
+  echo "Caddy health check failed — restarting"
+  systemctl restart caddy
+else
+  echo "Caddy health check passed"
+fi
+WATCHEOF
+chmod +x /usr/local/bin/caddy-watchdog.sh
+
+systemctl daemon-reload
+systemctl enable caddy-watchdog.timer
+systemctl start caddy-watchdog.timer
 
 # ---- Create database ----
 
