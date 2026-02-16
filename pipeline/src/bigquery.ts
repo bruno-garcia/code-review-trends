@@ -29,7 +29,7 @@ import { BigQuery } from "@google-cloud/bigquery";
  * even though actual scans are ~150MB/day. This limit is checked
  * against the estimate, not actual bytes scanned.
  */
-const DEFAULT_MAX_BYTES_BILLED = "700000000000"; // 700GB
+const DEFAULT_MAX_BYTES_BILLED = "15000000000000"; // 15TB (actual scans are ~150MB/day; BigQuery wildcard estimates are wildly pessimistic)
 
 export type BigQueryConfig = {
   projectId?: string;
