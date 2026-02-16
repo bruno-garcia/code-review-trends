@@ -104,6 +104,9 @@ export function FilteredBotsPage({
           </Link>
         </div>
         <div className="overflow-x-auto">
+          {filteredSummaries.length === 0 ? (
+            <p className="text-theme-muted text-sm">No products match the current filter.</p>
+          ) : (
           <table className="w-full text-left" data-testid="leaderboard-table">
             <thead className="text-theme-muted border-b border-theme-border text-sm">
               <tr>
@@ -184,6 +187,7 @@ export function FilteredBotsPage({
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </section>
 
@@ -200,6 +204,9 @@ export function FilteredBotsPage({
       </section>
 
       {/* Bot Cards Grid */}
+      {filteredSummaries.length === 0 ? (
+        <p className="text-theme-muted text-sm" data-testid="bots-grid">No products to display.</p>
+      ) : (
       <div
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         data-testid="bots-grid"
@@ -275,6 +282,7 @@ export function FilteredBotsPage({
           </Link>
         ))}
       </div>
+      )}
     </>
   );
 }

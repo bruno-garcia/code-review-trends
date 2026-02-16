@@ -261,6 +261,10 @@ export function ReviewVolumeChart({
 }) {
   const c = useChartColors();
 
+  if (data.length === 0) {
+    return <p className="text-theme-muted text-sm">No review data for the selected filters.</p>;
+  }
+
   return (
     <ResponsiveContainer width="100%" height={350}>
       <AreaChart data={data}>
