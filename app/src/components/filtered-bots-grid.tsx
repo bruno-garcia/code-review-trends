@@ -53,6 +53,12 @@ export function FilteredBotsGrid({
               </p>
             </div>
             <div>
+              <span className="text-gray-500">PR Comments</span>
+              <p className="font-medium tabular-nums">
+                {Number(product.total_pr_comments).toLocaleString()}
+              </p>
+            </div>
+            <div>
               <span className="text-gray-500">Repos</span>
               <p className="font-medium tabular-nums">
                 {Number(product.total_repos).toLocaleString()}
@@ -68,12 +74,6 @@ export function FilteredBotsGrid({
               <span className="text-gray-500">Approval</span>
               <p className="font-medium tabular-nums">
                 {Number(product.approval_rate).toFixed(0)}%
-              </p>
-            </div>
-            <div>
-              <span className="text-gray-500">Avg C/R</span>
-              <p className="font-medium tabular-nums">
-                {Number(product.avg_comments_per_review).toFixed(1)}
               </p>
             </div>
             <div>

@@ -109,10 +109,11 @@ export function FilteredHome({
               <tr>
                 <th className="pb-3 pr-4">Product</th>
                 <th className="pb-3 pr-4 text-right">Reviews</th>
-                <th className="pb-3 pr-4 text-right">Comments</th>
+                <th className="pb-3 pr-4 text-right">Review Comments</th>
+                <th className="pb-3 pr-4 text-right">PR Comments</th>
                 <th className="pb-3 pr-4 text-right">Repos</th>
                 <th className="pb-3 pr-4 text-right">Orgs</th>
-                <th className="pb-3 pr-4 text-right">Avg Comments/Review</th>
+                <th className="pb-3 pr-4 text-right">Avg C/R</th>
                 <th className="pb-3 pr-4 text-right">Approval</th>
                 <th className="pb-3 text-right">Growth</th>
               </tr>
@@ -151,6 +152,9 @@ export function FilteredHome({
                   </td>
                   <td className="py-3 pr-4 text-right tabular-nums">
                     {Number(product.total_comments).toLocaleString()}
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums">
+                    {Number(product.total_pr_comments).toLocaleString()}
                   </td>
                   <td className="py-3 pr-4 text-right tabular-nums">
                     {Number(product.total_repos).toLocaleString()}
