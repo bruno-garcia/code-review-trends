@@ -507,13 +507,13 @@ export async function getWeeklyTotals(): Promise<WeeklyTotals[]> {
       formatDateTime(h.week, '%Y-%m-%d') AS week,
       COALESCE(b.bot_reviews, 0) AS bot_reviews,
       h.review_count AS human_reviews,
-      round(COALESCE(b.bot_reviews, 0) * 100.0 / (h.review_count + COALESCE(b.bot_reviews, 0)), 2) AS bot_share_pct,
+      round(if(h.review_count + COALESCE(b.bot_reviews, 0) > 0, COALESCE(b.bot_reviews, 0) * 100.0 / (h.review_count + COALESCE(b.bot_reviews, 0)), 0), 2) AS bot_share_pct,
       COALESCE(b.bot_comments, 0) AS bot_comments,
       h.review_comment_count AS human_comments,
-      round(COALESCE(b.bot_comments, 0) * 100.0 / (h.review_comment_count + COALESCE(b.bot_comments, 0)), 2) AS bot_comment_share_pct,
+      round(if(h.review_comment_count + COALESCE(b.bot_comments, 0) > 0, COALESCE(b.bot_comments, 0) * 100.0 / (h.review_comment_count + COALESCE(b.bot_comments, 0)), 0), 2) AS bot_comment_share_pct,
       COALESCE(b.bot_pr_comments, 0) AS bot_pr_comments,
       h.pr_comment_count AS human_pr_comments,
-      round(COALESCE(b.bot_pr_comments, 0) * 100.0 / (h.pr_comment_count + COALESCE(b.bot_pr_comments, 0)), 2) AS bot_pr_comment_share_pct
+      round(if(h.pr_comment_count + COALESCE(b.bot_pr_comments, 0) > 0, COALESCE(b.bot_pr_comments, 0) * 100.0 / (h.pr_comment_count + COALESCE(b.bot_pr_comments, 0)), 0), 2) AS bot_pr_comment_share_pct
     FROM human_review_activity AS h FINAL
     LEFT JOIN (
       SELECT week, sum(review_count) AS bot_reviews, sum(review_comment_count) AS bot_comments, sum(pr_comment_count) AS bot_pr_comments

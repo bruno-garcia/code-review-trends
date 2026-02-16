@@ -106,8 +106,8 @@ export default function AboutPage() {
               </tr>
               <tr className="border-b border-gray-800">
                 <td className="px-4 py-3">Sentry</td>
-                <td className="px-4 py-3">19%</td>
-                <td className="px-4 py-3">21%</td>
+                <td className="px-4 py-3">25%</td>
+                <td className="px-4 py-3">27%</td>
                 <td className="px-4 py-3">48%</td>
               </tr>
             </tbody>
