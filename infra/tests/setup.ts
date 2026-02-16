@@ -31,7 +31,7 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
   class MockConfig {
     private values: Record<string, string> = {
       environment: "test",
-      clickhouseMachineType: "e2-small",
+      clickhouseMachineType: "e2-medium",
       clickhouseDiskSizeGb: "20",
       clickhouseDomain: "ch-test.example.com",
     };

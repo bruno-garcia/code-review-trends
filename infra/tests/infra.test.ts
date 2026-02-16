@@ -16,7 +16,7 @@ describe("config", () => {
 
     expect(cfg.environment).toBe("test");
     expect(cfg.namePrefix).toBe("crt-test");
-    expect(cfg.clickhouseMachineType).toBe("e2-small");
+    expect(cfg.clickhouseMachineType).toBe("e2-medium");
     expect(cfg.clickhouseDiskSizeGb).toBe(20);
 
     const domain = await outputValue(cfg.clickhouseDomain);
@@ -113,7 +113,7 @@ describe("clickhouse VM", () => {
     expect(vmName).toBe("crt-test-clickhouse");
 
     const machineType = await outputValue(result.vm.machineType);
-    expect(machineType).toBe("e2-small");
+    expect(machineType).toBe("e2-medium");
   });
 
   it("has boot disk with autoDelete disabled", async () => {
@@ -182,6 +182,11 @@ describe("clickhouse VM", () => {
     // ClickHouse listens on localhost only
     expect(s).toContain("<listen_host>127.0.0.1</listen_host>");
     expect(s).toContain(`<http_port>${CLICKHOUSE_HTTP_PORT}</http_port>`);
+
+    // Memory limits — server capped at 90% of RAM, per-query at 1GB
+    expect(s).toContain("max_server_memory_usage_to_ram_ratio");
+    expect(s).toContain("0.9");
+    expect(s).toContain("<max_memory_usage>1000000000</max_memory_usage>");
 
     // Password is injected and hashed via SHA256
     expect(s).toContain("test-password-123");

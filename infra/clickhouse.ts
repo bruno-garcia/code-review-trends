@@ -94,6 +94,23 @@ cat > /etc/clickhouse-server/config.d/listen.xml <<'CFGEOF'
 </clickhouse>
 CFGEOF
 
+# Memory limits — use 90% of RAM (dedicated box), cap individual queries at 1GB
+cat > /etc/clickhouse-server/config.d/memory.xml <<'MEMEOF'
+<clickhouse>
+  <max_server_memory_usage_to_ram_ratio>0.9</max_server_memory_usage_to_ram_ratio>
+</clickhouse>
+MEMEOF
+
+cat > /etc/clickhouse-server/users.d/memory-limits.xml <<'MLEOF'
+<clickhouse>
+  <profiles>
+    <default>
+      <max_memory_usage>1000000000</max_memory_usage>
+    </default>
+  </profiles>
+</clickhouse>
+MLEOF
+
 # Set the default user password and compute SHA256 hash for config
 CH_PASSWORD='${escapedPassword}'
 CH_PASSWORD_HASH=$(printf "%s" "$CH_PASSWORD" | sha256sum | tr -d ' -')
