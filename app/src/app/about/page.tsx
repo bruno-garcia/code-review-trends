@@ -1,18 +1,23 @@
+const linkClass =
+  "text-violet-600 hover:text-violet-500 dark:text-violet-400 dark:hover:text-violet-300";
+const codeClass =
+  "rounded bg-theme-surface px-1.5 py-0.5 text-sm text-theme-text border border-theme-border";
+
 export default function AboutPage() {
   return (
     <div data-testid="about-page" className="mx-auto max-w-4xl space-y-12 py-8">
-      <h1 className="text-4xl font-bold text-white">Methodology</h1>
+      <h1 className="text-4xl font-bold text-theme-text">Methodology</h1>
 
       {/* Data Source */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-white">Data Source</h2>
-        <p className="text-gray-300 leading-relaxed">
-          <a href="https://www.gharchive.org/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">GH Archive</a> stores
+        <h2 className="text-2xl font-semibold text-theme-text">Data Source</h2>
+        <p className="text-theme-text leading-relaxed">
+          <a href="https://www.gharchive.org/" target="_blank" rel="noopener noreferrer" className={linkClass}>GH Archive</a> stores
           all public GitHub events in BigQuery. We query these daily tables to
           count how AI code review bots interact with pull requests. Additional
           metadata (stars, languages, reactions) comes from the GitHub REST API.
         </p>
-        <p className="text-gray-400 text-sm italic">
+        <p className="text-theme-muted text-sm italic">
           Note: Only public repositories are included. Activity on private repos
           is invisible.
         </p>
@@ -20,20 +25,20 @@ export default function AboutPage() {
 
       {/* What Counts as a "Review" */}
       <section className="space-y-6">
-        <h2 className="text-2xl font-semibold text-white">
+        <h2 className="text-2xl font-semibold text-theme-text">
           What Counts as a &ldquo;Review&rdquo;
         </h2>
-        <p className="text-gray-300 leading-relaxed">
+        <p className="text-theme-text leading-relaxed">
           We track four types of GitHub signals that indicate a bot
           participated in code review:
         </p>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-medium text-white">
-              1. Reviews (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#pullrequestreviewevent" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">PullRequestReviewEvent</a>)
+            <h3 className="text-lg font-medium text-theme-text">
+              1. Reviews (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#pullrequestreviewevent" target="_blank" rel="noopener noreferrer" className={linkClass}>PullRequestReviewEvent</a>)
             </h3>
-            <p className="mt-2 text-gray-300 leading-relaxed">
+            <p className="mt-2 text-theme-text leading-relaxed">
               Fired when a review is submitted — approve, request changes, or
               comment. This is the primary metric used for rankings. Even a
               silent approval (no comment body) generates this event.
@@ -41,10 +46,10 @@ export default function AboutPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-white">
-              2. Review Comments (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#pullrequestreviewcommentevent" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">PullRequestReviewCommentEvent</a>)
+            <h3 className="text-lg font-medium text-theme-text">
+              2. Review Comments (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#pullrequestreviewcommentevent" target="_blank" rel="noopener noreferrer" className={linkClass}>PullRequestReviewCommentEvent</a>)
             </h3>
-            <p className="mt-2 text-gray-300 leading-relaxed">
+            <p className="mt-2 text-theme-text leading-relaxed">
               Fired for each inline comment on a PR diff. A single review
               submission can contain many inline comments, each generating a
               separate event. This gives a more granular view of how verbose a
@@ -53,10 +58,10 @@ export default function AboutPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-white">
-              3. PR Comments (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#issuecommentevent" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">IssueCommentEvent</a> on PRs)
+            <h3 className="text-lg font-medium text-theme-text">
+              3. PR Comments (<a href="https://docs.github.com/en/rest/using-the-rest-api/github-event-types#issuecommentevent" target="_blank" rel="noopener noreferrer" className={linkClass}>IssueCommentEvent</a> on PRs)
             </h3>
-            <p className="mt-2 text-gray-300 leading-relaxed">
+            <p className="mt-2 text-theme-text leading-relaxed">
               Top-level comments posted on pull requests (not inline on diffs).
               Many bots use these for summaries, walkthrough guides, or analysis
               reports rather than the formal review API. In GitHub&apos;s data
@@ -66,10 +71,10 @@ export default function AboutPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-white">
+            <h3 className="text-lg font-medium text-theme-text">
               4. Emoji Reactions on PRs
             </h3>
-            <p className="mt-2 text-gray-300 leading-relaxed">
+            <p className="mt-2 text-theme-text leading-relaxed">
               Some bots signal approval by adding emoji reactions to PR
               descriptions — for example, a 🎉 reaction can indicate a bot has
               reviewed and approved the PR. GitHub&apos;s Events API has no
@@ -85,44 +90,44 @@ export default function AboutPage() {
 
       {/* How AI Share Is Calculated */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-white">
+        <h2 className="text-2xl font-semibold text-theme-text">
           How &ldquo;AI Share&rdquo; Is Calculated
         </h2>
-        <p className="text-gray-300 leading-relaxed">
+        <p className="text-theme-text leading-relaxed">
           The AI share percentage on the home page uses a simple formula,
           computed separately for each event type (reviews, review comments, PR
           comments):
         </p>
-        <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900 px-6 py-4">
-          <code className="text-sm text-gray-200">
+        <div className="overflow-x-auto rounded-lg border border-theme-border bg-theme-surface px-6 py-4">
+          <code className="text-sm text-theme-text">
             AI Share % = tracked_bot_events / (tracked_bot_events +
             non_bot_events) × 100
           </code>
         </div>
 
         <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">
-            <strong className="text-white">Numerator</strong> (tracked bot
+          <p className="text-theme-text leading-relaxed">
+            <strong>Numerator</strong> (tracked bot
             events): Only events from the{" "}
             <span className="tabular-nums">~30</span> bot accounts we
             explicitly track. If an AI code review tool isn&apos;t in our
             registry, its activity does not count as &ldquo;AI.&rdquo;
           </p>
-          <p className="text-gray-300 leading-relaxed">
-            <strong className="text-white">Denominator</strong>: The sum of
+          <p className="text-theme-text leading-relaxed">
+            <strong>Denominator</strong>: The sum of
             tracked bot events and non-bot events — i.e., the total pool of
             activity. The non-bot portion is calculated by taking all public
             events and excluding our tracked bots <em>and</em> any GitHub
             account with a{" "}
-            <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+            <code className={codeClass}>
               [bot]
             </code>{" "}
             suffix. This means non-AI automation bots (like{" "}
-            <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+            <code className={codeClass}>
               dependabot[bot]
             </code>{" "}
             or{" "}
-            <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+            <code className={codeClass}>
               renovate[bot]
             </code>
             ) are excluded from both the AI count and the human count, so they
@@ -130,8 +135,8 @@ export default function AboutPage() {
           </p>
         </div>
 
-        <p className="text-gray-300 leading-relaxed">
-          <strong className="text-white">No double counting</strong>: Each
+        <p className="text-theme-text leading-relaxed">
+          <strong>No double counting</strong>: Each
           event type is counted and displayed independently — the chart lets you
           toggle between Reviews, Review Comments, and PR Comments. A bot that
           submits 1 review with 5 inline comments contributes 1 to the Reviews
@@ -142,7 +147,7 @@ export default function AboutPage() {
           the same PR, that&apos;s two events.
         </p>
 
-        <p className="text-gray-400 text-sm italic">
+        <p className="text-theme-muted text-sm italic">
           This means the percentage represents &ldquo;share of non-bot public
           GitHub code review activity attributable to tracked AI bots.&rdquo;
           The true share of AI-assisted reviews is likely higher, since we
@@ -153,12 +158,12 @@ export default function AboutPage() {
 
       {/* How Bots Differ */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-white">How Bots Differ</h2>
-        <p className="text-gray-300 leading-relaxed">
+        <h2 className="text-2xl font-semibold text-theme-text">How Bots Differ</h2>
+        <p className="text-theme-text leading-relaxed">
           Not all bots use the same mix of event types. This affects how they
           rank depending on which metric you look at. For example:
         </p>
-        <ul className="list-disc space-y-2 pl-6 text-gray-300">
+        <ul className="list-disc space-y-2 pl-6 text-theme-text">
           <li>
             Some bots (like GitHub Copilot) use the formal review API almost
             exclusively — they show up strongly in Reviews and Review Comments
@@ -178,7 +183,7 @@ export default function AboutPage() {
             data.
           </li>
         </ul>
-        <p className="text-gray-300 leading-relaxed">
+        <p className="text-theme-text leading-relaxed">
           You can see the exact event-type breakdown for each product on its
           detail page.
         </p>
@@ -186,22 +191,22 @@ export default function AboutPage() {
 
       {/* What's NOT Tracked */}
       <section className="space-y-6">
-        <h2 className="text-2xl font-semibold text-white">
+        <h2 className="text-2xl font-semibold text-theme-text">
           What&apos;s NOT Tracked
         </h2>
 
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Private repositories</h3>
-            <p className="mt-1 text-gray-300 leading-relaxed">
+            <h3 className="text-lg font-medium text-theme-text">Private repositories</h3>
+            <p className="mt-1 text-theme-text leading-relaxed">
               GH Archive only captures public GitHub events. Bots may be far
               more active on private repos, especially in enterprise settings.
             </p>
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-white">Check runs and status checks</h3>
-            <p className="mt-1 text-gray-300 leading-relaxed">
+            <h3 className="text-lg font-medium text-theme-text">Check runs and status checks</h3>
+            <p className="mt-1 text-theme-text leading-relaxed">
               Some tools post analysis results as CI check runs or commit
               statuses (CheckRunEvent/CheckSuiteEvent/StatusEvent). These are
               not tracked. This affects even bots we do track — for example,
@@ -213,8 +218,8 @@ export default function AboutPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-white">Bot-created pull requests</h3>
-            <p className="mt-1 text-gray-300 leading-relaxed">
+            <h3 className="text-lg font-medium text-theme-text">Bot-created pull requests</h3>
+            <p className="mt-1 text-theme-text leading-relaxed">
               AI tools like Devin, Sweep, and Seer by Sentry create pull
               requests rather than review them. PullRequestEvent is a different
               signal and is not tracked.
@@ -222,18 +227,18 @@ export default function AboutPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-white">Non-bot accounts</h3>
-            <p className="mt-1 text-gray-300 leading-relaxed">
+            <h3 className="text-lg font-medium text-theme-text">Non-bot accounts</h3>
+            <p className="mt-1 text-theme-text leading-relaxed">
               Some AI tools operate through regular GitHub user accounts rather
               than App bot accounts. These are not distinguishable from human
               users in GH Archive data. Where we know about these accounts, we
               track them explicitly — for example, GitHub Copilot appears as
               both{" "}
-              <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+              <code className={codeClass}>
                 copilot-pull-request-reviewer[bot]
               </code>{" "}
               and the regular user account{" "}
-              <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">
+              <code className={codeClass}>
                 Copilot
               </code>
               , and we include both in our tracking. Any non-bot accounts we
@@ -242,12 +247,12 @@ export default function AboutPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-white">Untracked bot accounts</h3>
-            <p className="mt-1 text-gray-300 leading-relaxed">
+            <h3 className="text-lg font-medium text-theme-text">Untracked bot accounts</h3>
+            <p className="mt-1 text-theme-text leading-relaxed">
               We maintain a curated registry of ~30 AI code review bot accounts.
               Any bot not in this registry is excluded from the AI share
               numerator. If it has a{" "}
-              <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">[bot]</code>{" "}
+              <code className={codeClass}>[bot]</code>{" "}
               suffix, it&apos;s also excluded from the denominator (so it
               doesn&apos;t affect the percentage either way). If it uses a
               regular user account, it falls into the human count.
@@ -258,28 +263,28 @@ export default function AboutPage() {
 
       {/* Products vs. Bots */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-white">Products vs. Bots</h2>
-        <p className="text-gray-300 leading-relaxed">
+        <h2 className="text-2xl font-semibold text-theme-text">Products vs. Bots</h2>
+        <p className="text-theme-text leading-relaxed">
           A <em>product</em> is a company or tool (e.g., &ldquo;Qodo&rdquo;),
           while a <em>bot</em> is a specific GitHub App account (e.g.,{" "}
-          <code className="rounded bg-gray-800 px-1.5 py-0.5 text-sm text-gray-200">qodo-merge-pro[bot]</code>).
+          <code className={codeClass}>qodo-merge-pro[bot]</code>).
           Some products operate multiple bot accounts:
         </p>
-        <ul className="list-disc space-y-2 pl-6 text-gray-300">
+        <ul className="list-disc space-y-2 pl-6 text-theme-text">
           <li>
-            <strong className="text-white">Qodo</strong>: codium-pr-agent[bot],
+            <strong>Qodo</strong>: codium-pr-agent[bot],
             qodo-merge[bot], qodo-merge-pro[bot]
           </li>
           <li>
-            <strong className="text-white">Sentry</strong>: sentry[bot],
+            <strong>Sentry</strong>: sentry[bot],
             seer-by-sentry[bot], codecov-ai[bot]
           </li>
           <li>
-            <strong className="text-white">LinearB</strong>: gitstream-cm[bot],
+            <strong>LinearB</strong>: gitstream-cm[bot],
             linearb[bot]
           </li>
         </ul>
-        <p className="text-gray-300 leading-relaxed">
+        <p className="text-theme-text leading-relaxed">
           Product-level rankings aggregate activity across all of a
           product&apos;s bot accounts.
         </p>
@@ -287,27 +292,27 @@ export default function AboutPage() {
 
       {/* Comparison with Other Trackers */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-white">
+        <h2 className="text-2xl font-semibold text-theme-text">
           Comparison with Other Trackers
         </h2>
-        <p className="text-gray-300 leading-relaxed">
+        <p className="text-theme-text leading-relaxed">
           If you&apos;ve seen different rankings on other trackers,
           it&apos;s likely because:
         </p>
-        <ul className="list-disc space-y-2 pl-6 text-gray-300">
+        <ul className="list-disc space-y-2 pl-6 text-theme-text">
           <li>
-            <strong className="text-white">Different time windows</strong>: We
+            <strong>Different time windows</strong>: We
             show all-time cumulative totals by default. Other trackers may show
             rolling 7-day or 30-day windows, which favors bots with recent
             surges.
           </li>
           <li>
-            <strong className="text-white">Different event types</strong>: Some
+            <strong>Different event types</strong>: Some
             trackers only count PullRequestReviewEvent. We track all four signal
             types separately (including emoji reactions), giving a more complete picture.
           </li>
           <li>
-            <strong className="text-white">Different bot coverage</strong>: We
+            <strong>Different bot coverage</strong>: We
             track 25+ products with 30+ bot accounts. Other trackers may include
             different sets.
           </li>
