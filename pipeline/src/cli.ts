@@ -120,7 +120,7 @@ Options for migrate:
 
   Applies all db/init/*.sql files (schema + bot data) and syncs the bot
   registry from bots.ts. Does NOT apply db/seed/ (fake data).
-  Safe to re-run — all statements are idempotent.
+  Safe to re-run — schema uses IF NOT EXISTS, bot data uses TRUNCATE+INSERT.
 
 Options for discover:
   --start YYYY-MM-DD   Start date (default: 4 weeks ago)
@@ -302,7 +302,7 @@ async function cmdMigrate() {
   const { readFileSync, readdirSync } = await import("fs");
   const { resolve, dirname } = await import("path");
   const { fileURLToPath } = await import("url");
-  const { execSync } = await import("child_process");
+  const { execFileSync } = await import("child_process");
 
   // Find all SQL files in db/init/ (schema + bot data), sorted by name
   const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -358,13 +358,15 @@ async function cmdMigrate() {
     console.log(`\nReading credentials from Pulumi stack '${stack}'...`);
 
     try {
-      clickhouseUrl = execSync(
-        `pulumi stack output clickhouseUrl --stack ${stack} --show-secrets`,
+      clickhouseUrl = execFileSync(
+        "pulumi",
+        ["stack", "output", "clickhouseUrl", "--stack", stack, "--show-secrets"],
         { cwd: infraDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
       ).trim();
 
-      clickhousePassword = execSync(
-        `pulumi stack output clickhousePassword --stack ${stack} --show-secrets`,
+      clickhousePassword = execFileSync(
+        "pulumi",
+        ["stack", "output", "clickhousePassword", "--stack", stack, "--show-secrets"],
         { cwd: infraDir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
       ).trim();
     } catch (err) {
@@ -419,6 +421,11 @@ async function cmdMigrate() {
       }
     }
 
+    if (errors > 0) {
+      console.error(`\n${errors} SQL statement(s) failed. Aborting before bot registry sync.`);
+      process.exit(1);
+    }
+
     // Sync bot registry from bots.ts (source of truth)
     console.log(`\nSyncing bot registry...`);
     const chClient = createCHClient({
@@ -436,10 +443,7 @@ async function cmdMigrate() {
       await chClient.close();
     }
 
-    console.log(`\nDone: ${applied} SQL statements applied, ${errors} errors`);
-    if (errors > 0) {
-      process.exit(1);
-    }
+    console.log(`\nDone: ${applied} SQL statements applied, ${PRODUCTS.length} products and ${BOTS.length} bots synced.`);
   } finally {
     await client.close();
   }
