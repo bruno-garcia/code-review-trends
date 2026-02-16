@@ -146,6 +146,42 @@ npm run pipeline -- migrate --stack staging --dry-run
 CLICKHOUSE_URL=https://... CLICKHOUSE_PASSWORD=... npm run pipeline -- sync
 ```
 
+## Populating Data (Staging / Prod)
+
+The pipeline has three stages that must run in order. All are idempotent and reentrant — safe to kill and restart.
+
+```bash
+# Set target database (staging example)
+export CLICKHOUSE_URL=https://ch-crt.brunogarcia.com:58432
+export CLICKHOUSE_PASSWORD=...
+export GITHUB_TOKEN=...   # GitHub PAT for enrichment
+
+# 1. Backfill: BigQuery → review_activity + human_review_activity
+#    Aggregates weekly bot/human review counts from GH Archive.
+npm run pipeline -- backfill              # resume from last checkpoint
+npm run pipeline -- backfill --no-resume  # re-fetch everything
+npm run pipeline -- backfill --all        # full history from 2023-01-01
+
+# 2. Discover: BigQuery → pr_bot_events
+#    Finds individual PR-level bot events (which bot touched which PR).
+npm run pipeline -- discover              # last 3 months (default)
+npm run pipeline -- discover --all        # full history from 2023-01-01
+
+# 3. Enrich: GitHub API → repos, pull_requests, pr_comments
+#    Fetches metadata for repos/PRs/comments found by discover.
+#    Processes repos first, then PRs (need repos), then comments (need PRs).
+npm run pipeline -- enrich --limit 4500   # fetch up to 4500 items per stage
+npm run pipeline -- enrich-status         # show enrichment progress
+
+# Parallel enrichment with multiple GitHub tokens (doubles throughput):
+GITHUB_TOKEN=$TOKEN_A npm run pipeline -- enrich --limit 4500 --worker-id 0 --total-workers 2 &
+GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --total-workers 2 &
+```
+
+**How reentrance works:** Each stage queries ClickHouse for what's NOT yet done (e.g., repos in `pr_bot_events` but not in `repos` table). Workers partition work by hash modulo, so parallel workers don't overlap. `ReplacingMergeTree` deduplicates any accidental re-inserts.
+
+**Rate limits:** Each GitHub token gets 5,000 API calls/hour. The enrichment worker auto-throttles when remaining calls drop below 100, waiting for the reset window. With 2 tokens you get ~10K calls/hour.
+
 ## Adding a New Chart / Metric
 
 1. Add the query to `app/src/lib/clickhouse.ts` with proper types.
