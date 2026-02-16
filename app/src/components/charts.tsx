@@ -200,6 +200,7 @@ export function ReviewVolumeChart({
           wrapperStyle={TOOLTIP_WRAPPER_STYLE}
           labelFormatter={(v) => formatWeek(String(v))}
           formatter={(value, name) => [formatNumber(Number(value)), name]}
+          itemSorter={(item) => -(Number(item.value) || 0)}
         />
         <Legend wrapperStyle={c.legendStyle} />
         {bots.map((bot, i) => {
@@ -381,7 +382,7 @@ export function BotRadarChart({
               />
             );
           })}
-          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
+          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} itemSorter={(item) => -(Number(item.value) || 0)} />
         </RadarChart>
       </ResponsiveContainer>
       {/* Legend rendered outside the chart so it never overlaps the radar */}
