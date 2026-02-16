@@ -24,8 +24,8 @@ export default function AboutPage() {
           What Counts as a &ldquo;Review&rdquo;
         </h2>
         <p className="text-gray-300 leading-relaxed">
-          We track three types of GitHub events that indicate a bot participated
-          in code review:
+          We track four types of GitHub signals that indicate a bot
+          participated in code review:
         </p>
 
         <div className="space-y-6">
@@ -62,6 +62,22 @@ export default function AboutPage() {
               reports rather than the formal review API. In GitHub&apos;s data
               model, PRs are issues — so IssueCommentEvent fires for both. We
               filter to only include comments on pull requests.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium text-white">
+              4. Emoji Reactions on PRs
+            </h3>
+            <p className="mt-2 text-gray-300 leading-relaxed">
+              Some bots signal approval by adding emoji reactions to PR
+              descriptions — for example, a 🎉 reaction can indicate a bot has
+              reviewed and approved the PR. GitHub&apos;s Events API has no
+              event type for reactions, so these are invisible in GH Archive.
+              However, we capture PR-level reactions via the GitHub REST API
+              enrichment pipeline when fetching PR details. This gives us an
+              additional signal of bot review activity beyond the three event
+              types above.
             </p>
           </div>
         </div>
@@ -182,19 +198,6 @@ export default function AboutPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium text-white">Emoji reactions on PRs</h3>
-            <p className="mt-1 text-gray-300 leading-relaxed">
-              Some bots indicate they&apos;ve reviewed a PR by adding an emoji
-              reaction (e.g., Sentry adds 🎉 when it finds no issues). GitHub
-              has no event type for reactions in its Events API, so these are
-              invisible to GH Archive. We capture reactions <em>on</em> bot
-              comments via the GitHub REST API enrichment pipeline, but do not
-              yet capture reactions added <em>by</em> bots to PR descriptions
-              (this requires an extra API call per PR to resolve who reacted).
-            </p>
-          </div>
-
-          <div>
             <h3 className="text-lg font-medium text-white">Check runs and status checks</h3>
             <p className="mt-1 text-gray-300 leading-relaxed">
               Some tools post analysis results as CI check runs or commit
@@ -286,8 +289,7 @@ export default function AboutPage() {
           Comparison with Other Trackers
         </h2>
         <p className="text-gray-300 leading-relaxed">
-          If you&apos;ve seen different rankings on other trackers (e.g.,{" "}
-          <a href="https://aitooltracker.dev" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">aitooltracker.dev</a>),
+          If you&apos;ve seen different rankings on other trackers,
           it&apos;s likely because:
         </p>
         <ul className="list-disc space-y-2 pl-6 text-gray-300">
@@ -299,8 +301,8 @@ export default function AboutPage() {
           </li>
           <li>
             <strong className="text-white">Different event types</strong>: Some
-            trackers only count PullRequestReviewEvent. We track all three event
-            types separately, giving a more complete picture.
+            trackers only count PullRequestReviewEvent. We track all four signal
+            types separately (including emoji reactions), giving a more complete picture.
           </li>
           <li>
             <strong className="text-white">Different bot coverage</strong>: We
@@ -308,10 +310,6 @@ export default function AboutPage() {
             different sets.
           </li>
         </ul>
-        <p className="text-gray-300 leading-relaxed">
-          Both this site and aitooltracker.dev use the same underlying data
-          source (GH Archive on BigQuery).
-        </p>
       </section>
     </div>
   );

@@ -232,7 +232,7 @@ FROM (
 
 -- Seed pull_requests (~200 PRs spread across repos)
 -- Generate PRs using a cross join of repos and PR numbers
-INSERT INTO code_review_trends.pull_requests (repo_name, pr_number, title, author, state, created_at, merged_at, closed_at, additions, deletions, changed_files)
+INSERT INTO code_review_trends.pull_requests (repo_name, pr_number, title, author, state, created_at, merged_at, closed_at, additions, deletions, changed_files, thumbs_up, thumbs_down, laugh, confused, heart, hooray, eyes, rocket)
 SELECT
     r.1 AS repo_name,
     toUInt32(1000 + rowNumberInAllBlocks() * 7 + rand() % 100) AS pr_number,
@@ -269,7 +269,16 @@ SELECT
        null) AS closed_at,
     toUInt32(5 + rand() % 2000) AS additions,
     toUInt32(2 + rand() % 800) AS deletions,
-    toUInt32(1 + rand() % 50) AS changed_files
+    toUInt32(1 + rand() % 50) AS changed_files,
+    -- ~30% of PRs get a thumbs_up, ~15% get hooray (tada), rest sparse
+    toUInt32(if(rand() % 100 < 30, 1 + rand() % 5, 0)) AS thumbs_up,
+    toUInt32(if(rand() % 100 < 5, 1 + rand() % 2, 0)) AS thumbs_down,
+    toUInt32(if(rand() % 100 < 8, 1 + rand() % 3, 0)) AS laugh,
+    toUInt32(if(rand() % 100 < 3, 1, 0)) AS confused,
+    toUInt32(if(rand() % 100 < 12, 1 + rand() % 3, 0)) AS heart,
+    toUInt32(if(rand() % 100 < 15, 1 + rand() % 4, 0)) AS hooray,
+    toUInt32(if(rand() % 100 < 10, 1 + rand() % 2, 0)) AS eyes,
+    toUInt32(if(rand() % 100 < 10, 1 + rand() % 3, 0)) AS rocket
 FROM (
     SELECT arrayJoin([
         ('facebook/react',),         ('facebook/react',),         ('facebook/react',),

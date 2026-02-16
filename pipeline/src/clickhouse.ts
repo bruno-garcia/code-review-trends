@@ -291,7 +291,31 @@ export type PullRequestRow = {
   additions: number;
   deletions: number;
   changed_files: number;
+  thumbs_up: number;
+  thumbs_down: number;
+  laugh: number;
+  confused: number;
+  heart: number;
+  hooray: number;
+  eyes: number;
+  rocket: number;
 };
+
+/** Ensure reaction columns exist on pull_requests (runs at most once per process). */
+let prReactionsMigrated = false;
+async function ensurePrReactionColumns(client: ClickHouseClient): Promise<void> {
+  if (prReactionsMigrated) return;
+  const reactionCols = [
+    "thumbs_up", "thumbs_down", "laugh", "confused",
+    "heart", "hooray", "eyes", "rocket",
+  ];
+  for (const col of reactionCols) {
+    await client.command({
+      query: `ALTER TABLE pull_requests ADD COLUMN IF NOT EXISTS ${col} UInt32 DEFAULT 0`,
+    });
+  }
+  prReactionsMigrated = true;
+}
 
 /**
  * Insert pull request metadata rows.
@@ -301,6 +325,8 @@ export async function insertPullRequests(
   rows: PullRequestRow[],
 ): Promise<void> {
   if (rows.length === 0) return;
+
+  await ensurePrReactionColumns(client);
 
   await client.insert({
     table: "pull_requests",

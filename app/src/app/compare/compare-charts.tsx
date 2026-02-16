@@ -22,8 +22,14 @@ const METRICS: {
   },
   {
     key: "total_comments",
-    label: "Total Comments",
+    label: "Review Comments",
     description: "Total review comments posted",
+    format: (v) => Number(v).toLocaleString(),
+  },
+  {
+    key: "total_pr_comments",
+    label: "PR Comments",
+    description: "Total PR comments (IssueCommentEvent on pull requests)",
     format: (v) => Number(v).toLocaleString(),
   },
   {
@@ -88,8 +94,14 @@ const METRICS: {
   },
   {
     key: "latest_week_comments",
-    label: "Recent Comments (4w)",
-    description: "Comments in the last 4 weeks",
+    label: "Recent Review Comments (4w)",
+    description: "Review comments in the last 4 weeks",
+    format: (v) => Number(v).toLocaleString(),
+  },
+  {
+    key: "latest_week_pr_comments",
+    label: "Recent PR Comments (4w)",
+    description: "PR comments in the last 4 weeks",
     format: (v) => Number(v).toLocaleString(),
   },
   {
@@ -152,7 +164,8 @@ export function CompareCharts({
   // Radar chart data
   const radarDimensions = [
     { key: "total_reviews" as SortKey, label: "Reviews" },
-    { key: "total_comments" as SortKey, label: "Comments" },
+    { key: "total_comments" as SortKey, label: "Review Comments" },
+    { key: "total_pr_comments" as SortKey, label: "PR Comments" },
     { key: "total_repos" as SortKey, label: "Repos" },
     { key: "total_orgs" as SortKey, label: "Orgs" },
     { key: "approval_rate" as SortKey, label: "Approval" },
@@ -285,6 +298,7 @@ export function CompareCharts({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
             { key: "total_reviews" as SortKey, label: "Total Reviews" },
+            { key: "total_pr_comments" as SortKey, label: "PR Comments" },
             { key: "total_repos" as SortKey, label: "Active Repos" },
             { key: "total_orgs" as SortKey, label: "Organizations" },
             { key: "avg_comments_per_review" as SortKey, label: "Avg Comments/Review" },

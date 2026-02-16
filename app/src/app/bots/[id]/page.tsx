@@ -15,24 +15,31 @@ import {
   ReactionsByPRSizeChart,
   BotLanguageChart,
 } from "@/components/charts";
+import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const range = parseTimeRange(sp.range as string | undefined);
+  const since = computeCutoffDate(range) ?? undefined;
+
   const [product, allSummaries, productBots, activity, reactionsBySize, languageData, commentsPerPR] = await Promise.all([
     getProductById(id),
-    getProductSummaries(),
-    getProductBots(id),
-    getWeeklyActivityByProduct(id),
-    getReactionsByPRSize(id),
-    getBotsByLanguage(id),
-    getAvgCommentsPerPR(id),
+    getProductSummaries(since),
+    getProductBots(id, since),
+    getWeeklyActivityByProduct(id, since),
+    getReactionsByPRSize(id, since),
+    getBotsByLanguage(id, since),
+    getAvgCommentsPerPR(id, since),
   ]);
 
   if (!product) {
@@ -46,12 +53,13 @@ export default async function ProductPage({
     week: a.week,
     review_count: Number(a.review_count),
     review_comment_count: Number(a.review_comment_count),
+    pr_comment_count: Number(a.pr_comment_count),
     repo_count: Number(a.repo_count),
     org_count: Number(a.org_count),
   }));
 
   // Fetch reactions aggregated across all bots in this product
-  const reactionData = (await getProductReactions(id)).map((r) => ({
+  const reactionData = (await getProductReactions(id, since)).map((r) => ({
     week: r.week,
     thumbs_up: Number(r.thumbs_up),
     thumbs_down: Number(r.thumbs_down),
@@ -62,6 +70,7 @@ export default async function ProductPage({
 
   const totalReviews = Number(summary?.total_reviews ?? 0);
   const totalComments = Number(summary?.total_comments ?? 0);
+  const totalPrComments = Number(summary?.total_pr_comments ?? 0);
   const totalRepos = Number(summary?.total_repos ?? 0);
   const totalOrgs = Number(summary?.total_orgs ?? 0);
   const avgCommentsPerReview = Number(summary?.avg_comments_per_review ?? 0);
@@ -142,9 +151,10 @@ export default async function ProductPage({
 
       {/* Summary stats */}
       <div className="space-y-4" data-testid="bot-stats">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard label="Total Reviews" value={totalReviews.toLocaleString()} />
-          <StatCard label="Total Comments" value={totalComments.toLocaleString()} />
+          <StatCard label="Review Comments" value={totalComments.toLocaleString()} />
+          <StatCard label="PR Comments" value={totalPrComments.toLocaleString()} />
           <StatCard label="Active Repos" value={totalRepos.toLocaleString()} />
           <StatCard label="Organizations" value={totalOrgs.toLocaleString()} />
         </div>
@@ -193,7 +203,8 @@ export default async function ProductPage({
                   <th className="pb-3 pr-4">Bot</th>
                   <th className="pb-3 pr-4">GitHub Login</th>
                   <th className="pb-3 pr-4 text-right">Reviews</th>
-                  <th className="pb-3 pr-4 text-right">Comments</th>
+                  <th className="pb-3 pr-4 text-right">Review Comments</th>
+                  <th className="pb-3 pr-4 text-right">PR Comments</th>
                   <th className="pb-3 pr-4">First Seen</th>
                   <th className="pb-3">Last Seen</th>
                 </tr>
@@ -213,6 +224,9 @@ export default async function ProductPage({
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
                       {Number(bot.total_comments).toLocaleString()}
+                    </td>
+                    <td className="py-3 pr-4 text-right tabular-nums">
+                      {Number(bot.total_pr_comments).toLocaleString()}
                     </td>
                     <td className="py-3 pr-4 text-theme-muted">{bot.first_week}</td>
                     <td className="py-3 text-theme-muted">{bot.last_week}</td>
@@ -236,7 +250,7 @@ export default async function ProductPage({
             <ReactionChart data={reactionData} />
           </div>
         ) : (
-          <p className="text-theme-muted text-sm">No data</p>
+          <p className="text-theme-muted text-sm">No data in selected time range</p>
         )}
       </section>
 
