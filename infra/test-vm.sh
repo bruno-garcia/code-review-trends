@@ -18,7 +18,7 @@ set -euo pipefail
 PROJECT=$(gcloud config get-value project 2>/dev/null)
 ZONE="us-central1-a"
 VM_NAME="crt-test-clickhouse-$(date +%s)"
-MACHINE_TYPE="e2-small"
+MACHINE_TYPE="e2-medium"
 CH_PORT=41923
 CH_PASSWORD="test-password-$(openssl rand -hex 12)"
 
@@ -58,6 +58,22 @@ cat > /etc/clickhouse-server/config.d/listen.xml <<'CFGEOF'
   <http_port>${CH_PORT}</http_port>
 </clickhouse>
 CFGEOF
+
+cat > /etc/clickhouse-server/config.d/memory.xml <<'MEMEOF'
+<clickhouse>
+  <max_server_memory_usage_to_ram_ratio>0.9</max_server_memory_usage_to_ram_ratio>
+</clickhouse>
+MEMEOF
+
+cat > /etc/clickhouse-server/users.d/memory-limits.xml <<'MLEOF'
+<clickhouse>
+  <profiles>
+    <default>
+      <max_memory_usage>1000000000</max_memory_usage>
+    </default>
+  </profiles>
+</clickhouse>
+MLEOF
 
 CH_PASSWORD='${CH_PASSWORD}'
 cat > /etc/clickhouse-server/users.d/default-password.xml <<PWEOF

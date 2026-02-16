@@ -184,8 +184,9 @@ describe("clickhouse VM", () => {
     expect(s).toContain(`<http_port>${CLICKHOUSE_HTTP_PORT}</http_port>`);
 
     // Memory limits — server capped at 90% of RAM, per-query at 1GB
-    expect(s).toContain("max_server_memory_usage_to_ram_ratio");
-    expect(s).toContain("0.9");
+    expect(s).toContain(
+      "<max_server_memory_usage_to_ram_ratio>0.9</max_server_memory_usage_to_ram_ratio>",
+    );
     expect(s).toContain("<max_memory_usage>1000000000</max_memory_usage>");
 
     // Password is injected and hashed via SHA256
