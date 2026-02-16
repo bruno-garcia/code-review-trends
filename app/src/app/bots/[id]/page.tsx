@@ -236,7 +236,7 @@ export default async function ProductPage({
             <ReactionChart data={reactionData} />
           </div>
         ) : (
-          <p className="text-theme-muted text-sm">No reaction data yet</p>
+          <p className="text-theme-muted text-sm">No data</p>
         )}
       </section>
 
