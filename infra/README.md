@@ -154,7 +154,7 @@ Per-environment config lives in `Pulumi.<stack>.yaml`:
 | `gcp:region` | GCP region | `us-central1` |
 | `gcp:zone` | GCP zone | `us-central1-a` |
 | `environment` | Environment name (used in resource naming) | `staging` |
-| `clickhouseMachineType` | GCE machine type | `e2-small` |
+| `clickhouseMachineType` | GCE machine type | `e2-medium` |
 | `clickhouseDiskSizeGb` | Boot disk size in GB | `20` |
 
 To add a new environment (e.g. prod), create `Pulumi.prod.yaml` and run `pulumi stack init prod`.
