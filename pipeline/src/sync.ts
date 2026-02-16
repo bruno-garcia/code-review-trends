@@ -30,6 +30,20 @@ import {
 import { BOT_BY_LOGIN, BOT_LOGINS } from "./bots.js";
 import { log as sentryLog, countMetric } from "./sentry.js";
 
+/**
+ * Pipeline version — bump this when BigQuery queries change materially.
+ *
+ * The backfill resume logic stores this version alongside the bot logins
+ * fingerprint. When the version changes, previously-completed chunks are
+ * re-fetched so the new query shape (e.g. additional event types or
+ * columns) is reflected in ClickHouse.
+ *
+ * History:
+ *   1 — initial version (PullRequestReviewEvent + PullRequestReviewCommentEvent)
+ *   2 — added IssueCommentEvent tracking (pr_comment_count)
+ */
+export const PIPELINE_VERSION = 2;
+
 // ── Row mappers (shared with smoke tests) ───────────────────────────────
 
 /** Map BigQuery bot activity rows to ClickHouse ReviewActivityRow format. */
@@ -156,9 +170,10 @@ export function bigQueryFetcher(bq: BigQuery): DataFetcher {
 // ── Pipeline state table ────────────────────────────────────────────────
 
 /**
- * Tracks which date chunks have been backfilled and which bot logins were
- * included. When new bots are added, chunks with a stale `bot_logins` set
- * are re-fetched automatically on the next backfill run.
+ * Tracks which date chunks have been backfilled, which bot logins were
+ * included, and the pipeline version. When new bots are added or the
+ * pipeline version changes (e.g. new event types), chunks with stale
+ * state are re-fetched automatically on the next backfill run.
  */
 const ENSURE_STATE_TABLE = `
 CREATE TABLE IF NOT EXISTS pipeline_state (
@@ -167,7 +182,8 @@ CREATE TABLE IF NOT EXISTS pipeline_state (
     chunk_end Date,
     completed_at DateTime DEFAULT now(),
     rows_written UInt64,
-    bot_logins String DEFAULT ''
+    bot_logins String DEFAULT '',
+    pipeline_version UInt32 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(completed_at)
 ORDER BY (job_name, chunk_start)
 `;
@@ -179,32 +195,39 @@ function botLoginsKey(logins: string[]): string {
 
 async function ensureStateTable(ch: ClickHouseClient): Promise<void> {
   await ch.command({ query: ENSURE_STATE_TABLE });
-  // Migrate: add bot_logins column if missing (table may predate this column)
+  // Migrate: add columns if missing (table may predate these columns)
   await ch.command({
     query: `ALTER TABLE pipeline_state ADD COLUMN IF NOT EXISTS bot_logins String DEFAULT ''`,
   });
+  await ch.command({
+    query: `ALTER TABLE pipeline_state ADD COLUMN IF NOT EXISTS pipeline_version UInt32 DEFAULT 0`,
+  });
 }
 
-type CompletedChunk = { botLogins: string; chunkEnd: string };
+type CompletedChunk = { botLogins: string; chunkEnd: string; pipelineVersion: number };
 
 /**
- * Get all completed chunks for a job, including which bots were included
- * and what end date was covered.
+ * Get all completed chunks for a job, including which bots were included,
+ * what end date was covered, and which pipeline version was used.
  */
 async function getCompletedChunks(
   ch: ClickHouseClient,
   jobName: string,
 ): Promise<Map<string, CompletedChunk>> {
-  const rows = await query<{ chunk_start: string; chunk_end: string; bot_logins: string }>(
+  const rows = await query<{ chunk_start: string; chunk_end: string; bot_logins: string; pipeline_version: number }>(
     ch,
-    `SELECT toString(chunk_start) AS chunk_start, toString(chunk_end) AS chunk_end, bot_logins
+    `SELECT toString(chunk_start) AS chunk_start, toString(chunk_end) AS chunk_end, bot_logins, pipeline_version
      FROM pipeline_state FINAL
      WHERE job_name = {jobName:String}`,
     { jobName },
   );
   const map = new Map<string, CompletedChunk>();
   for (const row of rows) {
-    map.set(row.chunk_start, { botLogins: row.bot_logins, chunkEnd: row.chunk_end });
+    map.set(row.chunk_start, {
+      botLogins: row.bot_logins,
+      chunkEnd: row.chunk_end,
+      pipelineVersion: Number(row.pipeline_version),
+    });
   }
   return map;
 }
@@ -225,6 +248,7 @@ async function markChunkCompleted(
         chunk_end: chunk.endDate,
         rows_written: rowsWritten,
         bot_logins: botLoginsKey(logins),
+        pipeline_version: PIPELINE_VERSION,
       },
     ],
     format: "JSONEachRow",
@@ -348,16 +372,20 @@ export async function backfill(
     chunksToProcess = allChunks.filter((chunk) => {
       const stored = completed.get(chunk.startDate);
       if (stored === undefined) return true; // never completed
-      // Re-fetch if bot set changed or chunk_end grew (partial month extended)
-      return stored.botLogins !== currentLoginsKey || stored.chunkEnd < chunk.endDate;
+      // Re-fetch if bot set changed, pipeline version changed, or chunk_end grew
+      return (
+        stored.botLogins !== currentLoginsKey ||
+        stored.pipelineVersion !== PIPELINE_VERSION ||
+        stored.chunkEnd < chunk.endDate
+      );
     });
 
     const skipped = allChunks.length - chunksToProcess.length;
     if (skipped > 0) {
-      log(`Skipping ${skipped} already-completed chunks (bot set unchanged)`);
+      log(`Skipping ${skipped} already-completed chunks (bot set and pipeline version unchanged)`);
     }
     if (chunksToProcess.length === 0) {
-      log(`Backfill already complete for ${startDate} → ${endDate} with current bot set`);
+      log(`Backfill already complete for ${startDate} → ${endDate} with current bot set and pipeline v${PIPELINE_VERSION}`);
       return [];
     }
 
@@ -367,7 +395,7 @@ export async function backfill(
       return stored !== undefined;
     });
     if (staleChunks.length > 0) {
-      log(`Re-fetching ${staleChunks.length} chunks (bot set or date range changed)`);
+      log(`Re-fetching ${staleChunks.length} chunks (bot set, pipeline version, or date range changed)`);
     }
   } else {
     chunksToProcess = allChunks;
