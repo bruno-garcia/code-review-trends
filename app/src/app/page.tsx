@@ -1,26 +1,22 @@
 import {
   getWeeklyTotals,
-  getWeeklyActivityByProduct,
-  getProductSummaries,
+  getWeeklyTotalVolume,
   getTopOrgsByStars,
-  getBotReactionLeaderboard,
   getEnrichmentStats,
 } from "@/lib/clickhouse";
 import {
   BotShareChart,
+  TotalVolumeChart,
   TopOrgsChart,
 } from "@/components/charts";
-import { FilteredHome } from "@/components/filtered-home";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [totals, activity, summaries, topOrgs, reactionLeaderboard, enrichmentStats] = await Promise.all([
+  const [totals, totalVolume, topOrgs, enrichmentStats] = await Promise.all([
     getWeeklyTotals(),
-    getWeeklyActivityByProduct(),
-    getProductSummaries(),
+    getWeeklyTotalVolume(),
     getTopOrgsByStars(20),
-    getBotReactionLeaderboard(),
     getEnrichmentStats(),
   ]);
 
@@ -51,12 +47,18 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Filtered sections: Volume, Leaderboard, Bot Sentiment */}
-      <FilteredHome
-        activity={activity}
-        summaries={summaries}
-        reactionLeaderboard={reactionLeaderboard}
-      />
+      {/* Total AI Review Volume */}
+      <section data-testid="total-volume-section">
+        <h2 className="text-2xl font-semibold mb-4">
+          Total AI Review Volume
+        </h2>
+        <p className="text-theme-muted mb-6">
+          Weekly volume of AI-generated code reviews, comments, and PR comments across all bots.
+        </p>
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+          <TotalVolumeChart data={totalVolume} />
+        </div>
+      </section>
 
       {/* Top Organizations — unfiltered */}
       <section data-testid="top-orgs-section">
