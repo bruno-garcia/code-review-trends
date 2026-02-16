@@ -13,8 +13,10 @@ import {
   query,
   type PullRequestRow,
 } from "../clickhouse.js";
+import { Sentry } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
+import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 
 /**
  * Fetch and insert details for PRs discovered in pr_bot_events
@@ -125,11 +127,14 @@ export async function enrichPullRequests(
             await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
           }
         }
-        console.warn(
-          `[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`,
-        );
+        if (!handleEnterprisePolicyError(err, repo_name, "pull-requests")) {
+          console.warn(
+            `[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`,
+          );
+        }
         skipped++;
       } else {
+        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
         console.error(
           `[pull-requests] Error fetching ${repo_name}#${pr_number}:`,
           err instanceof Error ? err.message : err,

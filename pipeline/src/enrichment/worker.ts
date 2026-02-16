@@ -6,6 +6,7 @@
  */
 
 import { Octokit } from "@octokit/rest";
+import { Sentry } from "../sentry.js";
 import { createCHClient } from "../clickhouse.js";
 import { RateLimiter } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
@@ -69,23 +70,35 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     for (const step of order) {
       switch (step) {
         case "repos":
-          reposResult = await enrichRepos(octokit, ch, rateLimiter, partition, { limit });
+          reposResult = await Sentry.startSpan(
+            { op: "enrichment", name: "enrich.repos" },
+            () => enrichRepos(octokit, ch, rateLimiter, partition, { limit }),
+          );
           break;
         case "prs":
-          prsResult = await enrichPullRequests(octokit, ch, rateLimiter, partition, { limit });
+          prsResult = await Sentry.startSpan(
+            { op: "enrichment", name: "enrich.pull-requests" },
+            () => enrichPullRequests(octokit, ch, rateLimiter, partition, { limit }),
+          );
           break;
         case "comments":
-          commentsResult = await enrichComments(octokit, ch, rateLimiter, partition, { limit });
+          commentsResult = await Sentry.startSpan(
+            { op: "enrichment", name: "enrich.comments" },
+            () => enrichComments(octokit, ch, rateLimiter, partition, { limit }),
+          );
           break;
       }
     }
 
     // Refresh stale repos
     console.log("[worker] Refreshing stale repos...");
-    const refreshResult = await refreshStaleRepos(octokit, ch, rateLimiter, partition, {
-      staleDays: options.staleDays ?? 7,
-      limit: limit ? Math.min(limit, 500) : 500,
-    });
+    const refreshResult = await Sentry.startSpan(
+      { op: "enrichment", name: "enrich.refresh-stale-repos" },
+      () => refreshStaleRepos(octokit, ch, rateLimiter, partition, {
+        staleDays: options.staleDays ?? 7,
+        limit: limit ? Math.min(limit, 500) : 500,
+      }),
+    );
 
     const duration = Date.now() - start;
     console.log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);

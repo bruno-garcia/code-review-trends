@@ -11,6 +11,7 @@
 
 import type { BigQuery } from "@google-cloud/bigquery";
 import type { ClickHouseClient } from "@clickhouse/client";
+import { Sentry } from "./sentry.js";
 import {
   queryBotReviewActivity,
   queryHumanReviewActivity,
@@ -209,10 +210,9 @@ async function fetchAndStoreChunk(
 ): Promise<SyncResult> {
 
   log(`  Querying bot activity ${chunk.startDate} → ${chunk.endDate}...`);
-  const botRaw = await fetcher.fetchBotActivity(
-    chunk.startDate,
-    chunk.endDate,
-    logins,
+  const botRaw = await Sentry.startSpan(
+    { op: "bigquery", name: `bigquery.bot-activity ${chunk.startDate}→${chunk.endDate}` },
+    () => fetcher.fetchBotActivity(chunk.startDate, chunk.endDate, logins),
   );
 
   const activityRows: ReviewActivityRow[] = botRaw
@@ -234,10 +234,9 @@ async function fetchAndStoreChunk(
     .filter((r): r is ReviewActivityRow => r !== null);
 
   log(`  Querying human activity ${chunk.startDate} → ${chunk.endDate}...`);
-  const humanRaw = await fetcher.fetchHumanActivity(
-    chunk.startDate,
-    chunk.endDate,
-    logins,
+  const humanRaw = await Sentry.startSpan(
+    { op: "bigquery", name: `bigquery.human-activity ${chunk.startDate}→${chunk.endDate}` },
+    () => fetcher.fetchHumanActivity(chunk.startDate, chunk.endDate, logins),
   );
 
   const humanRows: HumanActivityRow[] = humanRaw.map((row) => ({
@@ -248,10 +247,13 @@ async function fetchAndStoreChunk(
   }));
 
   // Write to ClickHouse (independent inserts, run in parallel)
-  await Promise.all([
-    insertReviewActivity(ch, activityRows),
-    insertHumanActivity(ch, humanRows),
-  ]);
+  await Sentry.startSpan(
+    { op: "db", name: "clickhouse.insert-activity" },
+    () => Promise.all([
+      insertReviewActivity(ch, activityRows),
+      insertHumanActivity(ch, humanRows),
+    ]),
+  );
 
   log(
     `  ✓ ${activityRows.length} bot rows, ${humanRows.length} human rows`,
@@ -337,7 +339,10 @@ export async function backfill(
     const chunk = chunksToProcess[i];
     log(`\n[${i + 1}/${chunksToProcess.length}] ${chunk.startDate} → ${chunk.endDate}`);
 
-    const result = await fetchAndStoreChunk(fetcher, ch, chunk, logins, log);
+    const result = await Sentry.startSpan(
+      { op: "backfill.chunk", name: `backfill ${chunk.startDate}→${chunk.endDate}` },
+      () => fetchAndStoreChunk(fetcher, ch, chunk, logins, log),
+    );
     await markChunkCompleted(
       ch,
       BACKFILL_JOB,

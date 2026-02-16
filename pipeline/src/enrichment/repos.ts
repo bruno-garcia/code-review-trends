@@ -15,8 +15,10 @@ import {
   type RepoRow,
   type RepoLanguageRow,
 } from "../clickhouse.js";
+import { Sentry } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
+import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 
 /**
  * Fetch and insert metadata for repos discovered in pr_bot_events
@@ -132,7 +134,10 @@ export async function enrichRepos(
           console.log(`[repos] Rate-limited on ${repo_name}, will retry later`);
           skipped++;
         } else {
-          // Real 403 (DMCA, private, etc.) — mark as forbidden
+          // Check for enterprise token policy before marking forbidden
+          handleEnterprisePolicyError(err, repo_name, "repos");
+
+          // Real 403 (DMCA, private, enterprise policy, etc.) — mark as forbidden
           await insertRepos(ch, [{
             name: repo_name,
             owner,
@@ -145,6 +150,7 @@ export async function enrichRepos(
           skipped++;
         }
       } else {
+        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
         console.error(`[repos] Error fetching ${repo_name}:`, err instanceof Error ? err.message : err);
         errors++;
       }
@@ -258,7 +264,10 @@ export async function refreshStaleRepos(
           }
         }
         if (!isRateLimit) {
-          // Real 403 (DMCA, private, etc.) — mark as forbidden
+          // Check for enterprise token policy before marking forbidden
+          handleEnterprisePolicyError(err, name, "repos");
+
+          // Real 403 (DMCA, private, enterprise policy, etc.) — mark as forbidden
           await insertRepos(ch, [{
             name,
             owner,
@@ -272,6 +281,7 @@ export async function refreshStaleRepos(
           console.log(`[repos] Rate-limited refreshing ${name}, will retry later`);
         }
       } else {
+        Sentry.captureException(err, { tags: { repo: name }, contexts: { enrichment: { phase: "repos.refresh", repo: name } } });
         console.error(`[repos] Error refreshing ${name}:`, err instanceof Error ? err.message : err);
       }
     }

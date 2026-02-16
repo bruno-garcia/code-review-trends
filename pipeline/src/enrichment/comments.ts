@@ -14,8 +14,10 @@ import {
   type PrCommentRow,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
+import { Sentry } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
+import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 
 /**
  * Fetch and insert bot review comments with reactions for PRs
@@ -182,11 +184,14 @@ export async function enrichComments(
             await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
           }
         }
-        console.warn(
-          `[comments] 403 for ${repo_name}#${pr_number}, skipping`,
-        );
+        if (!handleEnterprisePolicyError(err, repo_name, "comments")) {
+          console.warn(
+            `[comments] 403 for ${repo_name}#${pr_number}, skipping`,
+          );
+        }
         skipped++;
       } else {
+        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "comments", repo: repo_name, pr_number, bot_id } } });
         console.error(
           `[comments] Error fetching ${repo_name}#${pr_number}:`,
           err instanceof Error ? err.message : err,

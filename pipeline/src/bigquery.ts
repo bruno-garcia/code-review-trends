@@ -120,7 +120,7 @@ export async function queryBotReviewActivity(
         DATE_TRUNC(DATE(created_at), WEEK(MONDAY)) AS week,
         actor.login AS actor_login,
         type,
-        JSON_VALUE(payload, '$.pull_request.base.repo.full_name') AS repo_name
+        repo.name AS repo_name
       FROM \`githubarchive.day.2*\`
       WHERE
         _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'
@@ -179,7 +179,7 @@ export async function queryHumanReviewActivity(
       SELECT
         DATE_TRUNC(DATE(created_at), WEEK(MONDAY)) AS week,
         type,
-        JSON_VALUE(payload, '$.pull_request.base.repo.full_name') AS repo_name
+        repo.name AS repo_name
       FROM \`githubarchive.day.2*\`
       WHERE
         _TABLE_SUFFIX BETWEEN '${startSuffix}' AND '${endSuffix}'

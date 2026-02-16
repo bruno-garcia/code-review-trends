@@ -62,6 +62,9 @@ async function main() {
     process.exit(1);
   }
 
+  const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+  console.log(`ClickHouse: ${chUrl}`);
+
   await Sentry.startSpan(
     {
       op: "pipeline.command",
@@ -484,7 +487,10 @@ async function cmdDiscover() {
   try {
     console.log("Querying BigQuery for PR bot events...");
     const elapsed = startTimer("  Waiting for BigQuery");
-    const rows = await queryBotPREvents(bq, startDate, endDate, logins).finally(elapsed);
+    const rows = await Sentry.startSpan(
+      { op: "bigquery", name: `bigquery.discover ${startDate}→${endDate}` },
+      () => queryBotPREvents(bq, startDate, endDate, logins),
+    ).finally(elapsed);
     console.log(`  Got ${rows.length} PR bot event rows`);
 
     // Map BigQuery rows to ClickHouse rows
@@ -508,7 +514,10 @@ async function cmdDiscover() {
 
     console.log("Writing to ClickHouse...");
     const elapsedWrite = startTimer("  Inserting batches");
-    await insertPrBotEvents(ch, chRows).finally(elapsedWrite);
+    await Sentry.startSpan(
+      { op: "db", name: "clickhouse.insert-pr-bot-events" },
+      () => insertPrBotEvents(ch, chRows),
+    ).finally(elapsedWrite);
     console.log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
     console.log("Done!");
   } finally {
@@ -668,7 +677,20 @@ function formatDate(d: Date): string {
 }
 
 main().catch(async (err) => {
-  Sentry.captureException(err);
+  const command = process.argv[2] ?? "unknown";
+  const args = process.argv.slice(3).join(" ");
+
+  Sentry.captureException(err, {
+    contexts: {
+      pipeline: {
+        command,
+        args,
+        argv: process.argv.join(" "),
+        clickhouse_url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123 (default)",
+      },
+    },
+  });
+
   console.error("Fatal error:", err);
   // Flush Sentry events before exiting
   await Sentry.flush(5000);
