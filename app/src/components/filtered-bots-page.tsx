@@ -13,7 +13,7 @@ import type {
   BotReactions,
 } from "@/lib/clickhouse";
 
-export function FilteredHome({
+export function FilteredBotsPage({
   activity,
   summaries,
   reactionLeaderboard,
@@ -74,10 +74,10 @@ export function FilteredHome({
         <h2 className="text-2xl font-semibold mb-4">
           Review Volume by Product
         </h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           Weekly review count for each AI code review product.
           {filteredSummaries.length < summaries.length && (
-            <span className="text-gray-500">
+            <span className="text-theme-muted/70">
               {" "}
               Showing {filteredSummaries.length} of {summaries.length} products.
             </span>
@@ -105,7 +105,7 @@ export function FilteredHome({
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left" data-testid="leaderboard-table">
-            <thead className="text-gray-400 border-b border-theme-border text-sm">
+            <thead className="text-theme-muted border-b border-theme-border text-sm">
               <tr>
                 <th className="pb-3 pr-4">Product</th>
                 <th className="pb-3 pr-4 text-right">Reviews</th>
@@ -190,14 +190,91 @@ export function FilteredHome({
       {/* Bot Sentiment */}
       <section data-testid="bot-sentiment-section">
         <h2 className="text-2xl font-semibold mb-4">Bot Sentiment</h2>
-        <p className="text-gray-400 mb-6">
+        <p className="text-theme-muted mb-6">
           How developers react to each bot&apos;s review comments — thumbs up,
           hearts, and thumbs down.
         </p>
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <BotReactionLeaderboardChart data={filteredReactions} />
         </div>
       </section>
+
+      {/* Bot Cards Grid */}
+      <div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        data-testid="bots-grid"
+      >
+        {filteredSummaries.map((product) => (
+          <Link
+            key={product.id}
+            href={`/bots/${product.id}`}
+            className="block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors"
+            data-testid={`bot-card-${product.id}`}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              {product.avatar_url && (
+                <img
+                  src={product.avatar_url}
+                  alt={product.name}
+                  width={40}
+                  height={40}
+                  className="rounded-full bg-gray-800 border border-gray-700"
+                />
+              )}
+              <h2
+                className="text-xl font-semibold"
+                style={{ color: product.brand_color || "#a78bfa" }}
+              >
+                {product.name}
+              </h2>
+            </div>
+            <p className="text-sm text-theme-muted line-clamp-2">
+              {product.description}
+            </p>
+            <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <span className="text-theme-muted/70">Reviews</span>
+                <p className="font-medium tabular-nums">
+                  {Number(product.total_reviews).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <span className="text-theme-muted/70">PR Comments</span>
+                <p className="font-medium tabular-nums">
+                  {Number(product.total_pr_comments).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <span className="text-theme-muted/70">Repos</span>
+                <p className="font-medium tabular-nums">
+                  {Number(product.total_repos).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <span className="text-theme-muted/70">Orgs</span>
+                <p className="font-medium tabular-nums">
+                  {Number(product.total_orgs).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <span className="text-theme-muted/70">Approval</span>
+                <p className="font-medium tabular-nums">
+                  {Number(product.approval_rate).toFixed(0)}%
+                </p>
+              </div>
+              <div>
+                <span className="text-theme-muted/70">Growth</span>
+                <p
+                  className={`font-medium tabular-nums ${Number(product.growth_pct) >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                >
+                  {Number(product.growth_pct) >= 0 ? "+" : ""}
+                  {Number(product.growth_pct).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
     </>
   );
 }

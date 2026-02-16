@@ -1,14 +1,18 @@
-import { getProductSummaries } from "@/lib/clickhouse";
-import { FilteredBotsGrid } from "@/components/filtered-bots-grid";
+import { getProductSummaries, getWeeklyActivityByProduct, getBotReactionLeaderboard } from "@/lib/clickhouse";
+import { FilteredBotsPage } from "@/components/filtered-bots-page";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function BotsPage() {
-  const summaries = await getProductSummaries();
+  const [summaries, activity, reactionLeaderboard] = await Promise.all([
+    getProductSummaries(),
+    getWeeklyActivityByProduct(),
+    getBotReactionLeaderboard(),
+  ]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">AI Code Review Products</h1>
@@ -23,8 +27,7 @@ export default async function BotsPage() {
           Compare All →
         </Link>
       </div>
-
-      <FilteredBotsGrid summaries={summaries} />
+      <FilteredBotsPage activity={activity} summaries={summaries} reactionLeaderboard={reactionLeaderboard} />
     </div>
   );
 }
