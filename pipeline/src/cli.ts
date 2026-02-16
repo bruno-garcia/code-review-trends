@@ -496,23 +496,8 @@ async function cmdDiscover() {
     console.log(`  Got ${rows.length} PR bot event rows`);
 
     // Map BigQuery rows to ClickHouse rows
-    const chRows = rows
-      .map((row) => {
-        const bot = BOT_BY_LOGIN.get(row.actor_login);
-        if (!bot) {
-          console.warn(`  Unknown bot login: ${row.actor_login}`);
-          return null;
-        }
-        return {
-          repo_name: row.repo_name,
-          pr_number: Number(row.pr_number),
-          bot_id: bot.id,
-          actor_login: row.actor_login,
-          event_type: row.event_type,
-          event_week: row.week,
-        };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null);
+    const { mapPrBotEventRows } = await import("./sync.js");
+    const chRows = mapPrBotEventRows(rows, console.warn);
 
     console.log("Writing to ClickHouse...");
     const elapsedWrite = startTimer("  Inserting batches");

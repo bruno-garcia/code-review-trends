@@ -301,7 +301,12 @@ export async function insertPullRequests(
 
   await client.insert({
     table: "pull_requests",
-    values: rows,
+    values: rows.map((r) => ({
+      ...r,
+      created_at: toCHDateTime(r.created_at),
+      merged_at: toCHDateTime(r.merged_at),
+      closed_at: toCHDateTime(r.closed_at),
+    })),
     format: "JSONEachRow",
   });
 }
@@ -334,9 +339,22 @@ export async function insertPrComments(
 
   await client.insert({
     table: "pr_comments",
-    values: rows,
+    values: rows.map((r) => ({
+      ...r,
+      created_at: toCHDateTime(r.created_at),
+    })),
     format: "JSONEachRow",
   });
+}
+
+/**
+ * Normalize an ISO 8601 datetime string to ClickHouse DateTime format.
+ * ClickHouse's default date_time_input_format ('basic') only accepts
+ * 'YYYY-MM-DD HH:MM:SS' — not the 'T' separator or 'Z' suffix from ISO 8601.
+ */
+function toCHDateTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  return iso.replace("T", " ").replace("Z", "").replace(/\.\d+/, "");
 }
 
 /**

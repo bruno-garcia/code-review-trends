@@ -50,6 +50,17 @@ npm run pipeline -- fetch-bigquery --dry-run  # preview without running
 npm run pipeline -- help                 # show all commands
 ```
 
+### Pipeline smoke tests
+
+```bash
+# Smoke tests — hits real BigQuery + GitHub API → ClickHouse (~30s)
+# Validates the full pipeline: BQ queries return non-zero values,
+# GitHub API responses map correctly, app queries work on real data.
+GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
+
+# Runs weekly in CI (.github/workflows/smoke.yml) + on-demand
+```
+
 ## Principles
 
 1. **Server-first rendering.** Pages are server components that query ClickHouse directly. Only chart components are client-side (`"use client"`). No API routes unless needed by external consumers.
@@ -96,6 +107,7 @@ npm run pipeline -- help                 # show all commands
 | `pipeline/src/bigquery.ts` | GH Archive queries |
 | `pipeline/src/github.ts` | GitHub API enrichment |
 | `pipeline/src/cli.ts` | Pipeline CLI entry point |
+| `pipeline/src/smoke.test.ts` | Smoke tests — BigQuery + GitHub API → ClickHouse → app queries |
 | `pipeline/src/tools/` | Dev inspection/validation tools |
 | `infra/index.ts` | Pulumi entrypoint — wires all components |
 | `infra/config.ts` | Typed Pulumi config loader |
