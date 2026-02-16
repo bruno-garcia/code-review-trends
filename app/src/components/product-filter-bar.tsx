@@ -7,8 +7,8 @@ function ChevronDown({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      width="16"
-      height="16"
+      width="20"
+      height="20"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
@@ -62,12 +62,17 @@ export function ProductFilterBar() {
     <div data-testid="product-filter-bar" className="border-b border-gray-800 bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Compact row */}
-        <div className="flex items-center gap-3 h-12">
-          <span className="text-xs text-gray-500 whitespace-nowrap shrink-0">
+        <div className="flex items-center gap-3 min-h-12 py-2">
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-gray-500 hover:text-gray-300 whitespace-nowrap shrink-0 transition-colors cursor-pointer"
+            aria-label={expanded ? "Collapse product filter" : "Expand product filter"}
+          >
             Showing {selectedProducts.length} of {allProducts.length} products
-          </span>
+          </button>
 
-          <div className="flex-1 overflow-x-auto flex items-center gap-1.5 scrollbar-none">
+          <div className="flex-1 flex flex-wrap items-center gap-1.5">
             {selectedProducts.map((p) => (
               <button
                 key={p.id}
@@ -76,7 +81,7 @@ export function ProductFilterBar() {
                   setExpanded(true);
                 }}
                 aria-label={`${p.name} — click to open filter picker`}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap shrink-0 border transition-colors hover:brightness-125"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap border transition-colors hover:brightness-125"
                 style={{
                   borderColor: p.brand_color + "60",
                   backgroundColor: p.brand_color + "15",
