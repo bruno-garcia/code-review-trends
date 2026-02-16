@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 export default function AboutPage() {
   return (
     <div data-testid="about-page" className="mx-auto max-w-4xl space-y-12 py-8">
