@@ -62,14 +62,14 @@ export async function enrichPullRequests(
   );
 
   // Total pending for context
-  const [{ total_pending }] = await query<{ total_pending: string }>(
+  const { total_pending } = (await query<{ total_pending: string }>(
     ch,
     `SELECT count(DISTINCT (e.repo_name, e.pr_number)) as total_pending
      FROM pr_bot_events e
      LEFT JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
      WHERE p.pr_number IS NULL
        AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))`,
-  );
+  ))[0] ?? { total_pending: "0" };
 
   log(`[pull-requests] Processing ${prs.length} of ${total_pending} pending PRs`);
   if (prs.length > 0) {

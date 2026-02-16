@@ -56,11 +56,11 @@ export async function enrichRepos(
   );
 
   // Total pending (without limit) for context
-  const [{ total_pending }] = await query<{ total_pending: string }>(
+  const { total_pending } = (await query<{ total_pending: string }>(
     ch,
     `SELECT count(DISTINCT repo_name) as total_pending FROM pr_bot_events
      WHERE repo_name NOT IN (SELECT name FROM repos)`,
-  );
+  ))[0] ?? { total_pending: "0" };
 
   // Summarize what this run will work on
   log(`[repos] Processing ${repos.length} of ${total_pending} pending repos`);

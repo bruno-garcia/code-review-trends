@@ -69,7 +69,7 @@ export async function enrichComments(
   );
 
   // Total pending for context
-  const [{ total_pending }] = await query<{ total_pending: string }>(
+  const { total_pending } = (await query<{ total_pending: string }>(
     ch,
     `SELECT count(DISTINCT (e.repo_name, e.pr_number, e.bot_id)) as total_pending
      FROM pr_bot_events e
@@ -77,7 +77,7 @@ export async function enrichComments(
        ON e.repo_name = c.repo_name AND e.pr_number = c.pr_number AND e.bot_id = c.bot_id
      WHERE c.bot_id IS NULL
        AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))`,
-  );
+  ))[0] ?? { total_pending: "0" };
 
   log(`[comments] Processing ${combos.length} of ${total_pending} pending combos`);
   if (combos.length > 0) {
