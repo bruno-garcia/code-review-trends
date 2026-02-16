@@ -587,7 +587,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
             <Link
               key={org.owner}
               href={`/orgs/${org.owner}`}
-              className="flex items-center gap-4 group"
+              className="flex items-center gap-2 sm:gap-4 group"
             >
               <span className="text-theme-muted text-sm w-6 text-right shrink-0 tabular-nums">
                 {i + 1}
@@ -599,10 +599,10 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
                 height={28}
                 className="rounded-full bg-theme-surface shrink-0"
               />
-              <span className="text-base font-medium text-theme-text group-hover:text-indigo-400 group-hover:underline transition-colors w-32 shrink-0 truncate">
+              <span className="text-base font-medium text-theme-text group-hover:text-indigo-400 group-hover:underline transition-colors w-24 sm:w-32 shrink-0 truncate">
                 {org.owner}
               </span>
-              <div className="flex-1 flex items-center gap-3 min-w-0">
+              <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0">
                 <div className="flex-1 h-6 bg-theme-border/40 rounded overflow-hidden">
                   <div
                     className="h-full bg-amber-500/70 rounded transition-all"
@@ -612,7 +612,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
                 <span className="text-sm text-theme-muted tabular-nums shrink-0 w-16 text-right">
                   ⭐ {formatNumber(stars)}
                 </span>
-                <span className="text-sm text-theme-muted/70 tabular-nums shrink-0 w-20 text-right">
+                <span className="hidden sm:inline text-sm text-theme-muted/70 tabular-nums shrink-0 w-20 text-right">
                   {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
                 </span>
               </div>

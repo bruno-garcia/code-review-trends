@@ -52,7 +52,7 @@ export default async function RootLayout({
                 <Link href="/" className="flex items-center flex-shrink-0">
                   <Logo />
                 </Link>
-                <div className="flex items-center gap-6 text-sm text-nav-link overflow-x-auto flex-shrink min-w-0">
+                <div className="flex items-center gap-3 sm:gap-6 text-sm text-nav-link overflow-x-auto flex-shrink min-w-0">
                   <NavLinks />
                   <ThemeToggle />
                 </div>
