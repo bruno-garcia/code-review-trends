@@ -13,6 +13,7 @@ import {
   query,
   type PullRequestRow,
 } from "../clickhouse.js";
+import { Sentry } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -133,6 +134,7 @@ export async function enrichPullRequests(
         }
         skipped++;
       } else {
+        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
         console.error(
           `[pull-requests] Error fetching ${repo_name}#${pr_number}:`,
           err instanceof Error ? err.message : err,

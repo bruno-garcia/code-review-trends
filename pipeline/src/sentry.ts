@@ -7,7 +7,9 @@
 
 import * as Sentry from "@sentry/node";
 
-const dsn = process.env.SENTRY_DSN;
+const dsn = process.env.SENTRY_DSN_CRT_CLI ?? process.env.SENTRY_DSN;
+const command = process.argv[2] ?? "unknown";
+const clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
 
 Sentry.init({
   dsn,
@@ -19,9 +21,16 @@ Sentry.init({
 
   environment: process.env.NODE_ENV ?? "development",
 
+  // Tag every event with command + target database
+  initialScope: {
+    tags: {
+      "pipeline.command": command,
+      "clickhouse.url": clickhouseUrl,
+    },
+  },
+
   // Tag each transaction with the CLI command for easy filtering
   beforeSendTransaction(event) {
-    const command = process.argv[2];
     if (command) {
       event.tags = { ...event.tags, "pipeline.command": command };
     }

@@ -14,6 +14,7 @@ import {
   type PrCommentRow,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
+import { Sentry } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -190,6 +191,7 @@ export async function enrichComments(
         }
         skipped++;
       } else {
+        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "comments", repo: repo_name, pr_number, bot_id } } });
         console.error(
           `[comments] Error fetching ${repo_name}#${pr_number}:`,
           err instanceof Error ? err.message : err,

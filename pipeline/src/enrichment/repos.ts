@@ -15,6 +15,7 @@ import {
   type RepoRow,
   type RepoLanguageRow,
 } from "../clickhouse.js";
+import { Sentry } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -149,6 +150,7 @@ export async function enrichRepos(
           skipped++;
         }
       } else {
+        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
         console.error(`[repos] Error fetching ${repo_name}:`, err instanceof Error ? err.message : err);
         errors++;
       }
@@ -279,6 +281,7 @@ export async function refreshStaleRepos(
           console.log(`[repos] Rate-limited refreshing ${name}, will retry later`);
         }
       } else {
+        Sentry.captureException(err, { tags: { repo: name }, contexts: { enrichment: { phase: "repos.refresh", repo: name } } });
         console.error(`[repos] Error refreshing ${name}:`, err instanceof Error ? err.message : err);
       }
     }

@@ -62,6 +62,9 @@ async function main() {
     process.exit(1);
   }
 
+  const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+  console.log(`ClickHouse: ${chUrl}`);
+
   await Sentry.startSpan(
     {
       op: "pipeline.command",
@@ -668,7 +671,20 @@ function formatDate(d: Date): string {
 }
 
 main().catch(async (err) => {
-  Sentry.captureException(err);
+  const command = process.argv[2] ?? "unknown";
+  const args = process.argv.slice(3).join(" ");
+
+  Sentry.captureException(err, {
+    contexts: {
+      pipeline: {
+        command,
+        args,
+        argv: process.argv.join(" "),
+        clickhouse_url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123 (default)",
+      },
+    },
+  });
+
   console.error("Fatal error:", err);
   // Flush Sentry events before exiting
   await Sentry.flush(5000);
