@@ -61,111 +61,110 @@ export async function enrichRepos(
   let errors = 0;
   const BATCH_SIZE = 50;
 
-  for (let i = 0; i < repos.length; i++) {
-    const { repo_name } = repos[i];
+  // Process in batches — each batch is a Sentry span wrapping real work
+  for (let batchStart = 0; batchStart < repos.length; batchStart += BATCH_SIZE) {
+    const batch = repos.slice(batchStart, batchStart + BATCH_SIZE);
+    const batchLabel = `repos batch ${batchStart}–${batchStart + batch.length}`;
 
-    // Log progress at batch boundaries
-    if (i > 0 && i % BATCH_SIZE === 0) {
-      log(`[repos] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
-      countMetric("pipeline.enrich.repos.batch", 1);
-    }
+    await Sentry.startSpan(
+      { op: "enrichment.batch", name: batchLabel },
+      async () => {
+        for (const { repo_name } of batch) {
+          const [owner, repo] = repo_name.split("/");
+          if (!owner || !repo) {
+            skipped++;
+            continue;
+          }
 
-    const [owner, repo] = repo_name.split("/");
-    if (!owner || !repo) {
-      skipped++;
-      continue;
-    }
+          await rateLimiter.waitIfNeeded();
 
-    await rateLimiter.waitIfNeeded();
+          try {
+            const { data, headers } = await octokit.rest.repos.get({ owner, repo });
+            rateLimiter.update(headers as Record<string, string>);
 
-    try {
-      const { data, headers } = await octokit.rest.repos.get({ owner, repo });
-      rateLimiter.update(headers as Record<string, string>);
+            const repoRow: RepoRow = {
+              name: repo_name,
+              owner,
+              stars: data.stargazers_count,
+              primary_language: data.language ?? "",
+              fork: data.fork,
+              archived: data.archived,
+              fetch_status: "ok",
+            };
 
-      const repoRow: RepoRow = {
-        name: repo_name,
-        owner,
-        stars: data.stargazers_count,
-        primary_language: data.language ?? "",
-        fork: data.fork,
-        archived: data.archived,
-        fetch_status: "ok",
-      };
+            await insertRepos(ch, [repoRow]);
 
-      await insertRepos(ch, [repoRow]);
+            // Fetch language breakdown
+            await rateLimiter.waitIfNeeded();
+            const langResponse = await octokit.rest.repos.listLanguages({ owner, repo });
+            rateLimiter.update(langResponse.headers as Record<string, string>);
 
-      // Fetch language breakdown
-      await rateLimiter.waitIfNeeded();
-      const langResponse = await octokit.rest.repos.listLanguages({ owner, repo });
-      rateLimiter.update(langResponse.headers as Record<string, string>);
+            const langRows: RepoLanguageRow[] = Object.entries(
+              langResponse.data,
+            ).map(([language, bytes]) => ({
+              repo_name,
+              language,
+              bytes: bytes as number,
+            }));
 
-      const langRows: RepoLanguageRow[] = Object.entries(
-        langResponse.data,
-      ).map(([language, bytes]) => ({
-        repo_name,
-        language,
-        bytes: bytes as number,
-      }));
+            if (langRows.length > 0) {
+              await insertRepoLanguages(ch, langRows);
+            }
 
-      if (langRows.length > 0) {
-        await insertRepoLanguages(ch, langRows);
-      }
+            fetched++;
+          } catch (err: unknown) {
+            const status = (err as { status?: number }).status;
 
-      fetched++;
-    } catch (err: unknown) {
-      const status = (err as { status?: number }).status;
+            if (status === 404) {
+              await insertRepos(ch, [{
+                name: repo_name,
+                owner,
+                stars: 0,
+                primary_language: "",
+                fork: false,
+                archived: false,
+                fetch_status: "not_found",
+              }]);
+              skipped++;
+            } else if (status === 403) {
+              const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
+              const isRateLimit = headers?.["retry-after"] || (headers?.["x-ratelimit-remaining"] === "0");
+              if (headers) {
+                rateLimiter.update(headers);
+                const retryAfter = headers["retry-after"];
+                if (retryAfter) {
+                  await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+                }
+              }
 
-      if (status === 404) {
-        await insertRepos(ch, [{
-          name: repo_name,
-          owner,
-          stars: 0,
-          primary_language: "",
-          fork: false,
-          archived: false,
-          fetch_status: "not_found",
-        }]);
-        skipped++;
-      } else if (status === 403) {
-        // Update rate limiter from error response headers if available
-        const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
-        const isRateLimit = headers?.["retry-after"] || (headers?.["x-ratelimit-remaining"] === "0");
-        if (headers) {
-          rateLimiter.update(headers);
-          const retryAfter = headers["retry-after"];
-          if (retryAfter) {
-            await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+              if (isRateLimit) {
+                log(`[repos] Rate-limited on ${repo_name}, will retry later`);
+                skipped++;
+              } else {
+                handleEnterprisePolicyError(err, repo_name, "repos");
+                await insertRepos(ch, [{
+                  name: repo_name,
+                  owner,
+                  stars: 0,
+                  primary_language: "",
+                  fork: false,
+                  archived: false,
+                  fetch_status: "forbidden",
+                }]);
+                skipped++;
+              }
+            } else {
+              Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
+              logError(`[repos] Error fetching ${repo_name}: ${err instanceof Error ? err.message : err}`);
+              errors++;
+            }
           }
         }
+      },
+    );
 
-        if (isRateLimit) {
-          // Rate-limit 403 — don't mark as forbidden, retry on next run
-          log(`[repos] Rate-limited on ${repo_name}, will retry later`);
-          skipped++;
-        } else {
-          // Check for enterprise token policy before marking forbidden
-          handleEnterprisePolicyError(err, repo_name, "repos");
-
-          // Real 403 (DMCA, private, enterprise policy, etc.) — mark as forbidden
-          await insertRepos(ch, [{
-            name: repo_name,
-            owner,
-            stars: 0,
-            primary_language: "",
-            fork: false,
-            archived: false,
-            fetch_status: "forbidden",
-          }]);
-          skipped++;
-        }
-      } else {
-        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
-        logError(`[repos] Error fetching ${repo_name}: ${err instanceof Error ? err.message : err}`);
-        errors++;
-      }
-    }
-
-    // Progress logging handled by batch span above
+    log(`[repos] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+    countMetric("pipeline.enrich.repos.batch", 1);
   }
 
   log(`[repos] Done: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);

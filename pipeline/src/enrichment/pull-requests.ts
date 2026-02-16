@@ -67,85 +67,90 @@ export async function enrichPullRequests(
   let errors = 0;
   const BATCH_SIZE = 100;
 
-  for (let i = 0; i < prs.length; i++) {
-    const { repo_name, pr_number } = prs[i];
+  for (let batchStart = 0; batchStart < prs.length; batchStart += BATCH_SIZE) {
+    const batch = prs.slice(batchStart, batchStart + BATCH_SIZE);
+    const batchLabel = `prs batch ${batchStart}–${batchStart + batch.length}`;
 
-    if (i > 0 && i % BATCH_SIZE === 0) {
-      log(`[pull-requests] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
-      countMetric("pipeline.enrich.prs.batch", 1);
-    }
-    const [owner, repo] = repo_name.split("/");
-    if (!owner || !repo) {
-      skipped++;
-      continue;
-    }
+    await Sentry.startSpan(
+      { op: "enrichment.batch", name: batchLabel },
+      async () => {
+        for (const { repo_name, pr_number } of batch) {
+          const [owner, repo] = repo_name.split("/");
+          if (!owner || !repo) {
+            skipped++;
+            continue;
+          }
 
-    await rateLimiter.waitIfNeeded();
+          await rateLimiter.waitIfNeeded();
 
-    try {
-      const { data, headers } = await octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: pr_number,
-      });
-      rateLimiter.update(headers as Record<string, string>);
+          try {
+            const { data, headers } = await octokit.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pr_number,
+            });
+            rateLimiter.update(headers as Record<string, string>);
 
-      // Determine state: merged > closed > open
-      let state: string;
-      if (data.merged_at) {
-        state = "merged";
-      } else if (data.closed_at) {
-        state = "closed";
-      } else {
-        state = "open";
-      }
+            // Determine state: merged > closed > open
+            let state: string;
+            if (data.merged_at) {
+              state = "merged";
+            } else if (data.closed_at) {
+              state = "closed";
+            } else {
+              state = "open";
+            }
 
-      const reactions = extractReactionCounts(data);
+            const reactions = extractReactionCounts(data);
 
-      const row: PullRequestRow = {
-        repo_name,
-        pr_number,
-        title: data.title,
-        author: data.user?.login ?? "",
-        state,
-        created_at: data.created_at,
-        merged_at: data.merged_at ?? null,
-        closed_at: data.closed_at ?? null,
-        additions: data.additions,
-        deletions: data.deletions,
-        changed_files: data.changed_files,
-        ...reactions,
-      };
+            const row: PullRequestRow = {
+              repo_name,
+              pr_number,
+              title: data.title,
+              author: data.user?.login ?? "",
+              state,
+              created_at: data.created_at,
+              merged_at: data.merged_at ?? null,
+              closed_at: data.closed_at ?? null,
+              additions: data.additions,
+              deletions: data.deletions,
+              changed_files: data.changed_files,
+              ...reactions,
+            };
 
-      await insertPullRequests(ch, [row]);
-      fetched++;
-    } catch (err: unknown) {
-      const status = (err as { status?: number }).status;
+            await insertPullRequests(ch, [row]);
+            fetched++;
+          } catch (err: unknown) {
+            const status = (err as { status?: number }).status;
 
-      if (status === 404) {
-        logWarn(`[pull-requests] 404 for ${repo_name}#${pr_number}, skipping`);
-        skipped++;
-      } else if (status === 403) {
-        const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
-        if (headers) {
-          rateLimiter.update(headers);
-          const retryAfter = headers["retry-after"];
-          if (retryAfter) {
-            await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+            if (status === 404) {
+              logWarn(`[pull-requests] 404 for ${repo_name}#${pr_number}, skipping`);
+              skipped++;
+            } else if (status === 403) {
+              const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
+              if (headers) {
+                rateLimiter.update(headers);
+                const retryAfter = headers["retry-after"];
+                if (retryAfter) {
+                  await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+                }
+              }
+              if (!handleEnterprisePolicyError(err, repo_name, "pull-requests")) {
+                logWarn(`[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`);
+              }
+              skipped++;
+            } else {
+              Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
+              logError(`[pull-requests] Error fetching ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
+              errors++;
+            }
           }
         }
-        if (!handleEnterprisePolicyError(err, repo_name, "pull-requests")) {
-          logWarn(`[pull-requests] 403 for ${repo_name}#${pr_number}, skipping`);
-        }
-        skipped++;
-      } else {
-        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
-        logError(`[pull-requests] Error fetching ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
-        errors++;
-      }
-    }
+      },
+    );
 
-    // Progress logging handled by batch span above
+    log(`[pull-requests] Progress: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);
+    countMetric("pipeline.enrich.prs.batch", 1);
   }
 
   log(`[pull-requests] Done: ${fetched} fetched, ${skipped} skipped, ${errors} errors`);

@@ -75,130 +75,135 @@ export async function enrichComments(
   let errors = 0;
   const BATCH_SIZE = 50;
 
-  for (let i = 0; i < combos.length; i++) {
-    const { repo_name, pr_number, bot_id } = combos[i];
+  for (let batchStart = 0; batchStart < combos.length; batchStart += BATCH_SIZE) {
+    const batch = combos.slice(batchStart, batchStart + BATCH_SIZE);
+    const batchLabel = `comments batch ${batchStart}–${batchStart + batch.length}`;
 
-    if (i > 0 && i % BATCH_SIZE === 0) {
-      log(`[comments] Progress: ${fetched} fetched, ${skipped} skipped, ${repliesFiltered} replies filtered, ${errors} errors`);
-      countMetric("pipeline.enrich.comments.batch", 1);
-    }
-    const [owner, repo] = repo_name.split("/");
-    if (!owner || !repo) {
-      skipped++;
-      continue;
-    }
-
-    const bot = BOT_BY_ID.get(bot_id);
-    if (!bot) {
-      logWarn(`[comments] Unknown bot_id "${bot_id}", skipping`);
-      skipped++;
-      continue;
-    }
-
-    const loginSet = new Set([bot.github_login]);
-
-    await rateLimiter.waitIfNeeded();
-
-    try {
-      // Paginate through all review comments on the PR.
-      const rows: PrCommentRow[] = [];
-      let page = 1;
-
-      while (true) {
-        const { data, headers } = await octokit.rest.pulls.listReviewComments({
-          owner,
-          repo,
-          pull_number: pr_number,
-          per_page: 100,
-          page,
-        });
-        rateLimiter.update(headers as Record<string, string>);
-
-        for (const comment of data) {
-          const login = comment.user?.login;
-          if (!login || !loginSet.has(login)) continue;
-
-          // Filter out replies — we only want top-level review comments.
-          if (comment.in_reply_to_id) {
-            repliesFiltered++;
+    await Sentry.startSpan(
+      { op: "enrichment.batch", name: batchLabel },
+      async () => {
+        for (const { repo_name, pr_number, bot_id } of batch) {
+          const [owner, repo] = repo_name.split("/");
+          if (!owner || !repo) {
+            skipped++;
             continue;
           }
 
-          const reactions = comment.reactions;
-          rows.push({
-            repo_name,
-            pr_number,
-            comment_id: String(comment.id),
-            bot_id,
-            body_length: comment.body?.length ?? 0,
-            created_at: comment.created_at,
-            thumbs_up: reactions?.["+1"] ?? 0,
-            thumbs_down: reactions?.["-1"] ?? 0,
-            laugh: reactions?.laugh ?? 0,
-            confused: reactions?.confused ?? 0,
-            heart: reactions?.heart ?? 0,
-            hooray: reactions?.hooray ?? 0,
-            eyes: reactions?.eyes ?? 0,
-            rocket: reactions?.rocket ?? 0,
-          });
-        }
+          const bot = BOT_BY_ID.get(bot_id);
+          if (!bot) {
+            logWarn(`[comments] Unknown bot_id "${bot_id}", skipping`);
+            skipped++;
+            continue;
+          }
 
-        if (data.length < 100) break;
-        page++;
+          const loginSet = new Set([bot.github_login]);
 
-        await rateLimiter.waitIfNeeded();
-      }
+          await rateLimiter.waitIfNeeded();
 
-      if (rows.length > 0) {
-        await insertPrComments(ch, rows);
-      } else {
-        // Insert a sentinel row so this PR/bot combo isn't re-fetched on
-        // subsequent runs (the bot left a review but no line-level comments).
-        await insertPrComments(ch, [{
-          repo_name,
-          pr_number,
-          comment_id: "0",
-          bot_id,
-          body_length: 0,
-          created_at: new Date().toISOString(),
-          thumbs_up: 0,
-          thumbs_down: 0,
-          laugh: 0,
-          confused: 0,
-          heart: 0,
-          hooray: 0,
-          eyes: 0,
-          rocket: 0,
-        }]);
-      }
-      fetched++;
-    } catch (err: unknown) {
-      const status = (err as { status?: number }).status;
+          try {
+            // Paginate through all review comments on the PR.
+            const rows: PrCommentRow[] = [];
+            let page = 1;
 
-      if (status === 404) {
-        logWarn(`[comments] 404 for ${repo_name}#${pr_number}, skipping`);
-        skipped++;
-      } else if (status === 403) {
-        const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
-        if (headers) {
-          rateLimiter.update(headers);
-          const retryAfter = headers["retry-after"];
-          if (retryAfter) {
-            await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+            while (true) {
+              const { data, headers } = await octokit.rest.pulls.listReviewComments({
+                owner,
+                repo,
+                pull_number: pr_number,
+                per_page: 100,
+                page,
+              });
+              rateLimiter.update(headers as Record<string, string>);
+
+              for (const comment of data) {
+                const login = comment.user?.login;
+                if (!login || !loginSet.has(login)) continue;
+
+                // Filter out replies — we only want top-level review comments.
+                if (comment.in_reply_to_id) {
+                  repliesFiltered++;
+                  continue;
+                }
+
+                const reactions = comment.reactions;
+                rows.push({
+                  repo_name,
+                  pr_number,
+                  comment_id: String(comment.id),
+                  bot_id,
+                  body_length: comment.body?.length ?? 0,
+                  created_at: comment.created_at,
+                  thumbs_up: reactions?.["+1"] ?? 0,
+                  thumbs_down: reactions?.["-1"] ?? 0,
+                  laugh: reactions?.laugh ?? 0,
+                  confused: reactions?.confused ?? 0,
+                  heart: reactions?.heart ?? 0,
+                  hooray: reactions?.hooray ?? 0,
+                  eyes: reactions?.eyes ?? 0,
+                  rocket: reactions?.rocket ?? 0,
+                });
+              }
+
+              if (data.length < 100) break;
+              page++;
+
+              await rateLimiter.waitIfNeeded();
+            }
+
+            if (rows.length > 0) {
+              await insertPrComments(ch, rows);
+            } else {
+              // Insert a sentinel row so this PR/bot combo isn't re-fetched on
+              // subsequent runs (the bot left a review but no line-level comments).
+              await insertPrComments(ch, [{
+                repo_name,
+                pr_number,
+                comment_id: "0",
+                bot_id,
+                body_length: 0,
+                created_at: new Date().toISOString(),
+                thumbs_up: 0,
+                thumbs_down: 0,
+                laugh: 0,
+                confused: 0,
+                heart: 0,
+                hooray: 0,
+                eyes: 0,
+                rocket: 0,
+              }]);
+            }
+            fetched++;
+          } catch (err: unknown) {
+            const status = (err as { status?: number }).status;
+
+            if (status === 404) {
+              logWarn(`[comments] 404 for ${repo_name}#${pr_number}, skipping`);
+              skipped++;
+            } else if (status === 403) {
+              const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
+              if (headers) {
+                rateLimiter.update(headers);
+                const retryAfter = headers["retry-after"];
+                if (retryAfter) {
+                  await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+                }
+              }
+              if (!handleEnterprisePolicyError(err, repo_name, "comments")) {
+                logWarn(`[comments] 403 for ${repo_name}#${pr_number}, skipping`);
+              }
+              skipped++;
+            } else {
+              Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "comments", repo: repo_name, pr_number, bot_id } } });
+              logError(`[comments] Error fetching ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
+              errors++;
+            }
           }
         }
-        if (!handleEnterprisePolicyError(err, repo_name, "comments")) {
-          logWarn(`[comments] 403 for ${repo_name}#${pr_number}, skipping`);
-        }
-        skipped++;
-      } else {
-        Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "comments", repo: repo_name, pr_number, bot_id } } });
-        logError(`[comments] Error fetching ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
-        errors++;
-      }
-    }
+      },
+    );
 
-    // Progress logging handled by batch span above
+    log(`[comments] Progress: ${fetched} fetched, ${skipped} skipped, ${repliesFiltered} replies filtered, ${errors} errors`);
+    countMetric("pipeline.enrich.comments.batch", 1);
   }
 
   log(`[comments] Done: ${fetched} fetched, ${skipped} skipped, ${repliesFiltered} replies filtered, ${errors} errors`);
