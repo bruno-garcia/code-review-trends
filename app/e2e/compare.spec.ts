@@ -27,6 +27,9 @@ test.describe("Compare page", () => {
 
     let foundNonZeroApproval = false;
     let foundNonZeroPRComments = false;
+    
+    // Threshold to distinguish PR comments from other small numeric values in the table
+    const PR_COMMENTS_THRESHOLD = 100;
 
     for (let i = 0; i < rowCount; i++) {
       const row = rows.nth(i);
@@ -53,8 +56,7 @@ test.describe("Compare page", () => {
           }
           // Check for numeric values that could be PR Comments
           const numericValue = parseInt(text.replace(/,/g, ''), 10);
-          if (!isNaN(numericValue) && numericValue > 100) {
-            // Use a threshold to avoid confusing small numbers from other columns
+          if (!isNaN(numericValue) && numericValue > PR_COMMENTS_THRESHOLD) {
             foundNonZeroPRComments = true;
           }
         }

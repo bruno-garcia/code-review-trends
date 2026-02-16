@@ -705,6 +705,9 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
     let testRepoName: string;
     let testPRNumber: number;
     let testBotId: string;
+    
+    // ClickHouse mutation completion delay (ALTER TABLE DELETE is async)
+    const MUTATION_COMPLETION_DELAY_MS = 1000;
 
     before(async () => {
       // Use a known high-activity repo and get a recent PR number
@@ -767,7 +770,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
             { repo: testRepoName, pr: testPRNumber },
           );
           // Wait for mutation to complete
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, MUTATION_COMPLETION_DELAY_MS));
         }
       });
 
@@ -864,7 +867,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
             "ALTER TABLE pr_comments DELETE WHERE repo_name = {repo:String} AND pr_number = {pr:UInt32} AND bot_id = {bot:String}",
             { repo: testRepoName, pr: testPRNumber, bot: testBotId },
           );
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, MUTATION_COMPLETION_DELAY_MS));
         }
       });
 
