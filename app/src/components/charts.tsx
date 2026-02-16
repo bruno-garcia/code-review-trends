@@ -565,7 +565,7 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
   );
 }
 
-// --- Top Orgs Chart (horizontal bar) ---
+// --- Top Orgs Table ---
 
 type TopOrgData = {
   owner: string;
@@ -574,49 +574,56 @@ type TopOrgData = {
 };
 
 export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
-  const c = useChartColors();
-
   if (data.length === 0) {
     return <div data-testid="top-orgs-chart"><p className="text-theme-muted text-sm">No data</p></div>;
   }
 
   const top20 = data.slice(0, 20);
+  const maxStars = Math.max(...top20.map((d) => Number(d.total_stars)));
 
   return (
     <div data-testid="top-orgs-chart">
-      <ResponsiveContainer width="100%" height={top20.length * 44 + 40}>
-        <BarChart data={top20} layout="vertical" margin={{ left: 10, right: 30 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} horizontal={false} />
-          <XAxis
-            type="number"
-            stroke={c.barAxis}
-            tick={{ fontSize: 12 }}
-            tickFormatter={formatNumber}
-          />
-          <YAxis
-            type="category"
-            dataKey="owner"
-            stroke={c.barAxis}
-            tick={{ fontSize: 12 }}
-            width={130}
-          />
-          <Tooltip
-            cursor={false}
-            contentStyle={c.tooltipStyle}
-            wrapperStyle={TOOLTIP_WRAPPER_STYLE}
-            formatter={(value, name) => [
-              formatNumber(Number(value)),
-              name === "total_stars" ? "⭐ Stars" : "Repos",
-            ]}
-          />
-          <Legend
-            formatter={(value) =>
-              value === "total_stars" ? "⭐ Stars" : "Repos"
-            }
-          />
-          <Bar dataKey="total_stars" fill="#f59e0b" name="total_stars" />
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="space-y-3">
+        {top20.map((org, i) => {
+          const stars = Number(org.total_stars);
+          const pct = maxStars > 0 ? (stars / maxStars) * 100 : 0;
+          return (
+            <a
+              key={org.owner}
+              href={`/orgs/${org.owner}`}
+              className="flex items-center gap-4 group"
+            >
+              <span className="text-theme-muted text-sm w-6 text-right shrink-0 tabular-nums">
+                {i + 1}
+              </span>
+              <img
+                src={`https://github.com/${org.owner}.png?size=40`}
+                alt={org.owner}
+                width={28}
+                height={28}
+                className="rounded-full bg-theme-surface shrink-0"
+              />
+              <span className="text-base font-medium text-theme-text group-hover:text-indigo-400 group-hover:underline transition-colors w-32 shrink-0 truncate">
+                {org.owner}
+              </span>
+              <div className="flex-1 flex items-center gap-3 min-w-0">
+                <div className="flex-1 h-6 bg-theme-border/40 rounded overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500/70 rounded transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="text-sm text-theme-muted tabular-nums shrink-0 w-16 text-right">
+                  ⭐ {formatNumber(stars)}
+                </span>
+                <span className="text-sm text-theme-muted/70 tabular-nums shrink-0 w-20 text-right">
+                  {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
+                </span>
+              </div>
+            </a>
+          );
+        })}
+      </div>
     </div>
   );
 }

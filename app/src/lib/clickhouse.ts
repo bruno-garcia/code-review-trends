@@ -847,6 +847,129 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
 
 
 
+// --- Organization queries ---
+
+export type OrgSummary = {
+  owner: string;
+  total_stars: number;
+  repo_count: number;
+  languages: string[];
+  total_prs: number;
+  total_bot_comments: number;
+  thumbs_up: number;
+  thumbs_down: number;
+  heart: number;
+};
+
+export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
+  const rows = await query<OrgSummary>(
+    `
+    SELECT
+      r.owner,
+      sum(r.stars) AS total_stars,
+      count() AS repo_count,
+      groupUniqArray(r.primary_language) AS languages,
+      COALESCE(pr.total_prs, 0) AS total_prs,
+      COALESCE(cm.total_bot_comments, 0) AS total_bot_comments,
+      COALESCE(cm.thumbs_up, 0) AS thumbs_up,
+      COALESCE(cm.thumbs_down, 0) AS thumbs_down,
+      COALESCE(cm.heart, 0) AS heart
+    FROM repos r
+    LEFT JOIN (
+      SELECT
+        r2.owner,
+        countDistinct(e.repo_name, e.pr_number) AS total_prs
+      FROM pr_bot_events e
+      JOIN repos r2 ON e.repo_name = r2.name
+      WHERE r2.owner = {owner:String}
+      GROUP BY r2.owner
+    ) pr ON r.owner = pr.owner
+    LEFT JOIN (
+      SELECT
+        r3.owner,
+        countIf(c.comment_id > 0) AS total_bot_comments,
+        sumIf(c.thumbs_up, c.comment_id > 0) AS thumbs_up,
+        sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
+        sumIf(c.heart, c.comment_id > 0) AS heart
+      FROM pr_comments c
+      JOIN repos r3 ON c.repo_name = r3.name
+      WHERE r3.owner = {owner:String}
+      GROUP BY r3.owner
+    ) cm ON r.owner = cm.owner
+    WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
+    GROUP BY r.owner, pr.total_prs, cm.total_bot_comments, cm.thumbs_up, cm.thumbs_down, cm.heart
+    `,
+    { owner },
+  );
+  return rows[0] ?? null;
+}
+
+export type OrgRepo = {
+  name: string;
+  stars: number;
+  primary_language: string;
+  pr_count: number;
+  bot_comment_count: number;
+};
+
+export async function getOrgRepos(owner: string): Promise<OrgRepo[]> {
+  return query<OrgRepo>(
+    `
+    SELECT
+      r.name,
+      r.stars,
+      r.primary_language,
+      COALESCE(pr.pr_count, 0) AS pr_count,
+      COALESCE(cm.bot_comment_count, 0) AS bot_comment_count
+    FROM repos r
+    LEFT JOIN (
+      SELECT repo_name, countDistinct(repo_name, pr_number) AS pr_count
+      FROM pr_bot_events
+      GROUP BY repo_name
+    ) pr ON r.name = pr.repo_name
+    LEFT JOIN (
+      SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
+      FROM pr_comments
+      GROUP BY repo_name
+    ) cm ON r.name = cm.repo_name
+    WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
+    ORDER BY r.stars DESC
+    `,
+    { owner },
+  );
+}
+
+export type OrgProduct = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  avatar_url: string;
+  pr_count: number;
+  event_count: number;
+};
+
+export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
+  return query<OrgProduct>(
+    `
+    SELECT
+      p.id AS product_id,
+      p.name AS product_name,
+      p.brand_color,
+      p.avatar_url,
+      countDistinct(e.repo_name, e.pr_number) AS pr_count,
+      count() AS event_count
+    FROM pr_bot_events e
+    JOIN repos r ON e.repo_name = r.name
+    JOIN bots b ON e.bot_id = b.id
+    JOIN products p ON b.product_id = p.id
+    WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
+    GROUP BY p.id, p.name, p.brand_color, p.avatar_url
+    ORDER BY pr_count DESC
+    `,
+    { owner },
+  );
+}
+
 export type EnrichmentStats = {
   total_discovered_repos: number;
   enriched_repos: number;
