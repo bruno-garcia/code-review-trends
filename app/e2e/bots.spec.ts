@@ -14,7 +14,9 @@ test.describe("Bots listing page", () => {
     await expect(firstCard.getByText("Approval")).toBeVisible();
     await expect(firstCard.getByText("PR Comments")).toBeVisible();
 
-    // Assert that at least one bot has non-zero enriched stats
+    // Assert that at least one bot has non-zero enriched stats.
+    // Each stat cell is: <div><span>Label</span><p>Value</p></div>
+    // Use the span label to locate the sibling <p> value.
     let foundNonZeroApproval = false;
     let foundNonZeroPRComments = false;
     
@@ -22,7 +24,11 @@ test.describe("Bots listing page", () => {
       const card = cards.nth(i);
       
       // Extract approval rate value (format: "XX%")
-      const approvalText = await card.locator('div:has-text("Approval") p').textContent();
+      const approvalText = await card
+        .locator('span:text-is("Approval")')
+        .locator('..')
+        .locator('p')
+        .textContent();
       if (approvalText) {
         const approvalValue = parseFloat(approvalText.replace('%', ''));
         if (approvalValue > 0) {
@@ -31,7 +37,11 @@ test.describe("Bots listing page", () => {
       }
       
       // Extract PR Comments value
-      const prCommentsText = await card.locator('div:has-text("PR Comments") p').textContent();
+      const prCommentsText = await card
+        .locator('span:text-is("PR Comments")')
+        .locator('..')
+        .locator('p')
+        .textContent();
       if (prCommentsText) {
         const prCommentsValue = parseInt(prCommentsText.replace(/,/g, ''), 10);
         if (prCommentsValue > 0) {
