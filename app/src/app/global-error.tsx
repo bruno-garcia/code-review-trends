@@ -16,10 +16,10 @@ export default function GlobalError({
 
   return (
     <html lang="en" className="dark">
-      <body className="bg-gray-950 text-gray-100 antialiased flex items-center justify-center min-h-screen">
+      <body className="bg-theme-bg text-theme-text antialiased flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <h1 className="text-2xl font-bold">Something went wrong</h1>
-          <p className="text-gray-400">An unexpected error occurred.</p>
+          <p className="text-theme-muted">An unexpected error occurred.</p>
           <button
             type="button"
             onClick={reset}

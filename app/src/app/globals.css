@@ -20,6 +20,9 @@
   --color-theme-tooltip-bg: var(--theme-tooltip-bg);
   --color-theme-tooltip-border: var(--theme-tooltip-border);
   --color-theme-node-stroke: var(--theme-node-stroke);
+  --color-theme-text-secondary: var(--theme-text-secondary);
+  --color-theme-surface-alt: var(--theme-surface-alt);
+  --color-theme-muted-dim: var(--theme-muted-dim);
 }
 
 /* ---- Light theme (default) ---- */
@@ -40,6 +43,9 @@
   --theme-tooltip-bg: #ffffff;
   --theme-tooltip-border: #e5e7eb;
   --theme-node-stroke: #ffffff;
+  --theme-text-secondary: #374151;
+  --theme-surface-alt: #e5e7eb;
+  --theme-muted-dim: #9ca3af;
 }
 
 /* ---- Dark theme ---- */
@@ -60,4 +66,7 @@
   --theme-tooltip-bg: #12121a;
   --theme-tooltip-border: #1e1e2e;
   --theme-node-stroke: #0a0a0f;
+  --theme-text-secondary: #d1d5db;
+  --theme-surface-alt: #1f2937;
+  --theme-muted-dim: #6b7280;
 }
