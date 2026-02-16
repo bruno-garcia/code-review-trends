@@ -201,6 +201,10 @@ describe("clickhouse VM", () => {
     // Health-check watchdog restarts Caddy if it stops responding
     expect(s).toContain("caddy-watchdog");
     expect(s).toContain("systemctl restart caddy");
+    // Watchdog checks Caddy's HTTP port (always :80 for ACME) via IPv4
+    expect(s).toContain("http://127.0.0.1:80/");
+    // Watchdog skips check if Caddy isn't active yet (boot race)
+    expect(s).toContain("systemctl is-active --quiet caddy");
 
     // Database creation
     expect(s).toContain("CREATE DATABASE IF NOT EXISTS code_review_trends");

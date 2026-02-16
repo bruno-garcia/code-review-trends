@@ -157,9 +157,20 @@ WTEOF
 
 cat > /usr/local/bin/caddy-watchdog.sh <<'WATCHEOF'
 #!/bin/bash
-# Check if Caddy responds to a local HTTP request within 5 seconds.
-# If not, restart it. Logs to journald via systemd.
-if ! curl -sf --max-time 5 -o /dev/null "http://localhost:80" 2>/dev/null; then
+# Check if Caddy responds to HTTP on port 80 within 5 seconds.
+# Caddy always listens on :80 for ACME challenges and redirects.
+# Any HTTP response (even a 308 redirect) proves Caddy is alive.
+#
+# -S: show curl errors in journald for diagnostics
+# No -f: HTTP error codes (3xx/4xx/5xx) still mean Caddy is responding
+
+# Don't check if Caddy isn't supposed to be running yet
+if ! systemctl is-active --quiet caddy; then
+  echo "Caddy is not active — skipping health check"
+  exit 0
+fi
+
+if ! curl -S --max-time 5 -o /dev/null "http://127.0.0.1:80/" 2>&1; then
   echo "Caddy health check failed — restarting"
   systemctl restart caddy
 else
