@@ -27,10 +27,17 @@ export default async function OrgPage({
   }
 
   const languages = summary.languages.filter(Boolean);
-  const totalReactions = summary.thumbs_up + summary.thumbs_down + summary.heart;
+  const totalStars = Number(summary.total_stars);
+  const repoCount = Number(summary.repo_count);
+  const totalPrs = Number(summary.total_prs);
+  const totalBotComments = Number(summary.total_bot_comments);
+  const thumbsUp = Number(summary.thumbs_up);
+  const thumbsDown = Number(summary.thumbs_down);
+  const heart = Number(summary.heart);
+  const totalReactions = thumbsUp + thumbsDown + heart;
   const approvalRate =
-    summary.thumbs_up + summary.thumbs_down > 0
-      ? ((summary.thumbs_up / (summary.thumbs_up + summary.thumbs_down)) * 100).toFixed(1)
+    thumbsUp + thumbsDown > 0
+      ? ((thumbsUp / (thumbsUp + thumbsDown)) * 100).toFixed(1)
       : null;
 
   return (
@@ -69,18 +76,18 @@ export default async function OrgPage({
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="org-stats">
-        <StatCard label="Total Stars" value={`⭐ ${formatNumber(summary.total_stars)}`} />
-        <StatCard label="Repos Tracked" value={formatNumber(summary.repo_count)} />
-        <StatCard label="PRs with AI Review" value={formatNumber(summary.total_prs)} />
-        <StatCard label="Bot Comments" value={formatNumber(summary.total_bot_comments)} />
+        <StatCard label="Total Stars" value={`⭐ ${formatNumber(totalStars)}`} />
+        <StatCard label="Repos Tracked" value={formatNumber(repoCount)} />
+        <StatCard label="PRs with AI Review" value={formatNumber(totalPrs)} />
+        <StatCard label="Bot Comments" value={formatNumber(totalBotComments)} />
       </div>
 
       {/* Reactions row */}
       {totalReactions > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="org-reactions">
-          <StatCard label="👍 Thumbs Up" value={formatNumber(summary.thumbs_up)} />
-          <StatCard label="👎 Thumbs Down" value={formatNumber(summary.thumbs_down)} />
-          <StatCard label="❤️ Hearts" value={formatNumber(summary.heart)} />
+          <StatCard label="👍 Thumbs Up" value={formatNumber(thumbsUp)} />
+          <StatCard label="👎 Thumbs Down" value={formatNumber(thumbsDown)} />
+          <StatCard label="❤️ Hearts" value={formatNumber(heart)} />
           {approvalRate && (
             <StatCard label="Approval Rate" value={`${approvalRate}%`} />
           )}
