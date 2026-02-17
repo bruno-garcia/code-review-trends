@@ -22,6 +22,9 @@ function TimeRangeSelectorInner() {
       }
       const qs = params.toString();
       const url = qs ? `${pathname}?${qs}` : pathname;
+      document.dispatchEvent(
+        new CustomEvent("navigation-start", { detail: { href: url } }),
+      );
       startTransition(() => {
         router.push(url, { scroll: false });
       });

@@ -1,5 +1,44 @@
 @import "tailwindcss";
 
+/* Restore pointer cursor on interactive elements (Tailwind v4 Preflight doesn't set it) */
+button,
+[role="button"],
+[type="button"],
+[type="submit"],
+[type="reset"],
+select,
+summary {
+  cursor: pointer;
+}
+
+/* Navigation progress bar animation */
+@keyframes nav-progress-grow {
+  0% { transform: scaleX(0); }
+  10% { transform: scaleX(0.3); }
+  50% { transform: scaleX(0.6); }
+  80% { transform: scaleX(0.8); }
+  95%, 100% { transform: scaleX(0.92); }
+}
+
+@keyframes nav-progress-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.nav-progress-bar {
+  transform-origin: left;
+  animation:
+    nav-progress-grow 4s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+    nav-progress-pulse 1.5s ease-in-out 1s infinite;
+}
+
+.nav-progress-complete {
+  transform: scaleX(1) !important;
+  animation: none;
+  transition: transform 200ms ease-out, opacity 300ms ease 100ms;
+  opacity: 0;
+}
+
 /* Define theme colors using CSS custom properties that change with .dark class.
  * We use @theme (without inline) so Tailwind generates var() references in utilities,
  * ensuring they react to runtime class changes. */
