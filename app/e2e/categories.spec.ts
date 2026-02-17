@@ -1,12 +1,11 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Categories page", () => {
-  test("shows all five category groups", async ({ page }) => {
+  test("shows all six category groups", async ({ page }) => {
     await page.goto("/categories");
     await expect(page.getByTestId("categories-page")).toBeVisible();
-    await expect(
-      page.getByTestId("category-group-signal-quality"),
-    ).toBeVisible();
+    await expect(page.getByTestId("category-group-the-good")).toBeVisible();
+    await expect(page.getByTestId("category-group-the-spicy")).toBeVisible();
     await expect(
       page.getByTestId("category-group-review-style"),
     ).toBeVisible();
@@ -21,22 +20,33 @@ test.describe("Categories page", () => {
     ).toBeVisible();
   });
 
-  test("Signal Quality group has all four categories", async ({ page }) => {
+  test("The Good group has Most Loved and Signal over Noise", async ({
+    page,
+  }) => {
     await page.goto("/categories");
-    const group = page.getByTestId("category-group-signal-quality");
+    const group = page.getByTestId("category-group-the-good");
     await expect(group.getByTestId("category-most-loved")).toBeVisible();
     await expect(
-      group.getByTestId("category-most-controversial"),
+      group.getByTestId("category-signal-over-noise"),
     ).toBeVisible();
-    await expect(group.getByTestId("category-less-chatty")).toBeVisible();
-    await expect(group.getByTestId("category-most-detailed")).toBeVisible();
+  });
+
+  test("The Spicy group has Love it or Hate it and Wall of Text", async ({
+    page,
+  }) => {
+    await page.goto("/categories");
+    const group = page.getByTestId("category-group-the-spicy");
+    await expect(
+      group.getByTestId("category-love-it-or-hate-it"),
+    ).toBeVisible();
+    await expect(group.getByTestId("category-wall-of-text")).toBeVisible();
   });
 
   test("Review Style group has all categories", async ({ page }) => {
     await page.goto("/categories");
     const group = page.getByTestId("category-group-review-style");
     await expect(
-      group.getByTestId("category-inline-vs-summary"),
+      group.getByTestId("category-reviews-the-code"),
     ).toBeVisible();
     await expect(
       group.getByTestId("category-review-verdicts"),
@@ -80,6 +90,12 @@ test.describe("Categories page", () => {
     expect(barCount).toBeGreaterThan(0);
   });
 
+  test("editor's picks are shown on select categories", async ({ page }) => {
+    await page.goto("/categories");
+    const mostLoved = page.getByTestId("category-most-loved");
+    await expect(mostLoved.getByText("Our take:")).toBeVisible();
+  });
+
   test("Language Specialist shows language data", async ({ page }) => {
     await page.goto("/categories");
     const langSection = page.getByTestId("category-language-specialist");
@@ -94,7 +110,8 @@ test.describe("Categories page", () => {
     await page.goto("/categories");
     const nav = page.getByTestId("categories-nav");
     await expect(nav).toBeVisible();
-    await expect(nav.getByText("Signal Quality")).toBeVisible();
+    await expect(nav.getByText("The Good")).toBeVisible();
+    await expect(nav.getByText("The Spicy")).toBeVisible();
     await expect(nav.getByText("Review Style")).toBeVisible();
     await expect(nav.getByText("Adoption & Trust")).toBeVisible();
     await expect(nav.getByText("Effectiveness")).toBeVisible();

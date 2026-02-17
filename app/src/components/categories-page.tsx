@@ -38,6 +38,7 @@ function CategorySection({
   );
   // For lowerIsBetter, invert bars so the best (lowest) gets the longest bar
   const refValue = sorted[0]?.value ?? 0;
+  const pick = EDITORS_PICKS[id];
 
   return (
     <div
@@ -86,6 +87,15 @@ function CategorySection({
           })}
         </div>
       )}
+      {pick && (
+        <div className="mt-4 pt-3 border-t border-theme-border/50">
+          <p className="text-xs text-theme-muted">
+            <span className="text-amber-400 font-medium">Our take:</span>{" "}
+            <span className="text-theme-text/80 font-medium">{pick.product}</span>{" "}
+            — {pick.reason}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -97,12 +107,23 @@ function formatMinutes(v: number): string {
 }
 
 const GROUPS = [
-  { id: "signal-quality", label: "Signal Quality" },
+  { id: "the-good", label: "The Good" },
+  { id: "the-spicy", label: "The Spicy" },
   { id: "review-style", label: "Review Style" },
   { id: "adoption-trust", label: "Adoption & Trust" },
   { id: "effectiveness", label: "Effectiveness" },
   { id: "specialization", label: "Specialization" },
 ] as const;
+
+/** Editorial picks — opinionated recommendations per category */
+const EDITORS_PICKS: Record<string, { product: string; reason: string }> = {
+  "most-loved": { product: "CodeRabbit", reason: "Consistently high approval across thousands of repos. Developers keep the comments, not dismiss them." },
+  "signal-over-noise": { product: "Baz", reason: "Focused on catching real bugs with minimal noise. Fewer comments, higher signal." },
+  "wall-of-text": { product: "CodeRabbit", reason: "Verbose, but developers still 👍 it — suggesting the detail is wanted, not just noise." },
+  "reviews-the-code": { product: "CodeRabbit", reason: "93%+ of comments land on actual code lines. That's where reviews matter." },
+  "response-time": { product: "CodeScene", reason: "Fast feedback means developers stay in flow. Minutes, not hours." },
+  "merge-correlation": { product: "CodeRabbit", reason: "High merge rate suggests the reviews add confidence, not friction." },
+};
 
 export function CategoriesPage({
   comparisons,
@@ -362,40 +383,57 @@ export function CategoriesPage({
         ))}
       </nav>
 
-      {/* Signal Quality */}
+      {/* The Good */}
       <section
-        id="signal-quality"
-        data-testid="category-group-signal-quality"
+        id="the-good"
+        data-testid="category-group-the-good"
         className="mt-10 space-y-6"
       >
-        <h2 className="text-2xl font-semibold">Signal Quality</h2>
+        <div>
+          <h2 className="text-2xl font-semibold">The Good 👍</h2>
+          <p className="text-sm text-theme-muted mt-1">What developers actually want from AI reviews.</p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CategorySection
             id="most-loved"
             title="Most Loved"
-            description="Highest approval rate (👍 / (👍 + 👎)) across all review comments."
+            description="Highest approval rate (👍 / (👍+👎)) across all review comments. The comments developers keep, not dismiss."
             data={mostLovedData}
             formatValue={(v) => `${v.toFixed(1)}%`}
           />
           <CategorySection
-            id="most-controversial"
-            title="Most Controversial"
-            description="Highest mix of positive and negative reactions — polarizing reviews."
-            data={controversyData}
-            formatValue={(v) => `${(v * 100).toFixed(0)}%`}
-          />
-          <CategorySection
-            id="less-chatty"
-            title="Less Chatty"
-            description="Fewest comments per pull request — concise and focused reviews."
+            id="signal-over-noise"
+            title="Signal over Noise"
+            description="Fewest comments per PR. Less noise, more action — these bots say what matters and move on."
             data={lessChattyData}
             formatValue={(v) => `${v.toFixed(2)}/PR`}
             lowerIsBetter
           />
+        </div>
+      </section>
+
+      {/* The Spicy */}
+      <section
+        id="the-spicy"
+        data-testid="category-group-the-spicy"
+        className="mt-10 space-y-6"
+      >
+        <div>
+          <h2 className="text-2xl font-semibold">The Spicy 🌶️</h2>
+          <p className="text-sm text-theme-muted mt-1">Not necessarily bad — but worth knowing before you install.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CategorySection
-            id="most-detailed"
-            title="Most Detailed"
-            description="Longest average comment body — thorough, detailed feedback."
+            id="love-it-or-hate-it"
+            title="Love it or Hate it"
+            description="Most polarizing — these bots get both 👍 and 👎 on the same reviews. Strong opinions either way."
+            data={controversyData}
+            formatValue={(v) => `${(v * 100).toFixed(0)}%`}
+          />
+          <CategorySection
+            id="wall-of-text"
+            title="Wall of Text"
+            description="Longest average comments. Thorough or noisy? You decide — but your PR thread will be long."
             data={mostDetailedData}
             formatValue={(v) => `${v.toLocaleString()} chars`}
           />
@@ -411,9 +449,9 @@ export function CategoriesPage({
         <h2 className="text-2xl font-semibold">Review Style</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <CategorySection
-            id="inline-vs-summary"
-            title="Inline vs Summary"
-            description="Percentage of comments that are inline code review comments vs PR-level."
+            id="reviews-the-code"
+            title="Reviews the Code"
+            description="Percentage of comments on actual code lines vs PR-level chatter. Inline comments are where real reviews happen."
             data={inlineData}
             formatValue={(v) => `${v.toFixed(1)}% inline`}
           />
