@@ -353,7 +353,7 @@ export default async function AboutPage() {
             rel="noopener noreferrer"
             className={linkClass}
           >
-            <code className={codeClass}>discover-bots</code>
+            <code className="rounded bg-theme-surface-alt px-1.5 py-0.5 text-sm">discover-bots</code>
           </a>
           ) that scans GH
           Archive for new bot accounts performing code reviews on public
