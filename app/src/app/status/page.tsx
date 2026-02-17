@@ -2,7 +2,6 @@ import { getDataCollectionStats, type DataCollectionStats } from "@/lib/clickhou
 import { DataCollectionPanel } from "@/components/data-collection-stats";
 
 // Revalidate every hour — data only changes weekly via pipeline
-export const revalidate = 3600;
 
 export default async function StatusPage() {
   let stats: DataCollectionStats;

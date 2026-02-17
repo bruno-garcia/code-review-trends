@@ -8,7 +8,6 @@ import {
 import { formatNumber } from "@/lib/format";
 
 // Revalidate every hour — data only changes weekly via pipeline
-export const revalidate = 3600;
 
 export default async function OrgPage({
   params,

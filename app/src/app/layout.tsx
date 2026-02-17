@@ -15,6 +15,8 @@ import { getSchemaStatus } from "@/lib/migrations";
 import { NavigationProgress } from "@/components/navigation-progress";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Code Review Trends — AI Bot Adoption on GitHub",
   description:

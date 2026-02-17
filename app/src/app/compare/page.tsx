@@ -4,7 +4,6 @@ import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "./compare-charts";
 
 // Revalidate every hour — data only changes weekly via pipeline
-export const revalidate = 3600;
 
 export default async function ComparePage({
   searchParams,

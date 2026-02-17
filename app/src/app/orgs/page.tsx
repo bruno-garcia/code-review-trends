@@ -8,7 +8,6 @@ import { formatNumber } from "@/lib/format";
 import { OrgFilters } from "./org-filters";
 
 // Revalidate every hour — data only changes weekly via pipeline
-export const revalidate = 3600;
 
 const PAGE_SIZE = 50;
 
