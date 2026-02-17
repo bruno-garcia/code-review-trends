@@ -10,6 +10,7 @@ import { getDefaultProductIds } from "@/lib/product-filter-defaults";
 import { ProductFilterProvider } from "@/lib/product-filter";
 import { ProductFilterBar } from "@/components/product-filter-bar";
 import { SchemaBanner } from "@/components/schema-banner";
+import { MigrationGate } from "@/components/migration-gate";
 import { getSchemaStatus } from "@/lib/migrations";
 import { NavigationProgress } from "@/components/navigation-progress";
 import "./globals.css";
@@ -26,7 +27,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // Check schema version and auto-migrate if needed (before data queries).
-  // Cached for 60s per serverless container. Gracefully returns on error.
+  // Cached for 60s per serverless container — effectively free in the normal case.
   const schemaStatus = await getSchemaStatus();
 
   // Gracefully handle missing ClickHouse during next build (pre-render).
@@ -76,15 +77,17 @@ export default async function RootLayout({
               </div>
             </div>
           </nav>
-          <ProductFilterProvider
-            allProducts={allProducts}
-            defaultProductIds={defaultProductIds}
-          >
-            <ProductFilterBar />
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              {children}
-            </main>
-          </ProductFilterProvider>
+          <MigrationGate status={schemaStatus}>
+            <ProductFilterProvider
+              allProducts={allProducts}
+              defaultProductIds={defaultProductIds}
+            >
+              <ProductFilterBar />
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {children}
+              </main>
+            </ProductFilterProvider>
+          </MigrationGate>
           <footer className="border-t border-theme-border py-8 text-center text-sm text-theme-muted">
             {enrichmentIncomplete && (
               <div className="mb-4 inline-flex items-center gap-2 justify-center" data-testid="data-import-status">
