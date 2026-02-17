@@ -1,14 +1,10 @@
-import { getDataCollectionStats } from "@/lib/clickhouse";
-import { DataCollectionPanel } from "@/components/data-collection-stats";
-
-export const dynamic = "force-dynamic";
+import Link from "next/link";
 
 const linkClass = "text-blue-400 hover:text-blue-300";
 const codeClass =
   "rounded bg-theme-surface-alt px-1.5 py-0.5 text-sm text-theme-text";
 
-export default async function AboutPage() {
-  const stats = await getDataCollectionStats();
+export default function AboutPage() {
 
   return (
     <div data-testid="about-page" className="mx-auto max-w-4xl space-y-12 py-8">
@@ -325,17 +321,11 @@ export default async function AboutPage() {
         </ul>
       </section>
 
-      {/* Data Collection Progress */}
-      <section className="space-y-4" data-testid="data-collection-section">
-        <h2 className="text-2xl font-semibold text-theme-text">
-          Data Collection Progress
-        </h2>
-        <p className="text-theme-text-secondary leading-relaxed">
-          Live status of our two data pipelines. The BigQuery backfill collects
-          aggregate weekly counts, while the GitHub API enrichment fetches
-          detailed metadata for individual repos, PRs, and comments.
-        </p>
-        <DataCollectionPanel stats={stats} />
+      {/* Link to Status */}
+      <section className="text-center py-4 border-t border-theme-border">
+        <Link href="/status" className={linkClass}>
+          View data collection status →
+        </Link>
       </section>
     </div>
   );
