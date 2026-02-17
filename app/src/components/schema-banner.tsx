@@ -1,5 +1,12 @@
 import { type SchemaStatus } from "@/lib/migrations";
 
+function SentryEventId({ eventId }: { eventId?: string }) {
+  if (!eventId) return null;
+  return (
+    <> Event ID: <code className="bg-black/20 px-1 rounded">{eventId}</code></>
+  );
+}
+
 /**
  * Server component that shows a warning banner when the schema version
  * doesn't match what the app expects.
@@ -30,12 +37,8 @@ export function SchemaBanner({ status }: { status: SchemaStatus }) {
       >
         ⚠️ Database schema is <strong>behind</strong> this app
         (DB&nbsp;v{status.dbVersion}, app expects&nbsp;v
-        {status.expectedVersion}). Auto-migration failed
-        {status.error ? `: ${status.error}` : "."} Run{" "}
-        <code className="bg-red-950/50 px-1 rounded">
-          npm run pipeline -- migrate
-        </code>{" "}
-        to apply pending migrations.
+        {status.expectedVersion}). Auto-migration failed.
+        <SentryEventId eventId={status.sentryEventId} />
       </div>
     );
   }
@@ -63,9 +66,7 @@ export function SchemaBanner({ status }: { status: SchemaStatus }) {
       >
         ⚠️ Schema check failed — could not connect to ClickHouse or run
         migrations.
-        {status.error && (
-          <span className="block mt-1 text-xs opacity-80">{status.error}</span>
-        )}
+        <SentryEventId eventId={status.sentryEventId} />
       </div>
     );
   }

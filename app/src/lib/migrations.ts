@@ -16,6 +16,7 @@
 
 import { getClickHouseClient } from "./clickhouse";
 import type { ClickHouseClient } from "@clickhouse/client";
+import * as Sentry from "@sentry/nextjs";
 
 // ---------------------------------------------------------------------------
 // Version & types
@@ -29,6 +30,8 @@ export type SchemaStatus = {
   dbVersion: number;
   expectedVersion: number;
   error?: string;
+  /** Sentry event ID for error/db_behind statuses — link to this for details. */
+  sentryEventId?: string;
 };
 
 type Migration = {
@@ -402,16 +405,16 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
       result = await runMigrations(client);
     } catch (migrationErr) {
       // DDL failure — migration SQL threw (e.g., permission denied, syntax error)
-      const errMsg =
-        migrationErr instanceof Error
-          ? migrationErr.message || migrationErr.toString()
-          : String(migrationErr);
-      console.error("[schema-migration] Migration DDL failed:", errMsg);
+      console.error("[schema-migration] Migration DDL failed:", migrationErr);
+      const eventId = Sentry.captureException(migrationErr, {
+        tags: { component: "schema-migration", reason: "ddl_failure" },
+        extra: { dbVersion, expectedVersion: EXPECTED_SCHEMA_VERSION },
+      });
       return {
         status: "db_behind",
         dbVersion,
         expectedVersion: EXPECTED_SCHEMA_VERSION,
-        error: errMsg,
+        sentryEventId: eventId,
       };
     }
 
@@ -446,28 +449,16 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     return status;
   } catch (err) {
     // ClickHouse unreachable or misconfigured (e.g., empty URL during build)
-    let message: string;
-    if (err instanceof Error) {
-      // Some ClickHouse errors have an empty .message but useful .toString()
-      message = err.message || err.toString();
-      if (err.cause) {
-        const cause = err.cause;
-        const causeMessage =
-          cause instanceof Error
-            ? cause.message || cause.toString()
-            : String(cause);
-        message += ` (cause: ${causeMessage})`;
-      }
-    } else {
-      message = String(err);
-    }
-    // Log full error server-side for debugging (the banner only shows a summary)
-    console.error("[schema-migration] Failed:", message);
+    console.error("[schema-migration] Failed:", err);
+    const eventId = Sentry.captureException(err, {
+      tags: { component: "schema-migration", reason: "connection_failure" },
+      extra: { expectedVersion: EXPECTED_SCHEMA_VERSION },
+    });
     return {
       status: "error",
       dbVersion: 0,
       expectedVersion: EXPECTED_SCHEMA_VERSION,
-      error: message || "Unknown error (empty exception)",
+      sentryEventId: eventId,
     };
   }
 }
