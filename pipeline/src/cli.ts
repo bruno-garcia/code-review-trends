@@ -334,6 +334,38 @@ async function cmdStatus() {
   await runStatus(process.argv.slice(3));
 }
 
+/**
+ * Schema migration versions — must match MIGRATIONS in app/src/lib/migrations.ts.
+ * When adding a new migration to the app, add the corresponding entry here.
+ */
+const SCHEMA_MIGRATIONS: { version: number; name: string }[] = [
+  { version: 1, name: "initial_schema" },
+  { version: 2, name: "pr_bot_reactions" },
+];
+
+/** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table. */
+async function querySchemaVersion(client: import("@clickhouse/client").ClickHouseClient, database: string): Promise<{
+  version: number;
+  appliedVersions: { version: number; name: string; applied_at: string }[];
+}> {
+  try {
+    const result = await client.query({
+      query: `SELECT version, name, toString(applied_at) as applied_at FROM ${database}.schema_migrations ORDER BY version`,
+      format: "JSONEachRow",
+    });
+    const rows = (await result.json()) as { version: number; name: string; applied_at: string }[];
+    const maxVersion = rows.reduce((max, r) => Math.max(max, r.version), 0);
+    return { version: maxVersion, appliedVersions: rows };
+  } catch (err) {
+    // Table doesn't exist yet — fresh database
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("UNKNOWN_TABLE") || msg.includes("doesn't exist") || msg.includes("does not exist")) {
+      return { version: 0, appliedVersions: [] };
+    }
+    throw err;
+  }
+}
+
 async function cmdMigrate() {
   const args = parseArgs();
   const dryRun = "--dry-run" in args;
@@ -345,6 +377,8 @@ async function cmdMigrate() {
   const { resolve, dirname } = await import("path");
   const { fileURLToPath } = await import("url");
   const { execFileSync } = await import("child_process");
+
+  const targetVersion = SCHEMA_MIGRATIONS[SCHEMA_MIGRATIONS.length - 1].version;
 
   // Find all SQL files in db/init/ (schema + bot data), sorted by name
   const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -370,22 +404,7 @@ async function cmdMigrate() {
     }
   }
 
-  console.log(`Found ${sqlFiles.length} SQL files in db/init/:`);
-  for (const file of sqlFiles) {
-    const count = allStatements.filter((s) => s.file === file.name).length;
-    console.log(`  ${file.name} (${count} statements)`);
-  }
-  console.log(`Total: ${allStatements.length} statements`);
-
-  if (dryRun) {
-    console.log("\n(dry run — showing statements that would be applied)\n");
-    for (const { file, sql } of allStatements) {
-      const firstLine = sql.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? sql;
-      console.log(`  [${file}] ${firstLine.trim().slice(0, 70)}`);
-    }
-    console.log(`\nWould also sync ${PRODUCTS.length} products and ${BOTS.length} bots from registry.`);
-    return;
-  }
+  // --- Resolve ClickHouse connection ---
 
   let clickhouseUrl: string;
   let clickhousePassword: string;
@@ -394,11 +413,11 @@ async function cmdMigrate() {
   if (useLocal || !stackExplicitlyProvided) {
     clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
     clickhousePassword = process.env.CLICKHOUSE_PASSWORD ?? "dev";
-    console.log(`\nUsing local ClickHouse: ${clickhouseUrl}`);
+    console.log(`Target: local ClickHouse (${clickhouseUrl})`);
   } else {
     // Get credentials from Pulumi stack outputs
     const infraDir = resolve(__dirname, "../../infra");
-    console.log(`\nReading credentials from Pulumi stack '${stack}'...`);
+    console.log(`Target: Pulumi stack '${stack}'`);
 
     try {
       clickhouseUrl = execFileSync(
@@ -437,11 +456,9 @@ async function cmdMigrate() {
   }
 
   const clickhouseUser = process.env.CLICKHOUSE_USER ?? "default";
+  const clickhouseDb = process.env.CLICKHOUSE_DB ?? "code_review_trends";
 
-  // Apply SQL statements
-  console.log(`\nApplying ${allStatements.length} SQL statements...\n`);
-  let applied = 0;
-  let errors = 0;
+  // --- Query current DB version ---
 
   const { createClient } = await import("@clickhouse/client");
   const client = createClient({
@@ -451,6 +468,62 @@ async function cmdMigrate() {
   });
 
   try {
+    const { version: currentVersion, appliedVersions } = await querySchemaVersion(client, clickhouseDb);
+    const appliedSet = new Set(appliedVersions.map((v) => v.version));
+    const pendingMigrations = SCHEMA_MIGRATIONS.filter((m) => !appliedSet.has(m.version));
+
+    // --- Show version summary ---
+
+    console.log("");
+    console.log(`Schema version:  v${currentVersion} → v${targetVersion}`);
+    if (currentVersion > targetVersion) {
+      console.log(`Status:          ⚠ database is ahead of CLI (v${currentVersion} > v${targetVersion})`);
+    } else if (currentVersion === targetVersion) {
+      console.log(`Status:          ✓ up to date`);
+    } else if (currentVersion === 0) {
+      console.log(`Status:          fresh database (${pendingMigrations.length} migrations to record)`);
+    } else {
+      console.log(`Status:          ${pendingMigrations.length} migration(s) to record`);
+    }
+
+    // Show migration history
+    console.log("");
+    for (const m of SCHEMA_MIGRATIONS) {
+      const applied = appliedVersions.find((a) => a.version === m.version);
+      if (applied) {
+        console.log(`  v${m.version} ${m.name} — applied ${applied.applied_at}`);
+      } else {
+        console.log(`  v${m.version} ${m.name} — pending`);
+      }
+    }
+
+    // Show SQL files
+    console.log("");
+    console.log(`SQL files (${sqlFiles.length}):`);
+    for (const file of sqlFiles) {
+      const count = allStatements.filter((s) => s.file === file.name).length;
+      console.log(`  ${file.name} (${count} statements)`);
+    }
+
+    if (dryRun) {
+      console.log(`\n(dry run — showing what would be applied)\n`);
+      for (const { file, sql } of allStatements) {
+        const firstLine = sql.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? sql;
+        console.log(`  [${file}] ${firstLine.trim().slice(0, 70)}`);
+      }
+      console.log(`\nWould also sync ${PRODUCTS.length} products and ${BOTS.length} bots from registry.`);
+      if (pendingMigrations.length > 0) {
+        console.log(`Would record ${pendingMigrations.length} migration version(s): ${pendingMigrations.map((m) => `v${m.version}`).join(", ")}`);
+      }
+      return;
+    }
+
+    // --- Apply SQL statements ---
+
+    console.log(`\nApplying ${allStatements.length} SQL statements...\n`);
+    let applied = 0;
+    let errors = 0;
+
     for (const { file, sql } of allStatements) {
       const firstLine = sql.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? sql;
       const preview = firstLine.trim().slice(0, 70);
@@ -479,7 +552,7 @@ async function cmdMigrate() {
       url: clickhouseUrl,
       username: clickhouseUser,
       password: clickhousePassword,
-      database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
+      database: clickhouseDb,
     });
     try {
       await syncProducts(chClient, PRODUCTS);
@@ -487,22 +560,25 @@ async function cmdMigrate() {
       await syncBots(chClient, BOTS);
       console.log(`  ✓ Synced ${BOTS.length} bots`);
 
-      // Record the schema version in schema_migrations.
-      // This must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts.
-      // The schema_migrations table is created by 001_schema.sql above.
-      const SCHEMA_VERSION = 2;
-      console.log(`\nRecording schema version ${SCHEMA_VERSION}...`);
-      await chClient.insert({
-        table: "schema_migrations",
-        values: [{ version: SCHEMA_VERSION, name: "initial_schema" }],
-        format: "JSONEachRow",
-      });
-      console.log(`  ✓ Schema version ${SCHEMA_VERSION} recorded`);
+      // Record each pending migration version in schema_migrations.
+      // All SQL files are applied above (idempotent), so we just need to
+      // record the versions that weren't previously tracked.
+      if (pendingMigrations.length > 0) {
+        console.log(`\nRecording schema version(s)...`);
+        await chClient.insert({
+          table: "schema_migrations",
+          values: pendingMigrations.map((m) => ({ version: m.version, name: m.name })),
+          format: "JSONEachRow",
+        });
+        for (const m of pendingMigrations) {
+          console.log(`  ✓ v${m.version} ${m.name}`);
+        }
+      }
     } finally {
       await chClient.close();
     }
 
-    console.log(`\nDone: ${applied} SQL statements applied, ${PRODUCTS.length} products and ${BOTS.length} bots synced.`);
+    console.log(`\nDone: ${applied} SQL statements applied, schema v${currentVersion} → v${targetVersion}.`);
   } finally {
     await client.close();
   }
