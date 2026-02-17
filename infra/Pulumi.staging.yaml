@@ -10,4 +10,14 @@ config:
   code-review-trends:githubRepo: bruno-garcia/code-review-trends
   code-review-trends:clickhouseDomain:
     secure: v1:WtI0hDYGsugbuqPR:beB4SPLLDn9yw1pLMb+9mZRUqlc/wf91ZWmAZce6VM88K8qhuP0=
+  code-review-trends:appDomain:
+    secure: v1:Cl9tlY9PoPO32Ntm:5JFf8PrN6xLThPSY27xcmScuYzFWaWAtwCNZkGqnryORDQ+tnJvmKjrC8CE=
+  code-review-trends:sentryDsnApp:
+    secure: v1:JD6cuoPbJpa4ANnm:Buup6FYvl/yhKgrcIxiLch11AbCg6WsvpHKD9j3JM95TQDr4mhvhXthK6iSkDzdtusQg8u0KAa53WPvPYC6daOC5O/dey3GqQP6rgSQmWpyFDBeET+QvGFafE2uD9Dtf0jkZ+oE=
+  code-review-trends:sentryDsnPipeline:
+    secure: v1:cpTzqMk64Wi0+6VJ:fPOBuT+6g7F5injRRtQLjpHD0+qiZEWi/OXCme1oDAplQIiF3ngltbmOnYOpVj8lhAAifI9D+yMJMPy71kwRyB2QUeMzCpU5lpy15m6qMFKza4U2xDKBhUFqTI2Mpxqiq3jkpiI=
+  code-review-trends:sentryAuthToken:
+    secure: v1:Hch9thv+iLMXVBnA:BjTyJ6n2uq5DU1EQFHvce7RRZNTiYcRz5muA7PujNEDQ2M1cz/3bPSC7RL1qkYl8xu9vsGqiwnPT2Vch9y0DAreH86ntnDzpjTd2i9HuR5kgTlLVPZ4gdnaI3W4WY5Sl2A+S8Ej06zCMdR+gvCZqVfnRCdZALkUSe8nJnS2INL2sLsGtiugjmLe7qGl6P/QJOGfwfwkeIfTrJVxjZr8bzcJxZciDRG2zg8JjEXzCwMwfJ9WiaXzAIyj4fdcuwynk9mgpZ4+qOc1zXnXErZX6R2oFbg==
+  code-review-trends:githubToken:
+    secure: v1:/07hATRgDE91919j:ni7e5xV/uBRJdhONkk8Q6ixh9EExqODPeyzytk9A+OcDhOOR+mDR0FRQDz7MiH4xPkxlhCEAMfALatm0XwslforFZ6d9LbI5QgV3dhD2BYGqwy3YShdlQ+3kIpW7gmvk6TPosvWMI3Ry38Ak9A==
 encryptionsalt: v1:AWXWIyh26VY=:v1:Sg6zEq4QvISI5kjW:A7aV13N9kenv/uY9U3IQYM+qiSZTYg==

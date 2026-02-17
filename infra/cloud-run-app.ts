@@ -34,7 +34,7 @@ export function createCloudRunApp(
             image: "us-docker.pkg.dev/cloudrun/container/hello",
             ports: { containerPort: 8080 },
             resources: {
-              limits: { memory: "512Mi", cpu: "1" },
+              limits: { memory: "2Gi", cpu: "4" },
             },
             envs: [
               // Plain env vars

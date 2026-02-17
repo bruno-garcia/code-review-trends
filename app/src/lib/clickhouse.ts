@@ -1,6 +1,23 @@
 import { createClient } from "@clickhouse/client";
 import * as Sentry from "@sentry/nextjs";
 
+// Simple in-memory cache with TTL for expensive queries.
+// Lives for the lifetime of a serverless container instance.
+const cache = new Map<string, { data: unknown; expires: number }>();
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function getCached<T>(key: string): T | undefined {
+  const entry = cache.get(key);
+  if (entry && Date.now() < entry.expires) return entry.data as T;
+  if (entry) cache.delete(key);
+  return undefined;
+}
+
+function setCache<T>(key: string, data: T): T {
+  cache.set(key, { data, expires: Date.now() + CACHE_TTL_MS });
+  return data;
+}
+
 export function getClickHouseClient() {
   return createClient({
     url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
@@ -1171,21 +1188,24 @@ export type EnrichmentStats = {
 };
 
 export async function getEnrichmentStats(): Promise<EnrichmentStats> {
+  const cached = getCached<EnrichmentStats>("enrichmentStats");
+  if (cached) return cached;
+
   const rows = await query<EnrichmentStats>(`
     SELECT
       (SELECT count() FROM repos) AS total_discovered_repos,
       (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
-      (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events) AS total_discovered_prs,
+      (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS total_discovered_prs,
       (SELECT count() FROM pull_requests) AS enriched_prs,
       (SELECT countIf(comment_id > 0) FROM pr_comments) AS total_comments
   `);
-  return rows[0] ?? {
+  return setCache("enrichmentStats", rows[0] ?? {
     total_discovered_repos: 0,
     enriched_repos: 0,
     total_discovered_prs: 0,
     enriched_prs: 0,
     total_comments: 0,
-  };
+  });
 }
 
 // --- Data collection stats (for /about page) ---
@@ -1215,6 +1235,9 @@ import { DATA_EPOCH } from "./constants";
 export { DATA_EPOCH };
 
 export async function getDataCollectionStats(): Promise<DataCollectionStats> {
+  const cached = getCached<DataCollectionStats>("dataCollectionStats");
+  if (cached) return cached;
+
   // Fetch weeks with data + enrichment counts in parallel
   const [weekRows, countRows] = await Promise.all([
     query<{ w: string }>(`
@@ -1236,16 +1259,16 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       reactions_found: number;
     }>(`
       SELECT
-        (SELECT count(DISTINCT repo_name) FROM pr_bot_events FINAL) AS repos_total,
+        (SELECT uniq(repo_name) FROM pr_bot_events) AS repos_total,
         (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
         (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
-        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events FINAL) AS prs_discovered,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS prs_discovered,
         (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
-        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events FINAL WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
-        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_comments FINAL) AS comments_enriched,
-        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events FINAL) AS reactions_total,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_bot_events WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments FINAL) AS comments_enriched,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS reactions_total,
         (SELECT count() FROM reaction_scan_progress FINAL) AS reactions_scanned,
-        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_reactions FINAL) AS reactions_found
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
     `),
   ]);
 
@@ -1265,7 +1288,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
   }
 
   const base = countRows[0];
-  return {
+  return setCache("dataCollectionStats", {
     weeks_with_data: weekRows.map((r) => r.w),
     last_import: lastImport,
     repos_total: Number(base?.repos_total ?? 0),
@@ -1279,5 +1302,5 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     reactions_total: Number(base?.reactions_total ?? 0),
     reactions_scanned: Number(base?.reactions_scanned ?? 0),
     reactions_found: Number(base?.reactions_found ?? 0),
-  };
+  });
 }
