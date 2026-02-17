@@ -20,9 +20,16 @@ function allExpectedWeeks(): string[] {
   return weeks;
 }
 
+/** Parse a ClickHouse datetime string (YYYY-MM-DD HH:MM:SS) as UTC. */
+function parseUTC(dateStr: string): Date {
+  // ClickHouse returns "YYYY-MM-DD HH:MM:SS". Safari requires ISO 8601
+  // with a "T" separator, so replace the space before appending "Z".
+  return new Date(dateStr.replace(" ", "T") + "Z");
+}
+
 function relativeTime(dateStr: string | null): string {
   if (!dateStr) return "Never";
-  const d = new Date(dateStr + "Z");
+  const d = parseUTC(dateStr);
   if (isNaN(d.getTime())) return "Never";
   const diffMs = Date.now() - d.getTime();
   if (diffMs < 0) return "Just now";
@@ -48,7 +55,7 @@ function formatDate(dateStr: string): string {
 
 function formatDateTime(dateStr: string | null): string {
   if (!dateStr) return "Never";
-  const d = new Date(dateStr + "Z");
+  const d = parseUTC(dateStr);
   if (isNaN(d.getTime())) return "Never";
   return d.toLocaleDateString("en-US", {
     year: "numeric",

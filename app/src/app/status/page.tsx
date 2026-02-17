@@ -1,10 +1,28 @@
-import { getDataCollectionStats } from "@/lib/clickhouse";
+import { getDataCollectionStats, type DataCollectionStats } from "@/lib/clickhouse";
 import { DataCollectionPanel } from "@/components/data-collection-stats";
 
 export const dynamic = "force-dynamic";
 
 export default async function StatusPage() {
-  const stats = await getDataCollectionStats();
+  let stats: DataCollectionStats;
+  let error: string | null = null;
+  try {
+    stats = await getDataCollectionStats();
+  } catch (err) {
+    error = err instanceof Error ? err.message : String(err);
+    stats = {
+      weeks_with_data: [],
+      last_import: null,
+      repos_total: 0,
+      repos_ok: 0,
+      repos_not_found: 0,
+      repos_pending: 0,
+      prs_discovered: 0,
+      prs_enriched: 0,
+      comments_discovered: 0,
+      comments_enriched: 0,
+    };
+  }
 
   return (
     <div data-testid="status-page" className="mx-auto max-w-4xl space-y-8 py-8">
@@ -16,6 +34,12 @@ export default async function StatusPage() {
           detailed metadata for individual repos, PRs, and comments.
         </p>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400" data-testid="status-error">
+          <strong>Error connecting to database:</strong> {error}
+        </div>
+      )}
 
       <section data-testid="data-collection-section">
         <DataCollectionPanel stats={stats} />
