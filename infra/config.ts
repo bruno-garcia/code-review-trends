@@ -39,6 +39,16 @@ export function loadConfig(): EnvironmentConfig {
 
   const environment = config.require("environment");
 
+  // Validate that githubToken is not empty
+  const githubToken = config.requireSecret("githubToken").apply((token) => {
+    if (!token || token.trim() === "") {
+      throw new Error(
+        "GitHub token cannot be empty. Set it with: pulumi config set code-review-trends:githubToken <pat> --secret"
+      );
+    }
+    return token;
+  });
+
   return {
     environment,
     clickhouseMachineType: config.require("clickhouseMachineType"),
@@ -51,7 +61,7 @@ export function loadConfig(): EnvironmentConfig {
     sentryDsnApp: config.requireSecret("sentryDsnApp"),
     sentryDsnPipeline: config.requireSecret("sentryDsnPipeline"),
     sentryAuthToken: config.requireSecret("sentryAuthToken"),
-    githubToken: config.requireSecret("githubToken"),
+    githubToken,
     githubRepo: config.require("githubRepo"),
   };
 }
