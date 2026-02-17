@@ -43,12 +43,23 @@ except OSError:
 
 # Reuse existing ports from .env.local if they're still available, otherwise generate new ones
 ensure_ports() {
+  # Save caller's env vars before sourcing .env.local so they take precedence
+  local caller_clickhouse_url="${CLICKHOUSE_URL:-}"
+  local caller_clickhouse_user="${CLICKHOUSE_USER:-}"
+  local caller_clickhouse_password="${CLICKHOUSE_PASSWORD:-}"
+  local caller_clickhouse_db="${CLICKHOUSE_DB:-}"
+
   if [[ -f "$ENV_FILE" ]] && grep -q "^CLICKHOUSE_HTTP_PORT=" "$ENV_FILE" 2>/dev/null; then
     source "$ENV_FILE"
     # Ensure saved ports are present and non-empty before checking them
     if [[ -n "${CLICKHOUSE_HTTP_PORT:-}" && -n "${CLICKHOUSE_NATIVE_PORT:-}" && -n "${NEXT_PORT:-}" ]]; then
       # Verify saved ports are still free (another process may have claimed them)
       if port_is_free "$CLICKHOUSE_HTTP_PORT" && port_is_free "$CLICKHOUSE_NATIVE_PORT" && port_is_free "$NEXT_PORT"; then
+        # Restore caller's env vars — they take precedence over .env.local
+        [[ -n "$caller_clickhouse_url" ]] && CLICKHOUSE_URL="$caller_clickhouse_url"
+        [[ -n "$caller_clickhouse_user" ]] && CLICKHOUSE_USER="$caller_clickhouse_user"
+        [[ -n "$caller_clickhouse_password" ]] && CLICKHOUSE_PASSWORD="$caller_clickhouse_password"
+        [[ -n "$caller_clickhouse_db" ]] && CLICKHOUSE_DB="$caller_clickhouse_db"
         export CLICKHOUSE_HTTP_PORT CLICKHOUSE_NATIVE_PORT CLICKHOUSE_URL CLICKHOUSE_USER CLICKHOUSE_PASSWORD CLICKHOUSE_DB NEXT_PORT
         return
       fi
@@ -59,6 +70,12 @@ ensure_ports() {
     unset CLICKHOUSE_URL CLICKHOUSE_USER CLICKHOUSE_PASSWORD CLICKHOUSE_DB
     rm -f "$ENV_FILE"
   fi
+
+  # Restore caller's env vars for the fresh-generation path below
+  [[ -n "$caller_clickhouse_url" ]] && CLICKHOUSE_URL="$caller_clickhouse_url"
+  [[ -n "$caller_clickhouse_user" ]] && CLICKHOUSE_USER="$caller_clickhouse_user"
+  [[ -n "$caller_clickhouse_password" ]] && CLICKHOUSE_PASSWORD="$caller_clickhouse_password"
+  [[ -n "$caller_clickhouse_db" ]] && CLICKHOUSE_DB="$caller_clickhouse_db"
 
   if [[ ! -f "$ENV_FILE" ]]; then
     # Allocate distinct ports for ClickHouse HTTP, ClickHouse native, and Next.js
@@ -100,8 +117,7 @@ EOF
 print_ports() {
   echo ""
   echo "  Project:        $PROJECT_NAME"
-  echo "  ClickHouse HTTP: http://localhost:$CLICKHOUSE_HTTP_PORT"
-  echo "  ClickHouse TCP:  localhost:$CLICKHOUSE_NATIVE_PORT"
+  echo "  ClickHouse:      $CLICKHOUSE_URL"
   echo "  Next.js:         http://localhost:$NEXT_PORT"
   echo ""
 }
