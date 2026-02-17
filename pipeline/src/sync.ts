@@ -100,6 +100,7 @@ export function mapPrBotEventRows(
         bot_id: bot.id,
         actor_login: row.actor_login,
         event_type: row.event_type,
+        review_state: row.review_state,
         event_week: row.week,
       };
     })

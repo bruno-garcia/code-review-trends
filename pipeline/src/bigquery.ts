@@ -320,6 +320,7 @@ export type BotPREventRow = {
   pr_number: number; // from JSON_VALUE(payload, '$.pull_request.number')
   actor_login: string;
   event_type: string; // 'PullRequestReviewEvent' or 'PullRequestReviewCommentEvent'
+  review_state: string; // 'approved', 'changes_requested', 'commented', or '' if not a review event
   week: string; // YYYY-MM-DD (Monday)
 };
 
@@ -354,6 +355,7 @@ export async function queryBotPREvents(
       ) AS INT64) AS pr_number,
       actor.login AS actor_login,
       type AS event_type,
+      LOWER(COALESCE(JSON_VALUE(payload, '$.review.state'), '')) AS review_state,
       FORMAT_DATE('%Y-%m-%d', DATE_TRUNC(DATE(created_at), WEEK(MONDAY))) AS week
     FROM \`githubarchive.day.2*\`
     WHERE
@@ -365,7 +367,7 @@ export async function queryBotPREvents(
       )
       AND actor.login IN UNNEST(@bot_logins)
       AND COALESCE(JSON_VALUE(payload, '$.pull_request.number'), JSON_VALUE(payload, '$.issue.number')) IS NOT NULL
-    GROUP BY repo_name, pr_number, actor_login, event_type, week
+    GROUP BY repo_name, pr_number, actor_login, event_type, review_state, week
     ORDER BY week ASC, repo_name ASC
   `;
 

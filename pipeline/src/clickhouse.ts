@@ -215,6 +215,7 @@ export type PrBotEventRow = {
   bot_id: string;
   actor_login: string;
   event_type: string;
+  review_state: string;
   event_week: string; // YYYY-MM-DD
 };
 
@@ -227,6 +228,11 @@ export async function insertPrBotEvents(
   rows: PrBotEventRow[],
 ): Promise<void> {
   if (rows.length === 0) return;
+
+  // Ensure review_state column exists (for migration of existing DBs)
+  await client.command({
+    query: `ALTER TABLE pr_bot_events ADD COLUMN IF NOT EXISTS review_state String DEFAULT ''`,
+  });
 
   const BATCH_SIZE = 100_000;
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
