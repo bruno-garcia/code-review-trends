@@ -80,7 +80,7 @@ export async function enrichRepos(
   let fetched = 0;
   let notFound = 0;
   let forbidden = 0;
-  const rateLimited = 0;
+  let rateLimited = 0;
   let errors = 0;
   const BATCH_SIZE = GRAPHQL_REPO_BATCH_SIZE;
 
@@ -146,9 +146,20 @@ export async function enrichRepos(
                   const retryAfter = headers["retry-after"];
                   if (retryAfter) {
                     await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+                    rateLimited++;
+                  } else if (headers["x-ratelimit-remaining"] === "0") {
+                    rateLimited++;
+                  } else {
+                    // Permanent 403 — record in DB to avoid retrying
+                    await insertRepos(ch, [{
+                      name: repo_name, owner, stars: 0, primary_language: "",
+                      fork: false, archived: false, fetch_status: "forbidden",
+                    }]);
+                    forbidden++;
                   }
+                } else {
+                  forbidden++;
                 }
-                forbidden++;
               } else {
                 errors++;
               }

@@ -105,7 +105,7 @@ export async function enrichComments(
   let fetched = 0;
   let notFound = 0;
   let forbidden = 0;
-  const rateLimited = 0;
+  let rateLimited = 0;
   let unknownBot = 0;
   let repliesFiltered = 0;
   let errors = 0;
@@ -210,9 +210,27 @@ export async function enrichComments(
               fetched++;
             } catch (innerErr: unknown) {
               const status = (innerErr as { status?: number }).status;
-              if (status === 404) notFound++;
-              else if (status === 403) forbidden++;
-              else errors++;
+              if (status === 404) {
+                notFound++;
+              } else if (status === 403) {
+                const headers = (innerErr as { response?: { headers?: Record<string, string> } }).response?.headers;
+                if (headers) {
+                  rateLimiter.update(headers);
+                  const retryAfter = headers["retry-after"];
+                  if (retryAfter) {
+                    await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+                    rateLimited++;
+                  } else if (headers["x-ratelimit-remaining"] === "0") {
+                    rateLimited++;
+                  } else {
+                    forbidden++;
+                  }
+                } else {
+                  forbidden++;
+                }
+              } else {
+                errors++;
+              }
             }
           }
         }
