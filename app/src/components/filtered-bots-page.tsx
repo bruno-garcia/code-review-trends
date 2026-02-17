@@ -1,28 +1,46 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useProductFilter } from "@/lib/product-filter";
 import {
   ReviewVolumeChart,
-  BotReactionLeaderboardChart,
 } from "@/components/charts";
 import Link from "next/link";
 import type {
   WeeklyActivityByProduct,
   ProductSummary,
-  BotReactions,
 } from "@/lib/clickhouse";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
+import { SectionHeading } from "@/components/section-heading";
+
+type LeaderboardSortKey =
+  | "total_reviews"
+  | "total_comments"
+  | "total_pr_comments"
+  | "total_repos"
+  | "total_orgs"
+  | "avg_comments_per_review"
+  | "approval_rate"
+  | "growth_pct";
+
+const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: string }[] = [
+  { key: "total_reviews", label: "Reviews", title: "Sort by total PR reviews submitted" },
+  { key: "total_comments", label: "Review Comments", title: "Sort by total review comments posted" },
+  { key: "total_pr_comments", label: "PR Comments", title: "Sort by total PR comments" },
+  { key: "total_repos", label: "Repos", title: "Sort by max repos active in a single week" },
+  { key: "total_orgs", label: "Orgs", title: "Sort by max organizations active in a single week" },
+  { key: "avg_comments_per_review", label: "Avg C/R", title: "Sort by average comments per review" },
+  { key: "approval_rate", label: "Approval", title: "Sort by approval rate" },
+  { key: "growth_pct", label: "Growth", title: "Sort by review growth rate" },
+];
 
 export function FilteredBotsPage({
   activity,
   summaries,
-  reactionLeaderboard,
 }: {
   activity: WeeklyActivityByProduct[];
   summaries: ProductSummary[];
-  reactionLeaderboard: BotReactions[];
 }) {
   const { selectedProductIds } = useProductFilter();
   const { resolved } = useTheme();
@@ -31,11 +49,33 @@ export function FilteredBotsPage({
     [selectedProductIds],
   );
 
+  // Leaderboard sort state
+  const [sortKey, setSortKey] = useState<LeaderboardSortKey>("total_reviews");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(key: LeaderboardSortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
   // Filter summaries
   const filteredSummaries = useMemo(
     () => summaries.filter((s) => selectedSet.has(s.id)),
     [summaries, selectedSet],
   );
+
+  // Sort summaries
+  const sortedSummaries = useMemo(() => {
+    return [...filteredSummaries].sort((a, b) => {
+      const av = Number(a[sortKey]);
+      const bv = Number(b[sortKey]);
+      return sortDir === "desc" ? bv - av : av - bv;
+    });
+  }, [filteredSummaries, sortKey, sortDir]);
 
   // Build color map from activity
   const colorMap = useMemo(() => {
@@ -64,19 +104,11 @@ export function FilteredBotsPage({
     return { pivoted: Object.values(pivotMap), productNames: names };
   }, [activity, selectedSet]);
 
-  // Filter reaction leaderboard
-  const filteredReactions = useMemo(
-    () => reactionLeaderboard.filter((r) => selectedSet.has(r.product_id)),
-    [reactionLeaderboard, selectedSet],
-  );
-
   return (
     <>
       {/* Review Volume by Product */}
       <section data-testid="volume-section">
-        <h2 className="text-2xl font-semibold mb-4">
-          Review Volume by Product
-        </h2>
+        <SectionHeading id="review-volume">Review Volume by Product</SectionHeading>
         <p className="text-theme-muted mb-6">
           Weekly review count for each AI code review product.
           {filteredSummaries.length < summaries.length && (
@@ -98,7 +130,7 @@ export function FilteredBotsPage({
       {/* Product Leaderboard */}
       <section data-testid="leaderboard-section">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-semibold">Leaderboard</h2>
+          <SectionHeading id="leaderboard">Leaderboard</SectionHeading>
           <Link
             href="/compare"
             className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
@@ -114,18 +146,27 @@ export function FilteredBotsPage({
             <thead className="text-theme-muted border-b border-theme-border text-sm">
               <tr>
                 <th className="pb-3 pr-4">Product</th>
-                <th className="pb-3 pr-4 text-right">Reviews</th>
-                <th className="pb-3 pr-4 text-right">Review Comments</th>
-                <th className="pb-3 pr-4 text-right">PR Comments</th>
-                <th className="pb-3 pr-4 text-right">Repos</th>
-                <th className="pb-3 pr-4 text-right">Orgs</th>
-                <th className="pb-3 pr-4 text-right">Avg C/R</th>
-                <th className="pb-3 pr-4 text-right">Approval</th>
-                <th className="pb-3 text-right">Growth</th>
+                {LEADERBOARD_COLUMNS.map(({ key, label, title }) => (
+                  <th key={key} className="pb-3 pr-4 text-right">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-text transition-colors"
+                      onClick={() => handleSort(key)}
+                      title={title}
+                    >
+                      {label}
+                      {sortKey === key && (
+                        <span className="text-violet-400">
+                          {sortDir === "desc" ? "↓" : "↑"}
+                        </span>
+                      )}
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="text-sm">
-              {filteredSummaries.map((product) => (
+              {sortedSummaries.map((product) => (
                 <tr
                   key={product.id}
                   className="border-b border-theme-border/50 hover:bg-theme-surface/50"
@@ -192,18 +233,6 @@ export function FilteredBotsPage({
             </tbody>
           </table>
           )}
-        </div>
-      </section>
-
-      {/* Bot Sentiment */}
-      <section data-testid="bot-sentiment-section">
-        <h2 className="text-2xl font-semibold mb-4">Bot Sentiment</h2>
-        <p className="text-theme-muted mb-6">
-          How developers react to each bot&apos;s review comments — thumbs up,
-          hearts, and thumbs down.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <BotReactionLeaderboardChart data={filteredReactions} />
         </div>
       </section>
 

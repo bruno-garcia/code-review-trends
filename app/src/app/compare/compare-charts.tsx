@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { ProductComparison, BotCommentsPerPR } from "@/lib/clickhouse";
-import { BotRadarChart, CommentsPerPRChart, COLORS } from "@/components/charts";
+import type { ProductComparison, BotCommentsPerPR, BotReactions } from "@/lib/clickhouse";
+import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor } from "@/lib/theme-overrides";
 import { useProductFilter } from "@/lib/product-filter";
+import { SectionHeading } from "@/components/section-heading";
 import Link from "next/link";
 
 type SortKey = keyof ProductComparison;
@@ -16,6 +17,12 @@ const METRICS: {
   description: string;
   format: (v: number) => string;
 }[] = [
+  {
+    key: "growth_pct",
+    label: "Growth",
+    description: "Review growth: last 12 weeks vs. previous 12 weeks",
+    format: (v) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(1)}%`,
+  },
   {
     key: "total_reviews",
     label: "Total Reviews",
@@ -107,12 +114,6 @@ const METRICS: {
     format: (v) => Number(v).toLocaleString(),
   },
   {
-    key: "growth_pct",
-    label: "Growth",
-    description: "Review growth: last 12 weeks vs. previous 12 weeks",
-    format: (v) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(1)}%`,
-  },
-  {
     key: "weeks_active",
     label: "Weeks Active",
     description: "Number of weeks with data",
@@ -130,9 +131,11 @@ function normalize(products: ProductComparison[], key: SortKey): number[] {
 export function CompareCharts({
   products: allProducts,
   commentsPerPR: allCommentsPerPR,
+  reactionLeaderboard: allReactionLeaderboard,
 }: {
   products: ProductComparison[];
   commentsPerPR: BotCommentsPerPR[];
+  reactionLeaderboard: BotReactions[];
 }) {
   const { selectedProductIds } = useProductFilter();
   const { resolved } = useTheme();
@@ -140,8 +143,11 @@ export function CompareCharts({
   const commentsPerPR = allCommentsPerPR.filter((c) =>
     selectedProductIds.includes(c.product_id),
   );
+  const filteredReactions = allReactionLeaderboard.filter((r) =>
+    selectedProductIds.includes(r.product_id),
+  );
 
-  const [sortKey, setSortKey] = useState<SortKey>("total_reviews");
+  const [sortKey, setSortKey] = useState<SortKey>("growth_pct");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const sorted = [...products].sort((a, b) => {
@@ -196,8 +202,8 @@ export function CompareCharts({
   return (
     <div className="space-y-10">
       {/* Radar chart */}
-      <section data-testid="radar-section">
-        <h2 className="text-2xl font-semibold mb-2">Radar Overview</h2>
+      <section data-testid="radar-section" id="radar">
+        <SectionHeading id="radar">Radar Overview</SectionHeading>
         <p className="text-theme-muted mb-4 text-sm">
           Each dimension normalized to 0–100 relative to the top product.
         </p>
@@ -207,16 +213,16 @@ export function CompareCharts({
       </section>
 
       {/* Big comparison table */}
-      <section data-testid="compare-table-section">
-        <h2 className="text-2xl font-semibold mb-4">Detailed Comparison</h2>
-        <div className="overflow-x-auto">
+      <section data-testid="compare-table-section" id="detailed">
+        <SectionHeading id="detailed">Detailed Comparison</SectionHeading>
+        <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%_-_10rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
           <table
             className="w-full text-left text-sm"
             data-testid="compare-table"
           >
             <thead className="text-theme-muted border-b border-theme-border">
               <tr>
-                <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10">
+                <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10 min-w-[10rem] whitespace-nowrap">
                   Product
                 </th>
                 {METRICS.map((m) => (
@@ -247,7 +253,7 @@ export function CompareCharts({
                   key={product.id}
                   className="border-b border-theme-border/50 hover:bg-theme-surface/50"
                 >
-                  <td className="py-3 pr-4 sticky left-0 bg-theme-bg z-10">
+                  <td className="py-3 pr-4 sticky left-0 bg-theme-bg z-10 min-w-[10rem] whitespace-nowrap">
                     <Link
                       href={`/bots/${product.id}`}
                       className="font-medium hover:opacity-80 transition-colors"
@@ -290,14 +296,14 @@ export function CompareCharts({
           </table>
         </div>
         <p className="mt-3 text-xs text-theme-muted/70">
-          Click any column header to sort. ★ marks the leader in each
-          category.
+          Click any column header to sort. ★ marks the highest number in each column.
+          Higher doesn&apos;t necessarily mean better.
         </p>
       </section>
 
       {/* Bar chart breakdowns */}
-      <section data-testid="bar-charts-section">
-        <h2 className="text-2xl font-semibold mb-4">Visual Breakdowns</h2>
+      <section data-testid="bar-charts-section" id="breakdowns">
+        <SectionHeading id="breakdowns">Visual Breakdowns</SectionHeading>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
             { key: "total_reviews" as SortKey, label: "Total Reviews" },
@@ -357,8 +363,8 @@ export function CompareCharts({
       </section>
 
       {/* Comments per PR */}
-      <section data-testid="comments-per-pr-section">
-        <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
+      <section data-testid="comments-per-pr-section" id="comments-per-pr">
+        <SectionHeading id="comments-per-pr">Comments per PR</SectionHeading>
         <p className="text-theme-muted mb-6">
           Average number of review comments each bot leaves per pull request.
         </p>
@@ -366,6 +372,20 @@ export function CompareCharts({
           <CommentsPerPRChart data={commentsPerPR} />
         </div>
       </section>
+
+      {/* Bot Sentiment */}
+      <section data-testid="bot-sentiment-section" id="sentiment">
+        <SectionHeading id="sentiment">Bot Sentiment</SectionHeading>
+        <p className="text-theme-muted mb-6">
+          How developers react to each bot&apos;s review comments — thumbs up,
+          hearts, and thumbs down.
+        </p>
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+          <BotReactionLeaderboardChart data={filteredReactions} />
+        </div>
+      </section>
     </div>
   );
 }
+
+

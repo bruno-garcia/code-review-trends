@@ -19,12 +19,18 @@ test.describe("Organization listing page", () => {
     await expect(page.getByTestId("org-list")).toBeVisible();
   });
 
-  test("expanding filters shows filter panels", async ({ page }) => {
+  test("search box filters organizations", async ({ page }) => {
     await page.goto("/orgs");
-    await page.getByTestId("toggle-filters").click();
-    // Filter containers are rendered; may be empty if no data
+    const search = page.getByTestId("org-search");
+    await expect(search).toBeVisible();
+    await search.fill("microsoft");
+    await page.waitForURL(/q=microsoft/);
+    await expect(page.getByTestId("org-list")).toBeVisible();
+  });
+
+  test("language filter chips are visible", async ({ page }) => {
+    await page.goto("/orgs");
     await expect(page.getByTestId("language-filters")).toBeAttached();
-    await expect(page.getByTestId("product-filters")).toBeVisible();
   });
 
   test("nav has Orgs link", async ({ page }) => {

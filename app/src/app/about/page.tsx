@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getDataCollectionStats } from "@/lib/clickhouse";
+import { SectionHeading } from "@/components/section-heading";
 
 const linkClass = "text-blue-400 hover:text-blue-300";
 const codeClass =
@@ -23,7 +24,7 @@ export default async function AboutPage() {
 
       {/* Data Source */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-theme-text">Data Source</h2>
+        <SectionHeading id="data-source" className="text-theme-text">Data Source</SectionHeading>
         <p className="text-theme-text-secondary leading-relaxed">
           <a href="https://www.gharchive.org/" target="_blank" rel="noopener noreferrer" className={linkClass}>GH Archive</a> stores
           all public GitHub events in BigQuery. We query these daily tables to
@@ -38,9 +39,9 @@ export default async function AboutPage() {
 
       {/* What Counts as a "Review" */}
       <section className="space-y-6">
-        <h2 className="text-2xl font-semibold text-theme-text">
+        <SectionHeading id="what-counts" className="text-theme-text">
           What Counts as a &ldquo;Review&rdquo;
-        </h2>
+        </SectionHeading>
         <p className="text-theme-text-secondary leading-relaxed">
           We track four types of GitHub signals that indicate a bot
           participated in code review:
@@ -127,9 +128,9 @@ export default async function AboutPage() {
 
       {/* How AI Share Is Calculated */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-theme-text">
+        <SectionHeading id="ai-share" className="text-theme-text">
           How &ldquo;AI Share&rdquo; Is Calculated
-        </h2>
+        </SectionHeading>
         <p className="text-theme-text-secondary leading-relaxed">
           The AI share percentage on the home page uses a simple formula,
           computed separately for each event type (reviews, review comments, PR
@@ -197,7 +198,7 @@ export default async function AboutPage() {
 
       {/* How Bots Differ */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-theme-text">How Bots Differ</h2>
+        <SectionHeading id="how-bots-differ" className="text-theme-text">How Bots Differ</SectionHeading>
         <p className="text-theme-text-secondary leading-relaxed">
           Not all bots use the same mix of event types. This affects how they
           rank depending on which metric you look at. For example:
@@ -228,11 +229,53 @@ export default async function AboutPage() {
         </p>
       </section>
 
+      {/* How Rankings Work */}
+      <section className="space-y-4">
+        <SectionHeading id="rankings" className="text-theme-text">
+          How Rankings Work
+        </SectionHeading>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Products are ranked by <strong className="text-theme-text">growth rate</strong> rather
+          than absolute volume. A product with fewer total reviews but rapid
+          adoption will rank higher than a larger product with flat or declining
+          growth.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Growth is calculated by comparing review volume in the most recent
+          12-week window against the previous 12-week window:
+        </p>
+        <div className="overflow-x-auto rounded-lg border border-theme-border bg-theme-surface px-6 py-4">
+          <code className="text-sm text-theme-text">
+            Growth % = (recent_12w_reviews − previous_12w_reviews) / previous_12w_reviews × 100
+          </code>
+        </div>
+        <p className="text-theme-text-secondary leading-relaxed">
+          This means a product that doubled its review count from one quarter
+          to the next shows +100% growth, regardless of whether that&apos;s
+          1,000 → 2,000 or 100,000 → 200,000 reviews.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          We chose growth over absolute volume because it better reflects
+          which tools are gaining traction <em>now</em>. The{" "}
+          <Link href="/compare#detailed" className={linkClass}>
+            detailed comparison table
+          </Link>{" "}
+          lets you sort by any metric — including total reviews, repos, and
+          organizations — if you prefer a different ranking.
+        </p>
+        <p className="text-theme-muted text-sm italic">
+          The default &ldquo;Top 10&rdquo; product selection in the filter bar
+          uses recent activity (reviews in the last 4 weeks) rather than growth,
+          since it serves a different purpose: showing the most actively used
+          products right now.
+        </p>
+      </section>
+
       {/* What's NOT Tracked */}
       <section className="space-y-6">
-        <h2 className="text-2xl font-semibold text-theme-text">
+        <SectionHeading id="not-tracked" className="text-theme-text">
           What&apos;s NOT Tracked
-        </h2>
+        </SectionHeading>
 
         <div className="space-y-4">
           <div>
@@ -302,7 +345,7 @@ export default async function AboutPage() {
 
       {/* Products vs. Bots */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-theme-text">Products vs. Bots</h2>
+        <SectionHeading id="products-vs-bots" className="text-theme-text">Products vs. Bots</SectionHeading>
         <p className="text-theme-text-secondary leading-relaxed">
           A <em>product</em> is a company or tool (e.g., &ldquo;Qodo&rdquo;),
           while a <em>bot</em> is a specific GitHub App account (e.g.,{" "}
@@ -331,7 +374,7 @@ export default async function AboutPage() {
 
       {/* Bot Registry */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-theme-text">Bot Registry</h2>
+        <SectionHeading id="bot-registry" className="text-theme-text">Bot Registry</SectionHeading>
         <p className="text-theme-text-secondary leading-relaxed">
           The canonical list of tracked bots lives in{" "}
           <a
@@ -366,9 +409,9 @@ export default async function AboutPage() {
 
       {/* Comparison with Other Trackers */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-theme-text">
+        <SectionHeading id="comparison" className="text-theme-text">
           Comparison with Other Trackers
-        </h2>
+        </SectionHeading>
         <p className="text-theme-text-secondary leading-relaxed">
           If you&apos;ve seen different rankings on other trackers,
           it&apos;s likely because:

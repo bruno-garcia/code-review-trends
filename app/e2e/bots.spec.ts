@@ -46,9 +46,24 @@ test.describe("Bots listing page", () => {
     await expect(table).toBeVisible();
   });
 
-  test("shows bot sentiment section", async ({ page }) => {
+  test("leaderboard table headers are clickable for sorting", async ({ page }) => {
     await page.goto("/bots");
-    await expect(page.getByTestId("bot-sentiment-section")).toBeVisible();
+    const table = page.getByTestId("leaderboard-table");
+    await expect(table).toBeVisible();
+    // Click "Repos" header to sort
+    const reposHeader = table.getByRole("columnheader", { name: "Repos" });
+    await expect(reposHeader).toBeVisible();
+    await reposHeader.getByRole("button").click();
+    await expect(reposHeader.getByText("↓")).toBeVisible();
+    // Click again to reverse
+    await reposHeader.getByRole("button").click();
+    await expect(reposHeader.getByText("↑")).toBeVisible();
+  });
+
+  test("links to compare page for full comparison", async ({ page }) => {
+    await page.goto("/bots");
+    const link = page.getByText("Compare All →");
+    await expect(link).toBeVisible();
   });
 });
 

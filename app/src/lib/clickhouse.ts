@@ -383,7 +383,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     LEFT JOIN reaction_review_agg rrv ON p.id = rrv.product_id
-    ORDER BY total_reviews DESC
+    ORDER BY growth_pct DESC, total_reviews DESC
     `,
     since ? { since } : {},
   );
@@ -1075,6 +1075,7 @@ export type OrgListFilters = {
   languages?: string[];
   productIds?: string[];
   sort?: "stars" | "repos" | "prs";
+  search?: string;
   limit?: number;
   offset?: number;
 };
@@ -1085,7 +1086,7 @@ export type OrgListResult = {
 };
 
 export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListResult> {
-  const { languages, productIds, sort = "stars", limit = 50, offset = 0 } = filters;
+  const { languages, productIds, sort = "stars", search, limit = 50, offset = 0 } = filters;
 
   // Build WHERE conditions on the outer query
   const conditions: string[] = ["r.fetch_status = 'ok'"];
@@ -1094,6 +1095,11 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     limit: limit + 1, // fetch one extra to detect if there are more
     offset,
   };
+
+  if (search) {
+    conditions.push("r.owner ILIKE {search:String}");
+    params.search = `%${search}%`;
+  }
 
   if (languages && languages.length > 0) {
     conditions.push(

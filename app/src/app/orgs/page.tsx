@@ -6,6 +6,7 @@ import {
 } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
 import { OrgFilters } from "./org-filters";
+import { OrgProductSync } from "./org-product-sync";
 
 
 const PAGE_SIZE = 50;
@@ -21,44 +22,40 @@ export default async function OrgsPage({
   const languages = parseArray(sp.lang);
   const productIds = parseArray(sp.product);
   const sort = parseSortParam(sp.sort);
+  const search = String(sp.q ?? "").trim();
   const page = Math.max(1, parseInt(String(sp.page ?? "1"), 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
   // Fetch data + filter options in parallel
   const [result, languageOptions, products] = await Promise.all([
-    getOrgList({ languages, productIds, sort, limit: PAGE_SIZE, offset }),
+    getOrgList({ languages, productIds, sort, search, limit: PAGE_SIZE, offset }),
     getOrgLanguageOptions(),
     getProducts(),
   ]);
 
   const total = Number(result.total);
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const productOptions = products.map((p) => ({
-    id: p.id,
-    name: p.name,
-    avatar_url: p.avatar_url,
-    brand_color: p.brand_color,
-  }));
-
-  // Build a product name lookup for display
   const productNameMap = new Map(products.map((p) => [p.id, p.name]));
 
+  const isFiltered = productIds.length > 0 || languages.length > 0 || search.length > 0;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <OrgProductSync />
       <div>
         <h1 className="text-3xl font-bold">Organizations</h1>
         <p className="mt-2 text-theme-muted">
-          {total.toLocaleString()} organizations using AI code review on GitHub.
+          {total.toLocaleString()} organizations
+          {isFiltered ? " matching current filters" : " using AI code review on GitHub"}.
         </p>
       </div>
 
       {/* Filters */}
       <OrgFilters
         languageOptions={languageOptions}
-        productOptions={productOptions}
         selectedLanguages={languages}
-        selectedProducts={productIds}
         sort={sort}
+        search={search}
       />
 
       {/* Results */}
@@ -96,21 +93,21 @@ export default async function OrgsPage({
                     {org.owner}
                   </span>
                   {org.languages.filter(Boolean).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-0.5">
+                    <div className="flex flex-wrap gap-1 mt-0.5 items-center">
                       {org.languages
                         .filter(Boolean)
-                        .slice(0, 4)
+                        .slice(0, 6)
                         .map((lang) => (
                           <span
                             key={lang}
-                            className="text-xs text-theme-muted/70 bg-theme-border/40 px-1.5 py-0.5 rounded"
+                            className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60 leading-none"
                           >
                             {lang}
                           </span>
                         ))}
-                      {org.languages.filter(Boolean).length > 4 && (
-                        <span className="text-xs text-theme-muted/50">
-                          +{org.languages.filter(Boolean).length - 4}
+                      {org.languages.filter(Boolean).length > 6 && (
+                        <span className="text-xs text-theme-muted leading-none">
+                          +{org.languages.filter(Boolean).length - 6}
                         </span>
                       )}
                     </div>
@@ -123,14 +120,14 @@ export default async function OrgsPage({
                     {org.product_ids.slice(0, 3).map((pid) => (
                       <span
                         key={pid}
-                        className="text-xs text-theme-muted/70 bg-theme-border/40 px-1.5 py-0.5 rounded"
+                        className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60 leading-none"
                         title={productNameMap.get(pid) ?? pid}
                       >
                         {productNameMap.get(pid) ?? pid}
                       </span>
                     ))}
                     {org.product_ids.length > 3 && (
-                      <span className="text-xs text-theme-muted/50">
+                      <span className="text-xs text-theme-muted leading-none">
                         +{org.product_ids.length - 3}
                       </span>
                     )}
@@ -139,14 +136,14 @@ export default async function OrgsPage({
 
                 {/* Stats */}
                 <div className="flex items-center gap-4 shrink-0 text-sm tabular-nums">
-                  <span className="text-theme-muted w-20 text-right" title="Stars">
+                  <span className="text-theme-muted w-20 text-right" title="GitHub stars across all repos">
                     ⭐ {formatNumber(Number(org.total_stars))}
                   </span>
-                  <span className="hidden md:inline text-theme-muted/70 w-16 text-right" title="Repos">
+                  <span className="hidden md:inline text-theme-muted w-16 text-right" title="Repos with AI-reviewed PRs">
                     {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
                   </span>
                   {Number(org.total_prs) > 0 && (
-                    <span className="hidden lg:inline text-theme-muted/70 w-16 text-right" title="AI PRs">
+                    <span className="hidden lg:inline text-theme-muted w-20 text-right" title="Pull requests reviewed by AI bots">
                       {formatNumber(Number(org.total_prs))} PRs
                     </span>
                   )}

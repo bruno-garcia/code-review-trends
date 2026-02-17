@@ -18,7 +18,7 @@ import "./globals.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Code Review Trends — AI Bot Adoption on GitHub",
+  title: "Code Review Trends — AI Code Review Adoption on GitHub",
   description:
     "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles.",
 };

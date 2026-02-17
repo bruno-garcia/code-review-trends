@@ -1,41 +1,39 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useCallback, useTransition } from "react";
+import { useCallback, useTransition } from "react";
 
 type LanguageOption = { value: string; count: number };
-type ProductOption = { id: string; name: string; avatar_url: string; brand_color: string };
+
+const SORT_OPTIONS = [
+  { key: "stars", label: "⭐ Stars", tip: "Sort by total GitHub stars" },
+  { key: "repos", label: "Repos", tip: "Sort by repos with reviewed PRs" },
+  { key: "prs", label: "Reviewed PRs", tip: "Sort by pull requests reviewed by AI bots" },
+] as const;
 
 export function OrgFilters({
   languageOptions,
-  productOptions,
   selectedLanguages,
-  selectedProducts,
   sort,
+  search,
 }: {
   languageOptions: LanguageOption[];
-  productOptions: ProductOption[];
   selectedLanguages: string[];
-  selectedProducts: string[];
   sort: string;
+  search: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const [expanded, setExpanded] = useState(
-    selectedLanguages.length > 0 || selectedProducts.length > 0,
-  );
 
   const applyFilters = useCallback(
     (updates: Record<string, string | string[] | null>) => {
       const params = new URLSearchParams();
-      // Start from current params
       for (const [key, val] of searchParams.entries()) {
-        if (key === "page") continue; // reset to page 1 on filter change
-        if (key in updates) continue; // will be overwritten
+        if (key === "page") continue;
+        if (key in updates) continue;
         params.append(key, val);
       }
-      // Apply updates
       for (const [key, val] of Object.entries(updates)) {
         if (val === null) {
           params.delete(key);
@@ -69,58 +67,70 @@ export function OrgFilters({
     applyFilters({ lang: [...current] });
   };
 
-  const toggleProduct = (productId: string) => {
-    const current = new Set(selectedProducts);
-    if (current.has(productId)) current.delete(productId);
-    else current.add(productId);
-    applyFilters({ product: [...current] });
-  };
-
-  const clearAll = () => {
-    applyFilters({ lang: null, product: null, sort: null });
-  };
-
-  const hasFilters = selectedLanguages.length > 0 || selectedProducts.length > 0;
+  const hasFilters = selectedLanguages.length > 0 || search.length > 0;
 
   return (
     <div data-testid="org-filters" className={`transition-opacity duration-200 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
-      {/* Controls row */}
       <div className="flex items-center gap-3 flex-wrap">
+        {/* Search */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search orgs…"
+            defaultValue={search}
+            onChange={(e) => {
+              const val = e.target.value.trim();
+              applyFilters({ q: val || null });
+            }}
+            className="pl-8 pr-3 py-1.5 text-sm rounded-md bg-theme-surface border border-theme-border text-theme-text placeholder:text-theme-muted/60 focus:outline-none focus:border-violet-500 w-44 sm:w-56"
+            data-testid="org-search"
+          />
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-theme-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
         {/* Sort */}
         <div className="flex gap-1">
-          {(["stars", "repos", "prs"] as const).map((s) => (
+          {SORT_OPTIONS.map(({ key, label, tip }) => (
             <button
-              key={s}
+              key={key}
               type="button"
-              onClick={() => applyFilters({ sort: s === "stars" ? null : s })}
+              onClick={() => applyFilters({ sort: key === "stars" ? null : key })}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                sort === s
+                sort === key
                   ? "bg-violet-600 text-white"
-                  : "bg-theme-border text-theme-muted hover:text-theme-text"
+                  : "bg-theme-surface border border-theme-border text-theme-muted hover:text-theme-text"
               }`}
-              data-testid={`sort-${s}`}
+              title={tip}
+              data-testid={`sort-${key}`}
             >
-              {s === "stars" ? "⭐ Stars" : s === "repos" ? "Repos" : "AI PRs"}
+              {label}
             </button>
           ))}
         </div>
 
-        {/* Filter toggle */}
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="px-3 py-1.5 text-sm rounded-md bg-theme-border text-theme-muted hover:text-theme-text transition-colors"
-          data-testid="toggle-filters"
-        >
-          Filters {hasFilters && `(${selectedLanguages.length + selectedProducts.length})`}{" "}
-          {expanded ? "▲" : "▼"}
-        </button>
+        {/* Language dropdown */}
+        {selectedLanguages.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            {selectedLanguages.map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => toggleLanguage(lang)}
+                className="px-2 py-1 text-xs rounded-full bg-violet-600 text-white flex items-center gap-1"
+              >
+                {lang} ✕
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Clear */}
         {hasFilters && (
           <button
             type="button"
-            onClick={clearAll}
+            onClick={() => applyFilters({ lang: null, q: null, sort: null })}
             className="px-3 py-1.5 text-sm text-theme-muted hover:text-theme-text transition-colors"
             data-testid="clear-filters"
           >
@@ -129,68 +139,27 @@ export function OrgFilters({
         )}
       </div>
 
-      {/* Expanded filter panels */}
-      {expanded && (
-        <div className="mt-4 space-y-4 bg-theme-surface rounded-xl p-5 border border-theme-border">
-          {/* Languages */}
-          <div>
-            <h3 className="text-sm font-medium text-theme-muted mb-2">Languages</h3>
-            <div className="flex flex-wrap gap-1.5" data-testid="language-filters">
-              {languageOptions.map((opt) => {
-                const active = selectedLanguages.includes(opt.value);
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => toggleLanguage(opt.value)}
-                    className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
-                      active
-                        ? "bg-violet-600 text-white"
-                        : "bg-theme-border/60 text-theme-muted hover:text-theme-text hover:bg-theme-border"
-                    }`}
-                  >
-                    {opt.value}
-                    <span className="ml-1 opacity-60">{Number(opt.count).toLocaleString()}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Products */}
-          <div>
-            <h3 className="text-sm font-medium text-theme-muted mb-2">AI Review Products</h3>
-            <div className="flex flex-wrap gap-1.5" data-testid="product-filters">
-              {productOptions.map((p) => {
-                const active = selectedProducts.includes(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => toggleProduct(p.id)}
-                    className={`px-2.5 py-1 text-xs rounded-full transition-colors flex items-center gap-1.5 ${
-                      active
-                        ? "bg-violet-600 text-white"
-                        : "bg-theme-border/60 text-theme-muted hover:text-theme-text hover:bg-theme-border"
-                    }`}
-                  >
-                    {p.avatar_url && (
-                      <img
-                        src={p.avatar_url}
-                        alt=""
-                        width={14}
-                        height={14}
-                        className="rounded-full"
-                      />
-                    )}
-                    {p.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Language chips (compact, always visible) */}
+      <div className="mt-3 flex flex-wrap gap-1.5" data-testid="language-filters">
+        {languageOptions.slice(0, 20).map((opt) => {
+          const active = selectedLanguages.includes(opt.value);
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => toggleLanguage(opt.value)}
+              className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                active
+                  ? "bg-violet-600 text-white"
+                  : "bg-theme-surface border border-theme-border text-theme-muted hover:text-theme-text hover:border-theme-border-hover"
+              }`}
+              title={`${Number(opt.count).toLocaleString()} organizations using ${opt.value}`}
+            >
+              {opt.value}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
