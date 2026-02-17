@@ -147,6 +147,11 @@ export async function enrichRepos(
                     forbidden++;
                   }
                 } else {
+                  // Permanent 403 without headers — record in DB to avoid retrying
+                  await insertRepos(ch, [{
+                    name: repo_name, owner, stars: 0, primary_language: "",
+                    fork: false, archived: false, fetch_status: "forbidden",
+                  }]);
                   forbidden++;
                 }
               } else {
