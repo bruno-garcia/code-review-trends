@@ -903,7 +903,7 @@ async function cmdEnrichStatus() {
       console.log(`${"Bot".padEnd(25)} ${"PRs".padStart(8)} ${"Reactions".padStart(12)}`);
       console.log("-".repeat(47));
       for (const row of reactionsByBot) {
-        console.log(`${row.bot_id.padEnd(25)} ${row.pr_count.padStart(8)} ${row.reaction_count.padStart(12)}`);
+        console.log(`${row.bot_id.padEnd(25)} ${String(row.pr_count).padStart(8)} ${String(row.reaction_count).padStart(12)}`);
       }
     }
 
@@ -929,7 +929,7 @@ async function cmdEnrichStatus() {
       console.log(`${"Repo".padEnd(45)} ${"Bot".padEnd(20)} ${"PRs".padStart(6)}`);
       console.log("-".repeat(73));
       for (const row of topReactionRepos) {
-        console.log(`${row.repo_name.padEnd(45)} ${row.bot_id.padEnd(20)} ${row.pr_count.padStart(6)}`);
+        console.log(`${row.repo_name.padEnd(45)} ${row.bot_id.padEnd(20)} ${String(row.pr_count).padStart(6)}`);
       }
     }
   } finally {
