@@ -112,6 +112,9 @@ export function createCloudRunJobs(
     );
 
     const schedule = schedules[job.name];
+    if (!schedule) {
+      throw new Error(`Missing schedule for job '${job.name}' in schedules.json`);
+    }
 
     new gcp.cloudscheduler.Job(
       `${jobName}-trigger`,
