@@ -25,7 +25,7 @@ export function createCloudRunApp(
       template: {
         serviceAccount: runtimeSa.email,
         scaling: {
-          minInstanceCount: 0,
+          minInstanceCount: 1,
           maxInstanceCount: 2,
         },
         containers: [
@@ -34,7 +34,7 @@ export function createCloudRunApp(
             image: "us-docker.pkg.dev/cloudrun/container/hello",
             ports: { containerPort: 8080 },
             resources: {
-              limits: { memory: "2Gi", cpu: "4" },
+              limits: { memory: "2Gi", cpu: "1" },
             },
             envs: [
               // Plain env vars
