@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+const SYNC_BANNER_THRESHOLD_PCT = 80;
+
 /**
  * Banner shown when PR comment data collection is incomplete (<80%).
  * Rendered server-side — accepts the sync percentage as a prop.
@@ -9,7 +11,7 @@ export function PrCommentSyncBanner({
 }: {
   pct: number | null;
 }) {
-  if (pct === null || pct >= 80) return null;
+  if (pct === null || pct >= SYNC_BANNER_THRESHOLD_PCT) return null;
 
   return (
     <div

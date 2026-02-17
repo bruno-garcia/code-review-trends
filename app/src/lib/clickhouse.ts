@@ -1316,8 +1316,8 @@ export async function getPrCommentSyncPct(): Promise<number | null> {
 
   try {
     const rows = await query<{
-      weeks_with_pr_comments: number;
-      total_weeks: number;
+      weeks_with_pr_comments: string;
+      total_weeks: string;
     }>(`
       SELECT
         countIf(pr_comment_count > 0) AS weeks_with_pr_comments,
