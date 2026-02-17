@@ -1,5 +1,6 @@
 import { createClient } from "@clickhouse/client";
 import * as Sentry from "@sentry/nextjs";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 // Simple in-memory cache with TTL for expensive queries.
 // Lives for the lifetime of a serverless container instance.
@@ -245,11 +246,10 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
       },
     );
   } catch (error) {
-    // During build-time prerendering (e.g. CI), ClickHouse may not be
-    // available. Return empty data so the page prerenders successfully;
-    // ISR will fill it on first real request.
-    if (process.env.NODE_ENV === "production") {
-      console.warn(`[ClickHouse] Query failed (returning empty): ${(error as Error).message}`);
+    // During next build (static prerendering), ClickHouse isn't available.
+    // Return empty data so the build succeeds; ISR fills it on first request.
+    if (process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD) {
+      console.warn(`[ClickHouse] Query failed during build (returning empty): ${(error as Error).message}`);
       return [];
     }
     throw error;
