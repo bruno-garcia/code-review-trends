@@ -240,7 +240,7 @@ describe("schema version consistency", () => {
     {
       file: "db/init-ci.sh",
       path: "../../../db/init-ci.sh",
-      pattern: /SCHEMA_VERSION=(\d+)/,
+      pattern: /^SCHEMA_VERSION=(\d+)/m,
     },
   ];
 
