@@ -328,6 +328,41 @@ export default async function AboutPage() {
         </p>
       </section>
 
+      {/* Bot Registry */}
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold text-theme-text">Bot Registry</h2>
+        <p className="text-theme-text-secondary leading-relaxed">
+          The canonical list of tracked bots lives in{" "}
+          <a
+            href="https://github.com/bruno-garcia/code-review-trends/blob/main/pipeline/src/bots.ts"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkClass}
+          >
+            pipeline/src/bots.ts
+          </a>{" "}
+          in our GitHub repository. This file defines every product and its
+          associated bot accounts — adding a new bot is as simple as adding an
+          entry there.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          We also run an automated discovery process (
+          <a
+            href="https://github.com/bruno-garcia/code-review-trends/blob/main/pipeline/src/tools/discover-bots.ts"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkClass}
+          >
+            <code className="rounded bg-theme-surface-alt px-1.5 py-0.5 text-sm">discover-bots</code>
+          </a>
+          ) that scans GH
+          Archive for new bot accounts performing code reviews on public
+          repositories. Discovered candidates are reviewed manually before
+          being added to the registry. This helps us stay up-to-date as new
+          AI code review tools emerge.
+        </p>
+      </section>
+
       {/* Comparison with Other Trackers */}
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold text-theme-text">
