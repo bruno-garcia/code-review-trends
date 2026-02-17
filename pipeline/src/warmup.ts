@@ -104,12 +104,27 @@ export async function fetchPage(
 
       // Read body to ensure the page is fully rendered server-side.
       // Duration includes the full response (headers + body).
-      await res.text();
+      const body = await res.text();
 
       const duration = Date.now() - start;
       totalDuration += duration;
 
       if (res.status >= 200 && res.status < 400) {
+        // Check for schema error banner — indicates a non-OK schema status
+        // (e.g., ClickHouse unreachable, migration in progress, version mismatch).
+        // No retry: during warmup, any schema issue signals a problem that won't
+        // resolve by retrying the same page — the deploy should halt.
+        if (body.includes('data-testid="schema-banner"')) {
+          return {
+            page,
+            status: res.status,
+            duration_ms: totalDuration,
+            ok: false,
+            error: "Page contains schema error banner — schema status is not OK",
+            attempts: attempt,
+          };
+        }
+
         return {
           page,
           status: res.status,
@@ -166,46 +181,6 @@ export interface WarmupSummary {
 }
 
 /**
- * Purge the ISR cache on the target revision so that subsequent page fetches
- * trigger fresh server-side renders (with real ClickHouse) instead of serving
- * stale pre-rendered pages from `next build` (where CLICKHOUSE_URL was empty).
- */
-export async function purgeCache(
-  baseUrl: string,
-  timeout: number = 15_000,
-  fetchFn: FetchFn = globalThis.fetch,
-  log: (msg: string) => void = console.log,
-): Promise<boolean> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-  try {
-    const headers: Record<string, string> = { "User-Agent": "crt-warmup/1.0" };
-    const token = process.env.REVALIDATE_TOKEN;
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    const res = await fetchFn(`${baseUrl}/api/revalidate`, {
-      method: "POST",
-      signal: controller.signal,
-      headers,
-    });
-    // Drain response body to avoid socket leaks
-    await res.text();
-    if (res.ok) {
-      log("  ✓ ISR cache purged via /api/revalidate");
-      return true;
-    }
-    log(`  ✗ /api/revalidate returned ${res.status}`);
-    return false;
-  } catch (err) {
-    log(`  ✗ /api/revalidate failed: ${err instanceof Error ? err.message : String(err)}`);
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
  * Run cache warmup against a set of pages.
  * Pure orchestration — no Sentry, no process.exit.
  */
@@ -218,14 +193,6 @@ export async function warmup(opts: WarmupOptions): Promise<WarmupSummary> {
     fetchFn = globalThis.fetch,
     log = console.log,
   } = opts;
-
-  // Purge stale build-time ISR cache before fetching pages.
-  // Without this, pages serve the pre-rendered error state for up to
-  // `revalidate` seconds (3600s) after each deploy.
-  const purged = await purgeCache(baseUrl, timeout, fetchFn, log);
-  if (!purged) {
-    throw new Error("Failed to purge ISR cache — aborting warmup to avoid caching stale pages");
-  }
 
   const results: PageResult[] = [];
 
@@ -266,18 +233,6 @@ async function runWithSentry(args: WarmupArgs): Promise<WarmupSummary> {
       },
     },
     async (rootSpan) => {
-      // Purge stale build-time ISR cache before fetching pages.
-      await Sentry.startSpan(
-        { op: "cache.purge", name: "POST /api/revalidate" },
-        async (span) => {
-          const purged = await purgeCache(args.baseUrl, args.timeout);
-          if (!purged) {
-            span.setStatus({ code: 2, message: "cache purge failed" });
-            throw new Error("Failed to purge ISR cache — aborting warmup to avoid caching stale pages");
-          }
-        },
-      );
-
       const results: PageResult[] = [];
 
       for (const page of PAGES) {

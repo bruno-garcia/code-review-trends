@@ -1,11 +1,11 @@
 import { createClient } from "@clickhouse/client";
 import * as Sentry from "@sentry/nextjs";
-import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 // Simple in-memory cache with TTL for expensive queries.
 // Lives for the lifetime of a serverless container instance.
 const cache = new Map<string, { data: unknown; expires: number }>();
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const REFERENCE_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes — for static reference data (products, bots)
 
 function getCached<T>(key: string): T | undefined {
   const entry = cache.get(key);
@@ -14,8 +14,8 @@ function getCached<T>(key: string): T | undefined {
   return undefined;
 }
 
-function setCache<T>(key: string, data: T): T {
-  cache.set(key, { data, expires: Date.now() + CACHE_TTL_MS });
+function setCache<T>(key: string, data: T, ttl: number = DEFAULT_CACHE_TTL_MS): T {
+  cache.set(key, { data, expires: Date.now() + ttl });
   return data;
 }
 
@@ -206,7 +206,13 @@ export type WeeklyTotalVolume = {
   total_pr_comments: number;
 };
 
-async function query<T>(sql: string, params?: Record<string, unknown>): Promise<T[]> {
+async function query<T>(sql: string, params?: Record<string, unknown>, cacheTtl?: number): Promise<T[]> {
+  const cacheKey = params && Object.keys(params).length > 0
+    ? `${sql}|${JSON.stringify(params, Object.keys(params).sort())}`
+    : sql;
+  const cached = getCached<T[]>(cacheKey);
+  if (cached) return cached;
+
   // Sanitize the SQL for the span description — strip excess whitespace
   const sanitizedSql = sql.replace(/\s+/g, " ").trim();
 
@@ -222,38 +228,29 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
     // fall back to defaults
   }
 
-  try {
-    return await Sentry.startSpan(
-      {
-        op: "db.query",
-        name: sanitizedSql,
-        attributes: {
-          "db.system": "clickhouse",
-          "db.name": process.env.CLICKHOUSE_DB ?? "code_review_trends",
-          "db.statement": sanitizedSql,
-          "server.address": serverAddress,
-          "server.port": serverPort,
-        },
+  return await Sentry.startSpan(
+    {
+      op: "db.query",
+      name: sanitizedSql,
+      attributes: {
+        "db.system": "clickhouse",
+        "db.name": process.env.CLICKHOUSE_DB ?? "code_review_trends",
+        "db.statement": sanitizedSql,
+        "server.address": serverAddress,
+        "server.port": serverPort,
       },
-      async () => {
-        const client = getClickHouseClient();
-        const result = await client.query({
-          query: sql,
-          query_params: params ?? {},
-          format: "JSONEachRow",
-        });
-        return (await result.json()) as T[];
-      },
-    );
-  } catch (error) {
-    // During next build (static prerendering), ClickHouse isn't available.
-    // Return empty data so the build succeeds; ISR fills it on first request.
-    if (process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD) {
-      console.warn(`[ClickHouse] Query failed during build (returning empty): ${(error as Error).message}`);
-      return [];
-    }
-    throw error;
-  }
+    },
+    async () => {
+      const client = getClickHouseClient();
+      const result = await client.query({
+        query: sql,
+        query_params: params ?? {},
+        format: "JSONEachRow",
+      });
+      const rows = (await result.json()) as T[];
+      return setCache(cacheKey, rows, cacheTtl);
+    },
+  );
 }
 
 export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
@@ -272,13 +269,14 @@ export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
 // --- Product queries ---
 
 export async function getProducts(): Promise<Product[]> {
-  return query<Product>("SELECT * FROM products FINAL ORDER BY name");
+  return query<Product>("SELECT * FROM products FINAL ORDER BY name", undefined, REFERENCE_CACHE_TTL_MS);
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
   const rows = await query<Product>(
     "SELECT * FROM products FINAL WHERE id = {id:String}",
     { id },
+    REFERENCE_CACHE_TTL_MS,
   );
   return rows[0] ?? null;
 }
@@ -550,12 +548,13 @@ export async function getProductBots(productId: string, since?: string): Promise
 
 // --- Bot queries (kept for detail views) ---
 
-async function assembleBots(botRows: { id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }[]): Promise<Bot[]> {
+async function assembleBots(botRows: { id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }[], cacheTtl?: number): Promise<Bot[]> {
   if (botRows.length === 0) return [];
   const botIds = botRows.map((b) => b.id);
   const loginRows = await query<{ bot_id: string; github_login: string }>(
     "SELECT bot_id, github_login FROM bot_logins FINAL WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
     { botIds },
+    cacheTtl,
   );
   const loginByBot = new Map<string, string>();
   for (const row of loginRows) {
@@ -570,8 +569,10 @@ async function assembleBots(botRows: { id: string; name: string; product_id: str
 export async function getBots(): Promise<Bot[]> {
   const rows = await query<{ id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }>(
     "SELECT * FROM bots FINAL ORDER BY name",
+    undefined,
+    REFERENCE_CACHE_TTL_MS,
   );
-  return assembleBots(rows);
+  return assembleBots(rows, REFERENCE_CACHE_TTL_MS);
 }
 
 export async function getBotById(id: string): Promise<Bot | null> {

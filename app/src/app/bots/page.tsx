@@ -4,8 +4,6 @@ import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 
-// Revalidate every hour — data only changes weekly via pipeline
-export const revalidate = 3600;
 
 export default async function BotsPage({
   searchParams,

@@ -15,6 +15,8 @@ import { getSchemaStatus } from "@/lib/migrations";
 import { NavigationProgress } from "@/components/navigation-progress";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Code Review Trends — AI Bot Adoption on GitHub",
   description:
@@ -33,7 +35,7 @@ export default async function RootLayout({
   const schemaStatus = await getSchemaStatus();
 
   // Gracefully handle missing ClickHouse during next build (pre-render).
-  // Pages use ISR (revalidate = 3600) so this only matters for static shells like /_not-found.
+  // Pages are force-dynamic — this gracefully handles cases where ClickHouse is temporarily unavailable.
   let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
   let enrichmentIncomplete = false;
   try {
