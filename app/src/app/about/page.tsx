@@ -1,8 +1,11 @@
+import Link from "next/link";
+
 const linkClass = "text-blue-400 hover:text-blue-300";
 const codeClass =
   "rounded bg-theme-surface-alt px-1.5 py-0.5 text-sm text-theme-text";
 
 export default function AboutPage() {
+
   return (
     <div data-testid="about-page" className="mx-auto max-w-4xl space-y-12 py-8">
       <h1 className="text-4xl font-bold text-theme-text">Methodology</h1>
@@ -316,6 +319,13 @@ export default function AboutPage() {
             different sets.
           </li>
         </ul>
+      </section>
+
+      {/* Link to Status */}
+      <section className="text-center py-4 border-t border-theme-border">
+        <Link href="/status" className={linkClass}>
+          View data collection status →
+        </Link>
       </section>
     </div>
   );

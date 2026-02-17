@@ -65,6 +65,9 @@ test.describe("Navigation on mobile viewport", () => {
     const aboutLink = nav.getByRole("link", { name: "About" });
     await expect(aboutLink).toBeVisible();
 
+    const statusLink = nav.getByRole("link", { name: "Status" });
+    await expect(statusLink).toBeVisible();
+
     const githubLink = nav.getByRole("link", { name: "GitHub" });
     await expect(githubLink).toBeVisible();
 

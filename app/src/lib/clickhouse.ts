@@ -1135,3 +1135,84 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
     total_comments: 0,
   };
 }
+
+// --- Data collection stats (for /about page) ---
+
+export type DataCollectionStats = {
+  // BigQuery backfill — which weeks have data
+  weeks_with_data: string[]; // ISO date strings of weeks present in review_activity
+  last_import: string | null; // UTC timestamp of last pipeline_state backfill run
+  // GitHub enrichment — repos
+  repos_total: number; // distinct repos found in pr_bot_events (discovered)
+  repos_ok: number;
+  repos_not_found: number;
+  repos_pending: number;
+  // GitHub enrichment — PRs
+  prs_discovered: number;
+  prs_enriched: number;
+  // GitHub enrichment — comments
+  comments_discovered: number;
+  comments_enriched: number;
+};
+
+import { DATA_EPOCH } from "./constants";
+export { DATA_EPOCH };
+
+export async function getDataCollectionStats(): Promise<DataCollectionStats> {
+  // Fetch weeks with data + enrichment counts in parallel
+  const [weekRows, countRows] = await Promise.all([
+    query<{ w: string }>(`
+      SELECT DISTINCT toString(week) AS w
+      FROM review_activity FINAL
+      WHERE week >= toDate('${DATA_EPOCH}')
+      ORDER BY w
+    `),
+    query<{
+      repos_total: number;
+      repos_ok: number;
+      repos_not_found: number;
+      prs_discovered: number;
+      prs_enriched: number;
+      comments_discovered: number;
+      comments_enriched: number;
+    }>(`
+      SELECT
+        (SELECT count(DISTINCT repo_name) FROM pr_bot_events FINAL) AS repos_total,
+        (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
+        (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events FINAL) AS prs_discovered,
+        (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
+        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events FINAL WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
+        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_comments FINAL) AS comments_enriched
+    `),
+  ]);
+
+  // Last import from pipeline_state (may not exist)
+  let lastImport: string | null = null;
+  try {
+    const stateRows = await query<{ last_run: string }>(`
+      SELECT toString(max(completed_at)) AS last_run
+      FROM pipeline_state FINAL
+      WHERE job_name = 'backfill'
+    `);
+    if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
+      lastImport = stateRows[0].last_run;
+    }
+  } catch {
+    // pipeline_state table may not exist
+  }
+
+  const base = countRows[0];
+  return {
+    weeks_with_data: weekRows.map((r) => r.w),
+    last_import: lastImport,
+    repos_total: Number(base?.repos_total ?? 0),
+    repos_ok: Number(base?.repos_ok ?? 0),
+    repos_not_found: Number(base?.repos_not_found ?? 0),
+    repos_pending: Math.max(0, Number(base?.repos_total ?? 0) - Number(base?.repos_ok ?? 0) - Number(base?.repos_not_found ?? 0)),
+    prs_discovered: Number(base?.prs_discovered ?? 0),
+    prs_enriched: Number(base?.prs_enriched ?? 0),
+    comments_discovered: Number(base?.comments_discovered ?? 0),
+    comments_enriched: Number(base?.comments_enriched ?? 0),
+  };
+}
