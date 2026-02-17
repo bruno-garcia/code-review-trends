@@ -129,7 +129,7 @@ export default async function ProductPage({
               {githubLogins.map((login, i) => (
                 <span key={login}>
                   {i > 0 && ", "}
-                  <code className="text-theme-text/80">{login}</code>
+                  <GitHubLogin login={login} />
                 </span>
               ))}
             </span>
@@ -203,7 +203,7 @@ export default async function ProductPage({
                   >
                     <td className="py-3 pr-4 font-medium">{bot.name}</td>
                     <td className="py-3 pr-4">
-                      <code className="text-theme-text/80">{bot.github_login}</code>
+                      <GitHubLogin login={bot.github_login} />
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
                       {Number(bot.total_reviews).toLocaleString()}
@@ -258,6 +258,33 @@ export default async function ProductPage({
       )}
     </div>
   );
+}
+
+/** Derive GitHub App URL from a bot login, or null if unknown/defunct. */
+function githubAppUrl(login: string): string | null {
+  if (!login.endsWith("[bot]")) return null;
+  const slug = login.replace("[bot]", "");
+  // Apps known to no longer exist on GitHub
+  const defunct = new Set(["qodo-merge-pro"]);
+  if (defunct.has(slug)) return null;
+  return `https://github.com/apps/${slug}`;
+}
+
+function GitHubLogin({ login }: { login: string }) {
+  const url = githubAppUrl(login);
+  if (url) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-indigo-400 hover:text-indigo-300"
+      >
+        <code>{login}</code>
+      </a>
+    );
+  }
+  return <code className="text-theme-text/80">{login}</code>;
 }
 
 function StatCard({

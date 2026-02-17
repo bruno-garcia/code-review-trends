@@ -88,7 +88,7 @@ export const PRODUCTS: ProductDefinition[] = [
       "Behavioral code analysis platform. Identifies code health issues, complexity hotspots, and technical debt trends. Combines static analysis with version control history to prioritize refactoring efforts.",
     docs_url: "https://codescene.io/docs",
     brand_color: "#5f72ee",
-    avatar_url: "https://avatars.githubusercontent.com/u/38929568?v=4",
+    avatar_url: "https://avatars.githubusercontent.com/in/53921?v=4",
   },
   {
     id: "sourcery",
@@ -321,7 +321,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://codescene.com",
     description: "Behavioral code analysis platform. Identifies code health, complexity hotspots, and technical debt.",
     brand_color: "#5f72ee",
-    avatar_url: "https://avatars.githubusercontent.com/u/38929568?v=4",
+    avatar_url: "https://avatars.githubusercontent.com/in/53921?v=4",
   },
   // Sourcery
   {
@@ -382,6 +382,18 @@ export const BOTS: BotDefinition[] = [
       "Qodo's premium AI agent for code integrity — reviews, tests, and suggestions.",
     brand_color: "#9d75f8",
     avatar_url: "https://avatars.githubusercontent.com/in/484649?v=4",
+  },
+  {
+    id: "qodo-ai",
+    product_id: "qodo",
+    name: "Qodo AI",
+    github_login: "qodo-ai[bot]",
+    github_id: 216754087,
+    website: "https://qodo.ai",
+    description:
+      "Qodo's latest AI code review bot. Successor to qodo-merge and qodo-merge-pro.",
+    brand_color: "#9d75f8",
+    avatar_url: "https://avatars.githubusercontent.com/in/1420315?v=4",
   },
   // Greptile
   {
@@ -617,6 +629,15 @@ export const BOTS: BotDefinition[] = [
     avatar_url: "https://avatars.githubusercontent.com/in/1027498?v=4",
   },
 ];
+
+/**
+ * Bot logins we've seen via discover-bots but decided not to track.
+ * Adding a login here suppresses the --alert Sentry event for it.
+ */
+export const IGNORED_BOT_LOGINS = new Set([
+  "devloai[bot]",
+  "codefactor-io[bot]",
+]);
 
 /** Map from GitHub login to bot definition (includes additional_logins) */
 export const BOT_BY_LOGIN = new Map(
