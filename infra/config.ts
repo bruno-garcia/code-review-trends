@@ -21,6 +21,14 @@ export interface EnvironmentConfig {
   // App hosting
   appDomain: pulumi.Output<string>;
 
+  // Cloud Run app resource limits
+  appMemory: string;
+  appCpu: string;
+  appMinInstances: number;
+  appMaxInstances: number;
+  /** Max concurrent requests per Cloud Run instance */
+  appConcurrency: number;
+
   // Container registry
   artifactRegistryLocation: string;
 
@@ -57,6 +65,15 @@ export function loadConfig(): EnvironmentConfig {
     namePrefix: `${PROJECT_PREFIX}-${environment}`,
 
     appDomain: config.requireSecret("appDomain"),
+
+    // Cloud Run app resource limits — tunable per environment.
+    // Defaults sized for moderate traffic; bump for production.
+    appMemory: config.get("appMemory") ?? "2Gi",
+    appCpu: config.get("appCpu") ?? "1",
+    appMinInstances: config.getNumber("appMinInstances") ?? 1,
+    appMaxInstances: config.getNumber("appMaxInstances") ?? 4,
+    appConcurrency: config.getNumber("appConcurrency") ?? 40,
+
     artifactRegistryLocation: config.require("artifactRegistryLocation"),
     sentryDsnApp: config.requireSecret("sentryDsnApp"),
     sentryDsnPipeline: config.requireSecret("sentryDsnPipeline"),

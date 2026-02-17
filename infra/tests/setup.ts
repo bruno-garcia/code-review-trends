@@ -83,6 +83,15 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
       githubRepo: "test-owner/test-repo",
     };
 
+    get(key: string): string | undefined {
+      return this.values[key];
+    }
+
+    getNumber(key: string): number | undefined {
+      const val = this.values[key];
+      return val !== undefined ? parseInt(val, 10) : undefined;
+    }
+
     require(key: string): string {
       const val = this.values[key];
       if (!val) throw new Error(`Missing config: ${key}`);

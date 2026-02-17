@@ -105,7 +105,8 @@ cat > /etc/clickhouse-server/users.d/memory-limits.xml <<'MLEOF'
 <clickhouse>
   <profiles>
     <default>
-      <max_memory_usage>2000000000</max_memory_usage>
+      <max_memory_usage>4000000000</max_memory_usage>
+      <max_execution_time>60</max_execution_time>
       <join_algorithm>direct,parallel_hash,hash,grace_hash</join_algorithm>
     </default>
   </profiles>
