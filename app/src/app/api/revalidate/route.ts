@@ -9,11 +9,18 @@ import { NextResponse } from "next/server";
  * this endpoint on the tagged revision *before* fetching pages, so that the
  * subsequent GETs trigger fresh server-side renders with real ClickHouse.
  *
- * Security: revalidatePath() only marks cached pages as stale — it doesn't
- * expose data or allow mutations. The worst case of unauthorized access is a
- * cache purge, which just causes the next request to re-render (a cache miss).
+ * Auth: If REVALIDATE_TOKEN is set, requires `Authorization: Bearer <token>`.
+ * When unset (local dev, build time), all requests are allowed.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  const expectedToken = process.env.REVALIDATE_TOKEN;
+  if (expectedToken) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${expectedToken}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   // Revalidate the root layout — this invalidates the cache for ALL pages
   // under it, including /, /bots, /bots/[id], /orgs, /compare, etc.
   revalidatePath("/", "layout");

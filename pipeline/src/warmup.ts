@@ -172,14 +172,25 @@ export interface WarmupSummary {
  */
 export async function purgeCache(
   baseUrl: string,
+  timeout: number = 15_000,
   fetchFn: FetchFn = globalThis.fetch,
   log: (msg: string) => void = console.log,
 ): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
+    const headers: Record<string, string> = { "User-Agent": "crt-warmup/1.0" };
+    const token = process.env.REVALIDATE_TOKEN;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
     const res = await fetchFn(`${baseUrl}/api/revalidate`, {
       method: "POST",
-      headers: { "User-Agent": "crt-warmup/1.0" },
+      signal: controller.signal,
+      headers,
     });
+    // Drain response body to avoid socket leaks
+    await res.text();
     if (res.ok) {
       log("  ✓ ISR cache purged via /api/revalidate");
       return true;
@@ -189,6 +200,8 @@ export async function purgeCache(
   } catch (err) {
     log(`  ✗ /api/revalidate failed: ${err instanceof Error ? err.message : String(err)}`);
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -209,7 +222,10 @@ export async function warmup(opts: WarmupOptions): Promise<WarmupSummary> {
   // Purge stale build-time ISR cache before fetching pages.
   // Without this, pages serve the pre-rendered error state for up to
   // `revalidate` seconds (3600s) after each deploy.
-  await purgeCache(baseUrl, fetchFn, log);
+  const purged = await purgeCache(baseUrl, timeout, fetchFn, log);
+  if (!purged) {
+    throw new Error("Failed to purge ISR cache — aborting warmup to avoid caching stale pages");
+  }
 
   const results: PageResult[] = [];
 
@@ -253,8 +269,12 @@ async function runWithSentry(args: WarmupArgs): Promise<WarmupSummary> {
       // Purge stale build-time ISR cache before fetching pages.
       await Sentry.startSpan(
         { op: "cache.purge", name: "POST /api/revalidate" },
-        async () => {
-          await purgeCache(args.baseUrl);
+        async (span) => {
+          const purged = await purgeCache(args.baseUrl, args.timeout);
+          if (!purged) {
+            span.setStatus({ code: 2, message: "cache purge failed" });
+            throw new Error("Failed to purge ISR cache — aborting warmup to avoid caching stale pages");
+          }
         },
       );
 
