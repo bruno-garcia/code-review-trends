@@ -265,8 +265,8 @@ export default async function ProductPage({
 }
 
 /** Derive GitHub App URL from a bot login, or null if unknown/defunct. */
-function githubAppUrl(login: string): string | null {
-  if (!login || !login.endsWith("[bot]")) return null;
+function githubAppUrl(login: string | null | undefined): string | null {
+  if (!login?.endsWith("[bot]")) return null;
   const slug = login.replace("[bot]", "");
   // Apps known to no longer exist on GitHub
   const defunct = new Set(["qodo-merge-pro"]);
