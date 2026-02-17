@@ -25,7 +25,7 @@ let _client: ReturnType<typeof createClient> | null = null;
 export function getClickHouseClient() {
   if (!_client) {
     _client = createClient({
-      url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
+      url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
       username: process.env.CLICKHOUSE_USER ?? "default",
       password: process.env.CLICKHOUSE_PASSWORD ?? "dev",
       database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
@@ -210,7 +210,7 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
   const sanitizedSql = sql.replace(/\s+/g, " ").trim();
 
   // Extract hostname from URL for span attributes — avoid leaking credentials
-  const clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+  const clickhouseUrl = process.env.CLICKHOUSE_URL || "http://localhost:8123";
   let serverAddress = "localhost";
   let serverPort = 8123;
   try {
