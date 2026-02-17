@@ -135,7 +135,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Sentry",
     website: "https://sentry.io",
     description:
-      "Application monitoring and error tracking platform. GitHub integration links errors to PRs, provides AI root cause analysis via Seer, and Codecov AI adds test coverage insights to reviews.",
+      "Application monitoring and error tracking platform. PR review is part of Seer, Sentry's AI debugger, which uses production context — errors, traces, logs, and commit history — to catch breaking changes before they ship. Seer also automatically root causes issues in production and can open fix PRs for live errors.",
     docs_url: "https://docs.sentry.io",
     brand_color: "#9589c4",
     avatar_url: "https://avatars.githubusercontent.com/u/1396951?v=4",
