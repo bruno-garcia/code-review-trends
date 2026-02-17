@@ -308,7 +308,8 @@ describe("schedules sync", () => {
     // Extract job names from cloud-run-jobs.ts source to avoid Pulumi side effects.
     // The jobs array is the single source of infra job definitions.
     const jobsSrc = fs.readFileSync(path.resolve(__dirname, "../cloud-run-jobs.ts"), "utf-8");
-    const jobNameMatches = [...jobsSrc.matchAll(/name:\s*"([^"]+)",\s*args:/g)];
+    // Match job entries: { name: "...", args: ... } — require args on same or next line
+    const jobNameMatches = [...jobsSrc.matchAll(/{\s*name:\s*"([^"]+)",\s*args:/g)];
     const jobNames = jobNameMatches.map((m: RegExpMatchArray) => m[1]);
 
     expect(jobNames.length).toBeGreaterThan(0);
