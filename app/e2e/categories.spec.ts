@@ -118,6 +118,22 @@ test.describe("Categories page", () => {
     await expect(nav.getByText("Specialization")).toBeVisible();
   });
 
+  test("Fastest Growing has window toggle that updates data", async ({
+    page,
+  }) => {
+    await page.goto("/categories");
+    const card = page.getByTestId("category-fastest-growing");
+    await expect(card).toBeVisible();
+    // Default is 4w
+    await expect(card.getByText("last 4 weeks vs previous 4")).toBeVisible();
+    // Click 12w
+    await card.getByRole("button", { name: "12w" }).click();
+    await expect(card.getByText("last 12 weeks vs previous 12")).toBeVisible();
+    // Click 8w
+    await card.getByRole("button", { name: "8w" }).click();
+    await expect(card.getByText("last 8 weeks vs previous 8")).toBeVisible();
+  });
+
   test("navigation link from nav bar works", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: "Categories" }).click();

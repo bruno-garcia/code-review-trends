@@ -10,6 +10,7 @@ import {
   getCategoryControversy,
   getCategoryInlineVsSummary,
   getCategoryReviewVerdicts,
+  getCategoryGrowth,
 } from "@/lib/clickhouse";
 import { CategoriesPage } from "@/components/categories-page";
 
@@ -33,6 +34,7 @@ export default async function CategoriesRoute() {
     controversy,
     inlineVsSummary,
     reviewVerdicts,
+    growth,
   ] = await Promise.all([
     getProductComparisons(),
     getAvgCommentsPerPR(),
@@ -45,6 +47,7 @@ export default async function CategoriesRoute() {
     safe(getCategoryControversy()),
     safe(getCategoryInlineVsSummary()),
     safe(getCategoryReviewVerdicts()),
+    safe(getCategoryGrowth()),
   ]);
 
   return (
@@ -68,6 +71,7 @@ export default async function CategoriesRoute() {
         controversy={controversy}
         inlineVsSummary={inlineVsSummary}
         reviewVerdicts={reviewVerdicts}
+        growth={growth}
       />
     </div>
   );

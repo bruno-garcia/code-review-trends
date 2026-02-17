@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useProductFilter } from "@/lib/product-filter";
 import type {
   ProductComparison,
@@ -14,6 +14,7 @@ import type {
   CategoryControversy,
   CategoryInlineVsSummary,
   CategoryReviewVerdicts,
+  CategoryGrowth,
 } from "@/lib/clickhouse";
 
 type BarItem = { name: string; value: number; color: string };
@@ -102,6 +103,52 @@ function CategorySection({
   );
 }
 
+function GrowthBars({ data }: { data: BarItem[] }) {
+  const sorted = [...data].sort((a, b) => b.value - a.value);
+  const maxAbs = Math.max(...sorted.map((d) => Math.abs(d.value)), 1);
+
+  if (sorted.length === 0) {
+    return <p className="text-sm text-theme-muted/70">Insufficient data</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {sorted.map((item, i) => {
+        const pct = Math.abs(item.value) / maxAbs * 100;
+        const isPositive = item.value >= 0;
+        return (
+          <div key={item.name} className="flex items-center gap-3">
+            <span
+              className="text-xs text-theme-muted w-28 text-right truncate"
+              title={item.name}
+            >
+              {item.name}
+            </span>
+            <div className="flex-1 bg-theme-border rounded-full h-5 relative overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.max(pct, 2)}%`,
+                  backgroundColor: isPositive ? item.color : undefined,
+                  opacity: isPositive ? 1 : 0.4,
+                }}
+              />
+            </div>
+            <span className={`text-xs tabular-nums w-24 text-right whitespace-nowrap ${
+              isPositive ? "text-emerald-400" : "text-theme-muted"
+            }`}>
+              {i === 0 && item.value > 0 && (
+                <span className="text-violet-400 mr-1">★</span>
+              )}
+              {item.value >= 0 ? "+" : ""}{item.value.toFixed(1)}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function formatMinutes(v: number): string {
   if (v < 60) return `${Math.round(v)}m`;
   if (v < 1440) return `${(v / 60).toFixed(1)}h`;
@@ -139,6 +186,7 @@ export function CategoriesPage({
   controversy,
   inlineVsSummary,
   reviewVerdicts,
+  growth,
 }: {
   comparisons: ProductComparison[];
   commentsPerPR: BotCommentsPerPR[];
@@ -151,6 +199,7 @@ export function CategoriesPage({
   controversy: CategoryControversy[];
   inlineVsSummary: CategoryInlineVsSummary[];
   reviewVerdicts: CategoryReviewVerdicts[];
+  growth: CategoryGrowth[];
 }) {
   const { selectedProductIds } = useProductFilter();
   const selectedSet = useMemo(
@@ -298,15 +347,17 @@ export function CategoriesPage({
     [fc],
   );
 
-  const growthData: BarItem[] = useMemo(
-    () =>
-      fc.map((c) => ({
-        name: c.name,
-        value: Number(c.growth_pct),
-        color: c.brand_color || "#818cf8",
-      })),
-    [fc],
-  );
+  const [growthWindow, setGrowthWindow] = useState<"4w" | "8w" | "12w">("4w");
+
+  const growthData: BarItem[] = useMemo(() => {
+    const filtered = filterByProduct(growth);
+    const key = `growth_${growthWindow}` as const;
+    return filtered.map((c) => ({
+      name: c.product_name,
+      value: Number(c[key]),
+      color: c.brand_color || "#818cf8",
+    }));
+  }, [growth, selectedSet, growthWindow]);
 
   // --- Effectiveness ---
   const mergeData: BarItem[] = useMemo(
@@ -505,15 +556,33 @@ export function CategoriesPage({
             data={battleTestedData}
             formatValue={(v) => `${v} weeks`}
           />
-          <CategorySection
-            id="fastest-growing"
-            title="Fastest Growing"
-            description="Review growth: last 4 weeks vs previous 4 weeks."
-            data={growthData}
-            formatValue={(v) =>
-              `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`
-            }
-          />
+          <div
+            data-testid="category-fastest-growing"
+            className="bg-theme-surface rounded-xl p-5 border border-theme-border"
+          >
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <h3 className="text-lg font-semibold">Fastest Growing</h3>
+              <div className="flex gap-1 shrink-0">
+                {(["4w", "8w", "12w"] as const).map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => setGrowthWindow(w)}
+                    className={`px-2 py-0.5 text-xs rounded-md transition-colors ${
+                      growthWindow === w
+                        ? "bg-violet-500/20 text-violet-300 font-medium"
+                        : "text-theme-muted hover:text-theme-text"
+                    }`}
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-sm text-theme-muted mb-4">
+              Review growth: last {growthWindow.replace("w", "")} weeks vs previous {growthWindow.replace("w", "")}.
+            </p>
+            <GrowthBars data={growthData} />
+          </div>
         </div>
       </section>
 

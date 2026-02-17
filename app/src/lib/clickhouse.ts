@@ -1388,3 +1388,56 @@ export async function getCategoryReviewVerdicts(): Promise<CategoryReviewVerdict
     ORDER BY approval_pct DESC
   `);
 }
+
+export type CategoryGrowth = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  growth_4w: number;
+  growth_8w: number;
+  growth_12w: number;
+};
+
+export async function getCategoryGrowth(): Promise<CategoryGrowth[]> {
+  return query<CategoryGrowth>(`
+    WITH weekly_product AS (
+      SELECT b.product_id, ra.week, sum(ra.review_count) AS review_count
+      FROM review_activity ra FINAL
+      JOIN bots b FINAL ON ra.bot_id = b.id
+      GROUP BY b.product_id, ra.week
+    )
+    SELECT
+      p.id AS product_id,
+      p.name AS product_name,
+      p.brand_color,
+      round(if(sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 8 WEEK
+                AND w.week < toDate(now()) - INTERVAL 4 WEEK) > 0,
+        (sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 4 WEEK)
+         - sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 8 WEEK
+                 AND w.week < toDate(now()) - INTERVAL 4 WEEK))
+        * 100.0 / sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 8 WEEK
+                        AND w.week < toDate(now()) - INTERVAL 4 WEEK),
+        0), 1) AS growth_4w,
+      round(if(sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 16 WEEK
+                AND w.week < toDate(now()) - INTERVAL 8 WEEK) > 0,
+        (sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 8 WEEK)
+         - sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 16 WEEK
+                 AND w.week < toDate(now()) - INTERVAL 8 WEEK))
+        * 100.0 / sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 16 WEEK
+                        AND w.week < toDate(now()) - INTERVAL 8 WEEK),
+        0), 1) AS growth_8w,
+      round(if(sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 24 WEEK
+                AND w.week < toDate(now()) - INTERVAL 12 WEEK) > 0,
+        (sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 12 WEEK)
+         - sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 24 WEEK
+                 AND w.week < toDate(now()) - INTERVAL 12 WEEK))
+        * 100.0 / sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 24 WEEK
+                        AND w.week < toDate(now()) - INTERVAL 12 WEEK),
+        0), 1) AS growth_12w
+    FROM weekly_product w
+    JOIN products p FINAL ON w.product_id = p.id
+    GROUP BY p.id, p.name, p.brand_color
+    HAVING sumIf(w.review_count, w.week >= toDate(now()) - INTERVAL 4 WEEK) > 0
+    ORDER BY growth_4w DESC
+  `);
+}
