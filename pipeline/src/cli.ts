@@ -479,6 +479,18 @@ async function cmdMigrate() {
       console.log(`  ✓ Synced ${PRODUCTS.length} products`);
       await syncBots(chClient, BOTS);
       console.log(`  ✓ Synced ${BOTS.length} bots`);
+
+      // Record the schema version in schema_migrations.
+      // This must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts.
+      // The schema_migrations table is created by 001_schema.sql above.
+      const SCHEMA_VERSION = 1;
+      console.log(`\nRecording schema version ${SCHEMA_VERSION}...`);
+      await chClient.insert({
+        table: "schema_migrations",
+        values: [{ version: SCHEMA_VERSION, name: "initial_schema" }],
+        format: "JSONEachRow",
+      });
+      console.log(`  ✓ Schema version ${SCHEMA_VERSION} recorded`);
     } finally {
       await chClient.close();
     }

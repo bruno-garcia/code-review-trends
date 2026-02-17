@@ -43,4 +43,10 @@ for f in db/seed/*.sql; do
   echo "  Done."
 done
 
+# 3. Record schema version (must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts)
+SCHEMA_VERSION=1
+echo "Recording schema version ${SCHEMA_VERSION}..."
+run_statement "INSERT INTO code_review_trends.schema_migrations (version, name) VALUES (${SCHEMA_VERSION}, 'initial_schema')"
+echo "  Done."
+
 echo "All init scripts completed."
