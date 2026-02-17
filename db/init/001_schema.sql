@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS code_review_trends.pr_bot_events (
 ) ENGINE = ReplacingMergeTree()
 ORDER BY (repo_name, pr_number, bot_id, event_type, event_week);
 
+-- Add review_state to pr_bot_events (approved, changes_requested, commented, or empty)
+ALTER TABLE code_review_trends.pr_bot_events ADD COLUMN IF NOT EXISTS review_state String DEFAULT '';
+
 -- Repo metadata (refreshed periodically)
 CREATE TABLE IF NOT EXISTS code_review_trends.repos (
     name String,

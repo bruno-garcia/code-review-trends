@@ -338,14 +338,20 @@ CROSS JOIN (SELECT arrayJoin([1, 2, 3]) AS comment_num) AS c
 WHERE rand() % 10 < 8;
 
 -- Seed pr_bot_events (~300 rows, one per repo/PR/bot combination)
-INSERT INTO code_review_trends.pr_bot_events (repo_name, pr_number, bot_id, actor_login, event_type, event_week)
+INSERT INTO code_review_trends.pr_bot_events (repo_name, pr_number, bot_id, actor_login, event_type, event_week, review_state)
 SELECT
     pc.repo_name,
     pc.pr_number,
     pc.bot_id,
     bl.github_login AS actor_login,
     if(rand() % 2 = 0, 'PullRequestReviewEvent', 'PullRequestReviewCommentEvent') AS event_type,
-    toMonday(pc.created_at) AS event_week
+    toMonday(pc.created_at) AS event_week,
+    if(event_type = 'PullRequestReviewEvent',
+        arrayElement(
+            ['approved', 'approved', 'changes_requested', 'commented', 'commented'],
+            1 + cityHash64(pc.repo_name, pc.pr_number, pc.bot_id) % 5
+        ),
+        '') AS review_state
 FROM code_review_trends.pr_comments AS pc
 INNER JOIN code_review_trends.bot_logins AS bl ON pc.bot_id = bl.bot_id
-GROUP BY pc.repo_name, pc.pr_number, pc.bot_id, bl.github_login, event_type, event_week;
+GROUP BY pc.repo_name, pc.pr_number, pc.bot_id, bl.github_login, event_type, event_week, review_state;
