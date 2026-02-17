@@ -84,7 +84,7 @@ function Tooltip({
       </span>
       <span
         role="tooltip"
-        className="invisible group-hover/tip:visible absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-xs text-theme-text bg-theme-surface-alt border border-theme-border rounded-lg shadow-lg max-w-xs whitespace-normal"
+        className="invisible group-hover/tip:visible absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-xs leading-relaxed text-theme-text bg-theme-surface-alt border border-theme-border rounded-lg shadow-lg w-72 whitespace-normal"
       >
         {text}
       </span>
@@ -118,7 +118,7 @@ function ProgressBar({
       <div className="h-2.5 rounded-full bg-theme-surface-alt overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${color}`}
-          style={{ width: `${pct}%` }}
+          style={{ width: `${pct}%`, minWidth: pct > 0 ? "4px" : undefined }}
         />
       </div>
     </div>
@@ -329,7 +329,7 @@ export function DataCollectionPanel({
         <div className="space-y-5">
           {/* Repos */}
           <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-theme-text uppercase tracking-wide">
+            <h4 className="text-sm font-semibold text-theme-text">
               <Tooltip text="Repos found in GH Archive where tracked bots reviewed PRs. The total comes from the discover pipeline step, not from all of GitHub.">
                 Repositories
               </Tooltip>
@@ -369,7 +369,7 @@ export function DataCollectionPanel({
 
           {/* PRs */}
           <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-theme-text uppercase tracking-wide">
+            <h4 className="text-sm font-semibold text-theme-text">
               <Tooltip text="Individual PRs where tracked bots left reviews. Discovered via GH Archive events, enriched via GitHub API.">
                 Pull Requests
               </Tooltip>
@@ -378,13 +378,13 @@ export function DataCollectionPanel({
               value={stats.prs_enriched}
               max={stats.prs_discovered}
               label="PR metadata fetched"
-              color="bg-blue-500"
+              color="bg-emerald-500"
             />
           </div>
 
           {/* Comments */}
           <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-theme-text uppercase tracking-wide">
+            <h4 className="text-sm font-semibold text-theme-text">
               <Tooltip text="Bot review comment threads (one per repo/PR/bot combo). Fetched from GitHub API to get reaction data and comment bodies.">
                 Bot Comments
               </Tooltip>
@@ -393,7 +393,7 @@ export function DataCollectionPanel({
               value={stats.comments_enriched}
               max={stats.comments_discovered}
               label="Comment threads fetched"
-              color="bg-orange-500"
+              color="bg-emerald-500"
             />
           </div>
         </div>
