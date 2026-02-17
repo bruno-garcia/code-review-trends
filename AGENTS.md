@@ -95,6 +95,8 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
 12. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
 
+13. **Never edit existing migration files.** Files in `db/init/` and `db/seed/` that have been committed to `main` are immutable. Schema changes, new reference data, or seed updates must be introduced as new numbered files (e.g., `004_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
+
 ## Key Files
 
 | Path | Purpose |
