@@ -11,6 +11,7 @@ import {
   parseArgs,
   fetchPage,
   warmup,
+  purgeCache,
   PAGES,
   PAGE_NAMES,
   type FetchFn,
@@ -249,6 +250,9 @@ describe("warmup", () => {
     assert.equal(summary.failed, 0);
     assert.equal(summary.results.length, PAGES.length);
 
+    // First call should be the ISR cache purge
+    assert.equal(urls[0], "https://example.com/api/revalidate");
+
     // Verify all pages were requested
     for (const page of PAGES) {
       assert.ok(
@@ -270,7 +274,9 @@ describe("warmup", () => {
     });
 
     assert.equal(summary.results.length, 2);
+    // First URL is the ISR cache purge, then custom pages
     assert.deepEqual(urls, [
+      "https://example.com/api/revalidate",
       "https://example.com/custom",
       "https://example.com/test",
     ]);
@@ -278,10 +284,13 @@ describe("warmup", () => {
 
   it("reports mixed success and failure", async () => {
     let callIdx = 0;
-    const mixedFetch: FetchFn = async () => {
+    const mixedFetch: FetchFn = async (url: string) => {
       callIdx++;
-      // Alternate: first page OK, second fails, etc.
-      return mockResponse(callIdx % 2 === 1 ? 200 : 500);
+      // First call is /api/revalidate — always succeed
+      if (url.endsWith("/api/revalidate")) return mockResponse(200);
+      // Alternate page results: first page OK, second fails, etc.
+      const pageIdx = callIdx - 1; // offset for revalidate call
+      return mockResponse(pageIdx % 2 === 1 ? 200 : 500);
     };
 
     const summary = await warmup({
@@ -329,6 +338,51 @@ describe("warmup", () => {
     assert.equal(summary.failed, 0);
     assert.equal(summary.results.length, 0);
     assert.equal(summary.totalDuration, 0);
+  });
+
+  it("throws when purgeCache fails", async () => {
+    const failPurgeFetch: FetchFn = async (url: string) => {
+      if (url.endsWith("/api/revalidate")) return mockResponse(500, "error");
+      return mockResponse(200, "<html>ok</html>");
+    };
+
+    await assert.rejects(
+      () => warmup({
+        baseUrl: "https://example.com",
+        timeout: 5000,
+        retries: 0,
+        pages: ["/"],
+        fetchFn: failPurgeFetch,
+        log: quiet,
+      }),
+      { message: /Failed to purge ISR cache/ },
+    );
+  });
+});
+
+// ── purgeCache ──────────────────────────────────────────────────────────
+
+describe("purgeCache", () => {
+  it("returns true on 200", async () => {
+    const result = await purgeCache("https://example.com", 5000, staticFetch(200), quiet);
+    assert.equal(result, true);
+  });
+
+  it("returns false on non-200", async () => {
+    const result = await purgeCache("https://example.com", 5000, staticFetch(500), quiet);
+    assert.equal(result, false);
+  });
+
+  it("returns false on fetch error", async () => {
+    const failFetch: FetchFn = async () => { throw new Error("ECONNREFUSED"); };
+    const result = await purgeCache("https://example.com", 5000, failFetch, quiet);
+    assert.equal(result, false);
+  });
+
+  it("posts to /api/revalidate", async () => {
+    const urls: string[] = [];
+    await purgeCache("https://example.com", 5000, recordingFetch(urls), quiet);
+    assert.deepEqual(urls, ["https://example.com/api/revalidate"]);
   });
 });
 
