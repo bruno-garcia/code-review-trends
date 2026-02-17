@@ -166,6 +166,33 @@ export interface WarmupSummary {
 }
 
 /**
+ * Purge the ISR cache on the target revision so that subsequent page fetches
+ * trigger fresh server-side renders (with real ClickHouse) instead of serving
+ * stale pre-rendered pages from `next build` (where CLICKHOUSE_URL was empty).
+ */
+export async function purgeCache(
+  baseUrl: string,
+  fetchFn: FetchFn = globalThis.fetch,
+  log: (msg: string) => void = console.log,
+): Promise<boolean> {
+  try {
+    const res = await fetchFn(`${baseUrl}/api/revalidate`, {
+      method: "POST",
+      headers: { "User-Agent": "crt-warmup/1.0" },
+    });
+    if (res.ok) {
+      log("  ✓ ISR cache purged via /api/revalidate");
+      return true;
+    }
+    log(`  ✗ /api/revalidate returned ${res.status}`);
+    return false;
+  } catch (err) {
+    log(`  ✗ /api/revalidate failed: ${err instanceof Error ? err.message : String(err)}`);
+    return false;
+  }
+}
+
+/**
  * Run cache warmup against a set of pages.
  * Pure orchestration — no Sentry, no process.exit.
  */
@@ -178,6 +205,11 @@ export async function warmup(opts: WarmupOptions): Promise<WarmupSummary> {
     fetchFn = globalThis.fetch,
     log = console.log,
   } = opts;
+
+  // Purge stale build-time ISR cache before fetching pages.
+  // Without this, pages serve the pre-rendered error state for up to
+  // `revalidate` seconds (3600s) after each deploy.
+  await purgeCache(baseUrl, fetchFn, log);
 
   const results: PageResult[] = [];
 
@@ -218,6 +250,14 @@ async function runWithSentry(args: WarmupArgs): Promise<WarmupSummary> {
       },
     },
     async (rootSpan) => {
+      // Purge stale build-time ISR cache before fetching pages.
+      await Sentry.startSpan(
+        { op: "cache.purge", name: "POST /api/revalidate" },
+        async () => {
+          await purgeCache(args.baseUrl);
+        },
+      );
+
       const results: PageResult[] = [];
 
       for (const page of PAGES) {
