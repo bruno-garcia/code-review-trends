@@ -345,8 +345,11 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         FROM pr_bot_reactions r FINAL
         JOIN bots b FINAL ON r.bot_id = b.id
         WHERE r.reaction_type = 'hooray'
-          AND (r.repo_name, r.pr_number, r.bot_id) NOT IN (
-            SELECT repo_name, pr_number, bot_id FROM pr_bot_events
+          AND NOT EXISTS (
+            SELECT 1 FROM pr_bot_events e
+            WHERE e.repo_name = r.repo_name
+              AND e.pr_number = r.pr_number
+              AND e.bot_id = r.bot_id
           )
         GROUP BY b.product_id
       )
@@ -681,8 +684,11 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
         FROM pr_bot_reactions r FINAL
         WHERE r.reaction_type = 'hooray'
-          AND (r.repo_name, r.pr_number, r.bot_id) NOT IN (
-            SELECT repo_name, pr_number, bot_id FROM pr_bot_events
+          AND NOT EXISTS (
+            SELECT 1 FROM pr_bot_events e
+            WHERE e.repo_name = r.repo_name
+              AND e.pr_number = r.pr_number
+              AND e.bot_id = r.bot_id
           )
         GROUP BY r.bot_id
       )
