@@ -2,7 +2,6 @@ import {
   getWeeklyTotals,
   getWeeklyTotalVolume,
   getTopOrgsByStars,
-  getEnrichmentStats,
 } from "@/lib/clickhouse";
 import {
   BotShareChart,
@@ -14,11 +13,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [totals, totalVolume, topOrgs, enrichmentStats] = await Promise.all([
+  const [totals, totalVolume, topOrgs] = await Promise.all([
     getWeeklyTotals(),
     getWeeklyTotalVolume(),
     getTopOrgsByStars(20),
-    getEnrichmentStats(),
   ]);
 
   return (
@@ -72,15 +70,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Data Coverage — unfiltered */}
-      {(enrichmentStats.enriched_repos > 0 || enrichmentStats.total_comments > 0) && (
-        <section data-testid="data-coverage" className="text-center text-sm text-theme-muted/70 py-4 border-t border-theme-border">
-          Tracking{" "}
-          <span className="text-theme-text/80">{enrichmentStats.enriched_repos.toLocaleString()}</span> repos,{" "}
-          <span className="text-theme-text/80">{enrichmentStats.enriched_prs.toLocaleString()}</span> PRs,{" "}
-          <span className="text-theme-text/80">{enrichmentStats.total_comments.toLocaleString()}</span> comments
-        </section>
-      )}
+
     </div>
   );
 }
