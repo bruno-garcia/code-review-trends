@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as pulumi from "@pulumi/pulumi";
+import * as fs from "fs";
+import * as path from "path";
 
 // Setup mocks before importing infra modules
 import "./setup";
@@ -299,9 +301,6 @@ describe("cloud run jobs", () => {
 describe("schedules sync", () => {
   it("every job in cloud-run-jobs.ts has a matching entry in schedules.json", () => {
     // Read both sources directly (no Pulumi needed — pure data check)
-    const fs = require("fs");
-    const path = require("path");
-
     const schedulesPath = path.resolve(__dirname, "../../pipeline/schedules.json");
     const schedules = JSON.parse(fs.readFileSync(schedulesPath, "utf-8"));
     const scheduleNames = new Set(Object.keys(schedules));
@@ -327,9 +326,6 @@ describe("schedules sync", () => {
   });
 
   it("job timeouts are consistent with schedule maxRuntime", () => {
-    const fs = require("fs");
-    const path = require("path");
-
     const schedulesPath = path.resolve(__dirname, "../../pipeline/schedules.json");
     const schedules = JSON.parse(fs.readFileSync(schedulesPath, "utf-8")) as Record<string, { maxRuntime: number }>;
 
