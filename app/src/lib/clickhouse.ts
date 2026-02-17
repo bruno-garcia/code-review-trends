@@ -1396,7 +1396,7 @@ export async function getPRList(options: {
     "p.title != ''",
   ];
   const params: Record<string, unknown> = {
-    limit: limit + 1,
+    limit,
     offset,
   };
 
@@ -1463,7 +1463,7 @@ export async function getPRList(options: {
       FROM pr_bot_events e
       JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
       JOIN repos r ON e.repo_name = r.name
-      ${productId ? "JOIN bots b ON e.bot_id = b.id" : ""}
+      JOIN bots b ON e.bot_id = b.id
       WHERE ${whereClause}
       GROUP BY e.repo_name, e.pr_number
     )
@@ -1475,7 +1475,7 @@ export async function getPRList(options: {
   ]);
 
   return {
-    prs: prs.slice(0, limit),
+    prs,
     total: countRows[0]?.total ?? 0,
   };
 }
