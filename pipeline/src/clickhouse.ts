@@ -264,28 +264,6 @@ export async function insertRepos(
   });
 }
 
-export type RepoLanguageRow = {
-  repo_name: string;
-  language: string;
-  bytes: number;
-};
-
-/**
- * Insert repo language breakdown rows.
- */
-export async function insertRepoLanguages(
-  client: ClickHouseClient,
-  rows: RepoLanguageRow[],
-): Promise<void> {
-  if (rows.length === 0) return;
-
-  await client.insert({
-    table: "repo_languages",
-    values: rows,
-    format: "JSONEachRow",
-  });
-}
-
 export type PullRequestRow = {
   repo_name: string;
   pr_number: number;
