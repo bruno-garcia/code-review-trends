@@ -822,26 +822,36 @@ export type BotByLanguage = {
 };
 
 export async function getBotsByLanguage(botId?: string, since?: string): Promise<BotByLanguage[]> {
-  const conditions = ["r.primary_language != ''"];
-  if (botId) conditions.push("e.bot_id = {botId:String}");
-  if (since) conditions.push("e.event_week >= toDate({since:String})");
-  const where = `WHERE ${conditions.join(" AND ")}`;
+  const aggConditions: string[] = [];
+  if (botId) aggConditions.push("bot_id = {botId:String}");
+  if (since) aggConditions.push("event_week >= toDate({since:String})");
+  const aggWhere = aggConditions.length > 0 ? `WHERE ${aggConditions.join(" AND ")}` : "";
   const params: Record<string, string> = {};
   if (botId) params.botId = botId;
   if (since) params.since = since;
+  // Pre-aggregate pr_bot_events by (bot_id, repo_name) to reduce row count
+  // before joining repos (7M+ events → ~50K repo-bot pairs). Without this,
+  // the join exceeds ClickHouse per-query memory limits on small VMs.
   return query<BotByLanguage>(
     `
     SELECT
-      e.bot_id,
+      agg.bot_id,
       b.name AS bot_name,
       r.primary_language AS language,
-      countDistinct(e.repo_name, e.pr_number) AS pr_count,
-      count() AS comment_count
-    FROM pr_bot_events e
-    JOIN bots b ON e.bot_id = b.id
-    JOIN repos r ON e.repo_name = r.name
-    ${where}
-    GROUP BY e.bot_id, b.name, r.primary_language
+      sum(agg.pr_count) AS pr_count,
+      sum(agg.event_count) AS comment_count
+    FROM (
+      SELECT bot_id, repo_name,
+        countDistinct(pr_number) AS pr_count,
+        count() AS event_count
+      FROM pr_bot_events
+      ${aggWhere}
+      GROUP BY bot_id, repo_name
+    ) agg
+    JOIN bots b ON agg.bot_id = b.id
+    JOIN repos r ON agg.repo_name = r.name
+    WHERE r.primary_language != ''
+    GROUP BY agg.bot_id, b.name, r.primary_language
     ORDER BY pr_count DESC
     `,
     params,
