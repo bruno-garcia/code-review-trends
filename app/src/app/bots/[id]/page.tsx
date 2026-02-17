@@ -15,6 +15,7 @@ import {
 } from "@/components/charts";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
+import { ThemedProductHeader } from "@/components/themed-product-header";
 
 // Revalidate every hour — data only changes weekly via pipeline
 export const revalidate = 3600;
@@ -87,24 +88,12 @@ export default async function ProductPage({
         >
           ← Back to all products
         </Link>
-        <div className="mt-4 flex items-center gap-4">
-          {product.avatar_url && (
-            <img
-              src={product.avatar_url}
-              alt={product.name}
-              width={48}
-              height={48}
-              className="rounded-full bg-theme-surface border border-theme-border"
-            />
-          )}
-          <h1
-            className="text-4xl font-bold"
-            data-testid="bot-name"
-            style={{ color: product.brand_color || undefined }}
-          >
-            {product.name}
-          </h1>
-        </div>
+        <ThemedProductHeader
+          productId={product.id}
+          name={product.name}
+          avatarUrl={product.avatar_url}
+          brandColor={product.brand_color}
+        />
         <p className="mt-2 text-theme-muted">{product.description}</p>
         <div className="mt-4 flex items-center gap-4 flex-wrap">
           {product.website && (

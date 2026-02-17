@@ -12,6 +12,8 @@ import type {
   ProductSummary,
   BotReactions,
 } from "@/lib/clickhouse";
+import { useTheme } from "@/components/theme-provider";
+import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 
 export function FilteredBotsPage({
   activity,
@@ -23,6 +25,7 @@ export function FilteredBotsPage({
   reactionLeaderboard: BotReactions[];
 }) {
   const { selectedProductIds } = useProductFilter();
+  const { resolved } = useTheme();
   const selectedSet = useMemo(
     () => new Set(selectedProductIds),
     [selectedProductIds],
@@ -139,11 +142,12 @@ export function FilteredBotsPage({
                           width={20}
                           height={20}
                           className="rounded-full bg-theme-surface-alt border border-theme-border"
+                          style={getAvatarStyle(product.id, resolved)}
                         />
                       )}
                       <span
                         style={{
-                          color: product.brand_color || "#818cf8",
+                          color: getThemedBrandColor(product.id, product.brand_color || "#818cf8", resolved),
                         }}
                       >
                         {product.name}
@@ -226,11 +230,12 @@ export function FilteredBotsPage({
                   width={40}
                   height={40}
                   className="rounded-full bg-theme-surface border border-theme-border"
+                  style={getAvatarStyle(product.id, resolved)}
                 />
               )}
               <h2
                 className="text-xl font-semibold"
-                style={{ color: product.brand_color || "#a78bfa" }}
+                style={{ color: getThemedBrandColor(product.id, product.brand_color || "#a78bfa", resolved) }}
               >
                 {product.name}
               </h2>

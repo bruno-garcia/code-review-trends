@@ -7,7 +7,7 @@
  */
 export const BRAND_COLORS: { name: string; color: string }[] = [
   { name: "CodeRabbit", color: "#f97316" },
-  { name: "GitHub Copilot", color: "#e5e7eb" },
+  { name: "GitHub Copilot", color: "#1f6feb" },
   { name: "CodeScene", color: "#5f72ee" },
   { name: "Sourcery", color: "#65a30d" },
   { name: "Ellipsis", color: "#06b6d4" },

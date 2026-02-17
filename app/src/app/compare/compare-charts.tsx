@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { ProductComparison, BotCommentsPerPR } from "@/lib/clickhouse";
 import { BotRadarChart, CommentsPerPRChart, COLORS } from "@/components/charts";
+import { useTheme } from "@/components/theme-provider";
+import { getThemedBrandColor } from "@/lib/theme-overrides";
 import { useProductFilter } from "@/lib/product-filter";
 import Link from "next/link";
 
@@ -133,6 +135,7 @@ export function CompareCharts({
   commentsPerPR: BotCommentsPerPR[];
 }) {
   const { selectedProductIds } = useProductFilter();
+  const { resolved } = useTheme();
   const products = allProducts.filter((p) => selectedProductIds.includes(p.id));
   const commentsPerPR = allCommentsPerPR.filter((c) =>
     selectedProductIds.includes(c.product_id),
@@ -156,9 +159,9 @@ export function CompareCharts({
     }
   }
 
-  // Build color map — use brand_color from product, fall back to palette
+  // Build color map — use themed brand_color from product, fall back to palette
   const productColorMap = new Map(
-    products.map((p, i) => [p.id, p.brand_color || COLORS[i % COLORS.length]]),
+    products.map((p, i) => [p.id, getThemedBrandColor(p.id, p.brand_color || COLORS[i % COLORS.length], resolved)]),
   );
 
   // Radar chart data
@@ -187,7 +190,7 @@ export function CompareCharts({
   const nameColorMap: Record<string, string> = {};
   for (const p of products) {
     const i = products.indexOf(p);
-    nameColorMap[p.name] = p.brand_color || COLORS[i % COLORS.length];
+    nameColorMap[p.name] = getThemedBrandColor(p.id, p.brand_color || COLORS[i % COLORS.length], resolved);
   }
 
   return (

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useProductFilter } from "@/lib/product-filter";
 import { TimeRangeSelector } from "@/components/time-range-selector";
+import { useTheme } from "@/components/theme-provider";
+import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 
 function ChevronDown({ className }: { className?: string }) {
   return (
@@ -33,6 +35,7 @@ export function ProductFilterBar() {
   } = useProductFilter();
   const [expanded, setExpanded] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
+  const { resolved } = useTheme();
 
   // Collapse when clicking outside the filter bar
   useEffect(() => {
@@ -108,14 +111,16 @@ export function ProductFilterBar() {
           </div>
 
           <div className="flex-1 hidden sm:flex flex-wrap items-center gap-1.5">
-            {selectedProducts.map((p) => (
+            {selectedProducts.map((p) => {
+              const color = getThemedBrandColor(p.id, p.brand_color, resolved);
+              return (
               <span
                 key={p.id}
                 className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap border"
                 style={{
-                  borderColor: p.brand_color + "60",
-                  backgroundColor: p.brand_color + "15",
-                  color: p.brand_color,
+                  borderColor: color + "60",
+                  backgroundColor: color + "15",
+                  color: color,
                 }}
               >
                 <img
@@ -124,10 +129,12 @@ export function ProductFilterBar() {
                   width={16}
                   height={16}
                   className="rounded-full"
+                  style={getAvatarStyle(p.id, resolved)}
                 />
                 {p.name}
               </span>
-            ))}
+              );
+            })}
           </div>
 
           <span
@@ -179,6 +186,7 @@ export function ProductFilterBar() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
               {allProducts.map((p, i) => {
                 const isSelected = selectedSet.has(p.id);
+                const color = getThemedBrandColor(p.id, p.brand_color, resolved);
                 return (
                   <button
                     key={p.id}
@@ -194,8 +202,8 @@ export function ProductFilterBar() {
                     style={
                       isSelected
                         ? {
-                            borderColor: p.brand_color + "60",
-                            backgroundColor: p.brand_color + "15",
+                            borderColor: color + "60",
+                            backgroundColor: color + "15",
                           }
                         : undefined
                     }
@@ -206,6 +214,7 @@ export function ProductFilterBar() {
                       width={20}
                       height={20}
                       className="rounded-full"
+                      style={getAvatarStyle(p.id, resolved)}
                     />
                     <span className="truncate flex-1 text-left">{p.name}</span>
                     <span className={`text-xs tabular-nums shrink-0 ${isSelected ? "text-theme-muted" : "text-theme-muted-dim"}`}>
