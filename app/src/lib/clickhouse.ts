@@ -1135,3 +1135,237 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
     total_comments: 0,
   };
 }
+
+// --- Category metric queries ---
+
+export type CategoryCommentDetail = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  avg_body_length: number;
+  total_comments: number;
+};
+
+export async function getCategoryCommentDetail(): Promise<CategoryCommentDetail[]> {
+  return query<CategoryCommentDetail>(`
+    SELECT
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      round(avg(c.body_length), 0) AS avg_body_length,
+      count() AS total_comments
+    FROM pr_comments c FINAL
+    JOIN bots b FINAL ON c.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
+    WHERE c.comment_id > 0
+    GROUP BY b.product_id, p.name, p.brand_color
+    ORDER BY avg_body_length DESC
+  `);
+}
+
+export type CategoryStarAdoption = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  repo_count: number;
+  total_stars: number;
+  avg_repo_stars: number;
+};
+
+export async function getCategoryStarAdoption(): Promise<CategoryStarAdoption[]> {
+  return query<CategoryStarAdoption>(`
+    SELECT
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      countDistinct(e.repo_name) AS repo_count,
+      sum(r.stars) AS total_stars,
+      round(avg(r.stars), 0) AS avg_repo_stars
+    FROM pr_bot_events e
+    JOIN bots b ON e.bot_id = b.id
+    JOIN products p ON b.product_id = p.id
+    JOIN repos r ON e.repo_name = r.name
+    WHERE r.fetch_status = 'ok'
+    GROUP BY b.product_id, p.name, p.brand_color
+    ORDER BY avg_repo_stars DESC
+  `);
+}
+
+export type CategoryPRSize = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  avg_pr_size: number;
+  total_prs: number;
+};
+
+export async function getCategoryPRSize(): Promise<CategoryPRSize[]> {
+  return query<CategoryPRSize>(`
+    SELECT
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      round(avg(pr.additions + pr.deletions), 0) AS avg_pr_size,
+      countDistinct(e.repo_name, e.pr_number) AS total_prs
+    FROM pr_bot_events e
+    JOIN bots b ON e.bot_id = b.id
+    JOIN products p ON b.product_id = p.id
+    JOIN pull_requests pr ON e.repo_name = pr.repo_name AND e.pr_number = pr.pr_number
+    GROUP BY b.product_id, p.name, p.brand_color
+    ORDER BY avg_pr_size DESC
+  `);
+}
+
+export type CategoryMergeRate = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  total_prs: number;
+  merged_prs: number;
+  merge_rate: number;
+};
+
+export async function getCategoryMergeRate(): Promise<CategoryMergeRate[]> {
+  return query<CategoryMergeRate>(`
+    SELECT
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      countDistinct(e.repo_name, e.pr_number) AS total_prs,
+      countDistinctIf((e.repo_name, e.pr_number), pr.merged_at IS NOT NULL) AS merged_prs,
+      round(countDistinctIf((e.repo_name, e.pr_number), pr.merged_at IS NOT NULL) * 100.0
+        / countDistinct(e.repo_name, e.pr_number), 1) AS merge_rate
+    FROM pr_bot_events e
+    JOIN bots b ON e.bot_id = b.id
+    JOIN products p ON b.product_id = p.id
+    JOIN pull_requests pr ON e.repo_name = pr.repo_name AND e.pr_number = pr.pr_number
+    GROUP BY b.product_id, p.name, p.brand_color
+    HAVING total_prs > 0
+    ORDER BY merge_rate DESC
+  `);
+}
+
+export type CategoryResponseTime = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  median_response_minutes: number;
+  total_prs: number;
+};
+
+export async function getCategoryResponseTime(): Promise<CategoryResponseTime[]> {
+  return query<CategoryResponseTime>(`
+    SELECT
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      median(dateDiff('minute', pr.created_at, fc.first_comment_at)) AS median_response_minutes,
+      count() AS total_prs
+    FROM (
+      SELECT bot_id, repo_name, pr_number, min(created_at) AS first_comment_at
+      FROM pr_comments FINAL
+      WHERE comment_id > 0
+      GROUP BY bot_id, repo_name, pr_number
+    ) fc
+    JOIN bots b FINAL ON fc.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
+    JOIN pull_requests pr ON fc.repo_name = pr.repo_name AND fc.pr_number = pr.pr_number
+    WHERE pr.created_at >= '2020-01-01'
+    GROUP BY b.product_id, p.name, p.brand_color
+    HAVING total_prs >= 5
+    ORDER BY median_response_minutes ASC
+  `);
+}
+
+export type CategoryControversy = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  controversy_score: number;
+  total_thumbs_up: number;
+  total_thumbs_down: number;
+  total_confused: number;
+  total_comments: number;
+};
+
+export async function getCategoryControversy(): Promise<CategoryControversy[]> {
+  return query<CategoryControversy>(`
+    SELECT
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      round(if(sum(c.thumbs_up) + sum(c.thumbs_down) > 0,
+        2.0 * least(sum(c.thumbs_up), sum(c.thumbs_down)) / (sum(c.thumbs_up) + sum(c.thumbs_down)),
+        0), 2) AS controversy_score,
+      sum(c.thumbs_up) AS total_thumbs_up,
+      sum(c.thumbs_down) AS total_thumbs_down,
+      sum(c.confused) AS total_confused,
+      count() AS total_comments
+    FROM pr_comments c FINAL
+    JOIN bots b FINAL ON c.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
+    WHERE c.comment_id > 0
+    GROUP BY b.product_id, p.name, p.brand_color
+    HAVING (sum(c.thumbs_up) + sum(c.thumbs_down)) >= 10
+    ORDER BY controversy_score DESC
+  `);
+}
+
+export type CategoryInlineVsSummary = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  inline_comments: number;
+  summary_comments: number;
+  inline_pct: number;
+};
+
+export async function getCategoryInlineVsSummary(): Promise<CategoryInlineVsSummary[]> {
+  return query<CategoryInlineVsSummary>(`
+    SELECT
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      sum(ra.review_comment_count) AS inline_comments,
+      sum(ra.pr_comment_count) AS summary_comments,
+      round(sum(ra.review_comment_count) * 100.0
+        / (sum(ra.review_comment_count) + sum(ra.pr_comment_count)), 1) AS inline_pct
+    FROM review_activity ra FINAL
+    JOIN bots b FINAL ON ra.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
+    GROUP BY b.product_id, p.name, p.brand_color
+    HAVING (inline_comments + summary_comments) > 0
+    ORDER BY inline_pct DESC
+  `);
+}
+
+export type CategoryReviewVerdicts = {
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  approved_count: number;
+  changes_requested_count: number;
+  commented_count: number;
+  total_reviews: number;
+  approval_pct: number;
+};
+
+export async function getCategoryReviewVerdicts(): Promise<CategoryReviewVerdicts[]> {
+  return query<CategoryReviewVerdicts>(`
+    SELECT
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      countIf(e.review_state = 'approved') AS approved_count,
+      countIf(e.review_state = 'changes_requested') AS changes_requested_count,
+      countIf(e.review_state = 'commented') AS commented_count,
+      count() AS total_reviews,
+      round(countIf(e.review_state = 'approved') * 100.0 / count(), 1) AS approval_pct
+    FROM pr_bot_events e
+    JOIN bots b ON e.bot_id = b.id
+    JOIN products p ON b.product_id = p.id
+    WHERE e.review_state != '' AND e.event_type = 'PullRequestReviewEvent'
+    GROUP BY b.product_id, p.name, p.brand_color
+    ORDER BY approval_pct DESC
+  `);
+}
