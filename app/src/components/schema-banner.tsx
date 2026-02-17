@@ -1,9 +1,20 @@
 import { type SchemaStatus } from "@/lib/migrations";
 
-function SentryEventId({ eventId }: { eventId?: string }) {
+function SentryLink({ eventId }: { eventId?: string }) {
   if (!eventId) return null;
+  const href = `https://bruno-garcia.sentry.io/projects/code-review-trends/events/${eventId}/`;
   return (
-    <> Event ID: <code className="bg-black/20 px-1 rounded">{eventId}</code></>
+    <>
+      {" "}
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline underline-offset-2 hover:opacity-80"
+      >
+        Sentry: {eventId.slice(0, 8)}
+      </a>
+    </>
   );
 }
 
@@ -38,7 +49,7 @@ export function SchemaBanner({ status }: { status: SchemaStatus }) {
         ⚠️ Database schema is <strong>behind</strong> this app
         (DB&nbsp;v{status.dbVersion}, app expects&nbsp;v
         {status.expectedVersion}). Auto-migration failed.
-        <SentryEventId eventId={status.sentryEventId} />
+        <SentryLink eventId={status.sentryEventId} />
       </div>
     );
   }
@@ -66,7 +77,7 @@ export function SchemaBanner({ status }: { status: SchemaStatus }) {
       >
         ⚠️ Schema check failed — could not connect to ClickHouse or run
         migrations.
-        <SentryEventId eventId={status.sentryEventId} />
+        <SentryLink eventId={status.sentryEventId} />
       </div>
     );
   }
