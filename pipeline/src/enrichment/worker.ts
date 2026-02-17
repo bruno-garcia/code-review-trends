@@ -78,13 +78,13 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     prs_total: string; prs_done: string;
   }>(ch, `SELECT
     (SELECT countDistinct(repo_name) FROM pr_bot_events) as repos_total,
-    (SELECT count() FROM repos) as repos_done,
+    (SELECT countDistinct(name) FROM repos) as repos_done,
     (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_bot_events WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) as comments_total,
     (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_comments) as comments_done,
     (SELECT countDistinct(repo_name, pr_number) FROM pr_bot_events) as reactions_total,
-    (SELECT count() FROM reaction_scan_progress) as reactions_done,
+    (SELECT countDistinct(repo_name, pr_number) FROM reaction_scan_progress) as reactions_done,
     (SELECT countDistinct(repo_name, pr_number) FROM pr_bot_events) as prs_total,
-    (SELECT count() FROM pull_requests) as prs_done`);
+    (SELECT countDistinct(repo_name, pr_number) FROM pull_requests) as prs_done`);
 
   const c = completionRows[0];
   const completion: Record<Step, number> = {
