@@ -220,6 +220,27 @@ describe("fetchPage", () => {
     assert.ok(result.duration_ms >= 10, `Expected duration >= 10ms (both attempts), got ${result.duration_ms}ms`);
   });
 
+  it("detects schema error banner in 200 response", async () => {
+    const bannerBody = '<html><div data-testid="schema-banner">Schema error</div></html>';
+    const result = await fetchPage(
+      "https://example.com", "/", 5000, 2,
+      async () => mockResponse(200, bannerBody), quiet,
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 200);
+    assert.equal(result.error, "Page contains schema error banner — ClickHouse may be unreachable");
+    assert.equal(result.attempts, 1); // no retry for content errors
+  });
+
+  it("passes content check for normal 200 response", async () => {
+    const result = await fetchPage(
+      "https://example.com", "/", 5000, 0,
+      async () => mockResponse(200, "<html><body>All good</body></html>"), quiet,
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.status, 200);
+  });
+
   it("clears timeout timer on fetch error", async () => {
     // If the timer leaks, the test runner would hang or warn about open handles.
     // This test verifies the fetch completes promptly despite the throw.

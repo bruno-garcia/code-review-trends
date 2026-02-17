@@ -104,12 +104,25 @@ export async function fetchPage(
 
       // Read body to ensure the page is fully rendered server-side.
       // Duration includes the full response (headers + body).
-      await res.text();
+      const body = await res.text();
 
       const duration = Date.now() - start;
       totalDuration += duration;
 
       if (res.status >= 200 && res.status < 400) {
+        // Check for schema error banner — indicates ClickHouse is unreachable.
+        // No retry: if the banner is present, it won't go away by retrying.
+        if (body.includes('data-testid="schema-banner"')) {
+          return {
+            page,
+            status: res.status,
+            duration_ms: totalDuration,
+            ok: false,
+            error: "Page contains schema error banner — ClickHouse may be unreachable",
+            attempts: attempt,
+          };
+        }
+
         return {
           page,
           status: res.status,
