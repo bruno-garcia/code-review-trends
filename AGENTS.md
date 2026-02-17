@@ -10,8 +10,7 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 - **`pipeline/`** — TypeScript data collection service. Pulls data from BigQuery (GH Archive) and GitHub API, writes to ClickHouse. Has CLI tools for dev.
 - **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages the production ClickHouse VM, networking, and firewall rules. See `infra/README.md`.
 - **`db/`** — ClickHouse schema and data, split by environment:
-  - `db/init/` — runs on **all** environments: schema (`001_schema.sql`), bot reference data (`002_bot_data.sql`), and the seed loader script (`003_seed.sh`).
-  - `db/seed/` — runs on **local dev and CI only**: fake data (`001_fake_data.sql`) for realistic growth curves.
+  - `db/init/` — runs on **all** environments: schema (`001_schema.sql`) and bot reference data (`002_bot_data.sql`).
 - **`docker-compose.yml`** — Local dev services (ClickHouse).
 
 ## Dev Environment
@@ -75,7 +74,7 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
 2. **ClickHouse for analytics.** All data lives in ClickHouse, optimized for analytical queries. Use `ReplacingMergeTree` for idempotent inserts. Design tables for the queries the UI needs.
 
-3. **Fake data first.** Seed data provides realistic growth curves for developing the UI. The data pipeline (BigQuery + GitHub API) is a separate concern — the app should never assume where data came from.
+3. **Pipeline is the only data source.** All data comes from the pipeline (BigQuery + GitHub API). The app should render gracefully with empty tables — no fake/seed data.
 
 4. **Test with Playwright.** E2e tests in `app/e2e/` validate that pages render with data from ClickHouse. Tests run against real ClickHouse (via Docker in CI, local in dev). Use `data-testid` attributes for stable selectors.
 
@@ -87,15 +86,17 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
 8. **Pipeline is idempotent.** All pipeline writes use `ReplacingMergeTree`, so re-running for the same time range just overwrites. No need for delete-before-insert patterns. Safe to retry.
 
-9. **Bot registry is the source of truth.** The canonical list of tracked bots lives in `pipeline/src/bots.ts`. Use `npm run pipeline -- sync-bots` to push to ClickHouse. Seed data is for dev only.
+9. **Bot registry is the source of truth.** The canonical list of tracked bots lives in `pipeline/src/bots.ts`. Use `npm run pipeline -- sync-bots` to push to ClickHouse.
 
 10. **Build dev tools, not just features.** Invest in CLI tools (`inspect`, `validate`, `discover-bots`) that make development fast and reduce reliance on CI or prod for feedback.
 
-11. **Separate schema from seed data.** `db/init/` contains schema and bot reference data — applied to all environments. `db/seed/` contains fake data — only loaded in local dev (via docker-compose `003_seed.sh`) and CI (via `init-ci.sh`). The `migrate` command applies only `db/init/` files to remote databases.
+11. **No fake data.** All data comes from the pipeline (BigQuery + GitHub API). `db/init/` contains schema and bot reference data — applied to all environments. There is no seed data; local dev and CI start with empty tables.
 
-12. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
+12. **2023-01-01 is the epoch.** AI code review became a meaningful category after this date. All pipeline imports start from 2023-01-01. No data before this date is collected or expected.
 
-13. **Never edit existing migration files.** Files in `db/init/` and `db/seed/` that have been committed to `main` are immutable. Schema changes, new reference data, or seed updates must be introduced as new numbered files (e.g., `004_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
+13. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
+
+14. **Never edit existing migration files.** Files in `db/init/` that have been committed to `main` are immutable. Schema changes or new reference data must be introduced as new numbered files (e.g., `003_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
 
 ## Key Files
 
@@ -108,9 +109,9 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `app/src/app/bots/[id]/page.tsx` | Individual bot detail page |
 | `db/init/001_schema.sql` | ClickHouse table definitions (all environments) |
 | `db/init/002_bot_data.sql` | Products, bots, bot_logins reference data (all environments) |
-| `db/init/003_seed.sh` | Docker init script that loads db/seed/ (local dev only) |
-| `db/seed/001_fake_data.sql` | Fake review data for local dev and CI only |
-| `db/init-ci.sh` | CI init script — runs db/init/*.sql + db/seed/*.sql via HTTP |
+| `db/init-ci.sh` | CI init script — runs db/init/*.sql via HTTP |
+| `app/src/lib/migrations.ts` | Versioned schema migration system (auto-migrate on app start) |
+| `app/src/components/schema-banner.tsx` | Warning banner when app/DB schema versions diverge |
 | `app/e2e/` | Playwright e2e tests |
 | `pipeline/src/bots.ts` | Canonical bot registry |
 | `pipeline/src/clickhouse.ts` | ClickHouse writer (pipeline) |
@@ -135,7 +136,7 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 2. Run `npm run pipeline -- sync-bots` to push to ClickHouse.
 3. Update `db/init/002_bot_data.sql` to match (validated by `bots.test.ts`).
 4. The UI picks it up automatically — no code changes needed.
-5. Optionally add fake data in `db/seed/001_fake_data.sql` for dev.
+5. Run the pipeline to backfill data for the new bot.
 
 ## Managing Remote Databases
 

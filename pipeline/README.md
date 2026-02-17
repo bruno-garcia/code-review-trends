@@ -68,7 +68,7 @@ npm run pipeline -- sync --weeks 4    # last 4 weeks
 
 ### `migrate`
 
-Apply schema and bot reference data to a ClickHouse instance. Reads all `db/init/*.sql` files (schema + bot data) and syncs the bot registry from `bots.ts`. Does **not** apply `db/seed/` (fake data).
+Apply schema and bot reference data to a ClickHouse instance. Reads all `db/init/*.sql` files (schema + bot data) and syncs the bot registry from `bots.ts`.
 
 ```bash
 npm run pipeline -- migrate --stack staging          # staging (reads Pulumi creds)
@@ -231,15 +231,12 @@ db/
   init/                        ← Applied to ALL environments
     001_schema.sql             — CREATE TABLE definitions
     002_bot_data.sql           — Products, bots, bot_logins (reference data)
-    003_seed.sh                — Docker init script that loads db/seed/ (local dev only)
-  seed/                        ← Applied to local dev + CI only
-    001_fake_data.sql          — Fake review data, repos, PRs, etc.
-  init-ci.sh                   — CI script: runs db/init/*.sql + db/seed/*.sql via HTTP
+  init-ci.sh                   — CI script: runs db/init/*.sql via HTTP
 ```
 
-- **Local dev** (`docker compose up`): Runs `001_schema.sql` → `002_bot_data.sql` → `003_seed.sh` (loads fake data). Full dataset for UI development.
-- **CI** (`bash db/init-ci.sh`): Same data via HTTP against the ClickHouse service container.
-- **Staging/prod** (`npm run pipeline -- migrate`): Applies only `db/init/*.sql` + syncs bot registry from `bots.ts`. No fake data.
+- **Local dev** (`docker compose up`): Runs `001_schema.sql` → `002_bot_data.sql`. Tables start empty; run the pipeline to populate.
+- **CI** (`bash db/init-ci.sh`): Same schema via HTTP against the ClickHouse service container.
+- **Staging/prod** (`npm run pipeline -- migrate`): Applies `db/init/*.sql` + syncs bot registry from `bots.ts`.
 
 ## Architecture
 
