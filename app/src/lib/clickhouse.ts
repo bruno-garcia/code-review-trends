@@ -344,11 +344,10 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
         FROM pr_bot_reactions r FINAL
         JOIN bots b FINAL ON r.bot_id = b.id
-        LEFT ANTI JOIN pr_bot_events e FINAL
-          ON r.repo_name = e.repo_name
-          AND r.pr_number = e.pr_number
-          AND r.bot_id = e.bot_id
         WHERE r.reaction_type = 'hooray'
+          AND (r.repo_name, r.pr_number, r.bot_id) NOT IN (
+            SELECT repo_name, pr_number, bot_id FROM pr_bot_events
+          )
         GROUP BY b.product_id
       )
     SELECT
@@ -681,11 +680,10 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           r.bot_id,
           countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
         FROM pr_bot_reactions r FINAL
-        LEFT ANTI JOIN pr_bot_events e FINAL
-          ON r.repo_name = e.repo_name
-          AND r.pr_number = e.pr_number
-          AND r.bot_id = e.bot_id
         WHERE r.reaction_type = 'hooray'
+          AND (r.repo_name, r.pr_number, r.bot_id) NOT IN (
+            SELECT repo_name, pr_number, bot_id FROM pr_bot_events
+          )
         GROUP BY r.bot_id
       )
     SELECT
@@ -1119,6 +1117,10 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     ? `HAVING ${havingConditions.join(" AND ")}`
     : "";
 
+  // Uses pr_bot_event_counts materialized view (~471K rows) instead of
+  // scanning the full pr_bot_events table (~7.4M rows). Two-level aggregation:
+  // 1. Inner: merge uniqExact states per repo (unions PR sets across bots)
+  // 2. Outer: sum exact per-repo counts by owner
   const dataQuery = `
     SELECT
       r.owner,
@@ -1131,12 +1133,19 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     LEFT JOIN (
       SELECT
         r2.owner,
-        countDistinct(e.repo_name, e.pr_number) AS total_prs,
-        groupUniqArray(b.product_id) AS product_ids
-      FROM pr_bot_events e
-      JOIN repos r2 ON e.repo_name = r2.name
-      JOIN bots b ON e.bot_id = b.id
-      ${productJoinFilter}
+        sum(repo_pr_count) AS total_prs,
+        arrayDistinct(arrayFlatten(groupArray(repo_product_ids))) AS product_ids
+      FROM (
+        SELECT s.repo_name,
+          uniqExactMerge(s.pr_count) AS repo_pr_count,
+          groupUniqArray(b.product_id) AS repo_product_ids
+        FROM pr_bot_event_counts s
+        JOIN bots b ON s.bot_id = b.id
+        ${productJoinFilter}
+        GROUP BY s.repo_name
+      ) repo_agg
+      JOIN repos r2 ON repo_agg.repo_name = r2.name
+      WHERE r2.fetch_status = 'ok'
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
     WHERE ${whereClause}
@@ -1154,11 +1163,17 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       LEFT JOIN (
         SELECT
           r2.owner,
-          countDistinct(e.repo_name, e.pr_number) AS total_prs
-        FROM pr_bot_events e
-        JOIN repos r2 ON e.repo_name = r2.name
-        JOIN bots b ON e.bot_id = b.id
-        ${productJoinFilter}
+          sum(repo_pr_count) AS total_prs
+        FROM (
+          SELECT s.repo_name,
+            uniqExactMerge(s.pr_count) AS repo_pr_count
+          FROM pr_bot_event_counts s
+          JOIN bots b ON s.bot_id = b.id
+          ${productJoinFilter}
+          GROUP BY s.repo_name
+        ) repo_agg
+        JOIN repos r2 ON repo_agg.repo_name = r2.name
+        WHERE r2.fetch_status = 'ok'
         GROUP BY r2.owner
       ) pr ON r.owner = pr.owner
       WHERE ${whereClause}
