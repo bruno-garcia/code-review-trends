@@ -99,6 +99,27 @@ describe("parseArgs", () => {
     assert.equal(parseArgs([]), null);
     assert.equal(parseArgs(["--timeout", "5000"]), null);
   });
+
+  it("returns null for non-numeric timeout", () => {
+    assert.equal(parseArgs(["https://example.com", "--timeout", "abc"]), null);
+  });
+
+  it("returns null for non-numeric retries", () => {
+    assert.equal(parseArgs(["https://example.com", "--retries", "xyz"]), null);
+  });
+
+  it("returns null for negative timeout", () => {
+    assert.equal(parseArgs(["https://example.com", "--timeout", "-100"]), null);
+  });
+
+  it("returns null for negative retries", () => {
+    assert.equal(parseArgs(["https://example.com", "--retries", "-1"]), null);
+  });
+
+  it("accepts zero retries", () => {
+    const result = parseArgs(["https://example.com", "--retries", "0"]);
+    assert.equal(result?.retries, 0);
+  });
 });
 
 // ── fetchPage ───────────────────────────────────────────────────────────
@@ -180,12 +201,12 @@ describe("fetchPage", () => {
     assert.equal(result.error, "ECONNREFUSED");
   });
 
-  it("accumulates duration across retries", async () => {
+  it("accumulates duration across retries on success", async () => {
     let callCount = 0;
     const slowThenFast: FetchFn = async () => {
       callCount++;
       // Simulate some minimal time passing
-      await new Promise((r) => setTimeout(r, 5));
+      await new Promise((r) => setTimeout(r, 10));
       if (callCount <= 1) return mockResponse(500);
       return mockResponse(200);
     };
@@ -195,7 +216,19 @@ describe("fetchPage", () => {
       slowThenFast, quiet,
     );
     assert.equal(result.ok, true);
-    assert.ok(result.duration_ms > 0, "Expected positive duration");
+    // Duration should include both attempts (not just the successful one)
+    assert.ok(result.duration_ms >= 10, `Expected duration >= 10ms (both attempts), got ${result.duration_ms}ms`);
+  });
+
+  it("clears timeout timer on fetch error", async () => {
+    // If the timer leaks, the test runner would hang or warn about open handles.
+    // This test verifies the fetch completes promptly despite the throw.
+    const result = await fetchPage(
+      "https://example.com", "/", 60_000, 0,
+      async () => { throw new Error("network down"); }, quiet,
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.error, "network down");
   });
 });
 

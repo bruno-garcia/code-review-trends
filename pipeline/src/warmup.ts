@@ -47,9 +47,13 @@ export function parseArgs(argv: string[]): WarmupArgs | null {
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--timeout" && argv[i + 1]) {
-      timeout = parseInt(argv[++i], 10);
+      const v = parseInt(argv[++i], 10);
+      if (!Number.isFinite(v) || v < 0) return null;
+      timeout = v;
     } else if (argv[i] === "--retries" && argv[i + 1]) {
-      retries = parseInt(argv[++i], 10);
+      const v = parseInt(argv[++i], 10);
+      if (!Number.isFinite(v) || v < 0) return null;
+      retries = v;
     } else if (!argv[i].startsWith("--")) {
       baseUrl = argv[i].replace(/\/$/, ""); // strip trailing slash
     }
@@ -88,27 +92,28 @@ export async function fetchPage(
 
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     const start = Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
+      timer = setTimeout(() => controller.abort(), timeout);
 
       const res = await fetchFn(fullUrl, {
         signal: controller.signal,
         headers: { "User-Agent": "crt-warmup/1.0" },
       });
-      clearTimeout(timer);
+
+      // Read body to ensure the page is fully rendered server-side.
+      // Duration includes the full response (headers + body).
+      await res.text();
 
       const duration = Date.now() - start;
       totalDuration += duration;
-
-      // Read body to ensure the page is fully rendered server-side
-      await res.text();
 
       if (res.status >= 200 && res.status < 400) {
         return {
           page,
           status: res.status,
-          duration_ms: duration,
+          duration_ms: totalDuration,
           ok: true,
           attempts: attempt,
         };
@@ -120,6 +125,8 @@ export async function fetchPage(
       totalDuration += Date.now() - start;
       lastStatus = 0;
       lastError = err instanceof Error ? err.message : String(err);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
     }
 
     // Retry with backoff (500ms, 1000ms, ...)
@@ -317,6 +324,8 @@ if (isDirectRun) {
   const args = parseArgs(process.argv.slice(2));
   if (!args) {
     console.error("Usage: tsx pipeline/src/warmup.ts <base-url> [--timeout <ms>] [--retries <n>]");
+    console.error("  --timeout must be a non-negative integer (milliseconds)");
+    console.error("  --retries must be a non-negative integer");
     process.exit(1);
   }
 
@@ -325,11 +334,21 @@ if (isDirectRun) {
   console.log(`  Timeout: ${args.timeout}ms, Retries: ${args.retries}\n`);
 
   runWithSentry(args)
-    .then(async ({ succeeded, failed, totalDuration }) => {
+    .then(async (summary) => {
+      const { succeeded, failed, totalDuration } = summary;
       console.log(`\nWarmup complete: ${succeeded}/${PAGES.length} pages OK, total ${totalDuration}ms`);
 
       // Report metrics
       if (dsn) {
+        for (const result of summary.results) {
+          Sentry.metrics.distribution("warmup.page_duration", result.duration_ms, {
+            unit: "millisecond",
+            attributes: {
+              page: PAGE_NAMES[result.page] ?? result.page,
+              status: result.ok ? "ok" : "error",
+            },
+          });
+        }
         Sentry.metrics.count("warmup.pages_succeeded", succeeded);
         Sentry.metrics.count("warmup.pages_failed", failed);
         Sentry.metrics.distribution("warmup.total_duration", totalDuration, {
