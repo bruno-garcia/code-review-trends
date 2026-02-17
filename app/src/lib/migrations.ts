@@ -22,7 +22,7 @@ import type { ClickHouseClient } from "@clickhouse/client";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 2;
+export const EXPECTED_SCHEMA_VERSION = 3;
 
 export type SchemaStatus = {
   status: "ok" | "app_behind" | "db_behind" | "migrating" | "error";
@@ -212,8 +212,49 @@ const MIGRATION_002: Migration = {
   ],
 };
 
+/**
+ * Migration 3 — pr_bot_event_counts materialized view.
+ * Matches db/init/004_pr_bot_event_counts.sql.
+ *
+ * Pre-aggregates pr_bot_events at (repo_name, bot_id) granularity using
+ * uniqExactState(pr_number). Reduces org/repo queries from ~815 MiB to ~40 MiB.
+ * Auto-updates on INSERT to pr_bot_events; backfill populates existing data.
+ */
+const MIGRATION_003: Migration = {
+  version: 3,
+  name: "pr_bot_event_counts",
+  statements: [
+    // Target table
+    `CREATE TABLE IF NOT EXISTS pr_bot_event_counts (
+      repo_name String,
+      bot_id String,
+      pr_count AggregateFunction(uniqExact, UInt32)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY (repo_name, bot_id)`,
+
+    // Materialized view — auto-populates on INSERT to pr_bot_events
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_bot_event_counts_mv
+    TO pr_bot_event_counts
+    AS SELECT
+      repo_name,
+      bot_id,
+      uniqExactState(pr_number) AS pr_count
+    FROM pr_bot_events
+    GROUP BY repo_name, bot_id`,
+
+    // Backfill existing data
+    `INSERT INTO pr_bot_event_counts
+    SELECT
+      repo_name,
+      bot_id,
+      uniqExactState(pr_number) AS pr_count
+    FROM pr_bot_events
+    GROUP BY repo_name, bot_id`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

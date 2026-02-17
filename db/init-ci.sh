@@ -33,9 +33,9 @@ for f in db/init/*.sql; do
 done
 
 # 2. Record schema version (must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts)
-SCHEMA_VERSION=2
+SCHEMA_VERSION=3
 echo "Recording schema version ${SCHEMA_VERSION}..."
-run_statement "INSERT INTO code_review_trends.schema_migrations (version, name) VALUES (${SCHEMA_VERSION}, 'initial_schema')"
+run_statement "INSERT INTO code_review_trends.schema_migrations (version, name) VALUES (${SCHEMA_VERSION}, 'ci_init')"
 echo "  Done."
 
 echo "All init scripts completed."
