@@ -1459,7 +1459,7 @@ export async function getCategoryResponseTime(): Promise<CategoryResponseTime[]>
     ) fc
     JOIN products p FINAL ON fc.product_id = p.id
     JOIN pull_requests pr ON fc.repo_name = pr.repo_name AND fc.pr_number = pr.pr_number
-    WHERE pr.created_at >= '2020-01-01'
+    WHERE pr.created_at >= '${DATA_EPOCH}'
       AND fc.first_comment_at >= pr.created_at
     GROUP BY fc.product_id, p.name, p.brand_color
     HAVING total_prs >= 5

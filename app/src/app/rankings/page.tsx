@@ -17,6 +17,13 @@ import { RankingsPage } from "@/components/rankings-page";
 export const dynamic = "force-dynamic";
 
 /**
+ * Minimum total thumbs-up + thumbs-down reactions across all products
+ * before we consider enrichment data representative enough to show
+ * enrichment-dependent ranking categories.
+ */
+const ENRICHMENT_REACTION_THRESHOLD = 1000;
+
+/**
  * Categories that depend on enriched PRs/comments (pull_requests,
  * pr_comments tables) are only shown when enrichment coverage is
  * sufficient.  We detect this by checking how many pull_requests
@@ -27,16 +34,15 @@ export const dynamic = "force-dynamic";
  */
 async function hasEnrichmentCoverage(): Promise<boolean> {
   // Quick heuristic: if we have comparisons with meaningful reaction
-  // data (>1000 total reactions), enrichment is probably sufficient.
-  // This avoids an extra query and works because reactions only come
-  // from enriched pr_comments.
+  // data, enrichment is probably sufficient. This avoids an extra
+  // query and works because reactions only come from enriched pr_comments.
   try {
     const comparisons = await getProductComparisons();
     const totalReactions = comparisons.reduce(
       (sum, c) => sum + Number(c.thumbs_up) + Number(c.thumbs_down),
       0,
     );
-    return totalReactions >= 1000;
+    return totalReactions >= ENRICHMENT_REACTION_THRESHOLD;
   } catch {
     return false;
   }
