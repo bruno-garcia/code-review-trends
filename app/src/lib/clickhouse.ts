@@ -816,6 +816,7 @@ export async function getAvgCommentsPerPR(botId?: string, since?: string): Promi
 export type BotByLanguage = {
   bot_id: string;
   bot_name: string;
+  product_id: string;
   language: string;
   pr_count: number;
   comment_count: number;
@@ -837,6 +838,7 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
     SELECT
       agg.bot_id,
       b.name AS bot_name,
+      b.product_id,
       r.primary_language AS language,
       sum(agg.pr_count) AS pr_count,
       sum(agg.event_count) AS comment_count
@@ -851,7 +853,7 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
     JOIN bots b ON agg.bot_id = b.id
     JOIN repos r ON agg.repo_name = r.name
     WHERE r.primary_language != ''
-    GROUP BY agg.bot_id, b.name, r.primary_language
+    GROUP BY agg.bot_id, b.name, b.product_id, r.primary_language
     ORDER BY pr_count DESC
     `,
     params,

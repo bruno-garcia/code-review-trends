@@ -186,6 +186,7 @@ export function RankingsPage({
   inlineVsSummary,
   reviewVerdicts,
   growth,
+  enriched,
 }: {
   comparisons: ProductComparison[];
   commentsPerPR: BotCommentsPerPR[];
@@ -199,6 +200,7 @@ export function RankingsPage({
   inlineVsSummary: CategoryInlineVsSummary[];
   reviewVerdicts: CategoryReviewVerdicts[];
   growth: CategoryGrowth[];
+  enriched: boolean;
 }) {
   const { selectedProductIds } = useProductFilter();
   const selectedSet = useMemo(
@@ -226,14 +228,17 @@ export function RankingsPage({
   }, [comparisons]);
 
   // --- Signal Quality ---
+  // Most Loved uses approval_rate from pr_comments — only show when enriched
   const mostLovedData: BarItem[] = useMemo(
     () =>
-      fc.map((c) => ({
-        name: c.name,
-        value: Number(c.approval_rate),
-        color: c.brand_color || "#818cf8",
-      })),
-    [fc],
+      enriched
+        ? fc.map((c) => ({
+            name: c.name,
+            value: Number(c.approval_rate),
+            color: c.brand_color || "#818cf8",
+          }))
+        : [],
+    [fc, enriched],
   );
 
   const controversyData: BarItem[] = useMemo(
@@ -379,33 +384,20 @@ export function RankingsPage({
     [responseTime, selectedSet],
   );
 
-  // Build bot_id → product_id mapping from commentsPerPR (which has both)
-  const botToProduct = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const c of commentsPerPR) {
-      map[c.bot_id] = c.product_id;
-    }
-    return map;
-  }, [commentsPerPR]);
-
   // --- Specialization: Language data ---
   const languageGrid = useMemo(() => {
-    const filtered = languageData.filter((d) => {
-      const productId = botToProduct[d.bot_id];
-      return productId ? selectedSet.has(productId) : false;
-    });
+    const filtered = languageData.filter((d) => selectedSet.has(d.product_id));
     // Group by language, sum pr_count per bot
     const byLang: Record<
       string,
       { name: string; value: number; color: string }[]
     > = {};
     for (const row of filtered) {
-      const productId = botToProduct[row.bot_id] || row.bot_id;
       if (!byLang[row.language]) byLang[row.language] = [];
       byLang[row.language].push({
         name: row.bot_name,
         value: Number(row.pr_count),
-        color: colorMap[productId] || "#818cf8",
+        color: colorMap[row.product_id] || "#818cf8",
       });
     }
     // Sort languages by total PRs, take top 5
@@ -417,7 +409,7 @@ export function RankingsPage({
       }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
-  }, [languageData, selectedSet, colorMap, botToProduct]);
+  }, [languageData, selectedSet, colorMap]);
 
   // Count visible cards per group so we can hide empty groups and their nav links
   const visibleGroups = useMemo(() => {
