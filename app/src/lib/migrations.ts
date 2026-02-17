@@ -16,6 +16,7 @@
 
 import { getClickHouseClient } from "./clickhouse";
 import type { ClickHouseClient } from "@clickhouse/client";
+import * as Sentry from "@sentry/nextjs";
 
 // ---------------------------------------------------------------------------
 // Version & types
@@ -29,6 +30,8 @@ export type SchemaStatus = {
   dbVersion: number;
   expectedVersion: number;
   error?: string;
+  /** Sentry event ID for error/db_behind statuses — link to this for details. */
+  sentryEventId?: string;
 };
 
 type Migration = {
@@ -451,7 +454,23 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     }
 
     // DB is behind — try to auto-migrate
-    const result = await runMigrations(client);
+    let result: { applied: number; error?: string };
+    try {
+      result = await runMigrations(client);
+    } catch (migrationErr) {
+      // DDL failure — migration SQL threw (e.g., permission denied, syntax error)
+      console.error("[schema-migration] Migration DDL failed:", migrationErr);
+      const eventId = Sentry.captureException(migrationErr, {
+        tags: { component: "schema-migration", reason: "ddl_failure" },
+        extra: { dbVersion, expectedVersion: EXPECTED_SCHEMA_VERSION },
+      });
+      return {
+        status: "db_behind",
+        dbVersion,
+        expectedVersion: EXPECTED_SCHEMA_VERSION,
+        sentryEventId: eventId,
+      };
+    }
 
     if (result.error) {
       // Lock contention — re-check if someone else finished
@@ -484,11 +503,16 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     return status;
   } catch (err) {
     // ClickHouse unreachable or misconfigured (e.g., empty URL during build)
+    console.error("[schema-migration] Failed:", err);
+    const eventId = Sentry.captureException(err, {
+      tags: { component: "schema-migration", reason: "connection_failure" },
+      extra: { expectedVersion: EXPECTED_SCHEMA_VERSION },
+    });
     return {
       status: "error",
       dbVersion: 0,
       expectedVersion: EXPECTED_SCHEMA_VERSION,
-      error: err instanceof Error ? err.message : String(err),
+      sentryEventId: eventId,
     };
   }
 }
