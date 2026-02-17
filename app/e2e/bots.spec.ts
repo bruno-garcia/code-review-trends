@@ -78,6 +78,16 @@ test.describe("Bot detail page", () => {
     await expect(page.getByTestId("bot-comments-per-pr")).toBeVisible();
   });
 
+  test("renders multi-bot product page without errors", async ({ page }) => {
+    // Regression: /bots/sentry crashed when a bot had no github_login
+    const response = await page.goto("/bots/sentry");
+    expect(response?.status()).toBe(200);
+    await expect(page.getByTestId("bot-name")).toHaveText("Sentry");
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
+    // Sentry has multiple bots, so the history table should render
+    await expect(page.getByTestId("bot-history-section")).toBeVisible();
+  });
+
   test("returns 404 for unknown bot", async ({ page }) => {
     const response = await page.goto("/bots/nonexistent");
     expect(response?.status()).toBe(404);
