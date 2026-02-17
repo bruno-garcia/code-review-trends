@@ -17,6 +17,9 @@
 
 // Sentry must be imported first to instrument all subsequent modules
 import { Sentry, log, withCronMonitor, countMetric } from "./sentry.js";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const schedules: Record<string, { cron: string; maxRuntime: number; description: string }> = require("../schedules.json");
 
 /**
  * Expected CLI errors (bad args, missing creds, etc.).
@@ -75,16 +78,9 @@ async function main() {
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
   log(`ClickHouse: ${chUrl}`);
 
-  // Commands that run on a schedule get cron monitoring
-  const cronSchedules: Record<string, { type: "crontab"; value: string }> = {
-    sync:              { type: "crontab", value: "0 */6 * * *" },
-    backfill:          { type: "crontab", value: "0 2 * * 1" },
-    discover:          { type: "crontab", value: "0 3 * * *" },
-    "discover-bots":   { type: "crontab", value: "0 6 1 * *" },
-    enrich:            { type: "crontab", value: "0 */4 * * *" },
-  };
-
-  const cronSlug = cronSchedules[command] ? `pipeline-${command}` : undefined;
+  // Commands that run on a schedule get cron monitoring (from schedules.json)
+  const schedule = schedules[command as keyof typeof schedules];
+  const cronSlug = schedule ? `pipeline-${command}` : undefined;
 
   const run = async () => Sentry.startSpan(
     { op: "pipeline.command", name: `pipeline ${command}` },
@@ -92,7 +88,7 @@ async function main() {
   );
 
   if (cronSlug) {
-    await withCronMonitor(cronSlug, run, cronSchedules[command]);
+    await withCronMonitor(cronSlug, run, { type: "crontab", value: schedule.cron }, schedule.maxRuntime);
   } else {
     await run();
   }
