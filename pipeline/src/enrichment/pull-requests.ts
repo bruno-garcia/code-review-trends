@@ -11,14 +11,16 @@ import type { ClickHouseClient } from "@clickhouse/client";
 import {
   insertPullRequests,
   query,
-  type PullRequestRow,
 } from "../clickhouse.js";
 import { extractReactionCounts } from "../github.js";
 import { Sentry, log, logError, countMetric } from "../sentry.js";
-import { type RateLimiter } from "./rate-limiter.js";
+import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
-import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
+import {
+  fetchPRsBatch,
+  GRAPHQL_PR_BATCH_SIZE,
+} from "./graphql-pull-requests.js";
 
 /**
  * Fetch and insert details for PRs discovered in pr_bot_events
@@ -98,7 +100,7 @@ export async function enrichPullRequests(
   let forbidden = 0;
   let rateLimited = 0;
   let errors = 0;
-  const BATCH_SIZE = 100;
+  const BATCH_SIZE = GRAPHQL_PR_BATCH_SIZE;
 
   for (let batchStart = 0; batchStart < validPrs.length; batchStart += BATCH_SIZE) {
     const batch = validPrs.slice(batchStart, batchStart + BATCH_SIZE);
@@ -107,73 +109,76 @@ export async function enrichPullRequests(
     await Sentry.startSpan(
       { op: "enrichment.batch", name: batchLabel },
       async () => {
-        for (const { repo_name, pr_number } of batch) {
-          const [owner, repo] = repo_name.split("/");
-          if (!owner || !repo) continue;
+        const batchInputs = batch.map(({ repo_name, pr_number }) => ({
+          repo_name,
+          pr_number,
+        }));
 
-          await rateLimiter.waitIfNeeded();
+        try {
+          const results = await fetchPRsBatch(octokit, rateLimiter, batchInputs);
 
-          try {
-            const { data, headers } = await octokit.rest.pulls.get({
-              owner,
-              repo,
-              pull_number: pr_number,
-            });
-            rateLimiter.update(headers as Record<string, string>);
-
-            // Determine state: merged > closed > open
-            let state: string;
-            if (data.merged_at) {
-              state = "merged";
-            } else if (data.closed_at) {
-              state = "closed";
-            } else {
-              state = "open";
-            }
-
-            const reactions = extractReactionCounts(data);
-
-            const row: PullRequestRow = {
-              repo_name,
-              pr_number,
-              title: data.title,
-              author: data.user?.login ?? "",
-              state,
-              created_at: data.created_at,
-              merged_at: data.merged_at ?? null,
-              closed_at: data.closed_at ?? null,
-              additions: data.additions,
-              deletions: data.deletions,
-              changed_files: data.changed_files,
-              ...reactions,
-            };
-
-            await insertPullRequests(ch, [row]);
-            fetched++;
-          } catch (err: unknown) {
-            const status = (err as { status?: number }).status;
-
-            if (status === 404) {
+          for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            if (result.row) {
+              await insertPullRequests(ch, [result.row]);
+              fetched++;
+            } else if (result.status === "not_found") {
               notFound++;
-            } else if (status === 403) {
-              const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
-              if (headers) {
-                rateLimiter.update(headers);
-                const retryAfter = headers["retry-after"];
-                if (retryAfter) {
-                  await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
-                }
-              }
-              if (headers?.["retry-after"] || headers?.["x-ratelimit-remaining"] === "0") {
-                rateLimited++;
-              } else {
-                handleEnterprisePolicyError(err, repo_name, "pull-requests");
-                forbidden++;
-              }
-            } else {
-              Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
-              logError(`[pull-requests] Error: ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
-              errors++;
+            } else if (result.status === "forbidden") {
+              forbidden++;
+            }
+          }
+        } catch (err: unknown) {
+          if (err instanceof RateLimitExitError) throw err;
+
+          logError(
+            `[pull-requests] Batch GraphQL failed, processing individually: ${err instanceof Error ? err.message : err}`,
+          );
+
+          // REST fallback
+          for (const { repo_name, pr_number } of batch) {
+            const [owner, repo] = repo_name.split("/");
+            if (!owner || !repo) continue;
+
+            await rateLimiter.waitIfNeeded();
+
+            try {
+              const { data, headers } = await octokit.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pr_number,
+              });
+              rateLimiter.update(headers as Record<string, string>);
+
+              let state: string;
+              if (data.merged_at) state = "merged";
+              else if (data.closed_at) state = "closed";
+              else state = "open";
+
+              const reactions = extractReactionCounts(data);
+
+              await insertPullRequests(ch, [
+                {
+                  repo_name,
+                  pr_number,
+                  title: data.title,
+                  author: data.user?.login ?? "",
+                  state,
+                  created_at: data.created_at,
+                  merged_at: data.merged_at ?? null,
+                  closed_at: data.closed_at ?? null,
+                  additions: data.additions,
+                  deletions: data.deletions,
+                  changed_files: data.changed_files,
+                  ...reactions,
+                },
+              ]);
+              fetched++;
+            } catch (innerErr: unknown) {
+              const status = (innerErr as { status?: number }).status;
+              if (status === 404) notFound++;
+              else if (status === 403) forbidden++;
+              else errors++;
             }
           }
         }
