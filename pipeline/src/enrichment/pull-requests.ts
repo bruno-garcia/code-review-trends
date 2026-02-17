@@ -74,7 +74,7 @@ export async function enrichPullRequests(
     `SELECT count(DISTINCT (e.repo_name, e.pr_number)) as total_pending
      FROM pr_bot_events e
      LEFT JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
-     WHERE p.pr_number IS NULL
+     WHERE p.repo_name = ''
        AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))`,
   ))[0] ?? { total_pending: "0" };
 

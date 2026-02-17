@@ -81,7 +81,7 @@ export async function enrichComments(
      FROM pr_bot_events e
      LEFT JOIN (SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_comments) c
        ON e.repo_name = c.repo_name AND e.pr_number = c.pr_number AND e.bot_id = c.bot_id
-     WHERE c.bot_id IS NULL
+     WHERE c.repo_name = ''
        AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))`,
   ))[0] ?? { total_pending: "0" };
 
