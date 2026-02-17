@@ -176,10 +176,12 @@ export default async function AboutPage() {
         <p className="text-theme-text-secondary leading-relaxed">
           <strong className="text-theme-text">No double counting</strong>: Each
           event type is counted and displayed independently — the chart lets you
-          toggle between Reviews, Review Comments, and PR Comments. A bot that
+          toggle between Reviews and Review Comments. A bot that
           submits 1 review with 5 inline comments contributes 1 to the Reviews
           metric and 5 to the Review Comments metric, but these are never
-          combined. The same counting logic applies to both the bot and
+          combined. PR Comments (IssueCommentEvent) are tracked in aggregate
+          counts but not shown in time-series charts due to incomplete
+          historical data. The same counting logic applies to both the bot and
           non-bot sides, so the ratio is apples-to-apples. Note that we count{" "}
           <em>events</em>, not unique pull requests — if a bot comments twice on
           the same PR, that&apos;s two events.
