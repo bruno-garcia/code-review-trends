@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "clean": "rm -rf .next",
     "test": "npx tsx --test src/lib/color-check.test.ts src/lib/migrations.test.ts",
     "lint": "eslint",
     "test:e2e": "npx playwright test",
