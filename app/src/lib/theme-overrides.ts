@@ -19,6 +19,10 @@ type ThemeOverride = {
 };
 
 const THEME_OVERRIDES: Record<string, ThemeOverride> = {
+  copilot: {
+    // DB may still have old #e5e7eb (invisible on white). Force GitHub blue on light.
+    brand_color_light: "#1f6feb",
+  },
   "openai-codex": {
     // Default #808080 is too muted on both themes
     brand_color_dark: "#b0b0b0",
@@ -67,6 +71,16 @@ export function getThemedBrandColor(
   if (resolved === "dark" && override.brand_color_dark) return override.brand_color_dark;
   if (resolved === "light" && override.brand_color_light) return override.brand_color_light;
   return defaultColor;
+}
+
+/**
+ * Hex alpha suffixes for brand-colored borders and backgrounds.
+ * Light theme needs higher opacity because colored overlays on white wash out.
+ */
+export function getBrandAlpha(resolved: "light" | "dark") {
+  return resolved === "light"
+    ? { border: "90", bg: "20" }  // 56% / 13% — visible on white
+    : { border: "60", bg: "15" }; // 38% / 8%  — subtle on dark
 }
 
 /**

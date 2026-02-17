@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useProductFilter } from "@/lib/product-filter";
 import { TimeRangeSelector } from "@/components/time-range-selector";
 import { useTheme } from "@/components/theme-provider";
-import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
+import { getThemedBrandColor, getAvatarStyle, getBrandAlpha } from "@/lib/theme-overrides";
 
 function ChevronDown({ className }: { className?: string }) {
   return (
@@ -113,13 +113,14 @@ export function ProductFilterBar() {
           <div className="flex-1 hidden sm:flex flex-wrap items-center gap-1.5">
             {selectedProducts.map((p) => {
               const color = getThemedBrandColor(p.id, p.brand_color, resolved);
+              const alpha = getBrandAlpha(resolved);
               return (
               <span
                 key={p.id}
                 className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap border"
                 style={{
-                  borderColor: color + "60",
-                  backgroundColor: color + "15",
+                  borderColor: color + alpha.border,
+                  backgroundColor: color + alpha.bg,
                   color: color,
                 }}
               >
@@ -187,6 +188,7 @@ export function ProductFilterBar() {
               {allProducts.map((p, i) => {
                 const isSelected = selectedSet.has(p.id);
                 const color = getThemedBrandColor(p.id, p.brand_color, resolved);
+                const alpha = getBrandAlpha(resolved);
                 return (
                   <button
                     key={p.id}
@@ -196,14 +198,14 @@ export function ProductFilterBar() {
                     aria-pressed={isSelected}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all border ${
                       isSelected
-                        ? "border-opacity-60 text-theme-text"
+                        ? "text-theme-text"
                         : "border-theme-border text-theme-muted-dim opacity-50 hover:opacity-75"
                     }`}
                     style={
                       isSelected
                         ? {
-                            borderColor: color + "60",
-                            backgroundColor: color + "15",
+                            borderColor: color + alpha.border,
+                            backgroundColor: color + alpha.bg,
                           }
                         : undefined
                     }
