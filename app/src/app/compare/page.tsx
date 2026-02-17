@@ -1,5 +1,6 @@
-import { getProductComparisons, getAvgCommentsPerPR } from "@/lib/clickhouse";
+import { getProductComparisons, getAvgCommentsPerPR, getPrCommentSyncPct } from "@/lib/clickhouse";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
+import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "./compare-charts";
 
 // Revalidate every hour — data only changes weekly via pipeline
@@ -14,9 +15,10 @@ export default async function ComparePage({
   const range = parseTimeRange(params.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [products, commentsPerPR] = await Promise.all([
+  const [products, commentsPerPR, prCommentSyncPct] = await Promise.all([
     getProductComparisons(since),
     getAvgCommentsPerPR(undefined, since),
+    getPrCommentSyncPct(),
   ]);
 
   return (
@@ -28,6 +30,7 @@ export default async function ComparePage({
           dimensions.
         </p>
       </div>
+      <PrCommentSyncBanner pct={prCommentSyncPct} />
       <CompareCharts products={products} commentsPerPR={commentsPerPR} />
     </div>
   );

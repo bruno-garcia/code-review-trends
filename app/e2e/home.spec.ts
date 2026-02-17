@@ -16,7 +16,7 @@ test.describe("Home page", () => {
     ).toBeVisible();
   });
 
-  test("AI share chart toggles between PR Reviews, Review Comments, and PR Comments", async ({
+  test("AI share chart toggles between PR Reviews and Review Comments", async ({
     page,
   }) => {
     await page.goto("/");
@@ -26,18 +26,12 @@ test.describe("Home page", () => {
 
     const reviewsBtn = section.getByTestId("toggle-reviews");
     const commentsBtn = section.getByTestId("toggle-comments");
-    const prCommentsBtn = section.getByTestId("toggle-pr_comments");
     await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");
     await expect(commentsBtn).toHaveAttribute("aria-pressed", "false");
-    await expect(prCommentsBtn).toHaveAttribute("aria-pressed", "false");
 
     await commentsBtn.click();
     await expect(commentsBtn).toHaveAttribute("aria-pressed", "true");
     await expect(reviewsBtn).toHaveAttribute("aria-pressed", "false");
-
-    await prCommentsBtn.click();
-    await expect(prCommentsBtn).toHaveAttribute("aria-pressed", "true");
-    await expect(commentsBtn).toHaveAttribute("aria-pressed", "false");
 
     await reviewsBtn.click();
     await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");

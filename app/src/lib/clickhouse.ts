@@ -1319,3 +1319,38 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     reactions_found: Number(base?.reactions_found ?? 0),
   });
 }
+
+/**
+ * Returns the percentage of PR comment data that has been collected (0–100).
+ * Compares weeks with non-zero pr_comment_count to total weeks with review data
+ * in human_review_activity. Returns null if no data at all.
+ */
+export async function getPrCommentSyncPct(): Promise<number | null> {
+  const cached = getCached<number | null>("prCommentSyncPct");
+  if (cached !== undefined) return cached;
+
+  try {
+    const rows = await query<{
+      weeks_with_pr_comments: string;
+      total_weeks: string;
+    }>(`
+      SELECT
+        countIf(pr_comment_count > 0) AS weeks_with_pr_comments,
+        count() AS total_weeks
+      FROM (
+        SELECT week, sum(pr_comment_count) AS pr_comment_count
+        FROM human_review_activity FINAL
+        GROUP BY week
+      )
+    `);
+    const row = rows[0];
+    const totalWeeks = Number(row?.total_weeks ?? 0);
+    if (!row || totalWeeks === 0) return setCache("prCommentSyncPct", null);
+    return setCache(
+      "prCommentSyncPct",
+      (Number(row.weeks_with_pr_comments) / totalWeeks) * 100,
+    );
+  } catch {
+    return null;
+  }
+}

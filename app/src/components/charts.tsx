@@ -130,7 +130,6 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
   const metricConfig: Record<string, { dataKey: keyof BotShareData; label: string }> = {
     reviews: { dataKey: "bot_share_pct", label: "PR Reviews" },
     comments: { dataKey: "bot_comment_share_pct", label: "Review Comments" },
-    pr_comments: { dataKey: "bot_pr_comment_share_pct", label: "PR Comments" },
   };
 
   const { dataKey, label } = metricConfig[metric];
@@ -141,7 +140,6 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
         options={[
           { value: "reviews", label: "PR Reviews" },
           { value: "comments", label: "Review Comments" },
-          { value: "pr_comments", label: "PR Comments" },
         ]}
         value={metric}
         onChange={setMetric}
@@ -201,7 +199,6 @@ export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
   const metricConfig: Record<string, { dataKey: keyof TotalVolumeData; label: string; color: string }> = {
     reviews: { dataKey: "total_reviews", label: "Reviews", color: "#a78bfa" },
     comments: { dataKey: "total_comments", label: "Review Comments", color: "#22d3ee" },
-    pr_comments: { dataKey: "total_pr_comments", label: "PR Comments", color: "#f97316" },
   };
 
   const { dataKey, label, color } = metricConfig[metric];
@@ -212,7 +209,6 @@ export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
         options={[
           { value: "reviews", label: "Reviews" },
           { value: "comments", label: "Review Comments" },
-          { value: "pr_comments", label: "PR Comments" },
         ]}
         value={metric}
         onChange={setMetric}
@@ -331,9 +327,9 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
 
   const lines: Record<string, { keys: string[]; colors: string[]; names: string[] }> = {
     reviews: {
-      keys: ["review_count", "review_comment_count", "pr_comment_count"],
-      colors: ["#a78bfa", "#22d3ee", "#f97316"],
-      names: ["Reviews", "Review Comments", "PR Comments"],
+      keys: ["review_count", "review_comment_count"],
+      colors: ["#a78bfa", "#22d3ee"],
+      names: ["Reviews", "Review Comments"],
     },
     repos: {
       keys: ["repo_count", "org_count"],

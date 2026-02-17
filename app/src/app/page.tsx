@@ -53,7 +53,7 @@ export default async function Home() {
           Total AI Review Volume
         </h2>
         <p className="text-theme-muted mb-6">
-          Weekly volume of AI-generated code reviews, comments, and PR comments across all bots.
+          Weekly volume of AI-generated code reviews and review comments across all bots.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <TotalVolumeChart data={totalVolume} />

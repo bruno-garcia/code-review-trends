@@ -6,7 +6,9 @@ import {
   getWeeklyActivityByProduct,
   getBotsByLanguage,
   getAvgCommentsPerPR,
+  getPrCommentSyncPct,
 } from "@/lib/clickhouse";
+import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import {
   SingleBotChart,
   BotLanguageChart,
@@ -29,13 +31,14 @@ export default async function ProductPage({
   const range = parseTimeRange(sp.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [product, allSummaries, productBots, activity, languageData, commentsPerPR] = await Promise.all([
+  const [product, allSummaries, productBots, activity, languageData, commentsPerPR, prCommentSyncPct] = await Promise.all([
     getProductById(id),
     getProductSummaries(since),
     getProductBots(id, since),
     getWeeklyActivityByProduct(id, since),
     getBotsByLanguage(id, since),
     getAvgCommentsPerPR(id, since),
+    getPrCommentSyncPct(),
   ]);
 
   if (!product) {
@@ -141,6 +144,8 @@ export default async function ProductPage({
           </span>
         </div>
       </div>
+
+      <PrCommentSyncBanner pct={prCommentSyncPct} />
 
       {/* Summary stats */}
       <div className="space-y-4" data-testid="bot-stats">
