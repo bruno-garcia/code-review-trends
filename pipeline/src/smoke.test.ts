@@ -33,13 +33,11 @@ import {
   insertHumanActivity,
   insertPrBotEvents,
   insertRepos,
-  insertRepoLanguages,
   insertPullRequests,
   insertPrComments,
   syncBots,
   syncProducts,
   type RepoRow,
-  type RepoLanguageRow,
   type PullRequestRow,
   type PrCommentRow,
 } from "./clickhouse.js";
@@ -421,7 +419,6 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
 
   describe("repo metadata", () => {
     let repoData: Awaited<ReturnType<typeof octokit.rest.repos.get>>["data"];
-    let languages: Record<string, number>;
 
     before(async () => {
       const resp = await octokit.rest.repos.get({
@@ -429,12 +426,6 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         repo: TEST_REPO_NAME,
       });
       repoData = resp.data;
-
-      const langResp = await octokit.rest.repos.listLanguages({
-        owner: TEST_REPO_OWNER,
-        repo: TEST_REPO_NAME,
-      });
-      languages = langResp.data as Record<string, number>;
     });
 
     it("has stars > 0", () => {
@@ -443,11 +434,6 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
 
     it("has primary language", () => {
       assert.ok(repoData.language, "primary language should not be null");
-    });
-
-    it("has language breakdown", () => {
-      assert.ok(Object.keys(languages).length > 0, "language breakdown should not be empty");
-      assert.ok(languages["TypeScript"]! > 0, "TypeScript bytes should be > 0");
     });
 
     it("maps cleanly to RepoRow", () => {
@@ -476,11 +462,6 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
         fetch_status: "ok",
       };
       await insertRepos(ch, [row]);
-
-      const langRows: RepoLanguageRow[] = Object.entries(languages).map(
-        ([language, bytes]) => ({ repo_name: repoData.full_name, language, bytes }),
-      );
-      await insertRepoLanguages(ch, langRows);
 
       const readBack = await query<{ name: string; stars: string; primary_language: string }>(
         ch,

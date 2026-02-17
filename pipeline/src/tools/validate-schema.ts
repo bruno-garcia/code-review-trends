@@ -74,12 +74,6 @@ const EXPECTED_TABLES: Record<string, Record<string, string>> = {
     fetch_status: "String",
     updated_at: "DateTime",
   },
-  repo_languages: {
-    repo_name: "String",
-    language: "String",
-    bytes: "UInt64",
-    updated_at: "DateTime",
-  },
   pull_requests: {
     repo_name: "String",
     pr_number: "UInt32",
