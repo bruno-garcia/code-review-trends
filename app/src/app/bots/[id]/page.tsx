@@ -187,7 +187,6 @@ export default async function ProductPage({
               <thead className="text-theme-muted border-b border-theme-border">
                 <tr>
                   <th className="pb-3 pr-4">Bot</th>
-                  <th className="pb-3 pr-4">GitHub Login</th>
                   <th className="pb-3 pr-4 text-right">Reviews</th>
                   <th className="pb-3 pr-4 text-right">Review Comments</th>
                   <th className="pb-3 pr-4 text-right">PR Comments</th>
@@ -198,17 +197,10 @@ export default async function ProductPage({
               <tbody>
                 {productBots.map((bot) => (
                   <tr
-                    key={`${bot.id}-${bot.github_login}`}
+                    key={bot.id}
                     className="border-b border-theme-border/50"
                   >
                     <td className="py-3 pr-4 font-medium">{bot.name}</td>
-                    <td className="py-3 pr-4">
-                      {bot.github_login ? (
-                        <GitHubLogin login={bot.github_login} />
-                      ) : (
-                        <span className="text-theme-muted/50">—</span>
-                      )}
-                    </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
                       {Number(bot.total_reviews).toLocaleString()}
                     </td>
