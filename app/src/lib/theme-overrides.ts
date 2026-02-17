@@ -36,7 +36,7 @@ const THEME_OVERRIDES: Record<string, ThemeOverride> = {
     brand_color_dark: "#b0bec5",
     brand_color_light: "#546e7a",
   },
-  "augment-code": {
+  augment: {
     // Default #968CFF is pastel purple — faded on light
     brand_color_light: "#6c5ce7",
   },
