@@ -45,12 +45,18 @@ except OSError:
 ensure_ports() {
   if [[ -f "$ENV_FILE" ]] && grep -q "^CLICKHOUSE_HTTP_PORT=" "$ENV_FILE" 2>/dev/null; then
     source "$ENV_FILE"
-    # Verify saved ports are still free (another process may have claimed them)
-    if port_is_free "$CLICKHOUSE_HTTP_PORT" && port_is_free "$CLICKHOUSE_NATIVE_PORT" && port_is_free "$NEXT_PORT"; then
-      export CLICKHOUSE_HTTP_PORT CLICKHOUSE_NATIVE_PORT CLICKHOUSE_URL CLICKHOUSE_USER CLICKHOUSE_PASSWORD CLICKHOUSE_DB NEXT_PORT
-      return
+    # Ensure saved ports are present and non-empty before checking them
+    if [[ -n "${CLICKHOUSE_HTTP_PORT:-}" && -n "${CLICKHOUSE_NATIVE_PORT:-}" && -n "${NEXT_PORT:-}" ]]; then
+      # Verify saved ports are still free (another process may have claimed them)
+      if port_is_free "$CLICKHOUSE_HTTP_PORT" && port_is_free "$CLICKHOUSE_NATIVE_PORT" && port_is_free "$NEXT_PORT"; then
+        export CLICKHOUSE_HTTP_PORT CLICKHOUSE_NATIVE_PORT CLICKHOUSE_URL CLICKHOUSE_USER CLICKHOUSE_PASSWORD CLICKHOUSE_DB NEXT_PORT
+        return
+      fi
+      echo "Saved ports are in use — reassigning..."
+    else
+      echo "Saved ports are invalid — reassigning..."
     fi
-    echo "Saved ports are in use — reassigning..."
+    unset CLICKHOUSE_URL CLICKHOUSE_USER CLICKHOUSE_PASSWORD CLICKHOUSE_DB
     rm -f "$ENV_FILE"
   fi
 

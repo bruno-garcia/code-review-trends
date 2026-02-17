@@ -34,8 +34,11 @@ export default async function RootLayout({
   let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
   let enrichmentIncomplete = false;
   try {
-    summaries = await getProductSummaries();
-    const enrichment = await getEnrichmentStats();
+    const [summariesData, enrichment] = await Promise.all([
+      getProductSummaries(),
+      getEnrichmentStats(),
+    ]);
+    summaries = summariesData;
     enrichmentIncomplete =
       enrichment.total_discovered_repos > enrichment.enriched_repos ||
       enrichment.total_discovered_prs > enrichment.enriched_prs;
@@ -85,7 +88,7 @@ export default async function RootLayout({
           <footer className="border-t border-theme-border py-8 text-center text-sm text-theme-muted">
             {enrichmentIncomplete && (
               <div className="mb-4 inline-flex items-center gap-2 justify-center" data-testid="data-import-status">
-                <span className="relative flex h-2.5 w-2.5">
+                <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
                 </span>
