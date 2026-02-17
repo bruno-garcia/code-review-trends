@@ -26,6 +26,7 @@ export type ReactionBatchResult = {
   input: ReactionBatchInput;
   reactions: PrBotReactionRow[];
   scanned: boolean; // true if successfully checked
+  hasMore?: boolean; // true if >20 hooray reactions (truncated)
   error?: string;
 };
 
@@ -62,6 +63,7 @@ export async function fetchReactionsBatch(
           number
           reactions(content: HOORAY, first: 20) {
             totalCount
+            pageInfo { hasNextPage }
             nodes {
               databaseId
               user { login }
@@ -106,6 +108,7 @@ export async function fetchReactionsBatch(
           number: number;
           reactions: {
             totalCount: number;
+            pageInfo: { hasNextPage: boolean };
             nodes: Array<{
               databaseId: number;
               user: { login: string } | null;
@@ -139,10 +142,12 @@ export async function fetchReactionsBatch(
           });
         }
 
+        const hasMore = prData.reactions.pageInfo.hasNextPage;
         results.push({
           input,
           reactions: botReactions,
           scanned: true,
+          hasMore,
         });
       }
     }
