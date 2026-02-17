@@ -79,7 +79,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   }>(ch, `SELECT
     (SELECT countDistinct(repo_name) FROM pr_bot_events) as repos_total,
     (SELECT countDistinct(name) FROM repos) as repos_done,
-    (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_bot_events WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) as comments_total,
+    (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_bot_events) as comments_total,
     (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_comments) as comments_done,
     (SELECT countDistinct(repo_name, pr_number) FROM pr_bot_events) as reactions_total,
     (SELECT countDistinct(repo_name, pr_number) FROM reaction_scan_progress) as reactions_done,
