@@ -124,7 +124,7 @@ export function createCloudRunJobs(
         schedule: schedule.cron,
         timeZone: "UTC",
         httpTarget: {
-          uri: pulumi.interpolate`https://${gcp.config.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${gcp.config.project}/jobs/${jobName}:run`,
+          uri: pulumi.interpolate`https://${gcp.config.region!}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${gcp.config.project}/jobs/${jobName}:run`,
           httpMethod: "POST",
           oauthToken: {
             serviceAccountEmail: runtimeSa.email,

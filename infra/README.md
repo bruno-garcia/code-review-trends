@@ -13,8 +13,8 @@ Pulumi (TypeScript) infrastructure for Code Review Trends, running on GCP.
 - **Service accounts**: runtime (Cloud Run app + jobs) and deploy (GitHub Actions CI)
 - **Workload Identity Federation** pool + provider for keyless GitHub Actions → GCP auth
 - **Cloud Run service** for the Next.js app with custom domain mapping
-- **4 Cloud Run Jobs** for the pipeline: sync, backfill, discover, enrich
-- **4 Cloud Scheduler triggers** to run pipeline jobs on cron schedules
+- **5 Cloud Run Jobs** for the pipeline: sync, backfill, discover, discover-bots, enrich
+- **5 Cloud Scheduler triggers** to run pipeline jobs on cron schedules
 - **IAM bindings** for service accounts (Secret Manager access, BigQuery, Artifact Registry, Cloud Run admin)
 
 All resources are prefixed `crt-{env}-*` and live in their own VPC, fully isolated from other workloads in the GCP project.
