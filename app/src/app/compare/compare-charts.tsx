@@ -107,7 +107,7 @@ const METRICS: {
   {
     key: "growth_pct",
     label: "Growth",
-    description: "Review growth: last 4 weeks vs. previous 4 weeks",
+    description: "Review growth: last 12 weeks vs. previous 12 weeks",
     format: (v) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(1)}%`,
   },
   {

@@ -251,7 +251,7 @@ export async function getProductById(id: string): Promise<Product | null> {
 
 export async function getProductSummaries(since?: string): Promise<ProductSummary[]> {
   // Don't filter the CTE — apply since via sumIf so growth_pct always has
-  // access to the full 8-week window it needs for comparison.
+  // access to the full 24-week window it needs for comparison.
   const sinceCond = since
     ? "week >= toDate({since:String})"
     : "1";
@@ -261,6 +261,10 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
   return query<ProductSummary>(
     `
     WITH
+      ref AS (
+        SELECT max(week) AS ref_week FROM review_activity FINAL
+        WHERE week < toStartOfWeek(now(), 1)
+      ),
       weekly_product AS (
         SELECT
           b.product_id,
@@ -283,8 +287,9 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
           minIf(week, ${sinceCond}) AS first_seen,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM weekly_product
         GROUP BY product_id
       ),
@@ -315,8 +320,8 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_period_reviews > 0,
-          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+        if(ra.prev_12w_reviews > 0,
+          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
           0),
         1
       ) AS growth_pct,
@@ -381,6 +386,10 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
   return query<ProductComparison>(
     `
     WITH
+      ref AS (
+        SELECT max(week) AS ref_week FROM review_activity FINAL
+        WHERE week < toStartOfWeek(now(), 1)
+      ),
       weekly_product AS (
         SELECT
           b.product_id,
@@ -403,10 +412,11 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
           countIf(DISTINCT week, ${sinceCond}) AS weeks_active,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
-          sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
+          sumIf(review_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_comments,
+          sumIf(pr_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_pr_comments,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM weekly_product
         GROUP BY product_id
       ),
@@ -440,8 +450,8 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
         0), 1) AS approval_rate,
       round(
-        if(ra.prev_period_reviews > 0,
-          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+        if(ra.prev_12w_reviews > 0,
+          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
           0),
         1
       ) AS growth_pct,
@@ -587,6 +597,10 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
   return query<BotSummary>(
     `
     WITH
+      ref AS (
+        SELECT max(week) AS ref_week FROM review_activity FINAL
+        WHERE week < toStartOfWeek(now(), 1)
+      ),
       activity_agg AS (
         SELECT
           bot_id,
@@ -596,8 +610,9 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
           minIf(week, ${sinceCond}) AS first_seen,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM review_activity FINAL
         GROUP BY bot_id
       ),
@@ -626,8 +641,8 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_period_reviews > 0,
-          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+        if(ra.prev_12w_reviews > 0,
+          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
           0),
         1
       ) AS growth_pct,
@@ -658,6 +673,10 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
   return query<BotComparison>(
     `
     WITH
+      ref AS (
+        SELECT max(week) AS ref_week FROM review_activity FINAL
+        WHERE week < toStartOfWeek(now(), 1)
+      ),
       activity_agg AS (
         SELECT
           bot_id,
@@ -667,10 +686,11 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
           countIf(${sinceCond}) AS weeks_active,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
-          sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
+          sumIf(review_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_comments,
+          sumIf(pr_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_pr_comments,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM review_activity FINAL
         GROUP BY bot_id
       ),
@@ -702,8 +722,8 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
         COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
         0), 1) AS approval_rate,
       round(
-        if(ra.prev_period_reviews > 0,
-          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+        if(ra.prev_12w_reviews > 0,
+          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
           0),
         1
       ) AS growth_pct,

@@ -160,7 +160,7 @@ export default async function ProductPage({
             value={commentsPerRepo.toLocaleString()}
           />
           <StatCard
-            label="Growth (4w)"
+            label="Growth (12w)"
             value={`${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`}
             color={growthPct >= 0 ? "text-emerald-400" : "text-red-400"}
           />
