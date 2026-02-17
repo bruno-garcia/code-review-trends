@@ -435,11 +435,18 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
       // Some ClickHouse errors have an empty .message but useful .toString()
       message = err.message || err.toString();
       if (err.cause) {
-        message += ` (cause: ${err.cause instanceof Error ? err.cause.message : String(err.cause)})`;
+        const cause = err.cause;
+        const causeMessage =
+          cause instanceof Error
+            ? cause.message || cause.toString()
+            : String(cause);
+        message += ` (cause: ${causeMessage})`;
       }
     } else {
       message = String(err);
     }
+    // Log full error server-side for debugging (the banner only shows a summary)
+    console.error("[schema-migration] Failed:", message);
     return {
       status: "error",
       dbVersion: 0,
