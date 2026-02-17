@@ -7,7 +7,8 @@ import {
 } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
+// Revalidate every hour — data only changes weekly via pipeline
+export const revalidate = 3600;
 
 export default async function OrgPage({
   params,

@@ -30,7 +30,7 @@ export default async function RootLayout({
   const schemaStatus = await getSchemaStatus();
 
   // Gracefully handle missing ClickHouse during next build (pre-render).
-  // Pages are force-dynamic so this only matters for static shells like /_not-found.
+  // Pages use ISR (revalidate = 3600) so this only matters for static shells like /_not-found.
   let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
   let enrichmentIncomplete = false;
   try {

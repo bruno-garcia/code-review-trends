@@ -436,8 +436,6 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
       expectedVersion: EXPECTED_SCHEMA_VERSION,
       error: err instanceof Error ? err.message : String(err),
     };
-  } finally {
-    await client?.close();
   }
 }
 

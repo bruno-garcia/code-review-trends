@@ -1,7 +1,8 @@
 import { getDataCollectionStats, type DataCollectionStats } from "@/lib/clickhouse";
 import { DataCollectionPanel } from "@/components/data-collection-stats";
 
-export const dynamic = "force-dynamic";
+// Revalidate every hour — data only changes weekly via pipeline
+export const revalidate = 3600;
 
 export default async function StatusPage() {
   let stats: DataCollectionStats;

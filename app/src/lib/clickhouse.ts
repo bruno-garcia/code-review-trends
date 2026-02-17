@@ -18,13 +18,21 @@ function setCache<T>(key: string, data: T): T {
   return data;
 }
 
+// Persistent singleton client — reused across requests within a container.
+// Avoids TLS handshake + auth overhead on every query.
+let _client: ReturnType<typeof createClient> | null = null;
+
 export function getClickHouseClient() {
-  return createClient({
-    url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
-    username: process.env.CLICKHOUSE_USER ?? "default",
-    password: process.env.CLICKHOUSE_PASSWORD ?? "dev",
-    database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
-  });
+  if (!_client) {
+    _client = createClient({
+      url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
+      username: process.env.CLICKHOUSE_USER ?? "default",
+      password: process.env.CLICKHOUSE_PASSWORD ?? "dev",
+      database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
+      keep_alive: { enabled: true },
+    });
+  }
+  return _client;
 }
 
 export type Product = {
@@ -227,16 +235,12 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
     },
     async () => {
       const client = getClickHouseClient();
-      try {
-        const result = await client.query({
-          query: sql,
-          query_params: params ?? {},
-          format: "JSONEachRow",
-        });
-        return (await result.json()) as T[];
-      } finally {
-        await client.close();
-      }
+      const result = await client.query({
+        query: sql,
+        query_params: params ?? {},
+        format: "JSONEachRow",
+      });
+      return (await result.json()) as T[];
     },
   );
 }

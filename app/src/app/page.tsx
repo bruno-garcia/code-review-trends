@@ -10,7 +10,8 @@ import {
 } from "@/components/charts";
 
 
-export const dynamic = "force-dynamic";
+// Revalidate every hour — data only changes weekly via pipeline
+export const revalidate = 3600;
 
 export default async function Home() {
   const [totals, totalVolume, topOrgs] = await Promise.all([
