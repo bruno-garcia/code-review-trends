@@ -161,12 +161,12 @@ After `pulumi up`, retrieve WIF outputs and configure them as GitHub repository 
 
 ```bash
 # Get the values from Pulumi
-pulumi stack output wifProvider
-pulumi stack output deploySaEmail
+pulumi stack output workloadIdentityProvider --show-secrets
+pulumi stack output deployServiceAccountEmail --show-secrets
 
 # Set as GitHub repo Variables (used by CI deploy workflow)
-gh variable set WIF_PROVIDER --body "$(pulumi stack output wifProvider)"
-gh variable set DEPLOY_SA_EMAIL --body "$(pulumi stack output deploySaEmail)"
+gh variable set WIF_PROVIDER --body "$(pulumi stack output workloadIdentityProvider --show-secrets)"
+gh variable set DEPLOY_SA_EMAIL --body "$(pulumi stack output deployServiceAccountEmail --show-secrets)"
 
 # Set Sentry auth token as a GitHub Secret (this one IS sensitive)
 gh secret set SENTRY_AUTH_TOKEN --body "<your-sentry-auth-token>"

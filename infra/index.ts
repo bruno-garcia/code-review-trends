@@ -59,8 +59,9 @@ export const appUrl = cloudRunApp.serviceUrl;
 export const artifactRegistryUrl = artifactRegistry.registryUrl;
 
 // CI auth (Workload Identity Federation)
-export const workloadIdentityProvider = pulumi.secret(workloadIdentity.provider.name);
-export const deployServiceAccountEmail = pulumi.secret(serviceAccounts.deploySa.email);
+// These are resource identifiers, not credentials — useless without the WIF trust.
+export const workloadIdentityProvider = workloadIdentity.provider.name;
+export const deployServiceAccountEmail = serviceAccounts.deploySa.email;
 
 // Reference
-export const runtimeServiceAccountEmail = pulumi.secret(serviceAccounts.runtimeSa.email);
+export const runtimeServiceAccountEmail = serviceAccounts.runtimeSa.email;

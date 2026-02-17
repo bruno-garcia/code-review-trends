@@ -36,7 +36,9 @@ export function createWorkloadIdentity(
         "attribute.repository": "assertion.repository",
         "attribute.ref": "assertion.ref",
       },
-      attributeCondition: `assertion.repository == '${cfg.githubRepo}'`,
+      // Restrict to this repo AND main branch only — prevents fork PRs
+      // and feature branches from authenticating as the deploy SA.
+      attributeCondition: `assertion.repository == '${cfg.githubRepo}' && assertion.ref == 'refs/heads/main'`,
     },
     { parent },
   );
