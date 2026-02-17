@@ -343,22 +343,26 @@ const SCHEMA_MIGRATIONS: { version: number; name: string }[] = [
   { version: 2, name: "pr_bot_reactions" },
 ];
 
-/** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table or no rows. */
-async function querySchemaVersion(client: import("@clickhouse/client").ClickHouseClient): Promise<{
+/** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table. */
+async function querySchemaVersion(client: import("@clickhouse/client").ClickHouseClient, database: string): Promise<{
   version: number;
   appliedVersions: { version: number; name: string; applied_at: string }[];
 }> {
   try {
     const result = await client.query({
-      query: "SELECT version, name, toString(applied_at) as applied_at FROM code_review_trends.schema_migrations ORDER BY version",
+      query: `SELECT version, name, toString(applied_at) as applied_at FROM ${database}.schema_migrations ORDER BY version`,
       format: "JSONEachRow",
     });
     const rows = (await result.json()) as { version: number; name: string; applied_at: string }[];
     const maxVersion = rows.reduce((max, r) => Math.max(max, r.version), 0);
     return { version: maxVersion, appliedVersions: rows };
-  } catch {
+  } catch (err) {
     // Table doesn't exist yet — fresh database
-    return { version: 0, appliedVersions: [] };
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("UNKNOWN_TABLE") || msg.includes("doesn't exist") || msg.includes("does not exist")) {
+      return { version: 0, appliedVersions: [] };
+    }
+    throw err;
   }
 }
 
@@ -452,6 +456,7 @@ async function cmdMigrate() {
   }
 
   const clickhouseUser = process.env.CLICKHOUSE_USER ?? "default";
+  const clickhouseDb = process.env.CLICKHOUSE_DB ?? "code_review_trends";
 
   // --- Query current DB version ---
 
@@ -463,7 +468,7 @@ async function cmdMigrate() {
   });
 
   try {
-    const { version: currentVersion, appliedVersions } = await querySchemaVersion(client);
+    const { version: currentVersion, appliedVersions } = await querySchemaVersion(client, clickhouseDb);
     const appliedSet = new Set(appliedVersions.map((v) => v.version));
     const pendingMigrations = SCHEMA_MIGRATIONS.filter((m) => !appliedSet.has(m.version));
 
@@ -471,7 +476,9 @@ async function cmdMigrate() {
 
     console.log("");
     console.log(`Schema version:  v${currentVersion} → v${targetVersion}`);
-    if (currentVersion === targetVersion) {
+    if (currentVersion > targetVersion) {
+      console.log(`Status:          ⚠ database is ahead of CLI (v${currentVersion} > v${targetVersion})`);
+    } else if (currentVersion === targetVersion) {
       console.log(`Status:          ✓ up to date`);
     } else if (currentVersion === 0) {
       console.log(`Status:          fresh database (${pendingMigrations.length} migrations to record)`);
@@ -545,7 +552,7 @@ async function cmdMigrate() {
       url: clickhouseUrl,
       username: clickhouseUser,
       password: clickhousePassword,
-      database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
+      database: clickhouseDb,
     });
     try {
       await syncProducts(chClient, PRODUCTS);
