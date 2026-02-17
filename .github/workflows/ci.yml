@@ -9,6 +9,7 @@ on:
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +47,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       clickhouse:
         image: clickhouse/clickhouse-server:24.12
@@ -136,6 +138,7 @@ jobs:
 
   deploy-staging:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [lint-and-build, e2e]
     permissions:
