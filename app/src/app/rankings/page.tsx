@@ -12,12 +12,12 @@ import {
   getCategoryReviewVerdicts,
   getCategoryGrowth,
 } from "@/lib/clickhouse";
-import { CategoriesPage } from "@/components/categories-page";
+import { RankingsPage } from "@/components/rankings-page";
 
 export const dynamic = "force-dynamic";
 
-export default async function CategoriesRoute() {
-  // Some category queries may fail on resource-constrained databases
+export default async function RankingsRoute() {
+  // Some ranking queries may fail on resource-constrained databases
   // (memory limits) or databases missing columns (review_state).
   // Gracefully degrade: the UI shows "Insufficient data" for failed queries.
   const safe = <T,>(p: Promise<T[]>): Promise<T[]> => p.catch(() => []);
@@ -53,13 +53,13 @@ export default async function CategoriesRoute() {
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="text-3xl font-bold">Categories</h1>
+        <h1 className="text-3xl font-bold">Rankings</h1>
         <p className="mt-2 text-theme-muted">
           Compare AI code review products across different dimensions. Find the
           right tool for what matters to you.
         </p>
       </div>
-      <CategoriesPage
+      <RankingsPage
         comparisons={comparisons}
         commentsPerPR={commentsPerPR}
         languageData={languageData}

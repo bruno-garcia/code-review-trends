@@ -63,12 +63,6 @@ export default async function ProductPage({
   const commentsPerRepo = Number(summary?.comments_per_repo ?? 0);
   const growthPct = Number(summary?.growth_pct ?? 0);
 
-  // Rank among all products
-  const reviewRank =
-    [...allSummaries]
-      .sort((a, b) => Number(b.total_reviews) - Number(a.total_reviews))
-      .findIndex((s) => s.id === id) + 1;
-
   // Collect unique GitHub logins from bots
   const githubLogins = [
     ...new Set(productBots.map((b) => b.github_login).filter(Boolean)),
@@ -134,10 +128,7 @@ export default async function ProductPage({
               ))}
             </span>
           )}
-          <span className="text-sm text-theme-muted/70">
-            Rank: <span className="text-theme-text font-medium">#{reviewRank}</span>{" "}
-            of {allSummaries.length}
-          </span>
+
         </div>
       </div>
 

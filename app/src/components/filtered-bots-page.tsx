@@ -95,7 +95,7 @@ export function FilteredBotsPage({
       {/* Product Leaderboard */}
       <section data-testid="leaderboard-section">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-semibold">Leaderboard</h2>
+          <h2 className="text-2xl font-semibold">Product Overview</h2>
           <Link
             href="/compare"
             className="text-sm text-violet-400 hover:text-violet-300 transition-colors"

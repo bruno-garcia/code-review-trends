@@ -186,7 +186,7 @@ const EDITORS_PICKS: Record<string, { product: string; reason: string }> = {
   "merge-correlation": { product: "CodeRabbit", reason: "High merge rate suggests the reviews add confidence, not friction." },
 };
 
-export function CategoriesPage({
+export function RankingsPage({
   comparisons,
   commentsPerPR,
   languageData,
@@ -484,10 +484,10 @@ export function CategoriesPage({
   }, [responseTime, selectedSet]);
 
   return (
-    <div data-testid="categories-page">
+    <div data-testid="rankings-page">
       {/* Jump links nav */}
       <nav
-        data-testid="categories-nav"
+        data-testid="rankings-nav"
         className="sticky top-0 z-20 bg-theme-bg/95 backdrop-blur border-b border-theme-border py-3 flex gap-4 overflow-x-auto"
       >
         {GROUPS.map((g) => (
