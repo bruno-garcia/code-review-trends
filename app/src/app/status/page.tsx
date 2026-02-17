@@ -21,6 +21,9 @@ export default async function StatusPage() {
       prs_enriched: 0,
       comments_discovered: 0,
       comments_enriched: 0,
+      reactions_total: 0,
+      reactions_scanned: 0,
+      reactions_found: 0,
     };
   }
 
