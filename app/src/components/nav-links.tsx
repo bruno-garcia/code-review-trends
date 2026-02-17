@@ -7,6 +7,7 @@ const navItems = [
   { href: "/", label: "Overview" },
   { href: "/bots", label: "Bots" },
   { href: "/orgs", label: "Orgs" },
+  { href: "/prs", label: "PRs" },
   { href: "/compare", label: "Compare" },
   { href: "/about", label: "About" },
   { href: "/status", label: "Status" },

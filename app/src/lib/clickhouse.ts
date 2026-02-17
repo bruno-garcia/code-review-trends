@@ -1354,3 +1354,128 @@ export async function getPrCommentSyncPct(): Promise<number | null> {
     return null;
   }
 }
+
+// --- PR Explorer queries ---
+
+export type PRListItem = {
+  repo_name: string;
+  pr_number: number;
+  title: string;
+  author: string;
+  state: string;
+  repo_stars: number;
+  primary_language: string;
+  bot_count: number;
+  bot_names: string[];
+  comment_thumbs_up: number;
+  comment_thumbs_down: number;
+  total_bot_comments: number;
+  additions: number;
+  deletions: number;
+};
+
+export type PRListSort = "bots" | "thumbs_up" | "comments" | "stars" | "recent";
+
+export type PRListResult = {
+  prs: PRListItem[];
+  total: number;
+};
+
+export async function getPRList(options: {
+  sort?: PRListSort;
+  language?: string;
+  productId?: string;
+  minStars?: number;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<PRListResult> {
+  const { sort = "bots", language, productId, minStars, limit = 50, offset = 0 } = options;
+
+  const conditions: string[] = [
+    "r.fetch_status = 'ok'",
+    "p.title != ''",
+  ];
+  const params: Record<string, unknown> = {
+    limit: limit + 1,
+    offset,
+  };
+
+  if (language) {
+    conditions.push("r.primary_language = {language:String}");
+    params.language = language;
+  }
+  if (productId) {
+    conditions.push("b.product_id = {productId:String}");
+    params.productId = productId;
+  }
+  if (minStars && minStars > 0) {
+    conditions.push("r.stars >= {minStars:UInt32}");
+    params.minStars = minStars;
+  }
+
+  const orderBy = sort === "thumbs_up" ? "comment_thumbs_up DESC, bot_count DESC"
+    : sort === "comments" ? "total_bot_comments DESC, bot_count DESC"
+    : sort === "stars" ? "repo_stars DESC, bot_count DESC"
+    : sort === "recent" ? "max_event_week DESC, repo_stars DESC"
+    : "bot_count DESC, repo_stars DESC";
+
+  const whereClause = conditions.join(" AND ");
+
+  const dataQuery = `
+    SELECT
+      e.repo_name,
+      e.pr_number,
+      any(p.title) AS title,
+      any(p.author) AS author,
+      any(p.state) AS state,
+      any(r.stars) AS repo_stars,
+      any(r.primary_language) AS primary_language,
+      countDistinct(e.bot_id) AS bot_count,
+      groupUniqArray(b.name) AS bot_names,
+      COALESCE(any(cm.comment_thumbs_up), 0) AS comment_thumbs_up,
+      COALESCE(any(cm.comment_thumbs_down), 0) AS comment_thumbs_down,
+      COALESCE(any(cm.total_bot_comments), 0) AS total_bot_comments,
+      any(p.additions) AS additions,
+      any(p.deletions) AS deletions,
+      max(e.event_week) AS max_event_week
+    FROM pr_bot_events e
+    JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
+    JOIN repos r ON e.repo_name = r.name
+    JOIN bots b ON e.bot_id = b.id
+    LEFT JOIN (
+      SELECT repo_name, pr_number,
+        sumIf(thumbs_up, comment_id > 0) AS comment_thumbs_up,
+        sumIf(thumbs_down, comment_id > 0) AS comment_thumbs_down,
+        countIf(comment_id > 0) AS total_bot_comments
+      FROM pr_comments FINAL
+      GROUP BY repo_name, pr_number
+    ) cm ON e.repo_name = cm.repo_name AND e.pr_number = cm.pr_number
+    WHERE ${whereClause}
+    GROUP BY e.repo_name, e.pr_number
+    ORDER BY ${orderBy}
+    LIMIT {limit:UInt32}
+    OFFSET {offset:UInt32}
+  `;
+
+  const countQuery = `
+    SELECT count() AS total FROM (
+      SELECT e.repo_name, e.pr_number
+      FROM pr_bot_events e
+      JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
+      JOIN repos r ON e.repo_name = r.name
+      ${productId ? "JOIN bots b ON e.bot_id = b.id" : ""}
+      WHERE ${whereClause}
+      GROUP BY e.repo_name, e.pr_number
+    )
+  `;
+
+  const [prs, countRows] = await Promise.all([
+    query<PRListItem & { max_event_week: string }>(dataQuery, params),
+    query<{ total: number }>(countQuery, params),
+  ]);
+
+  return {
+    prs: prs.slice(0, limit),
+    total: countRows[0]?.total ?? 0,
+  };
+}
