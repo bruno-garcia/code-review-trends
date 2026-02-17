@@ -502,9 +502,30 @@ export function BotReactionLeaderboardChart({
           />
           <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
-          <Bar dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" animationDuration={ANIM_DURATION} animationEasing={ANIM_EASING} />
-          <Bar dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" animationDuration={ANIM_DURATION} animationEasing={ANIM_EASING} />
-          <Bar dataKey="total_thumbs_down" fill="#ef4444" name="👎" stackId="a" animationDuration={ANIM_DURATION} animationEasing={ANIM_EASING} />
+          <Bar
+            dataKey="total_thumbs_up"
+            fill="#10b981"
+            name="👍"
+            stackId="a"
+            animationDuration={ANIM_DURATION}
+            animationEasing={ANIM_EASING}
+          />
+          <Bar
+            dataKey="total_heart"
+            fill="#ec4899"
+            name="❤️"
+            stackId="a"
+            animationDuration={ANIM_DURATION}
+            animationEasing={ANIM_EASING}
+          />
+          <Bar
+            dataKey="total_thumbs_down"
+            fill="#ef4444"
+            name="👎"
+            stackId="a"
+            animationDuration={ANIM_DURATION}
+            animationEasing={ANIM_EASING}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
