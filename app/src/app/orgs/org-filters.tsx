@@ -51,12 +51,15 @@ export function OrgFilters({
         }
       }
       const qs = params.toString();
-      document.dispatchEvent(new Event("navigation-start"));
+      const newPath = `/orgs${qs ? `?${qs}` : ""}`;
+      document.dispatchEvent(
+        new CustomEvent("navigation-start", { detail: { href: newPath } }),
+      );
       startTransition(() => {
-        router.push(`/orgs${qs ? `?${qs}` : ""}`);
+        router.push(newPath);
       });
     },
-    [router, searchParams, startTransition],
+    [router, searchParams],
   );
 
   const toggleLanguage = (lang: string) => {

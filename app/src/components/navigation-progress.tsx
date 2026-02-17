@@ -9,7 +9,8 @@ import { usePathname, useSearchParams } from "next/navigation";
  * Shows a thin animated bar at the top of the viewport during page navigations.
  * Detects navigation start via:
  *   - Click on internal <a> elements (Next.js <Link> renders as <a>)
- *   - Custom "navigation-start" events (for programmatic router.push callers)
+ *   - Custom "navigation-start" CustomEvents dispatched by components using
+ *     router.push (detail.href carries the target URL for same-URL filtering)
  * Detects completion when pathname or searchParams change.
  */
 function ProgressBar() {
@@ -18,12 +19,35 @@ function ProgressBar() {
   const [state, setState] = useState<"idle" | "loading" | "complete">("idle");
   const urlRef = useRef(`${pathname}?${searchParams.toString()}`);
   const completeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Detect clicks on internal links and custom navigation-start events
   useEffect(() => {
     function startLoading() {
       clearTimeout(completeTimerRef.current);
+      clearTimeout(safetyTimerRef.current);
       setState("loading");
+      // Safety timeout: auto-clear after 10s in case URL never changes
+      safetyTimerRef.current = setTimeout(() => {
+        setState((prev) => {
+          if (prev !== "loading") return prev;
+          completeTimerRef.current = setTimeout(() => setState("idle"), 500);
+          return "complete";
+        });
+      }, 10_000);
+    }
+
+    /** Returns true if href points to the current URL (no navigation needed). */
+    function isSameUrl(href: string): boolean {
+      try {
+        const url = new URL(href, window.location.origin);
+        return (
+          url.pathname === window.location.pathname &&
+          url.search === window.location.search
+        );
+      } catch {
+        return false;
+      }
     }
 
     function handleClick(e: MouseEvent) {
@@ -45,26 +69,22 @@ function ProgressBar() {
       )
         return;
 
-      // Skip if navigating to the exact same URL
-      try {
-        const url = new URL(href, window.location.origin);
-        if (
-          url.pathname === window.location.pathname &&
-          url.search === window.location.search
-        )
-          return;
-      } catch {
-        // malformed href — proceed
-      }
+      if (isSameUrl(href)) return;
 
       startLoading();
     }
 
+    function handleNavigationStart(e: Event) {
+      const href = (e as CustomEvent<{ href?: string }>).detail?.href;
+      if (href && isSameUrl(href)) return;
+      startLoading();
+    }
+
     document.addEventListener("click", handleClick, true);
-    document.addEventListener("navigation-start", startLoading);
+    document.addEventListener("navigation-start", handleNavigationStart);
     return () => {
       document.removeEventListener("click", handleClick, true);
-      document.removeEventListener("navigation-start", startLoading);
+      document.removeEventListener("navigation-start", handleNavigationStart);
     };
   }, []);
 
@@ -79,6 +99,7 @@ function ProgressBar() {
         setState((prev) => {
           if (prev !== "loading") return prev;
           clearTimeout(completeTimerRef.current);
+          clearTimeout(safetyTimerRef.current);
           completeTimerRef.current = setTimeout(() => setState("idle"), 500);
           return "complete";
         });
@@ -89,7 +110,10 @@ function ProgressBar() {
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => clearTimeout(completeTimerRef.current);
+    return () => {
+      clearTimeout(completeTimerRef.current);
+      clearTimeout(safetyTimerRef.current);
+    };
   }, []);
 
   if (state === "idle") return null;
