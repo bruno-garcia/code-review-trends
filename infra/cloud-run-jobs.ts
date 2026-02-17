@@ -2,8 +2,31 @@ import * as fs from "fs";
 import * as path from "path";
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { CADDY_HTTPS_PORT, EnvironmentConfig } from "./config";
+import { CADDY_HTTPS_PORT, EnvironmentConfig, PLACEHOLDER_IMAGE } from "./config";
 import { SecretsResult } from "./secrets";
+
+/** Read current image from an existing Cloud Run Job, falling back to placeholder. */
+function currentJobImage(jobName: string): pulumi.Output<string> {
+  return pulumi.output(
+    gcp.cloudrunv2
+      .getJob({
+        name: jobName,
+        location: gcp.config.region!,
+        project: gcp.config.project!,
+      })
+      .then(
+        (j) =>
+          j.templates?.[0]?.templates?.[0]?.containers?.[0]?.image ||
+          PLACEHOLDER_IMAGE,
+      )
+      .catch((err: unknown) => {
+        if (err instanceof Error && /not found/i.test(err.message)) {
+          return PLACEHOLDER_IMAGE;
+        }
+        throw err;
+      }),
+  );
+}
 
 const schedulesPath = path.resolve(__dirname, "../pipeline/schedules.json");
 const schedules = JSON.parse(fs.readFileSync(schedulesPath, "utf-8")) as Record<
@@ -80,6 +103,7 @@ export function createCloudRunJobs(
   for (const job of jobs) {
     const jobName = `${prefix}-${job.name}`;
     const extraEnvs = job.name === "enrich" ? [githubTokenEnv] : [];
+    const image = currentJobImage(jobName);
 
     const crJob = new gcp.cloudrunv2.Job(
       jobName,
@@ -94,7 +118,7 @@ export function createCloudRunJobs(
             maxRetries: 1,
             containers: [
               {
-                image: "us-docker.pkg.dev/cloudrun/container/hello", // placeholder — CI updates via gcloud
+                image, // CI updates via gcloud; we preserve the current image on pulumi up
                 args: job.args,
                 resources: {
                   limits: { memory: "512Mi", cpu: "1" },
@@ -105,10 +129,7 @@ export function createCloudRunJobs(
           },
         },
       },
-      {
-        parent,
-        ignoreChanges: ["template.template.containers[0].image"],
-      },
+      { parent },
     );
 
     const schedule = schedules[job.name];

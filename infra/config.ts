@@ -6,6 +6,10 @@ export const CLICKHOUSE_HTTP_PORT = 41923;
 export const CADDY_HTTPS_PORT = 58432;
 export const SUBNET_CIDR = "10.100.0.0/24";
 
+/** GCP default Cloud Run container — used only on first `pulumi up` before CI deploys. */
+export const PLACEHOLDER_IMAGE =
+  "us-docker.pkg.dev/cloudrun/container/hello";
+
 export interface EnvironmentConfig {
   environment: string;
   clickhouseMachineType: string;

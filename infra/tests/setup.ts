@@ -20,6 +20,33 @@ pulumi.runtime.setMocks({
     };
   },
   call(args: pulumi.runtime.MockCallArgs): Record<string, unknown> {
+    // Data sources used to read the current container image from Cloud Run.
+    // Return a realistic shape so `currentAppImage` / `currentJobImage` resolve.
+    // The GCP provider uses `templates` (plural) in data source results.
+    if (args.token === "gcp:cloudrunv2/getService:getService") {
+      return {
+        ...args.inputs,
+        templates: [
+          { containers: [{ image: "us-docker.pkg.dev/test/app:abc123" }] },
+        ],
+      };
+    }
+    if (args.token === "gcp:cloudrunv2/getJob:getJob") {
+      return {
+        ...args.inputs,
+        templates: [
+          {
+            templates: [
+              {
+                containers: [
+                  { image: "us-docker.pkg.dev/test/pipeline:abc123" },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+    }
     return args.inputs;
   },
 });

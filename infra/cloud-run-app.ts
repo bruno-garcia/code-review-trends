@@ -1,11 +1,40 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { CADDY_HTTPS_PORT, EnvironmentConfig } from "./config";
+import { CADDY_HTTPS_PORT, EnvironmentConfig, PLACEHOLDER_IMAGE } from "./config";
 import { SecretsResult } from "./secrets";
 
 export interface CloudRunAppResult {
   service: gcp.cloudrunv2.Service;
   serviceUrl: pulumi.Output<string>;
+}
+
+/**
+ * Read the currently-deployed container image from Cloud Run so that
+ * `pulumi up` preserves whatever CI deployed rather than reverting to
+ * the placeholder.  On the very first run (service doesn't exist yet)
+ * we fall back to the placeholder — CI will deploy the real image
+ * immediately after.
+ *
+ * Only catches "not found" errors (first deploy). Any other failure
+ * (permissions, transient API errors) is rethrown so `pulumi up` fails
+ * loudly instead of silently reverting to the placeholder.
+ */
+function currentAppImage(serviceName: string): pulumi.Output<string> {
+  return pulumi.output(
+    gcp.cloudrunv2
+      .getService({
+        name: serviceName,
+        location: gcp.config.region!,
+        project: gcp.config.project!,
+      })
+      .then((s) => s.templates?.[0]?.containers?.[0]?.image || PLACEHOLDER_IMAGE)
+      .catch((err: unknown) => {
+        if (err instanceof Error && /not found/i.test(err.message)) {
+          return PLACEHOLDER_IMAGE;
+        }
+        throw err;
+      }),
+  );
 }
 
 export function createCloudRunApp(
@@ -15,11 +44,13 @@ export function createCloudRunApp(
   parent?: pulumi.Resource,
 ): CloudRunAppResult {
   const prefix = cfg.namePrefix;
+  const appServiceName = `${prefix}-app`;
+  const image = currentAppImage(appServiceName);
 
   const service = new gcp.cloudrunv2.Service(
     `${prefix}-app`,
     {
-      name: `${prefix}-app`,
+      name: appServiceName,
       location: gcp.config.region!,
       ingress: "INGRESS_TRAFFIC_ALL",
       template: {
@@ -30,8 +61,10 @@ export function createCloudRunApp(
         },
         containers: [
           {
-            // Placeholder image — CI manages the actual image via `gcloud run deploy --image=...`
-            image: "us-docker.pkg.dev/cloudrun/container/hello",
+            // CI manages the actual image via `gcloud run deploy --image=...`.
+            // On `pulumi up` we re-use whatever image is currently running
+            // to avoid reverting CI deploys. See currentAppImage() above.
+            image,
             ports: { containerPort: 8080 },
             resources: {
               limits: { memory: "2Gi", cpu: "1" },
@@ -72,11 +105,7 @@ export function createCloudRunApp(
         ],
       },
     },
-    {
-      parent,
-      // CI updates the image on each deploy — don't let Pulumi revert it
-      ignoreChanges: ["template.containers[0].image"],
-    },
+    { parent },
   );
 
   // Allow unauthenticated access (public website)
