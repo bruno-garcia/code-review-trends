@@ -397,7 +397,23 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     }
 
     // DB is behind — try to auto-migrate
-    const result = await runMigrations(client);
+    let result: { applied: number; error?: string };
+    try {
+      result = await runMigrations(client);
+    } catch (migrationErr) {
+      // DDL failure — migration SQL threw (e.g., permission denied, syntax error)
+      const errMsg =
+        migrationErr instanceof Error
+          ? migrationErr.message || migrationErr.toString()
+          : String(migrationErr);
+      console.error("[schema-migration] Migration DDL failed:", errMsg);
+      return {
+        status: "db_behind",
+        dbVersion,
+        expectedVersion: EXPECTED_SCHEMA_VERSION,
+        error: errMsg,
+      };
+    }
 
     if (result.error) {
       // Lock contention — re-check if someone else finished
