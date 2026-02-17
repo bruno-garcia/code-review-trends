@@ -10,16 +10,14 @@ import type { Octokit } from "@octokit/rest";
 import type { ClickHouseClient } from "@clickhouse/client";
 import {
   insertRepos,
-  insertRepoLanguages,
   query,
-  type RepoRow,
-  type RepoLanguageRow,
 } from "../clickhouse.js";
 import { Sentry, log, logError, countMetric } from "../sentry.js";
-import { type RateLimiter } from "./rate-limiter.js";
+import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 import { summarizeOrgs } from "./summary.js";
+import { fetchReposBatch, GRAPHQL_REPO_BATCH_SIZE } from "./graphql-repos.js";
 
 /**
  * Fetch and insert metadata for repos discovered in pr_bot_events
@@ -84,9 +82,9 @@ export async function enrichRepos(
   let forbidden = 0;
   let rateLimited = 0;
   let errors = 0;
-  const BATCH_SIZE = 50;
+  const BATCH_SIZE = GRAPHQL_REPO_BATCH_SIZE;
 
-  // Process in batches — each batch is a Sentry span wrapping real work
+  // Process in batches — each batch is a single GraphQL query
   for (let batchStart = 0; batchStart < validRepos.length; batchStart += BATCH_SIZE) {
     const batch = validRepos.slice(batchStart, batchStart + BATCH_SIZE);
     const batchLabel = `repos batch ${batchStart}–${batchStart + batch.length}`;
@@ -94,79 +92,84 @@ export async function enrichRepos(
     await Sentry.startSpan(
       { op: "enrichment.batch", name: batchLabel },
       async () => {
-        for (const { repo_name } of batch) {
-          const [owner, repo] = repo_name.split("/");
-          if (!owner || !repo) continue;
+        const repoNames = batch.map((r) => r.repo_name);
 
-          await rateLimiter.waitIfNeeded();
+        try {
+          const results = await fetchReposBatch(octokit, rateLimiter, repoNames);
 
-          try {
-            const { data, headers } = await octokit.rest.repos.get({ owner, repo });
-            rateLimiter.update(headers as Record<string, string>);
-
-            const repoRow: RepoRow = {
-              name: repo_name,
-              owner,
-              stars: data.stargazers_count,
-              primary_language: data.language ?? "",
-              fork: data.fork,
-              archived: data.archived,
-              fetch_status: "ok",
-            };
-
-            await insertRepos(ch, [repoRow]);
-
-            // Fetch language breakdown
-            await rateLimiter.waitIfNeeded();
-            const langResponse = await octokit.rest.repos.listLanguages({ owner, repo });
-            rateLimiter.update(langResponse.headers as Record<string, string>);
-
-            const langRows: RepoLanguageRow[] = Object.entries(
-              langResponse.data,
-            ).map(([language, bytes]) => ({
-              repo_name,
-              language,
-              bytes: bytes as number,
-            }));
-
-            if (langRows.length > 0) {
-              await insertRepoLanguages(ch, langRows);
-            }
-
-            fetched++;
-          } catch (err: unknown) {
-            const status = (err as { status?: number }).status;
-
-            if (status === 404) {
-              await insertRepos(ch, [{
-                name: repo_name, owner, stars: 0, primary_language: "",
-                fork: false, archived: false, fetch_status: "not_found",
-              }]);
+          for (const result of results) {
+            await insertRepos(ch, [result.row]);
+            if (result.status === "ok") {
+              fetched++;
+            } else if (result.status === "not_found") {
               notFound++;
-            } else if (status === 403) {
-              const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
-              const isRateLimit = headers?.["retry-after"] || (headers?.["x-ratelimit-remaining"] === "0");
-              if (headers) {
-                rateLimiter.update(headers);
-                const retryAfter = headers["retry-after"];
-                if (retryAfter) {
-                  await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
-                }
-              }
-              if (isRateLimit) {
-                rateLimited++;
-              } else {
-                handleEnterprisePolicyError(err, repo_name, "repos");
+            } else if (result.status === "forbidden") {
+              forbidden++;
+            }
+          }
+        } catch (err: unknown) {
+          // If the whole batch fails, fall back to individual REST processing
+          if (err instanceof RateLimitExitError) throw err;
+
+          logError(`[repos] Batch GraphQL query failed, processing individually: ${err instanceof Error ? err.message : err}`);
+
+          for (const { repo_name } of batch) {
+            const [owner, repo] = repo_name.split("/");
+            if (!owner || !repo) continue;
+
+            await rateLimiter.waitIfNeeded();
+
+            try {
+              const { data, headers } = await octokit.rest.repos.get({ owner, repo });
+              rateLimiter.update(headers as Record<string, string>);
+
+              await insertRepos(ch, [{
+                name: repo_name, owner,
+                stars: data.stargazers_count,
+                primary_language: data.language ?? "",
+                fork: data.fork, archived: data.archived,
+                fetch_status: "ok",
+              }]);
+              fetched++;
+            } catch (innerErr: unknown) {
+              const status = (innerErr as { status?: number }).status;
+              if (status === 404) {
                 await insertRepos(ch, [{
                   name: repo_name, owner, stars: 0, primary_language: "",
-                  fork: false, archived: false, fetch_status: "forbidden",
+                  fork: false, archived: false, fetch_status: "not_found",
                 }]);
-                forbidden++;
+                notFound++;
+              } else if (status === 403) {
+                const headers = (innerErr as { response?: { headers?: Record<string, string> } }).response?.headers;
+                if (headers) {
+                  rateLimiter.update(headers);
+                  const retryAfter = headers["retry-after"];
+                  if (retryAfter) {
+                    await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+                    rateLimited++;
+                  } else if (headers["x-ratelimit-remaining"] === "0") {
+                    rateLimited++;
+                  } else {
+                    // Permanent 403 — record in DB to avoid retrying
+                    await insertRepos(ch, [{
+                      name: repo_name, owner, stars: 0, primary_language: "",
+                      fork: false, archived: false, fetch_status: "forbidden",
+                    }]);
+                    forbidden++;
+                  }
+                } else {
+                  // Permanent 403 without headers — record in DB to avoid retrying
+                  await insertRepos(ch, [{
+                    name: repo_name, owner, stars: 0, primary_language: "",
+                    fork: false, archived: false, fetch_status: "forbidden",
+                  }]);
+                  forbidden++;
+                }
+              } else {
+                Sentry.captureException(innerErr, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
+                logError(`[repos] REST fallback error: ${repo_name}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
+                errors++;
               }
-            } else {
-              Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
-              logError(`[repos] Error fetching ${repo_name}: ${err instanceof Error ? err.message : err}`);
-              errors++;
             }
           }
         }
@@ -239,23 +242,6 @@ export async function refreshStaleRepos(
         archived: data.archived,
         fetch_status: "ok",
       }]);
-
-      // Refresh languages too
-      await rateLimiter.waitIfNeeded();
-      const langResponse = await octokit.rest.repos.listLanguages({ owner, repo });
-      rateLimiter.update(langResponse.headers as Record<string, string>);
-
-      const langRows: RepoLanguageRow[] = Object.entries(
-        langResponse.data,
-      ).map(([language, bytes]) => ({
-        repo_name: name,
-        language,
-        bytes: bytes as number,
-      }));
-
-      if (langRows.length > 0) {
-        await insertRepoLanguages(ch, langRows);
-      }
 
       refreshed++;
     } catch (err: unknown) {

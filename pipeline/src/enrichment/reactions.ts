@@ -5,15 +5,7 @@
  * that don't generate GH Archive events. This catches "reaction-only"
  * reviews — e.g., Sentry adds 🎉 when it reviews a PR and finds no issues.
  *
- * Discovery approach:
- *   1. Find repos where tracked bots have been active (from pr_bot_events)
- *   2. List issues (PRs) in those repos via the GitHub API
- *   3. For PRs with hooray reactions > 0, fetch per-user reactions
- *   4. Filter for reactions by tracked bot logins
- *   5. Store in pr_bot_reactions
- *
- * Uses reaction_scan_progress to track which PRs have been scanned,
- * so subsequent runs only check new PRs.
+ * Uses GraphQL batch queries to check multiple PRs per API call.
  */
 
 import type { Octokit } from "@octokit/rest";
@@ -24,17 +16,10 @@ import {
   query,
   type PrBotReactionRow,
 } from "../clickhouse.js";
-import { BOT_BY_LOGIN } from "../bots.js";
-import { Sentry, log, logError, countMetric } from "../sentry.js";
-import { type RateLimiter } from "./rate-limiter.js";
+import { log, logError, countMetric } from "../sentry.js";
+import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
-import { handleEnterprisePolicyError } from "./enterprise-policy.js";
-
-/** Only count 🎉 (hooray) as a review signal. Eyes = still reviewing, not approval. */
-const REVIEW_REACTION_TYPES = new Set(["hooray"]);
-
-/** Set of all tracked bot logins (for fast lookup). */
-const TRACKED_LOGINS = new Set(BOT_BY_LOGIN.keys());
+import { fetchReactionsBatch, GRAPHQL_REACTION_BATCH_SIZE, type ReactionBatchInput } from "./graphql-reactions.js";
 
 export async function enrichReactions(
   octokit: Octokit,
@@ -47,7 +32,6 @@ export async function enrichReactions(
   const partitionClause = partitionWhereClause(partition, "repo_name");
 
   // Find repos where tracked bots have been active, with pending PRs to scan.
-  // A repo/PR is "pending" if it's not yet in reaction_scan_progress.
   const whereFragments = [
     "repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))",
   ];
@@ -59,14 +43,17 @@ export async function enrichReactions(
     ch,
     `SELECT
        e.repo_name AS repo_name,
-       countDistinct(e.pr_number) - countDistinctIf(e.pr_number, s.pr_number > 0) AS pending_prs
+       countDistinct(e.pr_number) - countDistinctIf(e.pr_number, s.pr_number > 0) AS pending_prs,
+       max(e.event_week) AS latest_week,
+       COALESCE(max(r.stars), 0) AS repo_stars
      FROM pr_bot_events e
      LEFT JOIN reaction_scan_progress s
        ON e.repo_name = s.repo_name AND e.pr_number = s.pr_number
+     LEFT JOIN repos r ON e.repo_name = r.name
      WHERE ${whereFragments.join(" AND ")}
      GROUP BY e.repo_name
      HAVING pending_prs > 0
-     ORDER BY pending_prs DESC
+     ORDER BY latest_week DESC, repo_stars DESC
      LIMIT {limit:UInt32}`,
     { limit, ...(partitionClause?.params ?? {}) },
   );
@@ -79,18 +66,9 @@ export async function enrichReactions(
   const totalPending = repos.reduce((sum, r) => sum + r.pending_prs, 0);
   log(`[reactions] Found ${repos.length} repos with ${totalPending} pending PRs to scan`);
 
-  let fetched = 0;    // PRs where we found a bot reaction
-  let scanned = 0;    // PRs we checked (including no-reaction ones)
-  let skipped = 0;    // PRs skipped (not found, forbidden, etc.)
-  let errors = 0;
-  let totalApiCalls = 0;
-  let reposProcessed = 0;
-
+  // Collect all pending PRs across repos
+  const allPendingPrs: ReactionBatchInput[] = [];
   for (const { repo_name } of repos) {
-    const [owner, repo] = repo_name.split("/");
-    if (!owner || !repo) continue;
-
-    // Get the list of PR numbers in this repo that need scanning
     const pendingPrs = await query<{ pr_number: number }>(
       ch,
       `SELECT DISTINCT e.pr_number
@@ -102,141 +80,67 @@ export async function enrichReactions(
        ORDER BY e.pr_number DESC`,
       { repo: repo_name },
     );
+    for (const { pr_number } of pendingPrs) {
+      allPendingPrs.push({ repo_name, pr_number });
+    }
+  }
 
-    if (pendingPrs.length === 0) continue;
+  log(`[reactions] Collected ${allPendingPrs.length} pending PRs to scan`);
 
-    const prNumbers = new Set(pendingPrs.map((p) => p.pr_number));
-    const batchSentinels: { repo_name: string; pr_number: number }[] = [];
-    const batchReactions: PrBotReactionRow[] = [];
+  let fetched = 0;    // PRs where we found a bot reaction
+  let scanned = 0;    // PRs we checked (including no-reaction ones)
+  let skipped = 0;    // PRs skipped (not found, forbidden, etc.)
+  let errors = 0;
+  let totalApiCalls = 0;
+
+  const BATCH_SIZE = GRAPHQL_REACTION_BATCH_SIZE;
+
+  for (let batchStart = 0; batchStart < allPendingPrs.length; batchStart += BATCH_SIZE) {
+    const batch = allPendingPrs.slice(batchStart, batchStart + BATCH_SIZE);
 
     try {
-      // Fetch PRs via the issues endpoint (includes inline reaction counts).
-      // Process in batches — for each PR we care about, check reactions.
-      for (const prNum of prNumbers) {
-        await rateLimiter.waitIfNeeded();
+      const results = await fetchReactionsBatch(octokit, rateLimiter, batch);
 
-        try {
-          // First check if this PR has any hooray reactions via the issue endpoint
-          const { data: issue, headers } = await octokit.rest.issues.get({
-            owner,
-            repo,
-            issue_number: prNum,
-          });
-          rateLimiter.update(headers as Record<string, string>);
-          totalApiCalls++;
+      const sentinels: { repo_name: string; pr_number: number }[] = [];
+      const reactionRows: PrBotReactionRow[] = [];
 
-          const hoorayCount = (issue.reactions as unknown as Record<string, number>)?.hooray ?? 0;
-
-          if (hoorayCount === 0) {
-            // No hooray reactions — mark as scanned and move on
-            batchSentinels.push({ repo_name, pr_number: prNum });
-            scanned++;
-            continue;
-          }
-
-          // Has hooray reactions — fetch per-user reactions to check for bots.
-          // Use paginate.iterator so we can update rate limiter with each page's headers.
-          await rateLimiter.waitIfNeeded();
-          const reactions: Awaited<ReturnType<typeof octokit.rest.reactions.listForIssue>>["data"] = [];
-          for await (const response of octokit.paginate.iterator(
-            octokit.rest.reactions.listForIssue,
-            { owner, repo, issue_number: prNum, per_page: 100 },
-          )) {
-            rateLimiter.update(response.headers as Record<string, string>);
-            reactions.push(...response.data);
-            await rateLimiter.waitIfNeeded();
-          }
-          totalApiCalls++;
-
-          for (const reaction of reactions) {
-            const login = reaction.user?.login;
-            if (!login || !TRACKED_LOGINS.has(login)) continue;
-            if (!REVIEW_REACTION_TYPES.has(reaction.content)) continue;
-
-            const bot = BOT_BY_LOGIN.get(login);
-            if (!bot) continue;
-
-            batchReactions.push({
-              repo_name,
-              pr_number: prNum,
-              bot_id: bot.id,
-              reaction_type: reaction.content,
-              reacted_at: reaction.created_at,
-              reaction_id: reaction.id,
-            });
-          }
-
-          const foundBotReaction = reactions.some((r) => {
-            const login = r.user?.login;
-            return login && TRACKED_LOGINS.has(login) && REVIEW_REACTION_TYPES.has(r.content);
-          });
-          batchSentinels.push({ repo_name, pr_number: prNum });
-          if (foundBotReaction) fetched++;
-          scanned++;
-        } catch (err: unknown) {
-          const status = (err as { status?: number }).status;
-          if (status === 404) {
-            batchSentinels.push({ repo_name, pr_number: prNum });
-            skipped++;
-          } else if (status === 403) {
-            const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
-            if (headers) {
-              rateLimiter.update(headers);
-              const retryAfter = headers["retry-after"];
-              if (retryAfter) {
-                await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
-              }
-            }
-            if (headers?.["retry-after"] || headers?.["x-ratelimit-remaining"] === "0") {
-              skipped++;
-            } else {
-              handleEnterprisePolicyError(err, repo_name, "reactions");
-              batchSentinels.push({ repo_name, pr_number: prNum });
-              skipped++;
-            }
-          } else {
-            Sentry.captureException(err, {
-              tags: { repo: repo_name },
-              contexts: { enrichment: { phase: "reactions", repo: repo_name, pr_number: prNum } },
-            });
-            logError(`[reactions] Error: ${repo_name}#${prNum}: ${err instanceof Error ? err.message : err}`);
-            errors++;
-          }
+      for (const result of results) {
+        if (!result.scanned) {
+          if (result.error === "repo_not_found") skipped++;
+          else errors++;
+          continue;
         }
 
-        // Flush batches periodically
-        if (batchSentinels.length >= 100) {
-          await insertReactionScanProgress(ch, batchSentinels);
-          if (batchReactions.length > 0) {
-            await insertPrBotReactions(ch, batchReactions);
-          }
-          batchSentinels.length = 0;
-          batchReactions.length = 0;
+        sentinels.push({ repo_name: result.input.repo_name, pr_number: result.input.pr_number });
+        scanned++;
+
+        if (result.hasMore) {
+          log(`[reactions] ${result.input.repo_name}#${result.input.pr_number} has >20 hooray reactions, saved partial`);
+        }
+
+        if (result.reactions.length > 0) {
+          reactionRows.push(...result.reactions);
+          fetched++;
         }
       }
 
-      // Flush remaining
-      if (batchSentinels.length > 0) {
-        await insertReactionScanProgress(ch, batchSentinels);
+      if (sentinels.length > 0) {
+        await insertReactionScanProgress(ch, sentinels);
       }
-      if (batchReactions.length > 0) {
-        await insertPrBotReactions(ch, batchReactions);
+      if (reactionRows.length > 0) {
+        await insertPrBotReactions(ch, reactionRows);
       }
-      batchSentinels.length = 0;
-      batchReactions.length = 0;
     } catch (err: unknown) {
-      Sentry.captureException(err, {
-        tags: { repo: repo_name },
-        contexts: { enrichment: { phase: "reactions", repo: repo_name } },
-      });
-      logError(`[reactions] Repo error: ${repo_name}: ${err instanceof Error ? err.message : err}`);
-      errors++;
+      if (err instanceof RateLimitExitError) throw err;
+      logError(`[reactions] Batch GraphQL failed: ${err instanceof Error ? err.message : err}`);
+      errors += batch.length;
     }
 
-    reposProcessed++;
-    const processed = scanned + skipped + errors;
-    if (reposProcessed % 10 === 0 || reposProcessed === repos.length) {
-      log(`[reactions] Progress: ${reposProcessed}/${repos.length} repos, ${processed} PRs (${fetched} with bot reactions, ${totalApiCalls} API calls)`);
+    totalApiCalls++;
+    const batchIndex = batchStart / BATCH_SIZE;
+    if (batchIndex % 10 === 0) {
+      const processed = scanned + skipped + errors;
+      log(`[reactions] Progress: ${processed}/${allPendingPrs.length} PRs (${fetched} with bot reactions)`);
     }
     countMetric("pipeline.enrich.reactions.batch", 1);
   }

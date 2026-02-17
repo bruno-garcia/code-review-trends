@@ -60,6 +60,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   "discover-bots": cmdDiscoverBots,
   enrich: cmdEnrich,
   "enrich-status": cmdEnrichStatus,
+  "validate-bq-prs": cmdValidateBqPrs,
   help: cmdHelp,
 };
 
@@ -114,6 +115,7 @@ Commands:
   discover-bots      Find new bot accounts (BigQuery + Marketplace + App verification)
   enrich             Run GitHub API enrichment (repos → PRs → comments → reactions)
   enrich-status      Show enrichment progress
+  validate-bq-prs    Compare PR data from BigQuery vs GitHub API
   help               Show this help message
 
 Options for fetch-bigquery:
@@ -167,6 +169,9 @@ Options for enrich:
   --priority TYPE      Start with: repos|prs|comments|reactions (default: repos)
   --stale-days N       Repo refresh threshold in days (default: 7)
   --exit-on-rate-limit Exit cleanly (exit 0) when rate-limited instead of sleeping
+
+Options for validate-bq-prs:
+  --sample N           Number of PRs to compare (default: 500)
 
 Environment variables:
   CLICKHOUSE_URL       ClickHouse HTTP URL (default: http://localhost:8123)
@@ -937,6 +942,42 @@ async function cmdEnrichStatus() {
   }
 }
 
+async function cmdValidateBqPrs() {
+  const args = parseArgs();
+  const { validateBigQueryPRData } = await import("./tools/validate-bq-prs.js");
+
+  const sampleVal = args["--sample"];
+  let sample = 500;
+  if (sampleVal !== undefined) {
+    sample = parseInt(sampleVal, 10);
+    if (isNaN(sample) || sample < 1) {
+      throw new CliError(`--sample must be a positive integer, got "${sampleVal}"`);
+    }
+  }
+
+  const result = await validateBigQueryPRData({ sampleSize: sample });
+
+  console.log(`\n=== BigQuery PR Data Validation ===`);
+  console.log(`Sample size: ${result.sample_size}`);
+  console.log(`Found in BigQuery: ${result.matched} (${result.sample_size > 0 ? ((result.matched / result.sample_size) * 100).toFixed(1) : 0}%)`);
+  console.log(`\nField comparison (against ${result.matched} matched PRs):`);
+  console.log(`${"Field".padEnd(15)} ${"Match".padStart(8)} ${"Mismatch".padStart(10)} ${"Missing".padStart(9)} ${"Match %".padStart(9)}`);
+  console.log("-".repeat(55));
+
+  for (const [field, stats] of Object.entries(result.fields)) {
+    const total = stats.match + stats.mismatch;
+    const pct = total > 0 ? ((stats.match / total) * 100).toFixed(1) : "N/A";
+    console.log(
+      `${field.padEnd(15)} ${String(stats.match).padStart(8)} ${String(stats.mismatch).padStart(10)} ${String(stats.missing).padStart(9)} ${String(pct + "%").padStart(9)}`
+    );
+    if (stats.examples.length > 0) {
+      for (const ex of stats.examples) {
+        console.log(`  → ${ex}`);
+      }
+    }
+  }
+}
+
 // --- Helpers ---
 
 /**
@@ -1012,7 +1053,7 @@ main().catch(async (err) => {
   const isCliError = err instanceof CliError;
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123 (default)";
 
-  Sentry.captureException(err, {
+  const eventId = Sentry.captureException(err, {
     level: isCliError ? "warning" : "error",
     contexts: {
       pipeline: {
@@ -1027,6 +1068,9 @@ main().catch(async (err) => {
     console.error(`Error: ${err.message}`);
   } else {
     console.error("Fatal error:", err);
+  }
+  if (eventId) {
+    console.error(`Sentry event: ${eventId}`);
   }
   // Flush Sentry events before exiting
   await Sentry.flush(5000);
