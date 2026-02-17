@@ -6,9 +6,16 @@ Pulumi (TypeScript) infrastructure for Code Review Trends, running on GCP.
 
 - **VPC** with a single subnet (`10.100.0.0/24`), Cloud Router, and Cloud NAT
 - **Static external IP** for the ClickHouse VM
-- **Secret Manager** secret with an auto-generated ClickHouse password
 - **Firewall rules**: SSH via IAP, HTTPS via Caddy reverse proxy (non-standard high port) open to the internet, ClickHouse native (9000) VPC-only
 - **ClickHouse VM** (Debian 12 + ClickHouse server) with persistent boot disk
+- **Secret Manager** secrets: ClickHouse password (auto-generated), Sentry DSNs, Sentry auth token, GitHub token
+- **Artifact Registry** Docker repository for app and pipeline container images
+- **Service accounts**: runtime (Cloud Run app + jobs) and deploy (GitHub Actions CI)
+- **Workload Identity Federation** pool + provider for keyless GitHub Actions → GCP auth
+- **Cloud Run service** for the Next.js app with custom domain mapping
+- **4 Cloud Run Jobs** for the pipeline: sync, backfill, discover, enrich
+- **4 Cloud Scheduler triggers** to run pipeline jobs on cron schedules
+- **IAM bindings** for service accounts (Secret Manager access, BigQuery, Artifact Registry, Cloud Run admin)
 
 All resources are prefixed `crt-{env}-*` and live in their own VPC, fully isolated from other workloads in the GCP project.
 
@@ -23,7 +30,13 @@ All resources are prefixed `crt-{env}-*` and live in their own VPC, fully isolat
    ```
 4. GCP APIs enabled on the project:
    ```bash
-   gcloud services enable compute.googleapis.com secretmanager.googleapis.com
+   gcloud services enable \
+     compute.googleapis.com \
+     secretmanager.googleapis.com \
+     run.googleapis.com \
+     artifactregistry.googleapis.com \
+     cloudscheduler.googleapis.com \
+     iam.googleapis.com
    ```
 
 ## First-time setup
@@ -44,11 +57,28 @@ pulumi stack init staging
 # Set your GCP project (encrypted — safe for public repos)
 pulumi config set gcp:project <your-gcp-project-id> --secret
 
-# Set the domain for TLS certificates (must have an A record pointing to the static IP)
+# ClickHouse domain (must have an A record pointing to the static IP)
 pulumi config set code-review-trends:clickhouseDomain your-ch-domain.example.com --secret
+
+# App domain (Cloud Run custom domain)
+pulumi config set code-review-trends:appDomain staging.codereviewtrends.com --secret
+
+# Sentry DSNs (separate projects for app and pipeline)
+pulumi config set code-review-trends:sentryDsnApp <dsn> --secret
+pulumi config set code-review-trends:sentryDsnPipeline <dsn> --secret
+pulumi config set code-review-trends:sentryAuthToken <token> --secret
+
+# GitHub token for pipeline enrichment (needs repo read access)
+pulumi config set code-review-trends:githubToken <pat> --secret
+
+# GitHub repo for Workload Identity Federation (owner/repo format)
+pulumi config set code-review-trends:githubRepo owner/repo
+
+# Artifact Registry location
+pulumi config set code-review-trends:artifactRegistryLocation us-central1
 ```
 
-The `--secret` flag encrypts values in `Pulumi.staging.yaml` so they won't be readable in git. The GCP project and domain are the only values you need to set manually — everything else (region, zone, machine types) is already configured in the stack file.
+The `--secret` flag encrypts values in `Pulumi.staging.yaml` so they won't be readable in git.
 
 On subsequent sessions, you just need to log in to the backend and set your passphrase:
 
@@ -125,6 +155,49 @@ gcloud compute ssh crt-staging-clickhouse --zone=us-central1-a --tunnel-through-
 ```
 </details>
 
+### Set up GitHub Variables
+
+After `pulumi up`, retrieve WIF outputs and configure them as GitHub repository Variables (not Secrets — resource IDs aren't sensitive):
+
+```bash
+# Get the values from Pulumi
+pulumi stack output wifProvider
+pulumi stack output deploySaEmail
+
+# Set as GitHub repo Variables (used by CI deploy workflow)
+gh variable set WIF_PROVIDER --body "$(pulumi stack output wifProvider)"
+gh variable set DEPLOY_SA_EMAIL --body "$(pulumi stack output deploySaEmail)"
+
+# Set Sentry auth token as a GitHub Secret (this one IS sensitive)
+gh secret set SENTRY_AUTH_TOKEN --body "<your-sentry-auth-token>"
+```
+
+### DNS setup
+
+Create a CNAME record pointing your app domain to the Cloud Run service:
+
+```
+staging.codereviewtrends.com  CNAME  <cloud-run-service-url>.run.app
+```
+
+Cloud Run will auto-provision a TLS certificate once DNS propagates.
+
+### First container deploy
+
+After `pulumi up`, Cloud Run services are created with placeholder images. The first real deployment happens automatically when you merge to `main` (or trigger the CI deploy workflow manually). CI builds the app and pipeline containers, pushes them to Artifact Registry, and updates all Cloud Run services and jobs.
+
+### Verify the pipeline
+
+Check that Cloud Scheduler triggers are set up correctly:
+
+```bash
+# List scheduled jobs
+gcloud scheduler jobs list --location=us-central1
+
+# Manually trigger a job to test
+gcloud run jobs execute crt-staging-sync --region=us-central1
+```
+
 ### Set Vercel environment variables
 
 In the [Vercel project settings](https://vercel.com/), add these environment variables:
@@ -156,6 +229,14 @@ Per-environment config lives in `Pulumi.<stack>.yaml`:
 | `environment` | Environment name (used in resource naming) | `staging` |
 | `clickhouseMachineType` | GCE machine type | `e2-medium` |
 | `clickhouseDiskSizeGb` | Boot disk size in GB | `20` |
+| `clickhouseDomain` | Domain for ClickHouse TLS (secret) | — |
+| `appDomain` | Domain for Cloud Run app (secret) | — |
+| `artifactRegistryLocation` | GCP region for container registry | `us-central1` |
+| `sentryDsnApp` | Sentry DSN for the Next.js app (secret) | — |
+| `sentryDsnPipeline` | Sentry DSN for the pipeline (secret) | — |
+| `sentryAuthToken` | Sentry auth token for source maps (secret) | — |
+| `githubToken` | GitHub PAT for pipeline enrichment (secret) | — |
+| `githubRepo` | GitHub repo for WIF (`owner/repo` format) | — |
 
 To add a new environment (e.g. prod), create `Pulumi.prod.yaml` and run `pulumi stack init prod`.
 
@@ -163,13 +244,20 @@ To add a new environment (e.g. prod), create `Pulumi.prod.yaml` and run `pulumi 
 
 - **GCP project not in git**: Set via `pulumi config set --secret` to keep it encrypted, or rely on local `gcloud config`.
 - **Pulumi state in GCS**: State is stored in a dedicated GCS bucket, not Pulumi Cloud. No account needed, state stays in your GCP project.
+- **Cloud Run over GKE**: $0-2/mo staging vs $75+/mo GKE minimum. Scale-to-zero is ideal for staging traffic levels.
+- **Cloud Run Jobs over Cloud Functions**: Same container as local dev. No rewrite needed, same CLI commands.
+- **Artifact Registry over GHCR**: Native GCP auth — Cloud Run pulls without extra credentials or mirror config.
+- **WIF over service account keys**: No long-lived secrets. GitHub OIDC tokens are short-lived and scoped to the repo.
+- **GitHub Variables for WIF config**: `WIF_PROVIDER` and `DEPLOY_SA_EMAIL` are resource IDs, not secrets. Using Variables (not Secrets) makes them visible in CI logs for easier debugging.
+- **Shared `schedules.json`**: Single source of truth for job cadences, imported by both Cloud Scheduler (Pulumi) and Sentry cron monitors (pipeline CLI). Prevents drift.
+- **Placeholder images with `ignoreChanges`**: Pulumi creates Cloud Run services with a placeholder image. CI deploys real images. `ignoreChanges` on the image field prevents Pulumi from reverting CI deployments.
+- **Enrich exits on rate limit**: The `--exit-on-rate-limit` flag makes the enrich job exit cleanly instead of sleeping when GitHub API rate limit is exhausted. Avoids wasting Cloud Run vCPU-seconds. The job runs again next hour and picks up where it left off.
 - **Non-standard ClickHouse port**: ClickHouse HTTP listens on a high port instead of the default 8123 to reduce drive-by scanning. The port is a constant in `config.ts`, not per-stack config. Authentication is still the primary security boundary.
 - **Config overrides, not sed**: ClickHouse configuration uses `config.d/` and `users.d/` override files instead of editing `config.xml` directly. This is the ClickHouse-recommended approach and avoids escaping issues in startup scripts.
 - **Password in Secret Manager**: Auto-generated by Pulumi (`@pulumi/random`, 32 chars, alphanumeric), stored in GCP Secret Manager, and injected into the VM startup script. Retrievable via `pulumi stack output` or `gcloud secrets` directly.
-- **Static external IP**: Reserved separately from the VM so it survives VM recreation. This is the IP Vercel connects to.
+- **Static external IP**: Reserved separately from the VM so it survives VM recreation. This is the IP Cloud Run and Vercel connect to.
 - **Cloud NAT for egress**: Cloud Router + NAT are provisioned so VMs without external IPs can reach the internet. The ClickHouse VM currently has a static external IP (so it egresses directly), but the NAT is in place for any future VMs that don't need a public IP.
 - **Boot disk not auto-deleted**: `autoDelete: false` on the boot disk so data survives accidental VM deletion. The VM is also `protect: true` in Pulumi.
-- **No GKE/K8s**: Overkill for a single VM. Can be added later if the app moves to GCP.
 - **IAP for SSH**: No SSH from the open internet. The firewall only allows SSH from Google's IAP range (`35.235.240.0/20`). Uses `gcloud compute ssh --tunnel-through-iap`.
 - **Startup script ignored after creation**: The VM is configured once via `ignoreChanges` on `metadataStartupScript`, `metadata`, and `bootDisk`. Manual config changes on the VM are preserved across Pulumi runs.
 - **Isolated VPC**: All resources are prefixed `crt-{env}-*` and live in their own network (`10.100.0.0/24`), separate from anything else in the GCP project. No VPC peering or shared subnets.
