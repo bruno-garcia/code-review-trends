@@ -397,6 +397,26 @@ export function DataCollectionPanel({
               color="bg-emerald-500"
             />
           </div>
+
+          {/* Reactions */}
+          <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-theme-text">
+              <Tooltip text="PRs scanned for bot emoji reactions (🎉). Some bots signal approval via reactions instead of reviews — these are invisible in GH Archive and require per-PR API calls to discover.">
+                Reaction Scans
+              </Tooltip>
+            </h4>
+            <ProgressBar
+              value={stats.reactions_scanned}
+              max={stats.reactions_total}
+              label="PRs scanned for reactions"
+              color="bg-emerald-500"
+            />
+            {stats.reactions_found > 0 && (
+              <p className="text-xs text-theme-muted mt-1">
+                {stats.reactions_found.toLocaleString()} PR{stats.reactions_found !== 1 ? "s" : ""} found with bot reactions
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

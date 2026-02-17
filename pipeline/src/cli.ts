@@ -112,7 +112,7 @@ Commands:
   migrate            Apply schema + bot data to ClickHouse (staging/prod/local)
   discover           Discover PR bot events from BigQuery into pr_bot_events
   discover-bots      Find new bot accounts (BigQuery + Marketplace + App verification)
-  enrich             Run GitHub API enrichment (repos → PRs → comments)
+  enrich             Run GitHub API enrichment (repos → PRs → comments → reactions)
   enrich-status      Show enrichment progress
   help               Show this help message
 
@@ -164,7 +164,7 @@ Options for enrich:
   --worker-id N        Worker ID for partitioning (default: 0)
   --total-workers N    Total workers (default: 1)
   --limit N            Max items per entity type per run
-  --priority TYPE      Start with: repos|prs|comments (default: repos)
+  --priority TYPE      Start with: repos|prs|comments|reactions (default: repos)
   --stale-days N       Repo refresh threshold in days (default: 7)
   --exit-on-rate-limit Exit cleanly (exit 0) when rate-limited instead of sleeping
 
@@ -490,7 +490,7 @@ async function cmdMigrate() {
       // Record the schema version in schema_migrations.
       // This must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts.
       // The schema_migrations table is created by 001_schema.sql above.
-      const SCHEMA_VERSION = 1;
+      const SCHEMA_VERSION = 2;
       console.log(`\nRecording schema version ${SCHEMA_VERSION}...`);
       await chClient.insert({
         table: "schema_migrations",
@@ -645,7 +645,7 @@ async function cmdEnrich() {
     totalWorkers: parseIntArg("--total-workers", args["--total-workers"]),
     limit: parseIntArg("--limit", args["--limit"]),
     staleDays: parseIntArg("--stale-days", args["--stale-days"]),
-    priority: args["--priority"] as "repos" | "prs" | "comments" | undefined,
+    priority: args["--priority"] as "repos" | "prs" | "comments" | "reactions" | undefined,
     exitOnRateLimit: args["--exit-on-rate-limit"] !== undefined,
   });
 
@@ -653,6 +653,7 @@ async function cmdEnrich() {
   log(`Repos:     ${result.repos.fetched} fetched, ${result.repos.skipped} skipped, ${result.repos.errors} errors`);
   log(`PRs:       ${result.pullRequests.fetched} fetched, ${result.pullRequests.skipped} skipped, ${result.pullRequests.errors} errors`);
   log(`Comments:  ${result.comments.fetched} fetched, ${result.comments.skipped} skipped, ${result.comments.replies_filtered} replies filtered, ${result.comments.errors} errors`);
+  log(`Reactions: ${result.reactions.fetched} PRs with bot reactions, ${result.reactions.scanned} scanned, ${result.reactions.skipped} skipped, ${result.reactions.errors} errors`);
   log(`Stale repos refreshed: ${result.reposRefreshed}`);
   log(`Duration: ${Math.ceil(result.duration / 1000)}s`);
 }
@@ -721,11 +722,26 @@ async function cmdEnrichStatus() {
     const reposPerHour = Number(pace1h.cnt) || (Number(pace24h.cnt) / 24);
     const etaReposHours = reposPerHour > 0 ? repoPending / reposPerHour : null;
 
+    // Reaction scan stats
+    const [reactionStats] = await query<{
+      total: string;
+      scanned: string;
+      with_reactions: string;
+    }>(
+      ch,
+      `SELECT
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events) as total,
+        (SELECT count() FROM reaction_scan_progress) as scanned,
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_reactions) as with_reactions`,
+    ).catch(() => [{ total: "0", scanned: "0", with_reactions: "0" }]);
+    const reactionPending = Number(reactionStats.total) - Number(reactionStats.scanned);
+
     console.log("=== Enrichment Status ===");
     console.log(`\nDiscovered events: ${total_events}`);
-    console.log(`\nRepos:    ${repoStats.enriched} enriched / ${repoStats.not_found} not found / ${repoPending} pending (${repoStats.total} total)`);
-    console.log(`PRs:      ${prStats.enriched} enriched / ${prPending} pending (${prStats.total} total)`);
-    console.log(`Comments: ${commentStats.enriched} enriched / ${commentPending} pending (${commentStats.total} total)`);
+    console.log(`\nRepos:     ${repoStats.enriched} enriched / ${repoStats.not_found} not found / ${repoPending} pending (${repoStats.total} total)`);
+    console.log(`PRs:       ${prStats.enriched} enriched / ${prPending} pending (${prStats.total} total)`);
+    console.log(`Comments:  ${commentStats.enriched} enriched / ${commentPending} pending (${commentStats.total} total)`);
+    console.log(`Reactions: ${reactionStats.scanned} scanned / ${reactionStats.with_reactions} with bot reactions / ${reactionPending} pending (${reactionStats.total} total)`);
 
     // Completion percentages
     const repoPct = Number(repoStats.total) > 0
@@ -735,10 +751,14 @@ async function cmdEnrichStatus() {
     const commentPct = Number(commentStats.total) > 0
       ? ((Number(commentStats.enriched) / Number(commentStats.total)) * 100).toFixed(1) : "0";
 
+    const reactionPct = Number(reactionStats.total) > 0
+      ? ((Number(reactionStats.scanned) / Number(reactionStats.total)) * 100).toFixed(1) : "0";
+
     console.log(`\n=== Progress ===`);
-    console.log(`Repos:    ${repoPct}% complete`);
-    console.log(`PRs:      ${prPct}% complete`);
-    console.log(`Comments: ${commentPct}% complete`);
+    console.log(`Repos:     ${repoPct}% complete`);
+    console.log(`PRs:       ${prPct}% complete`);
+    console.log(`Comments:  ${commentPct}% complete`);
+    console.log(`Reactions: ${reactionPct}% complete`);
 
     if (reposPerHour > 0) {
       console.log(`\n=== Pace ===`);

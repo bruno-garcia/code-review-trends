@@ -1,10 +1,22 @@
 import Link from "next/link";
+import { getDataCollectionStats } from "@/lib/clickhouse";
 
 const linkClass = "text-blue-400 hover:text-blue-300";
 const codeClass =
   "rounded bg-theme-surface-alt px-1.5 py-0.5 text-sm text-theme-text";
 
-export default function AboutPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AboutPage() {
+  let enrichmentPct: number | null = null;
+  try {
+    const stats = await getDataCollectionStats();
+    if (stats.reactions_total > 0) {
+      enrichmentPct = (stats.reactions_scanned / stats.reactions_total) * 100;
+    }
+  } catch {
+    // ClickHouse may be unreachable — leave enrichmentPct null
+  }
 
   return (
     <div data-testid="about-page" className="mx-auto max-w-4xl space-y-12 py-8">
@@ -78,14 +90,38 @@ export default function AboutPage() {
             </h3>
             <p className="mt-2 text-theme-text-secondary leading-relaxed">
               Some bots signal approval by adding emoji reactions to PR
-              descriptions — for example, a 🎉 reaction can indicate a bot has
+              descriptions — for example, a 🎉 reaction indicates a bot has
               reviewed and approved the PR. GitHub&apos;s Events API has no
               event type for reactions, so these are invisible in GH Archive.
-              However, we capture PR-level reactions via the GitHub REST API
-              enrichment pipeline when fetching PR details. This gives us an
-              additional signal of bot review activity beyond the three event
-              types above.
+              We discover them by scanning PRs via the GitHub Reactions API and
+              checking whether a tracked bot left a 🎉. Only{" "}
+              <code className={codeClass}>hooray</code> (🎉) counts as a
+              review signal — other reactions like 👀 indicate the PR is still
+              being reviewed.
             </p>
+            <p className="mt-2 text-theme-text-secondary leading-relaxed">
+              To avoid double-counting, a reaction review is only counted if
+              the bot has no other activity on that PR (no review event, no
+              comments). This captures bots like Sentry that add 🎉 when they
+              review a PR and find no issues — a deliberate low-noise approach
+              that avoids leaving a formal review or comment.
+            </p>
+            <p className="mt-2 text-theme-muted text-sm italic">
+              Collecting this data requires individual GitHub API calls for each
+              discovered PR, which can take days at scale. Check the{" "}
+              <Link href="/status" className={linkClass}>/status</Link>{" "}
+              page for current progress.
+            </p>
+            {enrichmentPct !== null && enrichmentPct < 90 && (
+              <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400" data-testid="enrichment-warning">
+                <strong>Note:</strong> Reaction scan data has not yet been fully
+                collected ({enrichmentPct.toFixed(1)}% complete). Reaction
+                review counts may be incomplete.{" "}
+                <Link href="/status" className="text-red-300 hover:text-red-200 underline">
+                  View status →
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </section>

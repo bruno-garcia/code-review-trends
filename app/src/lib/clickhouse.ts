@@ -78,6 +78,7 @@ export type ProductSummary = {
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
+  total_reaction_reviews: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -101,6 +102,7 @@ export type BotSummary = {
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
+  total_reaction_reviews: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -298,6 +300,19 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         JOIN bots b FINAL ON c.bot_id = b.id
         WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY b.product_id
+      ),
+      reaction_review_agg AS (
+        SELECT
+          b.product_id,
+          countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
+        FROM pr_bot_reactions r FINAL
+        JOIN bots b FINAL ON r.bot_id = b.id
+        LEFT JOIN (
+          SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_bot_events FINAL
+        ) e ON r.repo_name = e.repo_name AND r.pr_number = e.pr_number AND r.bot_id = e.bot_id
+        WHERE r.reaction_type = 'hooray'
+          AND e.repo_name = ''
+        GROUP BY b.product_id
       )
     SELECT
       p.id,
@@ -310,6 +325,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
+      COALESCE(rrv.reaction_reviews, 0) AS total_reaction_reviews,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
@@ -331,6 +347,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     FROM products p FINAL
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
+    LEFT JOIN reaction_review_agg rrv ON p.id = rrv.product_id
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
@@ -610,6 +627,18 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
         FROM pr_comments c FINAL
         WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY c.bot_id
+      ),
+      reaction_review_agg AS (
+        SELECT
+          r.bot_id,
+          countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
+        FROM pr_bot_reactions r FINAL
+        LEFT JOIN (
+          SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_bot_events FINAL
+        ) e ON r.repo_name = e.repo_name AND r.pr_number = e.pr_number AND r.bot_id = e.bot_id
+        WHERE r.reaction_type = 'hooray'
+          AND e.repo_name = ''
+        GROUP BY r.bot_id
       )
     SELECT
       b.id,
@@ -621,6 +650,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
+      COALESCE(rrv.reaction_reviews, 0) AS total_reaction_reviews,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
@@ -642,6 +672,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     FROM bots AS b FINAL
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
+    LEFT JOIN reaction_review_agg rrv ON b.id = rrv.bot_id
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
@@ -1153,6 +1184,10 @@ export type DataCollectionStats = {
   // GitHub enrichment — comments
   comments_discovered: number;
   comments_enriched: number;
+  // GitHub enrichment — reaction scans
+  reactions_total: number;
+  reactions_scanned: number;
+  reactions_found: number;
 };
 
 import { DATA_EPOCH } from "./constants";
@@ -1175,6 +1210,9 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       prs_enriched: number;
       comments_discovered: number;
       comments_enriched: number;
+      reactions_total: number;
+      reactions_scanned: number;
+      reactions_found: number;
     }>(`
       SELECT
         (SELECT count(DISTINCT repo_name) FROM pr_bot_events FINAL) AS repos_total,
@@ -1183,7 +1221,10 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
         (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events FINAL) AS prs_discovered,
         (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
         (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events FINAL WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
-        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_comments FINAL) AS comments_enriched
+        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_comments FINAL) AS comments_enriched,
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events FINAL) AS reactions_total,
+        (SELECT count() FROM reaction_scan_progress FINAL) AS reactions_scanned,
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_reactions FINAL) AS reactions_found
     `),
   ]);
 
@@ -1214,5 +1255,8 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     prs_enriched: Number(base?.prs_enriched ?? 0),
     comments_discovered: Number(base?.comments_discovered ?? 0),
     comments_enriched: Number(base?.comments_enriched ?? 0),
+    reactions_total: Number(base?.reactions_total ?? 0),
+    reactions_scanned: Number(base?.reactions_scanned ?? 0),
+    reactions_found: Number(base?.reactions_found ?? 0),
   };
 }
