@@ -16,7 +16,7 @@ export function VersionStamp() {
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(commitSha);
+      await navigator.clipboard.writeText(shortSha);
       setCopied(true);
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setCopied(false), 2000);
