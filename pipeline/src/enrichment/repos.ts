@@ -62,10 +62,21 @@ export async function enrichRepos(
      WHERE repo_name NOT IN (SELECT name FROM repos)`,
   ))[0] ?? { total_pending: "0" };
 
+  // Filter out repos with invalid repo_name values
+  const invalidRepos = repos.filter((r) => !r.repo_name || r.repo_name.trim() === "");
+  if (invalidRepos.length > 0) {
+    logError(`[repos] WARNING: Found ${invalidRepos.length} repos with invalid repo_name (undefined/null/empty) - skipping these`);
+    Sentry.captureMessage(
+      `Invalid repo_name values in pr_bot_events: ${invalidRepos.length} repos`,
+      { level: "warning", contexts: { enrichment: { phase: "repos", invalid_count: invalidRepos.length } } }
+    );
+  }
+  const validRepos = repos.filter((r) => r.repo_name && r.repo_name.trim() !== "");
+
   // Summarize what this run will work on
-  log(`[repos] Processing ${repos.length} of ${total_pending} pending repos`);
-  if (repos.length > 0) {
-    log(`[repos] ${summarizeOrgs(repos.map((r) => r.repo_name))}`);
+  log(`[repos] Processing ${validRepos.length} of ${total_pending} pending repos`);
+  if (validRepos.length > 0) {
+    log(`[repos] ${summarizeOrgs(validRepos.map((r) => r.repo_name))}`);
   }
 
   let fetched = 0;
@@ -76,8 +87,8 @@ export async function enrichRepos(
   const BATCH_SIZE = 50;
 
   // Process in batches — each batch is a Sentry span wrapping real work
-  for (let batchStart = 0; batchStart < repos.length; batchStart += BATCH_SIZE) {
-    const batch = repos.slice(batchStart, batchStart + BATCH_SIZE);
+  for (let batchStart = 0; batchStart < validRepos.length; batchStart += BATCH_SIZE) {
+    const batch = validRepos.slice(batchStart, batchStart + BATCH_SIZE);
     const batchLabel = `repos batch ${batchStart}–${batchStart + batch.length}`;
 
     await Sentry.startSpan(
@@ -163,7 +174,7 @@ export async function enrichRepos(
     );
 
     const processed = fetched + notFound + forbidden + rateLimited + errors;
-    log(`[repos] Progress: ${processed}/${repos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
+    log(`[repos] Progress: ${processed}/${validRepos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.repos.batch", 1);
   }
 
