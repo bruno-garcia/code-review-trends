@@ -1053,7 +1053,7 @@ main().catch(async (err) => {
   const isCliError = err instanceof CliError;
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123 (default)";
 
-  Sentry.captureException(err, {
+  const eventId = Sentry.captureException(err, {
     level: isCliError ? "warning" : "error",
     contexts: {
       pipeline: {
@@ -1068,6 +1068,9 @@ main().catch(async (err) => {
     console.error(`Error: ${err.message}`);
   } else {
     console.error("Fatal error:", err);
+  }
+  if (eventId) {
+    console.error(`Sentry event: ${eventId}`);
   }
   // Flush Sentry events before exiting
   await Sentry.flush(5000);
