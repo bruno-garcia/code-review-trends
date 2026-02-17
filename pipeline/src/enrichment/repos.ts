@@ -10,10 +10,8 @@ import type { Octokit } from "@octokit/rest";
 import type { ClickHouseClient } from "@clickhouse/client";
 import {
   insertRepos,
-  insertRepoLanguages,
   query,
   type RepoRow,
-  type RepoLanguageRow,
 } from "../clickhouse.js";
 import { Sentry, log, logError, countMetric } from "../sentry.js";
 import { type RateLimiter } from "./rate-limiter.js";
@@ -104,23 +102,6 @@ export async function enrichRepos(
             };
 
             await insertRepos(ch, [repoRow]);
-
-            // Fetch language breakdown
-            await rateLimiter.waitIfNeeded();
-            const langResponse = await octokit.rest.repos.listLanguages({ owner, repo });
-            rateLimiter.update(langResponse.headers as Record<string, string>);
-
-            const langRows: RepoLanguageRow[] = Object.entries(
-              langResponse.data,
-            ).map(([language, bytes]) => ({
-              repo_name,
-              language,
-              bytes: bytes as number,
-            }));
-
-            if (langRows.length > 0) {
-              await insertRepoLanguages(ch, langRows);
-            }
 
             fetched++;
           } catch (err: unknown) {
@@ -228,23 +209,6 @@ export async function refreshStaleRepos(
         archived: data.archived,
         fetch_status: "ok",
       }]);
-
-      // Refresh languages too
-      await rateLimiter.waitIfNeeded();
-      const langResponse = await octokit.rest.repos.listLanguages({ owner, repo });
-      rateLimiter.update(langResponse.headers as Record<string, string>);
-
-      const langRows: RepoLanguageRow[] = Object.entries(
-        langResponse.data,
-      ).map(([language, bytes]) => ({
-        repo_name: name,
-        language,
-        bytes: bytes as number,
-      }));
-
-      if (langRows.length > 0) {
-        await insertRepoLanguages(ch, langRows);
-      }
 
       refreshed++;
     } catch (err: unknown) {
