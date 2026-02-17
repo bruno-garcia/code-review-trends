@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS code_review_trends.products (
 ) ENGINE = ReplacingMergeTree()
 ORDER BY id;
 
+-- Schema migrations (idempotent column additions for existing databases)
+ALTER TABLE code_review_trends.products ADD COLUMN IF NOT EXISTS docs_url String DEFAULT '';
+
 -- Bots we're tracking (display info only)
 CREATE TABLE IF NOT EXISTS code_review_trends.bots (
     id String,
