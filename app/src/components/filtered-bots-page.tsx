@@ -25,6 +25,17 @@ type LeaderboardSortKey =
   | "approval_rate"
   | "growth_pct";
 
+const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: string }[] = [
+  { key: "total_reviews", label: "Reviews", title: "Sort by total PR reviews submitted" },
+  { key: "total_comments", label: "Review Comments", title: "Sort by total review comments posted" },
+  { key: "total_pr_comments", label: "PR Comments", title: "Sort by total PR comments" },
+  { key: "total_repos", label: "Repos", title: "Sort by max repos active in a single week" },
+  { key: "total_orgs", label: "Orgs", title: "Sort by max organizations active in a single week" },
+  { key: "avg_comments_per_review", label: "Avg C/R", title: "Sort by average comments per review" },
+  { key: "approval_rate", label: "Approval", title: "Sort by approval rate" },
+  { key: "growth_pct", label: "Growth", title: "Sort by review growth rate" },
+];
+
 export function FilteredBotsPage({
   activity,
   summaries,
@@ -146,21 +157,13 @@ export function FilteredBotsPage({
             <thead className="text-theme-muted border-b border-theme-border text-sm">
               <tr>
                 <th className="pb-3 pr-4">Product</th>
-                {([
-                  { key: "total_reviews", label: "Reviews" },
-                  { key: "total_comments", label: "Review Comments" },
-                  { key: "total_pr_comments", label: "PR Comments" },
-                  { key: "total_repos", label: "Repos" },
-                  { key: "total_orgs", label: "Orgs" },
-                  { key: "avg_comments_per_review", label: "Avg C/R" },
-                  { key: "approval_rate", label: "Approval" },
-                  { key: "growth_pct", label: "Growth" },
-                ] as { key: LeaderboardSortKey; label: string }[]).map(({ key, label }) => (
+                {LEADERBOARD_COLUMNS.map(({ key, label, title }) => (
                   <th key={key} className="pb-3 pr-4 text-right">
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-text transition-colors"
                       onClick={() => handleSort(key)}
+                      title={title}
                     >
                       {label}
                       {sortKey === key && (

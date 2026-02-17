@@ -6,6 +6,12 @@ import { useState, useCallback, useTransition } from "react";
 type LanguageOption = { value: string; count: number };
 type ProductOption = { id: string; name: string; avatar_url: string; brand_color: string };
 
+const SORT_OPTIONS = [
+  { key: "stars", label: "⭐ Stars", tip: "Sort by total GitHub stars" },
+  { key: "repos", label: "Repos", tip: "Sort by number of repos with AI-reviewed PRs" },
+  { key: "prs", label: "AI PRs", tip: "Sort by pull requests reviewed by AI bots" },
+] as const;
+
 export function OrgFilters({
   languageOptions,
   productOptions,
@@ -88,13 +94,7 @@ export function OrgFilters({
       <div className="flex items-center gap-3 flex-wrap">
         {/* Sort */}
         <div className="flex gap-1">
-          {(
-            [
-              { key: "stars", label: "⭐ Stars", tip: "Sort by total GitHub stars" },
-              { key: "repos", label: "Repos", tip: "Sort by number of repos with AI-reviewed PRs" },
-              { key: "prs", label: "AI PRs", tip: "Sort by pull requests reviewed by AI bots" },
-            ] as const
-          ).map(({ key, label, tip }) => (
+          {SORT_OPTIONS.map(({ key, label, tip }) => (
             <button
               key={key}
               type="button"

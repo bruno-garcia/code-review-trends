@@ -209,7 +209,7 @@ export function CompareCharts({
       {/* Big comparison table */}
       <section data-testid="compare-table-section">
         <h2 className="text-2xl font-semibold mb-4">Detailed Comparison</h2>
-        <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%-3rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
+        <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%_-_3rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
           <table
             className="w-full text-left text-sm"
             data-testid="compare-table"
