@@ -191,7 +191,7 @@ jobs:
 
       - name: Update pipeline job images
         run: |
-          for job in sync backfill discover enrich; do
+          for job in sync backfill discover enrich discover-bots; do
             gcloud run jobs update "crt-staging-${job}" \
               --image=${{ steps.tags.outputs.pipeline }} \
               --region=${REGION} \

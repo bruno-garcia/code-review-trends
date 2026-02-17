@@ -16,6 +16,7 @@ const jobs = [
   { name: "backfill", args: ["backfill"], timeout: "7200s" },
   { name: "discover", args: ["discover"], timeout: "1800s" },
   { name: "enrich", args: ["enrich", "--exit-on-rate-limit"], timeout: "3600s" },
+  { name: "discover-bots", args: ["discover-bots", "--alert"], timeout: "1800s" },
 ];
 
 export function createCloudRunJobs(

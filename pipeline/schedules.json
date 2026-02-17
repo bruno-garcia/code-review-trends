@@ -1,6 +1,7 @@
 {
-  "sync":     { "cron": "0 6 * * *",   "maxRuntime": 30,  "description": "Daily sync of recent BigQuery data" },
-  "backfill": { "cron": "0 2 * * 1",   "maxRuntime": 120, "description": "Weekly historical backfill" },
-  "discover": { "cron": "0 4 * * *",   "maxRuntime": 30,  "description": "Daily PR bot event discovery" },
-  "enrich":   { "cron": "5 * * * *",   "maxRuntime": 60,  "description": "Hourly GitHub API enrichment" }
+  "sync":          { "cron": "0 6 * * *",   "maxRuntime": 30,  "description": "Daily sync of recent BigQuery data" },
+  "backfill":      { "cron": "0 2 * * 1",   "maxRuntime": 120, "description": "Weekly historical backfill" },
+  "discover":      { "cron": "0 4 * * *",   "maxRuntime": 30,  "description": "Daily PR bot event discovery" },
+  "enrich":        { "cron": "5 * * * *",   "maxRuntime": 60,  "description": "Hourly GitHub API enrichment" },
+  "discover-bots": { "cron": "0 3 1 * *",   "maxRuntime": 30,  "description": "Monthly bot account discovery from GH Archive" }
 }
