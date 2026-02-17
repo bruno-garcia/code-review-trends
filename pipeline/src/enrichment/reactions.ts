@@ -134,13 +134,18 @@ export async function enrichReactions(
             continue;
           }
 
-          // Has hooray reactions — fetch per-user reactions to check for bots
+          // Has hooray reactions — fetch per-user reactions to check for bots.
+          // Use paginate.iterator so we can update rate limiter with each page's headers.
           await rateLimiter.waitIfNeeded();
-          const reactions = await octokit.paginate(
+          const reactions: Awaited<ReturnType<typeof octokit.rest.reactions.listForIssue>>["data"] = [];
+          for await (const response of octokit.paginate.iterator(
             octokit.rest.reactions.listForIssue,
             { owner, repo, issue_number: prNum, per_page: 100 },
-          );
-          rateLimiter.update({} as Record<string, string>); // paginate handles headers
+          )) {
+            rateLimiter.update(response.headers as Record<string, string>);
+            reactions.push(...response.data);
+            await rateLimiter.waitIfNeeded();
+          }
           totalApiCalls++;
 
           for (const reaction of reactions) {
@@ -161,8 +166,12 @@ export async function enrichReactions(
             });
           }
 
+          const foundBotReaction = reactions.some((r) => {
+            const login = r.user?.login;
+            return login && TRACKED_LOGINS.has(login) && REVIEW_REACTION_TYPES.has(r.content);
+          });
           batchSentinels.push({ repo_name, pr_number: prNum });
-          if (batchReactions.length > 0) fetched++;
+          if (foundBotReaction) fetched++;
           scanned++;
         } catch (err: unknown) {
           const status = (err as { status?: number }).status;

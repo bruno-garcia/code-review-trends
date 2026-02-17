@@ -163,6 +163,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     countMetric("pipeline.enrich.comments.skipped", commentsResult.skipped, { phase: "comments" });
     countMetric("pipeline.enrich.comments.errors", commentsResult.errors, { phase: "comments" });
     countMetric("pipeline.enrich.reactions.fetched", reactionsResult.fetched, { phase: "reactions" });
+    countMetric("pipeline.enrich.reactions.skipped", reactionsResult.skipped, { phase: "reactions" });
     countMetric("pipeline.enrich.reactions.scanned", reactionsResult.scanned, { phase: "reactions" });
     countMetric("pipeline.enrich.reactions.errors", reactionsResult.errors, { phase: "reactions" });
     distributionMetric("pipeline.enrich.duration", duration, "millisecond");
