@@ -7,7 +7,11 @@ function getGitCommitSha(): string {
   if (process.env.VERCEL_GIT_COMMIT_SHA) {
     return process.env.VERCEL_GIT_COMMIT_SHA;
   }
-  // Fallback for local dev / CI builds
+  // Docker builds pass this via --build-arg (no .git dir available)
+  if (process.env.NEXT_PUBLIC_COMMIT_SHA) {
+    return process.env.NEXT_PUBLIC_COMMIT_SHA;
+  }
+  // Fallback for local dev
   try {
     return execSync("git rev-parse HEAD").toString().trim();
   } catch {
