@@ -2,7 +2,7 @@ config:
   gcp:region: us-central1
   gcp:zone: us-central1-a
   code-review-trends:environment: staging
-  code-review-trends:clickhouseMachineType: e2-medium
+  code-review-trends:clickhouseMachineType: e2-highmem-2
   code-review-trends:clickhouseDiskSizeGb: "20"
   gcp:project:
     secure: v1:pPeFMdNeIwwNUtMk:ZBEWf3Wc4tu/V8VTkVtbQLL9kAQxTnsy7f5OiQ==
