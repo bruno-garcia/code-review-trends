@@ -223,11 +223,12 @@ describe("schema version consistency", () => {
     return match ? parseInt(match[1], 10) : null;
   }
 
-  function readRelative(relativePath: string): string {
-    const { readFileSync } = require("fs");
-    const { resolve, dirname } = require("path");
-    const __dirname = dirname(__filename);
-    return readFileSync(resolve(__dirname, relativePath), "utf-8");
+  async function readRelative(relativePath: string): Promise<string> {
+    const { readFileSync } = await import("fs");
+    const { resolve, dirname } = await import("path");
+    const { fileURLToPath } = await import("url");
+    const dir = dirname(fileURLToPath(import.meta.url));
+    return readFileSync(resolve(dir, relativePath), "utf-8");
   }
 
   const sources: { file: string; path: string; pattern: RegExp }[] = [
@@ -244,8 +245,8 @@ describe("schema version consistency", () => {
   ];
 
   for (const { file, path, pattern } of sources) {
-    it(`EXPECTED_SCHEMA_VERSION matches ${file}`, () => {
-      const content = readRelative(path);
+    it(`EXPECTED_SCHEMA_VERSION matches ${file}`, async () => {
+      const content = await readRelative(path);
       const version = extractVersion(content, pattern);
 
       assert.ok(
