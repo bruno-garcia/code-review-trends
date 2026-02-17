@@ -171,6 +171,7 @@ jobs:
         run: |
           docker build -f app/Dockerfile \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg NEXT_PUBLIC_COMMIT_SHA="${{ github.sha }}" \
             --tag ${{ steps.tags.outputs.app }} \
             .
           docker push ${{ steps.tags.outputs.app }}
