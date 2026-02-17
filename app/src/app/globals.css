@@ -21,15 +21,21 @@ summary {
 }
 
 @keyframes nav-progress-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 8px 1px rgba(139, 92, 246, 0.7), 0 0 16px 2px rgba(99, 102, 241, 0.4);
+  }
+  50% {
+    opacity: 0.75;
+    box-shadow: 0 0 14px 3px rgba(139, 92, 246, 0.9), 0 0 28px 6px rgba(99, 102, 241, 0.5);
+  }
 }
 
 .nav-progress-bar {
   transform-origin: left;
   animation:
     nav-progress-grow 4s cubic-bezier(0.4, 0, 0.2, 1) forwards,
-    nav-progress-pulse 1.5s ease-in-out 1s infinite;
+    nav-progress-pulse 1.2s ease-in-out 0.3s infinite;
 }
 
 .nav-progress-complete {

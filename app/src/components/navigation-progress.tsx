@@ -119,15 +119,13 @@ function ProgressBar() {
   if (state === "idle") return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[100] h-[2px] overflow-hidden pointer-events-none">
+    <div className="fixed top-0 left-0 right-0 z-[100] h-[3px] pointer-events-none">
       <div
         className={`h-full w-full rounded-r-full ${
           state === "loading" ? "nav-progress-bar" : "nav-progress-complete"
         }`}
         style={{
           background: "linear-gradient(90deg, #8b5cf6, #6366f1, #8b5cf6)",
-          boxShadow:
-            "0 0 10px rgba(139, 92, 246, 0.5), 0 0 4px rgba(99, 102, 241, 0.3)",
         }}
       />
     </div>
