@@ -108,8 +108,8 @@ describe("bot registry", () => {
     }
   });
 
-  it("has 27 bots", () => {
-    assert.equal(BOTS.length, 27);
+  it("has 28 bots", () => {
+    assert.equal(BOTS.length, 28);
   });
 });
 
@@ -164,7 +164,7 @@ describe("product registry", () => {
 
   it("multi-bot products have expected bot counts", () => {
     const expected: Record<string, number> = {
-      qodo: 3,
+      qodo: 4,
       sentry: 3,
       linearb: 2,
     };

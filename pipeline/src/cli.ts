@@ -54,6 +54,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   status: cmdStatus,
   migrate: cmdMigrate,
   discover: cmdDiscover,
+  "discover-bots": cmdDiscoverBots,
   enrich: cmdEnrich,
   "enrich-status": cmdEnrichStatus,
   help: cmdHelp,
@@ -76,10 +77,11 @@ async function main() {
 
   // Commands that run on a schedule get cron monitoring
   const cronSchedules: Record<string, { type: "crontab"; value: string }> = {
-    sync:     { type: "crontab", value: "0 */6 * * *" },
-    backfill: { type: "crontab", value: "0 2 * * 1" },
-    discover: { type: "crontab", value: "0 3 * * *" },
-    enrich:   { type: "crontab", value: "0 */4 * * *" },
+    sync:              { type: "crontab", value: "0 */6 * * *" },
+    backfill:          { type: "crontab", value: "0 2 * * 1" },
+    discover:          { type: "crontab", value: "0 3 * * *" },
+    "discover-bots":   { type: "crontab", value: "0 6 1 * *" },
+    enrich:            { type: "crontab", value: "0 */4 * * *" },
   };
 
   const cronSlug = cronSchedules[command] ? `pipeline-${command}` : undefined;
@@ -113,6 +115,7 @@ Commands:
   status             Show pipeline health, data freshness, and coverage
   migrate            Apply schema + bot data to ClickHouse (staging/prod/local)
   discover           Discover PR bot events from BigQuery into pr_bot_events
+  discover-bots      Find new bot accounts (BigQuery + Marketplace + App verification)
   enrich             Run GitHub API enrichment (repos → PRs → comments)
   enrich-status      Show enrichment progress
   help               Show this help message
@@ -152,6 +155,13 @@ Options for discover:
   --end YYYY-MM-DD     End date (default: today)
   --all                Discover full history from 2023-01-01
   --dry-run            Show what would be fetched without running
+
+Options for discover-bots:
+  --start YYYY-MM-DD   Start date (default: 30 days ago)
+  --end YYYY-MM-DD     End date (default: today)
+  --marketplace-only   Skip BigQuery [bot] scan
+  --bigquery-only      Skip marketplace scan
+  --alert              Capture a Sentry event per new bot (for "new issue" email alerts)
 
 Options for enrich:
   --token TOKEN        GitHub PAT (or set GITHUB_TOKEN env var)
@@ -550,6 +560,66 @@ async function cmdDiscover() {
     log("Done!");
   } finally {
     await ch.close();
+  }
+}
+
+async function cmdDiscoverBots() {
+  const args = parseArgs();
+  const endDate = args["--end"] ?? new Date().toISOString().split("T")[0];
+  const startDate =
+    args["--start"] ??
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+  const marketplaceOnly = "--marketplace-only" in args;
+  const bigqueryOnly = "--bigquery-only" in args;
+  const alert = "--alert" in args;
+
+  if (marketplaceOnly && bigqueryOnly) {
+    throw new CliError("Flags --marketplace-only and --bigquery-only are mutually exclusive.");
+  }
+
+  const { discoverBots } = await import("./tools/discover-bots.js");
+
+  const summary = await Sentry.startSpan(
+    { op: "pipeline.discover-bots", name: `discover-bots ${startDate}→${endDate}` },
+    () => discoverBots({ startDate, endDate, marketplaceOnly, bigqueryOnly }),
+  );
+
+  // Emit metrics
+  countMetric("pipeline.discover_bots.total_found", summary.total_found);
+  countMetric("pipeline.discover_bots.already_tracked", summary.already_tracked);
+  countMetric("pipeline.discover_bots.ignored", summary.ignored);
+  countMetric("pipeline.discover_bots.new_with_app", summary.new_with_app);
+  countMetric("pipeline.discover_bots.new_without_app", summary.new_without_app);
+  countMetric("pipeline.discover_bots.from_bigquery", summary.from_bigquery);
+  countMetric("pipeline.discover_bots.from_marketplace", summary.from_marketplace);
+  countMetric("pipeline.discover_bots.apps_verified", summary.apps_verified);
+  countMetric("pipeline.discover_bots.apps_not_found", summary.apps_not_found);
+
+  // Alert: capture one Sentry event per new bot (fingerprinted by login)
+  if (alert && summary.new_bots.length > 0) {
+    for (const bot of summary.new_bots) {
+      Sentry.captureMessage(`New bot discovered: ${bot.login}`, {
+        level: "info",
+        fingerprint: ["discover-bots-new", bot.login],
+        tags: {
+          "discover_bots.login": bot.login,
+          "discover_bots.source": bot.source,
+        },
+        contexts: {
+          bot: {
+            login: bot.login,
+            name: bot.marketplace_name ?? "",
+            event_count: bot.event_count,
+            repo_count: bot.repo_count,
+            source: bot.source,
+            github_app_url: bot.github_app_url ?? "",
+          },
+        },
+      });
+    }
+    log(`Sent ${summary.new_bots.length} Sentry alert(s) for new bot(s)`);
   }
 }
 

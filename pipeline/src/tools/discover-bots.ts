@@ -27,7 +27,7 @@ import {
   discoverBotReviewers,
   queryReviewActivityByLogins,
 } from "../bigquery.js";
-import { BOT_LOGINS } from "../bots.js";
+import { BOT_LOGINS, IGNORED_BOT_LOGINS } from "../bots.js";
 
 // ---------------------------------------------------------------------------
 // Marketplace scraping
@@ -101,29 +101,35 @@ const GITHUB_HEADERS = {
 
 let rateLimitWarned = false;
 
+type ResolveResult =
+  | { status: "found"; app_slug: string; name: string }
+  | { status: "not_found" }
+  | { status: "error" };
+
 /**
  * Try to resolve a marketplace slug to a GitHub App via the API.
- * Returns null if the slug doesn't match a GitHub App.
+ * Returns "found" with app details, "not_found" for 404, or "error" for
+ * transient failures (rate limits, network errors) so callers can distinguish
+ * "app doesn't exist" from "we couldn't check".
  */
-async function resolveViaApi(
-  slug: string,
-): Promise<{ app_slug: string; name: string } | null> {
+async function resolveViaApi(slug: string): Promise<ResolveResult> {
   try {
     const res = await fetch(`https://api.github.com/apps/${slug}`, {
       headers: GITHUB_HEADERS,
     });
     if (!res.ok) {
+      if (res.status === 404) return { status: "not_found" };
       if (res.status === 403 && !rateLimitWarned) {
         rateLimitWarned = true;
         console.warn("  ⚠ Rate limited by GitHub API. Set GITHUB_TOKEN for higher limits.");
       }
-      return null;
+      return { status: "error" };
     }
     const data = (await res.json()) as { slug?: string; name?: string };
-    if (!data.slug) return null;
-    return { app_slug: data.slug, name: data.name ?? data.slug };
+    if (!data.slug) return { status: "not_found" };
+    return { status: "found", app_slug: data.slug, name: data.name ?? data.slug };
   } catch {
-    return null;
+    return { status: "error" };
   }
 }
 
@@ -138,7 +144,7 @@ async function resolveViaApi(
  */
 async function resolveViaMarketplacePage(
   marketplace_slug: string,
-): Promise<{ app_slug: string; name: string } | null> {
+): Promise<ResolveResult> {
   try {
     const res = await fetch(
       `https://github.com/marketplace/${marketplace_slug}`,
@@ -149,7 +155,7 @@ async function resolveViaMarketplacePage(
         },
       },
     );
-    if (!res.ok) return null;
+    if (!res.ok) return { status: "not_found" };
     const html = await res.text();
 
     // Collect candidate slugs from page content (capped to limit API calls)
@@ -180,12 +186,12 @@ async function resolveViaMarketplacePage(
     // Try each candidate via the Apps API
     for (const candidate of candidates) {
       const result = await resolveViaApi(candidate);
-      if (result) return result;
+      if (result.status === "found") return result;
     }
 
-    return null;
+    return { status: "not_found" };
   } catch {
-    return null;
+    return { status: "error" };
   }
 }
 
@@ -209,11 +215,11 @@ async function resolveApps(slugs: string[]): Promise<ResolvedApp[]> {
         let result = await resolveViaApi(marketplace_slug);
 
         // Strategy 2: scrape marketplace page for hints
-        if (!result) {
+        if (result.status !== "found") {
           result = await resolveViaMarketplacePage(marketplace_slug);
         }
 
-        if (!result) return null;
+        if (result.status !== "found") return null;
 
         return {
           marketplace_slug,
@@ -237,39 +243,65 @@ async function resolveApps(slugs: string[]): Promise<ResolvedApp[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Main
+// Types & Core
 // ---------------------------------------------------------------------------
 
-async function main() {
-  const args = parseArgs();
-  const endDate = args["--end"] ?? new Date().toISOString().split("T")[0];
-  const startDate =
-    args["--start"] ??
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0];
-  const marketplaceOnly = "--marketplace-only" in args;
-  const bigqueryOnly = "--bigquery-only" in args;
+export type DiscoverResult = {
+  login: string;
+  event_count: number;
+  repo_count: number;
+  source: string;
+  tracked: boolean;
+  ignored: boolean;
+  marketplace_name?: string;
+  /** Whether the GitHub App page exists (null = not checked / error) */
+  github_app_exists: boolean | null;
+  /** GitHub App URL, set when github_app_exists is true and login ends with [bot] */
+  github_app_url?: string;
+};
 
-  if (marketplaceOnly && bigqueryOnly) {
-    console.error(
-      "Flags --marketplace-only and --bigquery-only are mutually exclusive; please specify at most one.",
-    );
-    process.exit(1);
-  }
+export type DiscoverBotsOptions = {
+  startDate: string;
+  endDate: string;
+  marketplaceOnly?: boolean;
+  bigqueryOnly?: boolean;
+};
+
+export type DiscoverBotsSummary = {
+  /** All discovered results */
+  results: DiscoverResult[];
+  /** New bots with a valid GitHub App (not tracked, not ignored) — ready for --alert */
+  new_bots: DiscoverResult[];
+  /** Total discovered (all strategies) */
+  total_found: number;
+  /** Already tracked in bots.ts */
+  already_tracked: number;
+  /** In IGNORED_BOT_LOGINS */
+  ignored: number;
+  /** New bots with a valid GitHub App (not tracked, not ignored) */
+  new_with_app: number;
+  /** New bots with no GitHub App (skipped) */
+  new_without_app: number;
+  /** Found via BigQuery [bot] scan */
+  from_bigquery: number;
+  /** Found via Marketplace scan */
+  from_marketplace: number;
+  /** GitHub App URLs verified */
+  apps_verified: number;
+  /** GitHub App URLs not found */
+  apps_not_found: number;
+};
+
+/**
+ * Core bot discovery logic. Returns structured results for metrics/reporting.
+ * Console output is side-effect only — the return value is the source of truth.
+ */
+export async function discoverBots(opts: DiscoverBotsOptions): Promise<DiscoverBotsSummary> {
+  const { startDate, endDate, marketplaceOnly = false, bigqueryOnly = false } = opts;
 
   console.log(`Discovering bot reviewers: ${startDate} → ${endDate}\n`);
 
-  // Collect all results: login → { event_count, repo_count, source, tracked }
-  type Result = {
-    login: string;
-    event_count: number;
-    repo_count: number;
-    source: string;
-    tracked: boolean;
-    marketplace_name?: string;
-  };
-  const results = new Map<string, Result>();
+  const results = new Map<string, DiscoverResult>();
 
   // --- Strategy 1: BigQuery [bot] wildcard scan ---
   let bq: BigQuery | undefined;
@@ -284,6 +316,8 @@ async function main() {
         repo_count: bot.repo_count,
         source: "bigquery",
         tracked: BOT_LOGINS.has(bot.login),
+        ignored: IGNORED_BOT_LOGINS.has(bot.login),
+        github_app_exists: null,
       });
     }
     console.log(`  Found ${bots.length} bot accounts via [bot] filter\n`);
@@ -337,7 +371,10 @@ async function main() {
           repo_count: row.repo_count,
           source: "marketplace",
           tracked: BOT_LOGINS.has(row.login),
+          ignored: IGNORED_BOT_LOGINS.has(row.login),
           marketplace_name: app?.name,
+          github_app_exists: true,
+          github_app_url: app ? `https://github.com/apps/${app.app_slug}` : undefined,
         });
       }
       console.log(
@@ -355,12 +392,56 @@ async function main() {
               repo_count: 0,
               source: "marketplace",
               tracked: BOT_LOGINS.has(login),
+              ignored: IGNORED_BOT_LOGINS.has(login),
               marketplace_name: app.name,
+              github_app_exists: true,
+              github_app_url: `https://github.com/apps/${app.app_slug}`,
             });
           }
         }
       }
     }
+  }
+
+  // --- Verify GitHub App URLs for unverified bots ---
+  let appsVerified = 0;
+  let appsNotFound = 0;
+  const unverified = [...results.values()].filter(
+    (r) => r.github_app_exists === null && r.login.endsWith("[bot]"),
+  );
+  if (unverified.length > 0) {
+    console.log(
+      `═══ Verifying GitHub App URLs for ${unverified.length} bot(s) ═══\n`,
+    );
+    const VERIFY_BATCH = 5;
+    for (let i = 0; i < unverified.length; i += VERIFY_BATCH) {
+      const batch = unverified.slice(i, i + VERIFY_BATCH);
+      await Promise.all(
+        batch.map(async (r) => {
+          const slug = r.login.replace("[bot]", "");
+          const result = await resolveViaApi(slug);
+          if (result.status === "found") {
+            r.github_app_exists = true;
+            r.github_app_url = `https://github.com/apps/${result.app_slug}`;
+            r.marketplace_name = r.marketplace_name ?? result.name;
+          } else if (result.status === "not_found") {
+            r.github_app_exists = false;
+          }
+          // status === "error" (rate limit, network) → leave as null (unknown)
+        }),
+      );
+      if (i + VERIFY_BATCH < unverified.length) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+    appsVerified = unverified.filter((r) => r.github_app_exists === true).length;
+    appsNotFound = unverified.filter((r) => r.github_app_exists === false).length;
+    const unknown = unverified.filter((r) => r.github_app_exists === null).length;
+    console.log(
+      `  ✓ ${appsVerified} verified, ✗ ${appsNotFound} not found` +
+        (unknown > 0 ? `, ? ${unknown} could not be checked (rate limit?)` : "") +
+        "\n",
+    );
   }
 
   // --- Print results ---
@@ -370,30 +451,86 @@ async function main() {
 
   console.log("═══ Results ═══\n");
   console.log(
-    `${"Login".padEnd(40)} ${"Events".padStart(10)} ${"Repos".padStart(8)} ${"Source".padStart(12)} ${"Status".padStart(10)}`,
+    `${"Login".padEnd(40)} ${"Events".padStart(10)} ${"Repos".padStart(8)} ${"Source".padStart(12)} ${"App".padStart(6)} ${"Status".padStart(10)}`,
   );
-  console.log("-".repeat(82));
+  console.log("-".repeat(88));
 
   for (const r of sorted) {
-    const status = r.tracked ? "  ✓" : "  NEW";
+    const status = r.tracked ? "  ✓" : r.ignored ? "  IGN" : "  NEW";
+    const app =
+      r.github_app_exists === true
+        ? "  ✓"
+        : r.github_app_exists === false
+          ? "  ✗"
+          : "  —";
     const name = r.marketplace_name ? ` (${r.marketplace_name})` : "";
     console.log(
-      `${(r.login + name).padEnd(40)} ${String(r.event_count).padStart(10)} ${String(r.repo_count).padStart(8)} ${r.source.padStart(12)} ${status.padStart(10)}`,
+      `${(r.login + name).padEnd(40)} ${String(r.event_count).padStart(10)} ${String(r.repo_count).padStart(8)} ${r.source.padStart(12)} ${app.padStart(6)} ${status.padStart(10)}`,
     );
   }
 
-  const newBots = sorted.filter((r) => !r.tracked);
+  // "New" = not tracked, not ignored, has a verified GitHub App
+  const newBots = sorted.filter(
+    (r) => !r.tracked && !r.ignored && r.github_app_exists === true,
+  );
+  const ignoredBots = sorted.filter((r) => r.ignored);
+  const skippedBots = sorted.filter(
+    (r) => !r.tracked && !r.ignored && r.github_app_exists === false,
+  );
+
+  if (ignoredBots.length > 0) {
+    console.log(
+      `\n${ignoredBots.length} account(s) ignored (in IGNORED_BOT_LOGINS):`,
+    );
+    for (const r of ignoredBots) {
+      console.log(`  — ${r.login} (${r.event_count} events, ${r.repo_count} repos)`);
+    }
+  }
+
+  if (skippedBots.length > 0) {
+    console.log(
+      `\n⚠ ${skippedBots.length} account(s) skipped — no GitHub App found:`,
+    );
+    for (const r of skippedBots) {
+      console.log(
+        `  ✗ ${r.login} (${r.event_count} events, ${r.repo_count} repos)`,
+      );
+    }
+  }
+
   if (newBots.length > 0) {
     console.log(`\n${newBots.length} new account(s) not yet tracked:`);
     for (const r of newBots) {
       const name = r.marketplace_name ? ` — ${r.marketplace_name}` : "";
       console.log(`  • ${r.login}${name} (${r.event_count} events, ${r.repo_count} repos)`);
     }
-    console.log("\nConsider adding them to pipeline/src/bots.ts");
-  } else {
+    console.log("\nConsider adding them to pipeline/src/bots.ts (or IGNORED_BOT_LOGINS to suppress).");
+  } else if (skippedBots.length === 0 && ignoredBots.length === 0) {
     console.log("\nAll discovered accounts are already tracked.");
+  } else {
+    console.log(
+      "\nNo new accounts to add.",
+    );
   }
+
+  return {
+    results: sorted,
+    new_bots: newBots,
+    total_found: sorted.length,
+    already_tracked: sorted.filter((r) => r.tracked).length,
+    ignored: ignoredBots.length,
+    new_with_app: newBots.length,
+    new_without_app: skippedBots.length,
+    from_bigquery: sorted.filter((r) => r.source === "bigquery").length,
+    from_marketplace: sorted.filter((r) => r.source === "marketplace").length,
+    apps_verified: appsVerified,
+    apps_not_found: appsNotFound,
+  };
 }
+
+// ---------------------------------------------------------------------------
+// Standalone CLI wrapper
+// ---------------------------------------------------------------------------
 
 function parseArgs(): Record<string, string> {
   const result: Record<string, string> = {};
@@ -411,6 +548,27 @@ function parseArgs(): Record<string, string> {
     }
   }
   return result;
+}
+
+async function main() {
+  const args = parseArgs();
+  const endDate = args["--end"] ?? new Date().toISOString().split("T")[0];
+  const startDate =
+    args["--start"] ??
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+  const marketplaceOnly = "--marketplace-only" in args;
+  const bigqueryOnly = "--bigquery-only" in args;
+
+  if (marketplaceOnly && bigqueryOnly) {
+    console.error(
+      "Flags --marketplace-only and --bigquery-only are mutually exclusive.",
+    );
+    process.exit(1);
+  }
+
+  await discoverBots({ startDate, endDate, marketplaceOnly, bigqueryOnly });
 }
 
 main().catch((err) => {
