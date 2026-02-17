@@ -23,7 +23,10 @@ export const metadata: Metadata = {
     "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+    ],
     apple: "/apple-icon.png",
   },
 };
