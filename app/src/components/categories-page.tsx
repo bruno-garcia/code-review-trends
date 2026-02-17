@@ -78,7 +78,7 @@ function CategorySection({
                     }}
                   />
                 </div>
-                <span className="text-xs text-theme-text/80 tabular-nums w-20 text-right">
+                <span className="text-xs text-theme-text/80 tabular-nums w-24 text-right whitespace-nowrap">
                   {i === 0 && (
                     <span className="text-violet-400 mr-1">★</span>
                   )}
