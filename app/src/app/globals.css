@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Use .dark class on <html> for dark mode (set by ThemeProvider) */
+@custom-variant dark (&:is(.dark, .dark *));
+
 /* Restore pointer cursor on interactive elements (Tailwind v4 Preflight doesn't set it) */
 button,
 [role="button"],

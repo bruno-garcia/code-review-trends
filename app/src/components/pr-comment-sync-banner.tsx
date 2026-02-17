@@ -15,7 +15,7 @@ export function PrCommentSyncBanner({
 
   return (
     <div
-      className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400"
+      className="rounded-lg border border-amber-600/30 dark:border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-400"
       data-testid="pr-comment-sync-warning"
     >
       <strong>Note:</strong> PR comment data collection is in progress (
@@ -23,7 +23,7 @@ export function PrCommentSyncBanner({
       incomplete.{" "}
       <Link
         href="/status"
-        className="text-amber-300 hover:text-amber-200 underline"
+        className="text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-200 underline"
       >
         View status →
       </Link>
