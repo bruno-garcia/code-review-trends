@@ -8,7 +8,7 @@
 import { Octokit } from "@octokit/rest";
 import { Sentry, log, countMetric, distributionMetric, gaugeMetric } from "../sentry.js";
 import { createCHClient } from "../clickhouse.js";
-import { RateLimiter } from "./rate-limiter.js";
+import { RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
 import { enrichPullRequests } from "./pull-requests.js";
 import { enrichComments } from "./comments.js";
@@ -21,6 +21,7 @@ export type EnrichmentOptions = {
   limit?: number;
   staleDays?: number;
   priority?: "repos" | "prs" | "comments";
+  exitOnRateLimit?: boolean;
 };
 
 export type EnrichmentResult = {
@@ -36,7 +37,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
 
   const octokit = new Octokit({ auth: options.githubToken });
   const ch = createCHClient();
-  const rateLimiter = new RateLimiter();
+  const rateLimiter = new RateLimiter(100, options.exitOnRateLimit ?? false);
   const workerId = options.workerId ?? 0;
   const totalWorkers = options.totalWorkers ?? 1;
   if (totalWorkers < 1) throw new Error(`totalWorkers must be >= 1, got ${totalWorkers}`);
@@ -69,39 +70,61 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   let prsResult = { fetched: 0, skipped: 0, errors: 0 };
   let commentsResult = { fetched: 0, skipped: 0, replies_filtered: 0, errors: 0 };
 
+  let rateLimitExit = false;
   try {
     for (const step of order) {
-      switch (step) {
-        case "repos":
-          reposResult = await Sentry.startSpan(
-            { op: "enrichment", name: "enrich.repos" },
-            () => enrichRepos(octokit, ch, rateLimiter, partition, { limit }),
-          );
+      try {
+        switch (step) {
+          case "repos":
+            reposResult = await Sentry.startSpan(
+              { op: "enrichment", name: "enrich.repos" },
+              () => enrichRepos(octokit, ch, rateLimiter, partition, { limit }),
+            );
+            break;
+          case "prs":
+            prsResult = await Sentry.startSpan(
+              { op: "enrichment", name: "enrich.pull-requests" },
+              () => enrichPullRequests(octokit, ch, rateLimiter, partition, { limit }),
+            );
+            break;
+          case "comments":
+            commentsResult = await Sentry.startSpan(
+              { op: "enrichment", name: "enrich.comments" },
+              () => enrichComments(octokit, ch, rateLimiter, partition, { limit }),
+            );
+            break;
+        }
+      } catch (e) {
+        if (e instanceof RateLimitExitError) {
+          log(`[worker] ${e.message}`);
+          rateLimitExit = true;
           break;
-        case "prs":
-          prsResult = await Sentry.startSpan(
-            { op: "enrichment", name: "enrich.pull-requests" },
-            () => enrichPullRequests(octokit, ch, rateLimiter, partition, { limit }),
-          );
-          break;
-        case "comments":
-          commentsResult = await Sentry.startSpan(
-            { op: "enrichment", name: "enrich.comments" },
-            () => enrichComments(octokit, ch, rateLimiter, partition, { limit }),
-          );
-          break;
+        }
+        throw e;
       }
     }
 
-    // Refresh stale repos
-    log("[worker] Refreshing stale repos...");
-    const refreshResult = await Sentry.startSpan(
-      { op: "enrichment", name: "enrich.refresh-stale-repos" },
-      () => refreshStaleRepos(octokit, ch, rateLimiter, partition, {
-        staleDays: options.staleDays ?? 7,
-        limit: limit ? Math.min(limit, 500) : 500,
-      }),
-    );
+    // Refresh stale repos (skip if we already hit the rate limit)
+    let refreshResult = { refreshed: 0 };
+    if (!rateLimitExit) {
+      log("[worker] Refreshing stale repos...");
+      try {
+        refreshResult = await Sentry.startSpan(
+          { op: "enrichment", name: "enrich.refresh-stale-repos" },
+          () => refreshStaleRepos(octokit, ch, rateLimiter, partition, {
+            staleDays: options.staleDays ?? 7,
+            limit: limit ? Math.min(limit, 500) : 500,
+          }),
+        );
+      } catch (e) {
+        if (e instanceof RateLimitExitError) {
+          log(`[worker] ${e.message}`);
+          rateLimitExit = true;
+        } else {
+          throw e;
+        }
+      }
+    }
 
     const duration = Date.now() - start;
     const rl = rateLimiter.waitSummary();
@@ -112,7 +135,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     const itemsPerSec = workTime > 0 ? (totalItems / (workTime / 1000)).toFixed(1) : "∞";
     const rlPct = duration > 0 ? ((rl.totalWaitMs / duration) * 100).toFixed(1) : "0";
 
-    log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);
+    log(`[worker] Enrichment ${rateLimitExit ? "stopped (rate limit)" : "complete"} in ${Math.ceil(duration / 1000)}s`);
     log(`[worker]   Items processed: ${totalItems} (${itemsPerSec} items/s effective)`);
     log(`[worker]   Rate-limit waits: ${rl.waitCount} pauses, ${Math.ceil(rl.totalWaitMs / 1000)}s total (${rlPct}% of wall time)`);
     if (rl.secondaryHits > 0) {

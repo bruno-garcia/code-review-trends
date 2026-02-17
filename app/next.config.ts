@@ -18,6 +18,10 @@ function getGitCommitSha(): string {
 const commitSha = getGitCommitSha();
 
 const nextConfig: NextConfig = {
+  // Produce a self-contained server.js for Docker deployments.
+  // Vercel ignores this; local `next dev` also ignores it.
+  output: "standalone",
+
   // On Vercel, deployment skew protection is handled automatically — Vercel
   // injects NEXT_DEPLOYMENT_ID. Setting deploymentId here would conflict.
   // Only set it for non-Vercel builds (local dev, self-hosted).

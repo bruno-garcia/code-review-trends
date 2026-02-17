@@ -103,6 +103,7 @@ jobs:
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
 
+      # TODO: Migrate smoke test auth from SA key to Workload Identity Federation
       - uses: google-github-actions/auth@v2
         if: ${{ env.HAS_GCP == 'true' }}
         with:
@@ -132,3 +133,67 @@ jobs:
           name: playwright-report
           path: app/playwright-report/
           retention-days: 14
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint-and-build, e2e]
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      REGION: us-central1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOY_SA_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+
+      - name: Determine image tags
+        id: tags
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          PROJECT=$(gcloud config get-value project)
+          GAR="${REGION}-docker.pkg.dev/${PROJECT}/crt"
+          echo "app=${GAR}/app:${SHA}" >> $GITHUB_OUTPUT
+          echo "pipeline=${GAR}/pipeline:${SHA}" >> $GITHUB_OUTPUT
+
+      - name: Build and push app image
+        run: |
+          docker build -f app/Dockerfile \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --tag ${{ steps.tags.outputs.app }} \
+            .
+          docker push ${{ steps.tags.outputs.app }}
+
+      - name: Build and push pipeline image
+        run: |
+          docker build -f pipeline/Dockerfile \
+            --tag ${{ steps.tags.outputs.pipeline }} \
+            .
+          docker push ${{ steps.tags.outputs.pipeline }}
+
+      - name: Deploy app to Cloud Run
+        run: |
+          gcloud run deploy crt-staging-app \
+            --image=${{ steps.tags.outputs.app }} \
+            --region=${REGION} \
+            --quiet
+
+      - name: Update pipeline job images
+        run: |
+          for job in sync backfill discover enrich discover-bots; do
+            gcloud run jobs update "crt-staging-${job}" \
+              --image=${{ steps.tags.outputs.pipeline }} \
+              --region=${REGION} \
+              --quiet
+          done

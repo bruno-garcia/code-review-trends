@@ -112,13 +112,14 @@ export async function withCronMonitor<T>(
   monitorSlug: string,
   fn: () => Promise<T>,
   schedule?: { type: "crontab"; value: string } | { type: "interval"; value: number; unit: "minute" | "hour" | "day" },
+  maxRuntime?: number,
 ): Promise<T> {
   if (noSentry) return fn();
 
   const monitorConfig = {
-    schedule: schedule ?? { type: "crontab" as const, value: "0 */6 * * *" },
+    schedule: schedule ?? { type: "crontab" as const, value: "0 6 * * *" },
     checkinMargin: 5,
-    maxRuntime: 120,
+    maxRuntime: maxRuntime ?? 120,
     timezone: "UTC",
   };
 

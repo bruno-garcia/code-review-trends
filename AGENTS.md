@@ -8,7 +8,7 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 
 - **`app/`** — Next.js 16 (App Router, TypeScript, Tailwind CSS v4). Server components fetch from ClickHouse; client components render charts with Recharts.
 - **`pipeline/`** — TypeScript data collection service. Pulls data from BigQuery (GH Archive) and GitHub API, writes to ClickHouse. Has CLI tools for dev.
-- **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages the production ClickHouse VM, networking, and firewall rules. See `infra/README.md`.
+- **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages ClickHouse VM, Cloud Run (Next.js app), Cloud Run Jobs (pipeline), Artifact Registry, Cloud Scheduler, Workload Identity Federation, and Secret Manager. See `infra/README.md`.
 - **`db/`** — ClickHouse schema and data, split by environment:
   - `db/init/` — runs on **all** environments: schema (`001_schema.sql`) and bot reference data (`002_bot_data.sql`).
 - **`docker-compose.yml`** — Local dev services (ClickHouse).
@@ -102,6 +102,8 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
 | Path | Purpose |
 |------|---------|
+| `.dockerignore` | Docker build exclusions |
+| `app/Dockerfile` | Multi-stage Docker build for Next.js app |
 | `app/src/lib/clickhouse.ts` | ClickHouse client + all data queries (app) |
 | `app/src/components/charts.tsx` | Recharts chart components (client-side) |
 | `app/src/app/page.tsx` | Home page — AI share, volume, leaderboard |
@@ -113,6 +115,8 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `app/src/lib/migrations.ts` | Versioned schema migration system (auto-migrate on app start) |
 | `app/src/components/schema-banner.tsx` | Warning banner when app/DB schema versions diverge |
 | `app/e2e/` | Playwright e2e tests |
+| `pipeline/Dockerfile` | Multi-stage Docker build for pipeline CLI |
+| `pipeline/schedules.json` | Job schedules (shared by Sentry cron + Cloud Scheduler) |
 | `pipeline/src/bots.ts` | Canonical bot registry |
 | `pipeline/src/clickhouse.ts` | ClickHouse writer (pipeline) |
 | `pipeline/src/bigquery.ts` | GH Archive queries |
@@ -122,10 +126,15 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `pipeline/src/tools/` | Dev inspection/validation tools |
 | `infra/index.ts` | Pulumi entrypoint — wires all components |
 | `infra/config.ts` | Typed Pulumi config loader |
+| `infra/artifact-registry.ts` | Container image registry |
+| `infra/cloud-run-app.ts` | Cloud Run service for Next.js |
+| `infra/cloud-run-jobs.ts` | Cloud Run Jobs + Cloud Scheduler triggers |
 | `infra/network.ts` | VPC, subnet, router, NAT, static IP |
 | `infra/firewall.ts` | Firewall rules (SSH, ClickHouse) |
 | `infra/clickhouse.ts` | ClickHouse VM with startup script |
 | `infra/secrets.ts` | Secret Manager + random password generation |
+| `infra/service-accounts.ts` | Runtime and deploy service accounts with IAM |
+| `infra/workload-identity.ts` | WIF pool + provider for GitHub Actions auth |
 | `infra/Pulumi.staging.yaml` | Staging stack config (GCP project, machine types) |
 | `infra/tests/infra.test.ts` | Pulumi unit tests (mocked, no cloud calls) |
 | `infra/test-vm.sh` | Integration test (creates real VM, validates, tears down) |
@@ -193,6 +202,27 @@ GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --to
 
 **Rate limits:** Each GitHub token gets 5,000 API calls/hour. The enrichment worker auto-throttles when remaining calls drop below 100, waiting for the reset window. With 2 tokens you get ~10K calls/hour.
 
+## Deployment
+
+### Staging (automatic)
+Every merge to `main` triggers the `deploy-staging` CI job:
+1. Builds app + pipeline container images (tagged with git SHA)
+2. Pushes to GCP Artifact Registry
+3. Deploys app to Cloud Run (`crt-staging-app`)
+4. Updates all 4 pipeline Cloud Run Jobs with new image
+
+Uses Workload Identity Federation — no service account keys needed.
+
+### Production (future — manual)
+Will use `workflow_dispatch` to deploy a specific image tag.
+Same infrastructure, different Pulumi stack.
+
+### Rollback
+Redeploy with an older git SHA:
+```bash
+gcloud run deploy crt-staging-app --image=<registry>/app:<old-sha> --region=us-central1
+```
+
 ## Adding a New Chart / Metric
 
 1. Add the query to `app/src/lib/clickhouse.ts` with proper types.
@@ -205,6 +235,7 @@ GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --to
 - **Never commit directly to `main`.** Always create a feature branch and open a pull request. No exceptions.
 - Branch names: `<type>/<short-description>` (e.g., `fix/clickhouse-left-join`, `feat/mobile-nav`).
 - One logical change per PR. Keep PRs focused and reviewable.
+- **Merges to `main` auto-deploy to staging** via the `deploy-staging` CI job.
 
 ## Conventions
 
@@ -215,3 +246,6 @@ GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --to
 - **Test IDs** — `data-testid="section-name"` on key sections for Playwright.
 - **No `.env` in git** — use `.env.local` for local dev. CI sets env vars directly.
 - **ClickHouse queries** — use `toString()` to cast `Date` columns in SELECT (not `formatDateTime`), and never alias a column with the same name as the source column when filtering on it.
+- **Docker images** — tagged with git SHA, built from repo root context.
+- **Secrets** — stored in GCP Secret Manager, encrypted in Pulumi config. Never in source.
+- **Job schedules** — defined in `pipeline/schedules.json`, the single source of truth.

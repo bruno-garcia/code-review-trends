@@ -1,0 +1,7 @@
+.git
+**/node_modules
+**/.next
+.pi
+.env*
+app/e2e
+app/playwright-report
