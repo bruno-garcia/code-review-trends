@@ -1171,17 +1171,15 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       repos_total: number;
       repos_ok: number;
       repos_not_found: number;
-      repos_pending: number;
       prs_discovered: number;
       prs_enriched: number;
       comments_discovered: number;
       comments_enriched: number;
     }>(`
       SELECT
-        (SELECT count() FROM repos FINAL) AS repos_total,
+        (SELECT count(DISTINCT repo_name) FROM pr_bot_events FINAL) AS repos_total,
         (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
         (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
-        (SELECT countIf(fetch_status NOT IN ('ok', 'not_found')) FROM repos FINAL) AS repos_pending,
         (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events FINAL) AS prs_discovered,
         (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
         (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events FINAL WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
@@ -1211,7 +1209,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     repos_total: Number(base?.repos_total ?? 0),
     repos_ok: Number(base?.repos_ok ?? 0),
     repos_not_found: Number(base?.repos_not_found ?? 0),
-    repos_pending: Number(base?.repos_pending ?? 0),
+    repos_pending: Math.max(0, Number(base?.repos_total ?? 0) - Number(base?.repos_ok ?? 0) - Number(base?.repos_not_found ?? 0)),
     prs_discovered: Number(base?.prs_discovered ?? 0),
     prs_enriched: Number(base?.prs_enriched ?? 0),
     comments_discovered: Number(base?.comments_discovered ?? 0),
