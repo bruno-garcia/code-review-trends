@@ -1184,7 +1184,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
         (SELECT countIf(fetch_status NOT IN ('ok', 'not_found')) FROM repos FINAL) AS repos_pending,
         (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events FINAL) AS prs_discovered,
         (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
-        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events FINAL) AS comments_discovered,
+        (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_bot_events FINAL WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
         (SELECT count(DISTINCT (repo_name, pr_number, bot_id)) FROM pr_comments FINAL) AS comments_enriched
     `),
   ]);
