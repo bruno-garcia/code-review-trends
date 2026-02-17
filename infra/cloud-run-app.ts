@@ -1,6 +1,6 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { CADDY_HTTPS_PORT, EnvironmentConfig } from "./config";
+import { CADDY_HTTPS_PORT, EnvironmentConfig, PLACEHOLDER_IMAGE } from "./config";
 import { SecretsResult } from "./secrets";
 
 export interface CloudRunAppResult {
@@ -8,14 +8,16 @@ export interface CloudRunAppResult {
   serviceUrl: pulumi.Output<string>;
 }
 
-const PLACEHOLDER_IMAGE = "us-docker.pkg.dev/cloudrun/container/hello";
-
 /**
  * Read the currently-deployed container image from Cloud Run so that
  * `pulumi up` preserves whatever CI deployed rather than reverting to
  * the placeholder.  On the very first run (service doesn't exist yet)
  * we fall back to the placeholder — CI will deploy the real image
  * immediately after.
+ *
+ * Only catches "not found" errors (first deploy). Any other failure
+ * (permissions, transient API errors) is rethrown so `pulumi up` fails
+ * loudly instead of silently reverting to the placeholder.
  */
 function currentAppImage(serviceName: string): pulumi.Output<string> {
   return pulumi.output(
@@ -26,7 +28,12 @@ function currentAppImage(serviceName: string): pulumi.Output<string> {
         project: gcp.config.project!,
       })
       .then((s) => s.templates?.[0]?.containers?.[0]?.image || PLACEHOLDER_IMAGE)
-      .catch(() => PLACEHOLDER_IMAGE),
+      .catch((err: unknown) => {
+        if (err instanceof Error && /not found/i.test(err.message)) {
+          return PLACEHOLDER_IMAGE;
+        }
+        throw err;
+      }),
   );
 }
 

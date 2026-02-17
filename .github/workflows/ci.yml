@@ -201,10 +201,12 @@ jobs:
             --region=${REGION} \
             --quiet
 
-          # Verify the correct image is serving
+          # Verify the correct image is serving.
+          # Filter for the traffic entry with latestRevision=true rather than
+          # relying on array ordering, which can vary with traffic splits.
           SERVING_REV=$(gcloud run services describe crt-staging-app \
             --region=${REGION} \
-            --format='value(status.traffic[0].revisionName)')
+            --format=json | jq -r '.status.traffic[] | select(.latestRevision == true) | .revisionName')
           SERVING_IMAGE=$(gcloud run revisions describe "${SERVING_REV}" \
             --region=${REGION} \
             --format='value(spec.containers[0].image)')
