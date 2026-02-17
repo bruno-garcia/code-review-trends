@@ -276,14 +276,24 @@ async function tryAcquireLock(
   if (Number(rows[0]?.cnt) > 0) return false;
 
   // Clean stale locks and insert ours
-  await client.command({
-    query: "TRUNCATE TABLE schema_migration_lock",
-  });
-  await client.insert({
-    table: "schema_migration_lock",
-    values: [{ locked_by: lockId }],
-    format: "JSONEachRow",
-  });
+  try {
+    await client.command({
+      query: "TRUNCATE TABLE schema_migration_lock",
+    });
+    // Use explicit INSERT with query params instead of client.insert()
+    // to avoid JSONEachRow serialization issues
+    await client.command({
+      query: "INSERT INTO schema_migration_lock (locked_by) VALUES ({lockId:String})",
+      query_params: { lockId },
+    });
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[schema-migration] Failed to acquire lock (lockId: ${lockId}):`,
+      errorMsg
+    );
+    return false;
+  }
 
   return true;
 }
@@ -352,11 +362,22 @@ async function runMigrations(
         }
       }
       // Record this migration
-      await client.insert({
-        table: "schema_migrations",
-        values: [{ version: migration.version, name: migration.name }],
-        format: "JSONEachRow",
-      });
+      try {
+        await client.command({
+          query: "INSERT INTO schema_migrations (version, name) VALUES ({version:UInt32}, {name:String})",
+          query_params: { version: migration.version, name: migration.name },
+        });
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[schema-migration] Failed to record migration ${migration.version}:`,
+          errorMsg
+        );
+        return {
+          applied,
+          error: `Failed to record migration ${migration.version}: ${errorMsg}`,
+        };
+      }
       applied++;
     }
     return { applied };
