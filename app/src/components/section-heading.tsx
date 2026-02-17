@@ -14,7 +14,7 @@ export function SectionHeading({
   return (
     <h2
       id={id}
-      className={`text-2xl font-semibold mb-4 scroll-mt-32 group ${className}`}
+      className={`text-2xl font-semibold mb-4 scroll-mt-40 group ${className}`}
     >
       <a href={`#${id}`} className="hover:text-violet-400 transition-colors">
         {children}

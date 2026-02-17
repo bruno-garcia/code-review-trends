@@ -141,7 +141,7 @@ export function ProductFilterBar() {
               );
             })}
             {allProducts.length - selectedProducts.length > 0 && (
-              <span className="px-2 py-1 rounded-full text-xs whitespace-nowrap text-violet-400 border border-dashed border-violet-400/30 bg-violet-400/5">
+              <span className="px-2 py-1 rounded-full text-xs whitespace-nowrap text-red-500 font-medium border border-dashed border-red-500/40 bg-red-500/10">
                 {allProducts.length - selectedProducts.length} unselected
               </span>
             )}

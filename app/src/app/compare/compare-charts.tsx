@@ -18,6 +18,12 @@ const METRICS: {
   format: (v: number) => string;
 }[] = [
   {
+    key: "growth_pct",
+    label: "Growth",
+    description: "Review growth: last 12 weeks vs. previous 12 weeks",
+    format: (v) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(1)}%`,
+  },
+  {
     key: "total_reviews",
     label: "Total Reviews",
     description: "Total PR reviews submitted",
@@ -108,12 +114,6 @@ const METRICS: {
     format: (v) => Number(v).toLocaleString(),
   },
   {
-    key: "growth_pct",
-    label: "Growth",
-    description: "Review growth: last 12 weeks vs. previous 12 weeks",
-    format: (v) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(1)}%`,
-  },
-  {
     key: "weeks_active",
     label: "Weeks Active",
     description: "Number of weeks with data",
@@ -147,7 +147,7 @@ export function CompareCharts({
     selectedProductIds.includes(r.product_id),
   );
 
-  const [sortKey, setSortKey] = useState<SortKey>("total_reviews");
+  const [sortKey, setSortKey] = useState<SortKey>("growth_pct");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const sorted = [...products].sort((a, b) => {
@@ -215,7 +215,7 @@ export function CompareCharts({
       {/* Big comparison table */}
       <section data-testid="compare-table-section" id="detailed">
         <SectionHeading id="detailed">Detailed Comparison</SectionHeading>
-        <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%_-_3rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
+        <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%_-_10rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
           <table
             className="w-full text-left text-sm"
             data-testid="compare-table"
