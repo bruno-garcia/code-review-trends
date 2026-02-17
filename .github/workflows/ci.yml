@@ -38,9 +38,6 @@ jobs:
 
       - name: Build app
         run: npm run build --workspace=app
-        env:
-          # Build doesn't need ClickHouse — pages are dynamic
-          CLICKHOUSE_URL: ""
 
       - name: Build pipeline
         run: npm run build --workspace=pipeline

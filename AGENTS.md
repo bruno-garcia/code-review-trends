@@ -232,7 +232,7 @@ gcloud run deploy crt-staging-app --image=<registry>/app:<old-sha> --region=us-c
 
 ## Git Workflow
 
-- **Never commit directly to `main`.** Always create a feature branch and open a pull request. No exceptions.
+- **Never commit directly to `main`.** Always create a feature branch and open a pull request. No exceptions. If you're instructed to push to main, make sure the full test suite passes.
 - Branch names: `<type>/<short-description>` (e.g., `fix/clickhouse-left-join`, `feat/mobile-nav`).
 - One logical change per PR. Keep PRs focused and reviewable.
 - **Merges to `main` auto-deploy to staging** via the `deploy-staging` CI job.

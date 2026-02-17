@@ -25,7 +25,7 @@ let _client: ReturnType<typeof createClient> | null = null;
 export function getClickHouseClient() {
   if (!_client) {
     _client = createClient({
-      url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
+      url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
       username: process.env.CLICKHOUSE_USER ?? "default",
       password: process.env.CLICKHOUSE_PASSWORD ?? "dev",
       database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
@@ -210,7 +210,7 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
   const sanitizedSql = sql.replace(/\s+/g, " ").trim();
 
   // Extract hostname from URL for span attributes — avoid leaking credentials
-  const clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+  const clickhouseUrl = process.env.CLICKHOUSE_URL || "http://localhost:8123";
   let serverAddress = "localhost";
   let serverPort = 8123;
   try {
@@ -221,28 +221,39 @@ async function query<T>(sql: string, params?: Record<string, unknown>): Promise<
     // fall back to defaults
   }
 
-  return Sentry.startSpan(
-    {
-      op: "db.query",
-      name: sanitizedSql,
-      attributes: {
-        "db.system": "clickhouse",
-        "db.name": process.env.CLICKHOUSE_DB ?? "code_review_trends",
-        "db.statement": sanitizedSql,
-        "server.address": serverAddress,
-        "server.port": serverPort,
+  try {
+    return await Sentry.startSpan(
+      {
+        op: "db.query",
+        name: sanitizedSql,
+        attributes: {
+          "db.system": "clickhouse",
+          "db.name": process.env.CLICKHOUSE_DB ?? "code_review_trends",
+          "db.statement": sanitizedSql,
+          "server.address": serverAddress,
+          "server.port": serverPort,
+        },
       },
-    },
-    async () => {
-      const client = getClickHouseClient();
-      const result = await client.query({
-        query: sql,
-        query_params: params ?? {},
-        format: "JSONEachRow",
-      });
-      return (await result.json()) as T[];
-    },
-  );
+      async () => {
+        const client = getClickHouseClient();
+        const result = await client.query({
+          query: sql,
+          query_params: params ?? {},
+          format: "JSONEachRow",
+        });
+        return (await result.json()) as T[];
+      },
+    );
+  } catch (error) {
+    // During build-time prerendering (e.g. CI), ClickHouse may not be
+    // available. Return empty data so the page prerenders successfully;
+    // ISR will fill it on first real request.
+    if (process.env.NODE_ENV === "production") {
+      console.warn(`[ClickHouse] Query failed (returning empty): ${(error as Error).message}`);
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
