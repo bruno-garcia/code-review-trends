@@ -53,12 +53,15 @@ export async function enrichPullRequests(
     pr_number: number;
   }>(
     ch,
-    `SELECT DISTINCT e.repo_name, e.pr_number, max(e.event_week) as latest_week
+    `SELECT DISTINCT e.repo_name, e.pr_number,
+            max(e.event_week) as latest_week,
+            COALESCE(max(r.stars), 0) as repo_stars
      FROM pr_bot_events e
      LEFT JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
+     LEFT JOIN repos r ON e.repo_name = r.name
      WHERE ${whereFragments.join(" AND ")}
      GROUP BY e.repo_name, e.pr_number
-     ORDER BY latest_week DESC
+     ORDER BY latest_week DESC, repo_stars DESC
      LIMIT {limit:UInt32}`,
     queryParams,
   );

@@ -59,14 +59,17 @@ export async function enrichReactions(
     ch,
     `SELECT
        e.repo_name AS repo_name,
-       countDistinct(e.pr_number) - countDistinctIf(e.pr_number, s.pr_number > 0) AS pending_prs
+       countDistinct(e.pr_number) - countDistinctIf(e.pr_number, s.pr_number > 0) AS pending_prs,
+       max(e.event_week) AS latest_week,
+       COALESCE(max(r.stars), 0) AS repo_stars
      FROM pr_bot_events e
      LEFT JOIN reaction_scan_progress s
        ON e.repo_name = s.repo_name AND e.pr_number = s.pr_number
+     LEFT JOIN repos r ON e.repo_name = r.name
      WHERE ${whereFragments.join(" AND ")}
      GROUP BY e.repo_name
      HAVING pending_prs > 0
-     ORDER BY pending_prs DESC
+     ORDER BY latest_week DESC, repo_stars DESC
      LIMIT {limit:UInt32}`,
     { limit, ...(partitionClause?.params ?? {}) },
   );

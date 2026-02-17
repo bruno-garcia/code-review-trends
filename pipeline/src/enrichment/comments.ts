@@ -58,14 +58,17 @@ export async function enrichComments(
     bot_id: string;
   }>(
     ch,
-    `SELECT DISTINCT e.repo_name, e.pr_number, e.bot_id, max(e.event_week) as latest_week
+    `SELECT DISTINCT e.repo_name, e.pr_number, e.bot_id,
+            max(e.event_week) as latest_week,
+            COALESCE(max(r.stars), 0) as repo_stars
      FROM pr_bot_events e
      LEFT JOIN (
        SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_comments
      ) c ON e.repo_name = c.repo_name AND e.pr_number = c.pr_number AND e.bot_id = c.bot_id
+     LEFT JOIN repos r ON e.repo_name = r.name
      WHERE ${whereFragments.join(" AND ")}
      GROUP BY e.repo_name, e.pr_number, e.bot_id
-     ORDER BY latest_week DESC
+     ORDER BY latest_week DESC, repo_stars DESC
      LIMIT {limit:UInt32}`,
     queryParams,
   );
