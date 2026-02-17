@@ -28,6 +28,8 @@ export default async function RootLayout({
 }>) {
   // Check schema version and auto-migrate if needed (before data queries).
   // Cached for 60s per serverless container — effectively free in the normal case.
+  // On error (ClickHouse unreachable), returns status "error" — MigrationGate
+  // will show a waiting screen instead of rendering children.
   const schemaStatus = await getSchemaStatus();
 
   // Gracefully handle missing ClickHouse during next build (pre-render).
