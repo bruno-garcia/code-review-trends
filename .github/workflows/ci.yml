@@ -183,18 +183,57 @@ jobs:
             .
           docker push ${{ steps.tags.outputs.pipeline }}
 
-      - name: Deploy app to Cloud Run
+      - name: Deploy app to Cloud Run (no traffic)
         run: |
+          # Deploy the new revision without routing traffic to it yet.
+          # We'll warm the cache first, then switch traffic.
           gcloud run deploy crt-staging-app \
             --image=${{ steps.tags.outputs.app }} \
             --region=${REGION} \
+            --no-traffic \
+            --tag=warmup \
             --quiet
 
-          # Ensure the new revision is serving 100% of traffic.
-          # gcloud run deploy *should* do this, but if it doesn't (e.g. due
-          # to v1/v2 API quirks), this is an explicit safety net.
+      - name: Warm up cache on new revision
+        run: |
+          # The --tag=warmup flag creates a URL like:
+          #   https://warmup---crt-staging-app-<hash>.a.run.app
+          WARMUP_URL=$(gcloud run services describe crt-staging-app \
+            --region=${REGION} \
+            --format=json | jq -r '.status.traffic[] | select(.tag == "warmup") | .url')
+
+          if [[ -z "${WARMUP_URL}" || "${WARMUP_URL}" == "null" ]]; then
+            echo "::error::Could not determine warmup URL from tagged revision"
+            exit 1
+          fi
+
+          echo "Warming up: ${WARMUP_URL}"
+
+          PAGES=("/" "/bots" "/orgs" "/compare" "/about" "/status")
+          FAILED=0
+
+          for page in "${PAGES[@]}"; do
+            echo -n "  ${page} ... "
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${WARMUP_URL}${page}")
+            if [[ "${STATUS}" -ge 200 && "${STATUS}" -lt 400 ]]; then
+              echo "OK (${STATUS})"
+            else
+              echo "FAILED (${STATUS})"
+              FAILED=1
+            fi
+          done
+
+          if [[ "${FAILED}" -eq 1 ]]; then
+            echo "::warning::Some pages failed to warm up — proceeding with traffic switch anyway"
+          fi
+
+      - name: Switch traffic to new revision
+        run: |
+          # Route 100% of traffic to the latest revision and remove the
+          # warmup tag so it doesn't linger as a separate URL.
           gcloud run services update-traffic crt-staging-app \
             --to-latest \
+            --remove-tags=warmup \
             --region=${REGION} \
             --quiet
 
