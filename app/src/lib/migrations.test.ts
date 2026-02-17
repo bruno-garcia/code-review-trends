@@ -212,3 +212,52 @@ describe("SchemaStatus type", () => {
     assert.ok(validStatuses.includes(testStatus.status));
   });
 });
+
+describe("schema version consistency", () => {
+  /**
+   * Extract the first integer assigned to a variable pattern in a file.
+   * E.g. extractVersion("const SCHEMA_VERSION = 1;", /SCHEMA_VERSION\s*=\s*(\d+)/) → 1
+   */
+  function extractVersion(content: string, pattern: RegExp): number | null {
+    const match = content.match(pattern);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  async function readRelative(relativePath: string): Promise<string> {
+    const { readFileSync } = await import("fs");
+    const { resolve, dirname } = await import("path");
+    const { fileURLToPath } = await import("url");
+    const dir = dirname(fileURLToPath(import.meta.url));
+    return readFileSync(resolve(dir, relativePath), "utf-8");
+  }
+
+  const sources: { file: string; path: string; pattern: RegExp }[] = [
+    {
+      file: "pipeline/src/cli.ts",
+      path: "../../../pipeline/src/cli.ts",
+      pattern: /const\s+SCHEMA_VERSION\s*=\s*(\d+)/,
+    },
+    {
+      file: "db/init-ci.sh",
+      path: "../../../db/init-ci.sh",
+      pattern: /^SCHEMA_VERSION=(\d+)/m,
+    },
+  ];
+
+  for (const { file, path, pattern } of sources) {
+    it(`EXPECTED_SCHEMA_VERSION matches ${file}`, async () => {
+      const content = await readRelative(path);
+      const version = extractVersion(content, pattern);
+
+      assert.ok(
+        version !== null,
+        `Could not find SCHEMA_VERSION in ${file}`,
+      );
+      assert.equal(
+        version,
+        EXPECTED_SCHEMA_VERSION,
+        `${file} SCHEMA_VERSION (${version}) != app EXPECTED_SCHEMA_VERSION (${EXPECTED_SCHEMA_VERSION}). Update both when adding migrations.`,
+      );
+    });
+  }
+});
