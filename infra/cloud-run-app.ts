@@ -56,9 +56,13 @@ export function createCloudRunApp(
       template: {
         serviceAccount: runtimeSa.email,
         scaling: {
-          minInstanceCount: 1,
-          maxInstanceCount: 2,
+          minInstanceCount: cfg.appMinInstances,
+          maxInstanceCount: cfg.appMaxInstances,
         },
+        // Limit concurrent requests per instance to reduce ClickHouse query
+        // pressure. Default Cloud Run concurrency (80) causes too many
+        // simultaneous heavy queries under traffic spikes.
+        maxInstanceRequestConcurrency: cfg.appConcurrency,
         containers: [
           {
             // CI manages the actual image via `gcloud run deploy --image=...`.
@@ -67,7 +71,7 @@ export function createCloudRunApp(
             image,
             ports: { containerPort: 8080 },
             resources: {
-              limits: { memory: "2Gi", cpu: "1" },
+              limits: { memory: cfg.appMemory, cpu: cfg.appCpu },
             },
             envs: [
               // Plain env vars

@@ -4,6 +4,11 @@ config:
   code-review-trends:environment: staging
   code-review-trends:clickhouseMachineType: e2-highmem-2
   code-review-trends:clickhouseDiskSizeGb: "20"
+  code-review-trends:appMemory: "4Gi"
+  code-review-trends:appCpu: "2"
+  code-review-trends:appMinInstances: "1"
+  code-review-trends:appMaxInstances: "10"
+  code-review-trends:appConcurrency: "40"
   gcp:project:
     secure: v1:pPeFMdNeIwwNUtMk:ZBEWf3Wc4tu/V8VTkVtbQLL9kAQxTnsy7f5OiQ==
   code-review-trends:artifactRegistryLocation: us-central1

@@ -185,11 +185,12 @@ describe("clickhouse VM", () => {
     expect(s).toContain("<listen_host>127.0.0.1</listen_host>");
     expect(s).toContain(`<http_port>${CLICKHOUSE_HTTP_PORT}</http_port>`);
 
-    // Memory limits — server capped at 90% of RAM, per-query at 2GB, grace_hash fallback
+    // Memory limits — server capped at 90% of RAM, per-query at 4GB, grace_hash fallback, 60s timeout
     expect(s).toContain(
       "<max_server_memory_usage_to_ram_ratio>0.9</max_server_memory_usage_to_ram_ratio>",
     );
-    expect(s).toContain("<max_memory_usage>2000000000</max_memory_usage>");
+    expect(s).toContain("<max_memory_usage>4000000000</max_memory_usage>");
+    expect(s).toContain("<max_execution_time>60</max_execution_time>");
     expect(s).toContain("<join_algorithm>direct,parallel_hash,hash,grace_hash</join_algorithm>");
 
     // Password is injected and hashed via SHA256
@@ -268,7 +269,7 @@ describe("artifact registry", () => {
 });
 
 describe("cloud run app", () => {
-  it("creates service with correct name", async () => {
+  it("creates service with correct name and resource limits", async () => {
     const { loadConfig } = await import("../config");
     const { createSecrets } = await import("../secrets");
     const { createServiceAccounts } = await import("../service-accounts");
@@ -281,6 +282,16 @@ describe("cloud run app", () => {
     const name = await outputValue(app.service.name);
     expect(name).toBe("crt-test-app");
     expect(app.serviceUrl).toBeDefined();
+
+    // Verify scaling and resource limits are wired from config
+    const template = await outputValue(app.service.template);
+    expect(template.scaling?.minInstanceCount).toBe(cfg.appMinInstances);
+    expect(template.scaling?.maxInstanceCount).toBe(cfg.appMaxInstances);
+    expect(template.maxInstanceRequestConcurrency).toBe(cfg.appConcurrency);
+
+    const container = template.containers?.[0];
+    expect(container?.resources?.limits?.memory).toBe(cfg.appMemory);
+    expect(container?.resources?.limits?.cpu).toBe(cfg.appCpu);
   });
 });
 
