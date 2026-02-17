@@ -296,6 +296,61 @@ describe("cloud run jobs", () => {
   });
 });
 
+describe("schedules sync", () => {
+  it("every job in cloud-run-jobs.ts has a matching entry in schedules.json", () => {
+    // Read both sources directly (no Pulumi needed — pure data check)
+    const fs = require("fs");
+    const path = require("path");
+
+    const schedulesPath = path.resolve(__dirname, "../../pipeline/schedules.json");
+    const schedules = JSON.parse(fs.readFileSync(schedulesPath, "utf-8"));
+    const scheduleNames = new Set(Object.keys(schedules));
+
+    // Extract job names from cloud-run-jobs.ts source to avoid Pulumi side effects.
+    // The jobs array is the single source of infra job definitions.
+    const jobsSrc = fs.readFileSync(path.resolve(__dirname, "../cloud-run-jobs.ts"), "utf-8");
+    const jobNameMatches = [...jobsSrc.matchAll(/name:\s*"([^"]+)",\s*args:/g)];
+    const jobNames = jobNameMatches.map((m: RegExpMatchArray) => m[1]);
+
+    expect(jobNames.length).toBeGreaterThan(0);
+
+    // Every infra job must have a schedule
+    for (const name of jobNames) {
+      expect(scheduleNames.has(name), `Job '${name}' in cloud-run-jobs.ts has no entry in schedules.json`).toBe(true);
+    }
+
+    // Every schedule must have an infra job
+    const jobNameSet = new Set(jobNames);
+    for (const name of scheduleNames) {
+      expect(jobNameSet.has(name), `Schedule '${name}' in schedules.json has no Cloud Run Job in cloud-run-jobs.ts`).toBe(true);
+    }
+  });
+
+  it("job timeouts are consistent with schedule maxRuntime", () => {
+    const fs = require("fs");
+    const path = require("path");
+
+    const schedulesPath = path.resolve(__dirname, "../../pipeline/schedules.json");
+    const schedules = JSON.parse(fs.readFileSync(schedulesPath, "utf-8")) as Record<string, { maxRuntime: number }>;
+
+    const jobsSrc = fs.readFileSync(path.resolve(__dirname, "../cloud-run-jobs.ts"), "utf-8");
+    const jobMatches = [...jobsSrc.matchAll(/name:\s*"([^"]+)".*?timeout:\s*"(\d+)s"/gs)];
+
+    for (const match of jobMatches) {
+      const name = match[1];
+      const timeoutSecs = parseInt(match[2], 10);
+      const schedule = schedules[name];
+      if (!schedule) continue; // covered by the previous test
+
+      const maxRuntimeSecs = schedule.maxRuntime * 60;
+      expect(
+        timeoutSecs,
+        `Job '${name}' timeout (${timeoutSecs}s) should be >= schedule maxRuntime (${maxRuntimeSecs}s)`,
+      ).toBeGreaterThanOrEqual(maxRuntimeSecs);
+    }
+  });
+});
+
 describe("stack outputs", () => {
   it("exports all required outputs", async () => {
     const outputs = await import("../index");
