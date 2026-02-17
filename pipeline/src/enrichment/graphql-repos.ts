@@ -9,7 +9,7 @@
  */
 
 import type { Octokit } from "@octokit/rest";
-import { log, logError } from "../sentry.js";
+import { log } from "../sentry.js";
 import type { RateLimiter } from "./rate-limiter.js";
 import type { RepoRow } from "../clickhouse.js";
 

@@ -11,7 +11,6 @@ import type { ClickHouseClient } from "@clickhouse/client";
 import {
   insertRepos,
   query,
-  type RepoRow,
 } from "../clickhouse.js";
 import { Sentry, log, logError, countMetric } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
@@ -70,7 +69,7 @@ export async function enrichRepos(
   let fetched = 0;
   let notFound = 0;
   let forbidden = 0;
-  let rateLimited = 0;
+  const rateLimited = 0;
   let errors = 0;
   const BATCH_SIZE = GRAPHQL_REPO_BATCH_SIZE;
 
