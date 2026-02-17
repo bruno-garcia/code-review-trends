@@ -89,7 +89,14 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
 
     getNumber(key: string): number | undefined {
       const val = this.values[key];
-      return val !== undefined ? parseInt(val, 10) : undefined;
+      if (val === undefined) {
+        return undefined;
+      }
+      const num = Number(val);
+      if (Number.isNaN(num)) {
+        throw new Error(`Configuration for '${key}' is not a valid number: '${val}'`);
+      }
+      return num;
     }
 
     require(key: string): string {

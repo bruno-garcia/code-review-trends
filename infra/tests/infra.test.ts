@@ -269,7 +269,7 @@ describe("artifact registry", () => {
 });
 
 describe("cloud run app", () => {
-  it("creates service with correct name", async () => {
+  it("creates service with correct name and resource limits", async () => {
     const { loadConfig } = await import("../config");
     const { createSecrets } = await import("../secrets");
     const { createServiceAccounts } = await import("../service-accounts");
@@ -282,6 +282,16 @@ describe("cloud run app", () => {
     const name = await outputValue(app.service.name);
     expect(name).toBe("crt-test-app");
     expect(app.serviceUrl).toBeDefined();
+
+    // Verify scaling and resource limits are wired from config
+    const template = await outputValue(app.service.template);
+    expect(template.scaling?.minInstanceCount).toBe(cfg.appMinInstances);
+    expect(template.scaling?.maxInstanceCount).toBe(cfg.appMaxInstances);
+    expect(template.maxInstanceRequestConcurrency).toBe(cfg.appConcurrency);
+
+    const container = template.containers?.[0];
+    expect(container?.resources?.limits?.memory).toBe(cfg.appMemory);
+    expect(container?.resources?.limits?.cpu).toBe(cfg.appCpu);
   });
 });
 

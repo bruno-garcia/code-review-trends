@@ -42,6 +42,24 @@ export interface EnvironmentConfig {
   githubRepo: string;
 }
 
+function validateScaling(vals: {
+  appMinInstances: number;
+  appMaxInstances: number;
+  appConcurrency: number;
+}) {
+  for (const [key, val] of Object.entries(vals)) {
+    if (!Number.isFinite(val) || val < 0 || !Number.isInteger(val)) {
+      throw new Error(`${key} must be a non-negative integer, got: ${val}`);
+    }
+  }
+  if (vals.appMinInstances > vals.appMaxInstances) {
+    throw new Error(
+      `appMinInstances (${vals.appMinInstances}) must be <= appMaxInstances (${vals.appMaxInstances})`,
+    );
+  }
+  return vals;
+}
+
 export function loadConfig(): EnvironmentConfig {
   const config = new pulumi.Config();
 
@@ -67,12 +85,14 @@ export function loadConfig(): EnvironmentConfig {
     appDomain: config.requireSecret("appDomain"),
 
     // Cloud Run app resource limits — tunable per environment.
-    // Defaults sized for moderate traffic; bump for production.
+    // Defaults are conservative; staging/prod stacks override via Pulumi config.
     appMemory: config.get("appMemory") ?? "2Gi",
     appCpu: config.get("appCpu") ?? "1",
-    appMinInstances: config.getNumber("appMinInstances") ?? 1,
-    appMaxInstances: config.getNumber("appMaxInstances") ?? 4,
-    appConcurrency: config.getNumber("appConcurrency") ?? 40,
+    ...validateScaling({
+      appMinInstances: config.getNumber("appMinInstances") ?? 1,
+      appMaxInstances: config.getNumber("appMaxInstances") ?? 4,
+      appConcurrency: config.getNumber("appConcurrency") ?? 40,
+    }),
 
     artifactRegistryLocation: config.require("artifactRegistryLocation"),
     sentryDsnApp: config.requireSecret("sentryDsnApp"),
