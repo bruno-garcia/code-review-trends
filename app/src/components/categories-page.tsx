@@ -39,6 +39,8 @@ function CategorySection({
   // For lowerIsBetter, invert bars so the best (lowest) gets the longest bar
   const refValue = sorted[0]?.value ?? 0;
   const pick = EDITORS_PICKS[id];
+  // Resolve "auto" product to the actual top-ranked item
+  const pickProduct = pick?.product === "auto" ? sorted[0]?.name : pick?.product;
 
   return (
     <div
@@ -87,11 +89,11 @@ function CategorySection({
           })}
         </div>
       )}
-      {pick && (
+      {pick && pickProduct && sorted.length > 0 && (
         <div className="mt-4 pt-3 border-t border-theme-border/50">
           <p className="text-xs text-theme-muted">
             <span className="text-amber-400 font-medium">Our take:</span>{" "}
-            <span className="text-theme-text/80 font-medium">{pick.product}</span>{" "}
+            <span className="text-theme-text/80 font-medium">{pickProduct}</span>{" "}
             — {pick.reason}
           </p>
         </div>
@@ -118,10 +120,10 @@ const GROUPS = [
 /** Editorial picks — opinionated recommendations per category */
 const EDITORS_PICKS: Record<string, { product: string; reason: string }> = {
   "most-loved": { product: "CodeRabbit", reason: "Consistently high approval across thousands of repos. Developers keep the comments, not dismiss them." },
-  "signal-over-noise": { product: "Baz", reason: "Focused on catching real bugs with minimal noise. Fewer comments, higher signal." },
+  "signal-over-noise": { product: "auto", reason: "Focused on catching real bugs with minimal noise. Fewer comments, higher signal." },
   "wall-of-text": { product: "CodeRabbit", reason: "Verbose, but developers still 👍 it — suggesting the detail is wanted, not just noise." },
   "reviews-the-code": { product: "CodeRabbit", reason: "93%+ of comments land on actual code lines. That's where reviews matter." },
-  "response-time": { product: "CodeScene", reason: "Fast feedback means developers stay in flow. Minutes, not hours." },
+  "response-time": { product: "auto", reason: "Fast feedback means developers stay in flow. Minutes, not hours." },
   "merge-correlation": { product: "CodeRabbit", reason: "High merge rate suggests the reviews add confidence, not friction." },
 };
 
@@ -233,15 +235,17 @@ export function CategoriesPage({
   );
 
   // --- Review Style ---
-  const inlineData: BarItem[] = useMemo(
-    () =>
-      filterByProduct(inlineVsSummary).map((c) => ({
-        name: c.product_name,
-        value: Number(c.inline_pct),
-        color: c.brand_color || "#818cf8",
-      })),
-    [inlineVsSummary, selectedSet],
-  );
+  const inlineData: BarItem[] = useMemo(() => {
+    const items = filterByProduct(inlineVsSummary).map((c) => ({
+      name: c.product_name,
+      value: Number(c.inline_pct),
+      color: c.brand_color || "#818cf8",
+    }));
+    // Hide this category when all products show 100% — means pr_comment_count
+    // is not being collected, so the metric is meaningless
+    if (items.length > 0 && items.every((i) => i.value >= 99.9)) return [];
+    return items;
+  }, [inlineVsSummary, selectedSet]);
 
   const verdictsData: BarItem[] = useMemo(
     () =>
