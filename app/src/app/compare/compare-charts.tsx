@@ -209,14 +209,14 @@ export function CompareCharts({
       {/* Big comparison table */}
       <section data-testid="compare-table-section">
         <h2 className="text-2xl font-semibold mb-4">Detailed Comparison</h2>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%-3rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
           <table
             className="w-full text-left text-sm"
             data-testid="compare-table"
           >
             <thead className="text-theme-muted border-b border-theme-border">
               <tr>
-                <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10">
+                <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10 min-w-[8rem]">
                   Product
                 </th>
                 {METRICS.map((m) => (
@@ -247,7 +247,7 @@ export function CompareCharts({
                   key={product.id}
                   className="border-b border-theme-border/50 hover:bg-theme-surface/50"
                 >
-                  <td className="py-3 pr-4 sticky left-0 bg-theme-bg z-10">
+                  <td className="py-3 pr-4 sticky left-0 bg-theme-bg z-10 min-w-[8rem]">
                     <Link
                       href={`/bots/${product.id}`}
                       className="font-medium hover:opacity-80 transition-colors"
@@ -290,8 +290,7 @@ export function CompareCharts({
           </table>
         </div>
         <p className="mt-3 text-xs text-theme-muted/70">
-          Click any column header to sort. ★ marks the leader in each
-          category.
+          Click any column header to sort. ★ marks the highest number in each column.
         </p>
       </section>
 

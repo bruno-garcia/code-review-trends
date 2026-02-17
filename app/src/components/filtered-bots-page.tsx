@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useProductFilter } from "@/lib/product-filter";
 import {
   ReviewVolumeChart,
@@ -14,6 +14,16 @@ import type {
 } from "@/lib/clickhouse";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
+
+type LeaderboardSortKey =
+  | "total_reviews"
+  | "total_comments"
+  | "total_pr_comments"
+  | "total_repos"
+  | "total_orgs"
+  | "avg_comments_per_review"
+  | "approval_rate"
+  | "growth_pct";
 
 export function FilteredBotsPage({
   activity,
@@ -31,11 +41,33 @@ export function FilteredBotsPage({
     [selectedProductIds],
   );
 
+  // Leaderboard sort state
+  const [sortKey, setSortKey] = useState<LeaderboardSortKey>("total_reviews");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(key: LeaderboardSortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
   // Filter summaries
   const filteredSummaries = useMemo(
     () => summaries.filter((s) => selectedSet.has(s.id)),
     [summaries, selectedSet],
   );
+
+  // Sort summaries
+  const sortedSummaries = useMemo(() => {
+    return [...filteredSummaries].sort((a, b) => {
+      const av = Number(a[sortKey]);
+      const bv = Number(b[sortKey]);
+      return sortDir === "desc" ? bv - av : av - bv;
+    });
+  }, [filteredSummaries, sortKey, sortDir]);
 
   // Build color map from activity
   const colorMap = useMemo(() => {
@@ -114,18 +146,35 @@ export function FilteredBotsPage({
             <thead className="text-theme-muted border-b border-theme-border text-sm">
               <tr>
                 <th className="pb-3 pr-4">Product</th>
-                <th className="pb-3 pr-4 text-right">Reviews</th>
-                <th className="pb-3 pr-4 text-right">Review Comments</th>
-                <th className="pb-3 pr-4 text-right">PR Comments</th>
-                <th className="pb-3 pr-4 text-right">Repos</th>
-                <th className="pb-3 pr-4 text-right">Orgs</th>
-                <th className="pb-3 pr-4 text-right">Avg C/R</th>
-                <th className="pb-3 pr-4 text-right">Approval</th>
-                <th className="pb-3 text-right">Growth</th>
+                {([
+                  { key: "total_reviews", label: "Reviews" },
+                  { key: "total_comments", label: "Review Comments" },
+                  { key: "total_pr_comments", label: "PR Comments" },
+                  { key: "total_repos", label: "Repos" },
+                  { key: "total_orgs", label: "Orgs" },
+                  { key: "avg_comments_per_review", label: "Avg C/R" },
+                  { key: "approval_rate", label: "Approval" },
+                  { key: "growth_pct", label: "Growth" },
+                ] as { key: LeaderboardSortKey; label: string }[]).map(({ key, label }) => (
+                  <th key={key} className="pb-3 pr-4 text-right">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-text transition-colors"
+                      onClick={() => handleSort(key)}
+                    >
+                      {label}
+                      {sortKey === key && (
+                        <span className="text-violet-400">
+                          {sortDir === "desc" ? "↓" : "↑"}
+                        </span>
+                      )}
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="text-sm">
-              {filteredSummaries.map((product) => (
+              {sortedSummaries.map((product) => (
                 <tr
                   key={product.id}
                   className="border-b border-theme-border/50 hover:bg-theme-surface/50"

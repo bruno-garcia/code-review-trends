@@ -88,19 +88,26 @@ export function OrgFilters({
       <div className="flex items-center gap-3 flex-wrap">
         {/* Sort */}
         <div className="flex gap-1">
-          {(["stars", "repos", "prs"] as const).map((s) => (
+          {(
+            [
+              { key: "stars", label: "⭐ Stars", tip: "Sort by total GitHub stars" },
+              { key: "repos", label: "Repos", tip: "Sort by number of repos with AI-reviewed PRs" },
+              { key: "prs", label: "AI PRs", tip: "Sort by pull requests reviewed by AI bots" },
+            ] as const
+          ).map(({ key, label, tip }) => (
             <button
-              key={s}
+              key={key}
               type="button"
-              onClick={() => applyFilters({ sort: s === "stars" ? null : s })}
+              onClick={() => applyFilters({ sort: key === "stars" ? null : key })}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                sort === s
+                sort === key
                   ? "bg-violet-600 text-white"
                   : "bg-theme-border text-theme-muted hover:text-theme-text"
               }`}
-              data-testid={`sort-${s}`}
+              title={tip}
+              data-testid={`sort-${key}`}
             >
-              {s === "stars" ? "⭐ Stars" : s === "repos" ? "Repos" : "AI PRs"}
+              {label}
             </button>
           ))}
         </div>

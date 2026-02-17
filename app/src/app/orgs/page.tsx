@@ -5,6 +5,7 @@ import {
   getProducts,
 } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
+import { InfoTooltip } from "@/components/info-tooltip";
 import { OrgFilters } from "./org-filters";
 
 
@@ -50,6 +51,17 @@ export default async function OrgsPage({
         <p className="mt-2 text-theme-muted">
           {total.toLocaleString()} organizations using AI code review on GitHub.
         </p>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-theme-muted">
+          <InfoTooltip text="Total GitHub stars across all of the organization's repos that have AI-reviewed PRs.">
+            <span>⭐ Stars</span>
+          </InfoTooltip>
+          <InfoTooltip text="Number of repositories in this organization that have at least one pull request reviewed by an AI bot.">
+            <span>Repos</span>
+          </InfoTooltip>
+          <InfoTooltip text="Total number of pull requests that received a review from an AI code review bot.">
+            <span>AI PRs</span>
+          </InfoTooltip>
+        </div>
       </div>
 
       {/* Filters */}
@@ -103,13 +115,13 @@ export default async function OrgsPage({
                         .map((lang) => (
                           <span
                             key={lang}
-                            className="text-xs text-theme-muted/70 bg-theme-border/40 px-1.5 py-0.5 rounded"
+                            className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60"
                           >
                             {lang}
                           </span>
                         ))}
                       {org.languages.filter(Boolean).length > 4 && (
-                        <span className="text-xs text-theme-muted/50">
+                        <span className="text-xs text-theme-muted">
                           +{org.languages.filter(Boolean).length - 4}
                         </span>
                       )}
@@ -123,14 +135,14 @@ export default async function OrgsPage({
                     {org.product_ids.slice(0, 3).map((pid) => (
                       <span
                         key={pid}
-                        className="text-xs text-theme-muted/70 bg-theme-border/40 px-1.5 py-0.5 rounded"
+                        className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60"
                         title={productNameMap.get(pid) ?? pid}
                       >
                         {productNameMap.get(pid) ?? pid}
                       </span>
                     ))}
                     {org.product_ids.length > 3 && (
-                      <span className="text-xs text-theme-muted/50">
+                      <span className="text-xs text-theme-muted">
                         +{org.product_ids.length - 3}
                       </span>
                     )}
@@ -139,15 +151,15 @@ export default async function OrgsPage({
 
                 {/* Stats */}
                 <div className="flex items-center gap-4 shrink-0 text-sm tabular-nums">
-                  <span className="text-theme-muted w-20 text-right" title="Stars">
+                  <span className="text-theme-muted w-20 text-right" title="GitHub stars across all repos">
                     ⭐ {formatNumber(Number(org.total_stars))}
                   </span>
-                  <span className="hidden md:inline text-theme-muted/70 w-16 text-right" title="Repos">
+                  <span className="hidden md:inline text-theme-muted w-16 text-right" title="Repos with AI-reviewed PRs">
                     {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
                   </span>
                   {Number(org.total_prs) > 0 && (
-                    <span className="hidden lg:inline text-theme-muted/70 w-16 text-right" title="AI PRs">
-                      {formatNumber(Number(org.total_prs))} PRs
+                    <span className="hidden lg:inline text-theme-muted w-20 text-right" title="Pull requests reviewed by AI bots">
+                      {formatNumber(Number(org.total_prs))} AI PRs
                     </span>
                   )}
                 </div>
