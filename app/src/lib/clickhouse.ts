@@ -1175,18 +1175,21 @@ export type CategoryStarAdoption = {
 export async function getCategoryStarAdoption(): Promise<CategoryStarAdoption[]> {
   return query<CategoryStarAdoption>(`
     SELECT
-      b.product_id,
+      pr.product_id,
       p.name AS product_name,
       p.brand_color,
-      countDistinct(e.repo_name) AS repo_count,
+      count() AS repo_count,
       sum(r.stars) AS total_stars,
       round(avg(r.stars), 0) AS avg_repo_stars
-    FROM pr_bot_events e
-    JOIN bots b FINAL ON e.bot_id = b.id
-    JOIN products p FINAL ON b.product_id = p.id
-    JOIN repos r ON e.repo_name = r.name
+    FROM (
+      SELECT DISTINCT b.product_id, e.repo_name
+      FROM pr_bot_events e
+      JOIN bots b FINAL ON e.bot_id = b.id
+    ) pr
+    JOIN products p FINAL ON pr.product_id = p.id
+    JOIN repos r ON pr.repo_name = r.name
     WHERE r.fetch_status = 'ok'
-    GROUP BY b.product_id, p.name, p.brand_color
+    GROUP BY pr.product_id, p.name, p.brand_color
     ORDER BY avg_repo_stars DESC
   `);
 }
@@ -1202,16 +1205,19 @@ export type CategoryPRSize = {
 export async function getCategoryPRSize(): Promise<CategoryPRSize[]> {
   return query<CategoryPRSize>(`
     SELECT
-      b.product_id,
+      bp.product_id,
       p.name AS product_name,
       p.brand_color,
       round(avg(pr.additions + pr.deletions), 0) AS avg_pr_size,
-      countDistinct(e.repo_name, e.pr_number) AS total_prs
-    FROM pr_bot_events e
-    JOIN bots b FINAL ON e.bot_id = b.id
-    JOIN products p FINAL ON b.product_id = p.id
-    JOIN pull_requests pr ON e.repo_name = pr.repo_name AND e.pr_number = pr.pr_number
-    GROUP BY b.product_id, p.name, p.brand_color
+      count() AS total_prs
+    FROM (
+      SELECT DISTINCT b.product_id, e.repo_name, e.pr_number
+      FROM pr_bot_events e
+      JOIN bots b FINAL ON e.bot_id = b.id
+    ) bp
+    JOIN products p FINAL ON bp.product_id = p.id
+    JOIN pull_requests pr ON bp.repo_name = pr.repo_name AND bp.pr_number = pr.pr_number
+    GROUP BY bp.product_id, p.name, p.brand_color
     ORDER BY avg_pr_size DESC
   `);
 }
@@ -1228,18 +1234,20 @@ export type CategoryMergeRate = {
 export async function getCategoryMergeRate(): Promise<CategoryMergeRate[]> {
   return query<CategoryMergeRate>(`
     SELECT
-      b.product_id,
+      bp.product_id,
       p.name AS product_name,
       p.brand_color,
-      countDistinct(e.repo_name, e.pr_number) AS total_prs,
-      countDistinctIf((e.repo_name, e.pr_number), pr.merged_at IS NOT NULL) AS merged_prs,
-      round(countDistinctIf((e.repo_name, e.pr_number), pr.merged_at IS NOT NULL) * 100.0
-        / countDistinct(e.repo_name, e.pr_number), 1) AS merge_rate
-    FROM pr_bot_events e
-    JOIN bots b FINAL ON e.bot_id = b.id
-    JOIN products p FINAL ON b.product_id = p.id
-    JOIN pull_requests pr ON e.repo_name = pr.repo_name AND e.pr_number = pr.pr_number
-    GROUP BY b.product_id, p.name, p.brand_color
+      count() AS total_prs,
+      countIf(pr.merged_at IS NOT NULL) AS merged_prs,
+      round(countIf(pr.merged_at IS NOT NULL) * 100.0 / count(), 1) AS merge_rate
+    FROM (
+      SELECT DISTINCT b.product_id, e.repo_name, e.pr_number
+      FROM pr_bot_events e
+      JOIN bots b FINAL ON e.bot_id = b.id
+    ) bp
+    JOIN products p FINAL ON bp.product_id = p.id
+    JOIN pull_requests pr ON bp.repo_name = pr.repo_name AND bp.pr_number = pr.pr_number
+    GROUP BY bp.product_id, p.name, p.brand_color
     HAVING total_prs > 0
     ORDER BY merge_rate DESC
   `);
@@ -1256,23 +1264,23 @@ export type CategoryResponseTime = {
 export async function getCategoryResponseTime(): Promise<CategoryResponseTime[]> {
   return query<CategoryResponseTime>(`
     SELECT
-      b.product_id,
+      fc.product_id,
       p.name AS product_name,
       p.brand_color,
       median(dateDiff('minute', pr.created_at, fc.first_comment_at)) AS median_response_minutes,
       count() AS total_prs
     FROM (
-      SELECT bot_id, repo_name, pr_number, min(created_at) AS first_comment_at
-      FROM pr_comments FINAL
-      WHERE comment_id > 0
-      GROUP BY bot_id, repo_name, pr_number
+      SELECT b.product_id, c.repo_name, c.pr_number, min(c.created_at) AS first_comment_at
+      FROM pr_comments c FINAL
+      JOIN bots b FINAL ON c.bot_id = b.id
+      WHERE c.comment_id > 0
+      GROUP BY b.product_id, c.repo_name, c.pr_number
     ) fc
-    JOIN bots b FINAL ON fc.bot_id = b.id
-    JOIN products p FINAL ON b.product_id = p.id
+    JOIN products p FINAL ON fc.product_id = p.id
     JOIN pull_requests pr ON fc.repo_name = pr.repo_name AND fc.pr_number = pr.pr_number
     WHERE pr.created_at >= '2020-01-01'
       AND fc.first_comment_at >= pr.created_at
-    GROUP BY b.product_id, p.name, p.brand_color
+    GROUP BY fc.product_id, p.name, p.brand_color
     HAVING total_prs >= 5
     ORDER BY median_response_minutes ASC
   `);

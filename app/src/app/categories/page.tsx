@@ -16,6 +16,11 @@ import { CategoriesPage } from "@/components/categories-page";
 export const dynamic = "force-dynamic";
 
 export default async function CategoriesRoute() {
+  // Some category queries may fail on resource-constrained databases
+  // (memory limits) or databases missing columns (review_state).
+  // Gracefully degrade: the UI shows "Insufficient data" for failed queries.
+  const safe = <T,>(p: Promise<T[]>): Promise<T[]> => p.catch(() => []);
+
   const [
     comparisons,
     commentsPerPR,
@@ -32,14 +37,14 @@ export default async function CategoriesRoute() {
     getProductComparisons(),
     getAvgCommentsPerPR(),
     getBotsByLanguage(),
-    getCategoryCommentDetail(),
-    getCategoryStarAdoption(),
-    getCategoryPRSize(),
-    getCategoryMergeRate(),
-    getCategoryResponseTime(),
-    getCategoryControversy(),
-    getCategoryInlineVsSummary(),
-    getCategoryReviewVerdicts(),
+    safe(getCategoryCommentDetail()),
+    safe(getCategoryStarAdoption()),
+    safe(getCategoryPRSize()),
+    safe(getCategoryMergeRate()),
+    safe(getCategoryResponseTime()),
+    safe(getCategoryControversy()),
+    safe(getCategoryInlineVsSummary()),
+    safe(getCategoryReviewVerdicts()),
   ]);
 
   return (
