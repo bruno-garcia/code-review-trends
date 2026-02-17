@@ -7,6 +7,7 @@ services:
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - ./db/init:/docker-entrypoint-initdb.d
+      - ./db/seed:/seed
     environment:
       CLICKHOUSE_DB: code_review_trends
       CLICKHOUSE_USER: default

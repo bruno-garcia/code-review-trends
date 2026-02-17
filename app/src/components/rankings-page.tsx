@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useProductFilter } from "@/lib/product-filter";
 import type {
   ProductComparison,
@@ -215,8 +215,11 @@ export function RankingsPage({
   );
 
   // Helper to filter datasets with product_id field
-  const filterByProduct = <T extends { product_id: string }>(data: T[]) =>
-    data.filter((d) => selectedSet.has(d.product_id));
+  const filterByProduct = useCallback(
+    <T extends { product_id: string }>(data: T[]) =>
+      data.filter((d) => selectedSet.has(d.product_id)),
+    [selectedSet],
+  );
 
   // Build product color map from comparisons
   const colorMap = useMemo(() => {
@@ -248,7 +251,7 @@ export function RankingsPage({
         value: Number(c.controversy_score),
         color: c.brand_color || "#818cf8",
       })),
-    [controversy, selectedSet],
+    [controversy, filterByProduct],
   );
 
   const lessChattyData: BarItem[] = useMemo(() => {
@@ -275,7 +278,7 @@ export function RankingsPage({
         color: colorMap[productId] || "#818cf8",
       };
     });
-  }, [commentsPerPR, selectedSet, colorMap, comparisons]);
+  }, [commentsPerPR, filterByProduct, colorMap, comparisons]);
 
   const mostDetailedData: BarItem[] = useMemo(
     () =>
@@ -284,7 +287,7 @@ export function RankingsPage({
         value: Number(c.avg_body_length),
         color: c.brand_color || "#818cf8",
       })),
-    [commentDetail, selectedSet],
+    [commentDetail, filterByProduct],
   );
 
   // --- Review Style ---
@@ -298,7 +301,7 @@ export function RankingsPage({
     // is not being collected, so the metric is meaningless
     if (items.length > 0 && items.every((i) => i.value >= 99.9)) return [];
     return items;
-  }, [inlineVsSummary, selectedSet]);
+  }, [inlineVsSummary, filterByProduct]);
 
   const verdictsData: BarItem[] = useMemo(
     () =>
@@ -307,7 +310,7 @@ export function RankingsPage({
         value: Number(c.approval_pct),
         color: c.brand_color || "#818cf8",
       })),
-    [reviewVerdicts, selectedSet],
+    [reviewVerdicts, filterByProduct],
   );
 
   const bigPRsData: BarItem[] = useMemo(
@@ -317,7 +320,7 @@ export function RankingsPage({
         value: Number(c.avg_pr_size),
         color: c.brand_color || "#818cf8",
       })),
-    [prSize, selectedSet],
+    [prSize, filterByProduct],
   );
 
   // --- Adoption & Trust ---
@@ -328,7 +331,7 @@ export function RankingsPage({
         value: Number(c.avg_repo_stars),
         color: c.brand_color || "#818cf8",
       })),
-    [starAdoption, selectedSet],
+    [starAdoption, filterByProduct],
   );
 
   const enterpriseData: BarItem[] = useMemo(
@@ -361,7 +364,7 @@ export function RankingsPage({
       value: Number(c[key]),
       color: c.brand_color || "#818cf8",
     }));
-  }, [growth, selectedSet, growthWindow]);
+  }, [growth, filterByProduct, growthWindow]);
 
   // --- Effectiveness ---
   const mergeData: BarItem[] = useMemo(
@@ -371,7 +374,7 @@ export function RankingsPage({
         value: Number(c.merge_rate),
         color: c.brand_color || "#818cf8",
       })),
-    [mergeRate, selectedSet],
+    [mergeRate, filterByProduct],
   );
 
   const responseData: BarItem[] = useMemo(
@@ -381,12 +384,12 @@ export function RankingsPage({
         value: Number(c.median_response_minutes),
         color: c.brand_color || "#818cf8",
       })),
-    [responseTime, selectedSet],
+    [responseTime, filterByProduct],
   );
 
   // --- Specialization: Language data ---
   const languageGrid = useMemo(() => {
-    const filtered = languageData.filter((d) => selectedSet.has(d.product_id));
+    const filtered = filterByProduct(languageData);
     // Group by language, sum pr_count per bot
     const byLang: Record<
       string,
@@ -409,7 +412,7 @@ export function RankingsPage({
       }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
-  }, [languageData, selectedSet, colorMap]);
+  }, [languageData, filterByProduct, colorMap]);
 
   // Count visible cards per group so we can hide empty groups and their nav links
   const visibleGroups = useMemo(() => {
