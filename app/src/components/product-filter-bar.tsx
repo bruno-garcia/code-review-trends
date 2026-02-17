@@ -102,8 +102,12 @@ export function ProductFilterBar() {
           aria-label={expanded ? "Collapse filter" : "Expand filter"}
           aria-expanded={expanded}
         >
-          <span className="text-xs text-theme-muted-dim whitespace-nowrap shrink-0">
-            Showing {selectedProducts.length} of {allProducts.length} products
+          <span className="text-sm whitespace-nowrap shrink-0 text-theme-muted">
+            <span className="font-semibold text-violet-400 tabular-nums">{selectedProducts.length}</span>
+            {" of "}
+            <span className="font-semibold text-theme-text-secondary tabular-nums">{allProducts.length}</span>
+            {" products "}
+            <span className="text-violet-400 underline underline-offset-2 decoration-violet-400/40 hover:decoration-violet-400">selected</span>
           </span>
 
           <div className="border-l border-theme-border pl-3 ml-1" onClick={(e) => e.stopPropagation()}>
@@ -136,6 +140,11 @@ export function ProductFilterBar() {
               </span>
               );
             })}
+            {allProducts.length - selectedProducts.length > 0 && (
+              <span className="px-2 py-1 rounded-full text-xs whitespace-nowrap text-violet-400 border border-dashed border-violet-400/30 bg-violet-400/5">
+                +{allProducts.length - selectedProducts.length} more
+              </span>
+            )}
           </div>
 
           <span
