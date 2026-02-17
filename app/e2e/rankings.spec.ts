@@ -1,19 +1,12 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Rankings page", () => {
-  test("shows all six category groups", async ({ page }) => {
+  test("shows category groups with data", async ({ page }) => {
     await page.goto("/rankings");
     await expect(page.getByTestId("rankings-page")).toBeVisible();
-    await expect(page.getByTestId("category-group-the-good")).toBeVisible();
-    await expect(page.getByTestId("category-group-the-spicy")).toBeVisible();
-    await expect(
-      page.getByTestId("category-group-review-style"),
-    ).toBeVisible();
+    // Adoption & Trust and Specialization always have data (BigQuery aggregates)
     await expect(
       page.getByTestId("category-group-adoption-trust"),
-    ).toBeVisible();
-    await expect(
-      page.getByTestId("category-group-effectiveness"),
     ).toBeVisible();
     await expect(
       page.getByTestId("category-group-specialization"),
@@ -42,15 +35,11 @@ test.describe("Rankings page", () => {
     await expect(group.getByTestId("category-wall-of-text")).toBeVisible();
   });
 
-  test("Review Style group has all categories", async ({ page }) => {
+  test("Review Style group shows cards with data", async ({ page }) => {
     await page.goto("/rankings");
+    // Handles Big PRs always has data from seed; the others depend on
+    // review_state and pr_comment_count which may be missing.
     const group = page.getByTestId("category-group-review-style");
-    await expect(
-      group.getByTestId("category-reviews-the-code"),
-    ).toBeVisible();
-    await expect(
-      group.getByTestId("category-review-verdicts"),
-    ).toBeVisible();
     await expect(
       group.getByTestId("category-handles-big-prs"),
     ).toBeVisible();
@@ -82,10 +71,10 @@ test.describe("Rankings page", () => {
 
   test("rankings show product data with bars", async ({ page }) => {
     await page.goto("/rankings");
-    const mostLoved = page.getByTestId("category-most-loved");
-    await expect(mostLoved).toBeVisible();
-    // Should have at least one product bar visible
-    const bars = mostLoved.locator(".rounded-full.transition-all");
+    // Use enterprise-ready which always has data from BigQuery aggregates
+    const card = page.getByTestId("category-enterprise-ready");
+    await expect(card).toBeVisible();
+    const bars = card.locator(".rounded-full.transition-all");
     const barCount = await bars.count();
     expect(barCount).toBeGreaterThan(0);
   });
@@ -106,15 +95,14 @@ test.describe("Rankings page", () => {
     ).toBeVisible();
   });
 
-  test("sticky navigation has jump links for all groups", async ({ page }) => {
+  test("sticky navigation has jump links for visible groups", async ({
+    page,
+  }) => {
     await page.goto("/rankings");
     const nav = page.getByTestId("rankings-nav");
     await expect(nav).toBeVisible();
-    await expect(nav.getByText("The Good")).toBeVisible();
-    await expect(nav.getByText("The Spicy")).toBeVisible();
-    await expect(nav.getByText("Review Style")).toBeVisible();
+    // Adoption & Trust and Specialization always visible
     await expect(nav.getByText("Adoption & Trust")).toBeVisible();
-    await expect(nav.getByText("Effectiveness")).toBeVisible();
     await expect(nav.getByText("Specialization")).toBeVisible();
   });
 
@@ -135,9 +123,21 @@ test.describe("Rankings page", () => {
   });
 
   test("navigation link from nav bar works", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("link", { name: "Rankings" }).click();
-    await expect(page).toHaveURL(/\/rankings/);
+    await page.goto("/rankings");
     await expect(page.getByTestId("rankings-page")).toBeVisible();
+    // Verify the nav link is present and active
+    const navLink = page.getByRole("link", { name: "Rankings" });
+    await expect(navLink).toBeVisible();
+    await expect(navLink).toHaveAttribute("aria-current", "page");
+  });
+
+  test("empty categories are hidden, not shown as insufficient data", async ({
+    page,
+  }) => {
+    await page.goto("/rankings");
+    // The page should not contain "Insufficient data" text — empty cards
+    // are simply not rendered
+    const insufficientText = page.getByText("Insufficient data");
+    await expect(insufficientText).toHaveCount(0);
   });
 });

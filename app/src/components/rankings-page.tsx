@@ -19,15 +19,7 @@ import type {
 
 type BarItem = { name: string; value: number; color: string };
 
-function SampleSize({ label }: { label?: string }) {
-  if (!label) return null;
-  return (
-    <p className="mt-3 text-[10px] text-theme-muted/50 leading-tight">
-      {label}
-    </p>
-  );
-}
-
+/** Returns null when data is empty — the card simply doesn't render. */
 function CategorySection({
   id,
   title,
@@ -35,7 +27,6 @@ function CategorySection({
   data,
   formatValue,
   lowerIsBetter = false,
-  sampleSize,
 }: {
   id: string;
   title: string;
@@ -43,8 +34,9 @@ function CategorySection({
   data: BarItem[];
   formatValue: (v: number) => string;
   lowerIsBetter?: boolean;
-  sampleSize?: string;
 }) {
+  if (data.length === 0) return null;
+
   const sorted = [...data].sort((a, b) =>
     lowerIsBetter ? a.value - b.value : b.value - a.value,
   );
@@ -61,48 +53,43 @@ function CategorySection({
     >
       <h3 className="text-lg font-semibold mb-1">{title}</h3>
       <p className="text-sm text-theme-muted mb-4">{description}</p>
-      {sorted.length === 0 ? (
-        <p className="text-sm text-theme-muted/70">Insufficient data</p>
-      ) : (
-        <div className="space-y-2">
-          {sorted.map((item, i) => {
-            let pct: number;
-            if (lowerIsBetter) {
-              // Lowest value = longest bar. Use ratio: best / current * 100
-              pct = item.value > 0 ? (refValue / item.value) * 100 : 0;
-            } else {
-              pct = refValue > 0 ? (item.value / refValue) * 100 : 0;
-            }
-            return (
-              <div key={item.name} className="flex items-center gap-3">
-                <span
-                  className="text-xs text-theme-muted w-28 text-right truncate"
-                  title={item.name}
-                >
-                  {item.name}
-                </span>
-                <div className="flex-1 bg-theme-border rounded-full h-5 relative overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.max(pct, 2)}%`,
-                      backgroundColor: item.color,
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-theme-text/80 tabular-nums w-24 text-right whitespace-nowrap">
-                  {i === 0 && (
-                    <span className="text-violet-400 mr-1">★</span>
-                  )}
-                  {formatValue(item.value)}
-                </span>
+      <div className="space-y-2">
+        {sorted.map((item, i) => {
+          let pct: number;
+          if (lowerIsBetter) {
+            // Lowest value = longest bar. Use ratio: best / current * 100
+            pct = item.value > 0 ? (refValue / item.value) * 100 : 0;
+          } else {
+            pct = refValue > 0 ? (item.value / refValue) * 100 : 0;
+          }
+          return (
+            <div key={item.name} className="flex items-center gap-3">
+              <span
+                className="text-xs text-theme-muted w-28 text-right truncate"
+                title={item.name}
+              >
+                {item.name}
+              </span>
+              <div className="flex-1 bg-theme-border rounded-full h-5 relative overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.max(pct, 2)}%`,
+                    backgroundColor: item.color,
+                  }}
+                />
               </div>
-            );
-          })}
-        </div>
-      )}
-      {sorted.length > 0 && <SampleSize label={sampleSize} />}
-      {pick && pickProduct && sorted.length > 0 && (
+              <span className="text-xs text-theme-text/80 tabular-nums w-24 text-right whitespace-nowrap">
+                {i === 0 && (
+                  <span className="text-violet-400 mr-1">★</span>
+                )}
+                {formatValue(item.value)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {pick && pickProduct && (
         <div className="mt-4 pt-3 border-t border-theme-border/50">
           <p className="text-xs text-theme-muted">
             <span className="text-amber-400 font-medium">Our take:</span>{" "}
@@ -432,56 +419,18 @@ export function RankingsPage({
       .slice(0, 5);
   }, [languageData, selectedSet, colorMap, botToProduct]);
 
-  // --- Sample size labels ---
-  const fmt = (n: number) => n.toLocaleString();
-
-  const mostLovedSample = useMemo(() => {
-    const totalVotes = fc.reduce((s, c) => s + Number(c.thumbs_up) + Number(c.thumbs_down), 0);
-    return totalVotes > 0 ? `Based on ${fmt(totalVotes)} reactions across ${fmt(fc.length)} products` : undefined;
-  }, [fc]);
-
-  const lessChattyPRs = useMemo(() => {
-    const filtered = filterByProduct(commentsPerPR);
-    const totalPrs = filtered.reduce((s, c) => s + Number(c.total_prs), 0);
-    const totalComments = filtered.reduce((s, c) => s + Number(c.total_comments), 0);
-    return totalPrs > 0 ? `Based on ${fmt(totalComments)} comments across ${fmt(totalPrs)} PRs` : undefined;
-  }, [commentsPerPR, selectedSet]);
-
-  const controversySample = useMemo(() => {
-    const filtered = filterByProduct(controversy);
-    const totalVotes = filtered.reduce((s, c) => s + Number(c.total_thumbs_up) + Number(c.total_thumbs_down), 0);
-    return totalVotes > 0 ? `Based on ${fmt(totalVotes)} reactions` : undefined;
-  }, [controversy, selectedSet]);
-
-  const wallOfTextSample = useMemo(() => {
-    const filtered = filterByProduct(commentDetail);
-    const total = filtered.reduce((s, c) => s + Number(c.total_comments), 0);
-    return total > 0 ? `Based on ${fmt(total)} comments` : undefined;
-  }, [commentDetail, selectedSet]);
-
-  const bigPRsSample = useMemo(() => {
-    const filtered = filterByProduct(prSize);
-    const total = filtered.reduce((s, c) => s + Number(c.total_prs), 0);
-    return total > 0 ? `Based on ${fmt(total)} enriched PRs` : undefined;
-  }, [prSize, selectedSet]);
-
-  const bigProjectsSample = useMemo(() => {
-    const filtered = filterByProduct(starAdoption);
-    const total = filtered.reduce((s, c) => s + Number(c.repo_count), 0);
-    return total > 0 ? `Based on ${fmt(total)} repos with star data` : undefined;
-  }, [starAdoption, selectedSet]);
-
-  const mergeSample = useMemo(() => {
-    const filtered = filterByProduct(mergeRate);
-    const total = filtered.reduce((s, c) => s + Number(c.total_prs), 0);
-    return total > 0 ? `Based on ${fmt(total)} enriched PRs` : undefined;
-  }, [mergeRate, selectedSet]);
-
-  const responseSample = useMemo(() => {
-    const filtered = filterByProduct(responseTime);
-    const total = filtered.reduce((s, c) => s + Number(c.total_prs), 0);
-    return total > 0 ? `Based on ${fmt(total)} PRs with comment timestamps` : undefined;
-  }, [responseTime, selectedSet]);
+  // Count visible cards per group so we can hide empty groups and their nav links
+  const visibleGroups = useMemo(() => {
+    const has = (data: BarItem[]) => data.length > 0;
+    return {
+      "the-good": has(mostLovedData) || has(lessChattyData),
+      "the-spicy": has(controversyData) || has(mostDetailedData),
+      "review-style": has(inlineData) || has(verdictsData) || has(bigPRsData),
+      "adoption-trust": has(bigProjectsData) || has(enterpriseData) || has(battleTestedData) || growthData.length > 0,
+      effectiveness: has(mergeData) || has(responseData),
+      specialization: languageGrid.length > 0,
+    } as Record<string, boolean>;
+  }, [mostLovedData, lessChattyData, controversyData, mostDetailedData, inlineData, verdictsData, bigPRsData, bigProjectsData, enterpriseData, battleTestedData, growthData, mergeData, responseData, languageGrid]);
 
   return (
     <div data-testid="rankings-page">
@@ -490,7 +439,7 @@ export function RankingsPage({
         data-testid="rankings-nav"
         className="sticky top-0 z-20 bg-theme-bg/95 backdrop-blur border-b border-theme-border py-3 flex gap-4 overflow-x-auto"
       >
-        {GROUPS.map((g) => (
+        {GROUPS.filter((g) => visibleGroups[g.id]).map((g) => (
           <a
             key={g.id}
             href={`#${g.id}`}
@@ -502,6 +451,7 @@ export function RankingsPage({
       </nav>
 
       {/* The Good */}
+      {visibleGroups["the-good"] && (
       <section
         id="the-good"
         data-testid="category-group-the-good"
@@ -518,7 +468,6 @@ export function RankingsPage({
             description="Highest approval rate (👍 / (👍+👎)) across all review comments. The comments developers keep, not dismiss."
             data={mostLovedData}
             formatValue={(v) => `${v.toFixed(1)}%`}
-            sampleSize={mostLovedSample}
           />
           <CategorySection
             id="signal-over-noise"
@@ -527,12 +476,13 @@ export function RankingsPage({
             data={lessChattyData}
             formatValue={(v) => `${v.toFixed(2)}/PR`}
             lowerIsBetter
-            sampleSize={lessChattyPRs}
           />
         </div>
       </section>
+      )}
 
       {/* The Spicy */}
+      {visibleGroups["the-spicy"] && (
       <section
         id="the-spicy"
         data-testid="category-group-the-spicy"
@@ -549,7 +499,6 @@ export function RankingsPage({
             description="Most polarizing — these bots get both 👍 and 👎 on the same reviews. Strong opinions either way."
             data={controversyData}
             formatValue={(v) => `${(v * 100).toFixed(0)}%`}
-            sampleSize={controversySample}
           />
           <CategorySection
             id="wall-of-text"
@@ -557,12 +506,13 @@ export function RankingsPage({
             description="Longest average comments. Thorough or noisy? You decide — but your PR thread will be long."
             data={mostDetailedData}
             formatValue={(v) => `${v.toLocaleString()} chars`}
-            sampleSize={wallOfTextSample}
           />
         </div>
       </section>
+      )}
 
       {/* Review Style */}
+      {visibleGroups["review-style"] && (
       <section
         id="review-style"
         data-testid="category-group-review-style"
@@ -590,12 +540,13 @@ export function RankingsPage({
             description="Average PR size (additions + deletions) reviewed by each product."
             data={bigPRsData}
             formatValue={(v) => `${v.toLocaleString()} lines`}
-            sampleSize={bigPRsSample}
           />
         </div>
       </section>
+      )}
 
       {/* Adoption & Trust */}
+      {visibleGroups["adoption-trust"] && (
       <section
         id="adoption-trust"
         data-testid="category-group-adoption-trust"
@@ -609,7 +560,6 @@ export function RankingsPage({
             description="Average GitHub stars of repos using each product."
             data={bigProjectsData}
             formatValue={(v) => `${v.toLocaleString()} ★ avg`}
-            sampleSize={bigProjectsSample}
           />
           <CategorySection
             id="enterprise-ready"
@@ -654,8 +604,10 @@ export function RankingsPage({
           </div>
         </div>
       </section>
+      )}
 
       {/* Effectiveness */}
+      {visibleGroups["effectiveness"] && (
       <section
         id="effectiveness"
         data-testid="category-group-effectiveness"
@@ -669,7 +621,6 @@ export function RankingsPage({
             description="Percentage of bot-reviewed PRs that get merged."
             data={mergeData}
             formatValue={(v) => `${v.toFixed(1)}%`}
-            sampleSize={mergeSample}
           />
           <CategorySection
             id="response-time"
@@ -678,12 +629,13 @@ export function RankingsPage({
             data={responseData}
             formatValue={formatMinutes}
             lowerIsBetter
-            sampleSize={responseSample}
           />
         </div>
       </section>
+      )}
 
       {/* Specialization */}
+      {visibleGroups["specialization"] && (
       <section
         id="specialization"
         data-testid="category-group-specialization"
@@ -694,12 +646,7 @@ export function RankingsPage({
           data-testid="category-language-specialist"
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {languageGrid.length === 0 ? (
-            <p className="text-sm text-theme-muted/70">
-              Insufficient data
-            </p>
-          ) : (
-            languageGrid.map((lang) => {
+          {languageGrid.map((lang) => {
               const maxVal = lang.items[0]?.value ?? 0;
               return (
                 <div
@@ -744,10 +691,10 @@ export function RankingsPage({
                   </div>
                 </div>
               );
-            })
-          )}
+            })}
         </div>
       </section>
+      )}
     </div>
   );
 }
