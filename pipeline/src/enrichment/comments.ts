@@ -123,6 +123,11 @@ export async function enrichComments(
               notFound++;
               continue;
             }
+            if (result.error === "partial_error") {
+              // Skip — don't insert sentinel, let REST fallback or next run handle it
+              errors++;
+              continue;
+            }
 
             if (result.comments.length > 0) {
               await insertPrComments(ch, result.comments);
@@ -218,6 +223,8 @@ export async function enrichComments(
                   forbidden++;
                 }
               } else {
+                Sentry.captureException(innerErr, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "comments", repo: repo_name, pr_number, bot_id } } });
+                logError(`[comments] REST fallback error: ${repo_name}#${pr_number}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
                 errors++;
               }
             }

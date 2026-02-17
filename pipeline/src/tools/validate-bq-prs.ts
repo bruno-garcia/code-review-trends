@@ -7,7 +7,7 @@
  */
 
 import { createCHClient, query } from "../clickhouse.js";
-import { createBigQueryClient } from "../bigquery.js";
+import { createBigQueryClient, DEFAULT_MAX_BYTES_BILLED } from "../bigquery.js";
 import { log } from "../sentry.js";
 
 export type ValidationResult = {
@@ -80,6 +80,7 @@ export async function validateBigQueryPRData(options: {
           ) AS rn
         FROM \`githubarchive.day.2*\`
         WHERE
+          -- AI code review epoch (2023-01-01) through present; suffix is YYmmdd after leading '2'
           _TABLE_SUFFIX BETWEEN '0230101' AND '0260217'
           AND type = 'PullRequestEvent'
           AND repo.name IN UNNEST(@repos)
@@ -91,7 +92,7 @@ export async function validateBigQueryPRData(options: {
     const [bqRows] = await bq.query({
       query: bqQuery,
       params: { repos: [...repoSet] },
-      maximumBytesBilled: "15000000000000",
+      maximumBytesBilled: DEFAULT_MAX_BYTES_BILLED,
     });
 
     log(`[validate] Got ${bqRows.length} matching events from BigQuery.`);
@@ -126,7 +127,9 @@ export async function validateBigQueryPRData(options: {
       matched++;
 
       // Compare title
-      if (bqRow.bq_title === pr.title) {
+      if (bqRow.bq_title == null) {
+        fields.title.missing++;
+      } else if (bqRow.bq_title === pr.title) {
         fields.title.match++;
       } else {
         fields.title.mismatch++;
@@ -136,7 +139,9 @@ export async function validateBigQueryPRData(options: {
       }
 
       // Compare author
-      if (bqRow.bq_author === pr.author) {
+      if (bqRow.bq_author == null) {
+        fields.author.missing++;
+      } else if (bqRow.bq_author === pr.author) {
         fields.author.match++;
       } else {
         fields.author.mismatch++;

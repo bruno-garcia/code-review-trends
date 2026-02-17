@@ -166,6 +166,8 @@ export async function enrichRepos(
                   forbidden++;
                 }
               } else {
+                Sentry.captureException(innerErr, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
+                logError(`[repos] REST fallback error: ${repo_name}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
                 errors++;
               }
             }

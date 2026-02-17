@@ -195,6 +195,8 @@ export async function enrichPullRequests(
                   forbidden++;
                 }
               } else {
+                Sentry.captureException(innerErr, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
+                logError(`[pull-requests] REST fallback error: ${repo_name}#${pr_number}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
                 errors++;
               }
             }
