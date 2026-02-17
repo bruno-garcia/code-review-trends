@@ -430,11 +430,21 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     return status;
   } catch (err) {
     // ClickHouse unreachable or misconfigured (e.g., empty URL during build)
+    let message: string;
+    if (err instanceof Error) {
+      // Some ClickHouse errors have an empty .message but useful .toString()
+      message = err.message || err.toString();
+      if (err.cause) {
+        message += ` (cause: ${err.cause instanceof Error ? err.cause.message : String(err.cause)})`;
+      }
+    } else {
+      message = String(err);
+    }
     return {
       status: "error",
       dbVersion: 0,
       expectedVersion: EXPECTED_SCHEMA_VERSION,
-      error: err instanceof Error ? err.message : String(err),
+      error: message || "Unknown error (empty exception)",
     };
   }
 }

@@ -14,8 +14,9 @@ export function SchemaBanner({ status }: { status: SchemaStatus }) {
         role="alert"
         data-testid="schema-banner"
       >
-        ⚠️ Database schema (v{status.dbVersion}) is ahead of this app
-        (v{status.expectedVersion}). Please redeploy.
+        ⚠️ Database schema is <strong>ahead</strong> of this app deployment
+        (DB&nbsp;v{status.dbVersion} vs app&nbsp;v{status.expectedVersion}).
+        The app needs to be redeployed with the latest code.
       </div>
     );
   }
@@ -27,9 +28,14 @@ export function SchemaBanner({ status }: { status: SchemaStatus }) {
         role="alert"
         data-testid="schema-banner"
       >
-        ⚠️ Database schema (v{status.dbVersion}) is behind app
-        (v{status.expectedVersion}). Auto-migration failed.
-        {status.error && ` ${status.error}`}
+        ⚠️ Database schema is <strong>behind</strong> this app
+        (DB&nbsp;v{status.dbVersion}, app expects&nbsp;v
+        {status.expectedVersion}). Auto-migration failed
+        {status.error ? `: ${status.error}` : "."} Run{" "}
+        <code className="bg-red-950/50 px-1 rounded">
+          npm run pipeline -- migrate
+        </code>{" "}
+        to apply pending migrations.
       </div>
     );
   }
@@ -42,7 +48,8 @@ export function SchemaBanner({ status }: { status: SchemaStatus }) {
         data-testid="schema-banner"
       >
         🔄 Schema migration in progress (v{status.dbVersion} →
-        v{status.expectedVersion}). Refresh in a moment.
+        v{status.expectedVersion}). Another instance is applying migrations —
+        refresh in a moment.
       </div>
     );
   }
@@ -54,7 +61,11 @@ export function SchemaBanner({ status }: { status: SchemaStatus }) {
         role="alert"
         data-testid="schema-banner"
       >
-        ⚠️ Schema check failed: {status.error}
+        ⚠️ Schema check failed — could not connect to ClickHouse or run
+        migrations.
+        {status.error && (
+          <span className="block mt-1 text-xs opacity-80">{status.error}</span>
+        )}
       </div>
     );
   }
