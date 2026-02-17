@@ -102,11 +102,11 @@ export function ProductFilterBar() {
           aria-label={expanded ? "Collapse filter" : "Expand filter"}
           aria-expanded={expanded}
         >
-          <span className="text-sm whitespace-nowrap shrink-0">
+          <span className="text-sm whitespace-nowrap shrink-0 text-theme-muted">
             <span className="font-semibold text-violet-400 tabular-nums">{selectedProducts.length}</span>
-            <span className="text-theme-muted">{" "}of{" "}</span>
+            {" of "}
             <span className="font-semibold text-theme-text-secondary tabular-nums">{allProducts.length}</span>
-            <span className="text-theme-muted"> products </span>
+            {" products "}
             <span className="text-violet-400 underline underline-offset-2 decoration-violet-400/40 hover:decoration-violet-400">selected</span>
           </span>
 
