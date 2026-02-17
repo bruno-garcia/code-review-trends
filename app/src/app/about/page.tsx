@@ -347,7 +347,15 @@ export default async function AboutPage() {
         </p>
         <p className="text-theme-text-secondary leading-relaxed">
           We also run an automated discovery process (
-          <code className={codeClass}>discover-bots</code>) that scans GH
+          <a
+            href="https://github.com/bruno-garcia/code-review-trends/blob/main/pipeline/src/tools/discover-bots.ts"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkClass}
+          >
+            <code className={codeClass}>discover-bots</code>
+          </a>
+          ) that scans GH
           Archive for new bot accounts performing code reviews on public
           repositories. Discovered candidates are reviewed manually before
           being added to the registry. This helps us stay up-to-date as new
