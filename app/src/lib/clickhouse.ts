@@ -207,6 +207,10 @@ export type WeeklyTotalVolume = {
 };
 
 async function query<T>(sql: string, params?: Record<string, unknown>, cacheTtl?: number): Promise<T[]> {
+  const cacheKey = params ? `${sql}|${JSON.stringify(params)}` : sql;
+  const cached = getCached<T[]>(cacheKey);
+  if (cached) return cached;
+
   // Sanitize the SQL for the span description — strip excess whitespace
   const sanitizedSql = sql.replace(/\s+/g, " ").trim();
 
@@ -241,7 +245,8 @@ async function query<T>(sql: string, params?: Record<string, unknown>, cacheTtl?
         query_params: params ?? {},
         format: "JSONEachRow",
       });
-      return (await result.json()) as T[];
+      const rows = (await result.json()) as T[];
+      return setCache(cacheKey, rows, cacheTtl);
     },
   );
 }

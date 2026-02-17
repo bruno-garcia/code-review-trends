@@ -17,7 +17,6 @@ import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 import { ThemedProductHeader } from "@/components/themed-product-header";
 
-// Revalidate every hour — data only changes weekly via pipeline
 
 export default async function ProductPage({
   params,

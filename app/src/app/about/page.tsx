@@ -5,7 +5,6 @@ const linkClass = "text-blue-400 hover:text-blue-300";
 const codeClass =
   "rounded bg-theme-surface-alt px-1.5 py-0.5 text-sm text-theme-text";
 
-// Revalidate every hour — data only changes weekly via pipeline
 
 export default async function AboutPage() {
   let enrichmentPct: number | null = null;

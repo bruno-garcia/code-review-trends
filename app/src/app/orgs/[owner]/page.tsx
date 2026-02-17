@@ -7,7 +7,6 @@ import {
 } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
 
-// Revalidate every hour — data only changes weekly via pipeline
 
 export default async function OrgPage({
   params,
