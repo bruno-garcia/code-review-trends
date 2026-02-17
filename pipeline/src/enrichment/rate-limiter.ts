@@ -10,18 +10,34 @@
 
 import { log, distributionMetric, countMetric } from "../sentry.js";
 
+/**
+ * Thrown when `exitOnRateLimit` is enabled and the rate limit threshold is hit.
+ * The worker should catch this and return partial results gracefully (exit 0).
+ */
+export class RateLimitExitError extends Error {
+  constructor(remaining: number, resetAt: Date) {
+    const resetIn = Math.max(0, Math.ceil((resetAt.getTime() - Date.now()) / 1000));
+    super(
+      `Rate limit reached (${remaining} remaining, resets in ${resetIn}s). Exiting instead of waiting.`,
+    );
+    this.name = "RateLimitExitError";
+  }
+}
+
 export class RateLimiter {
   private remaining: number = 5000;
   private resetAt: Date = new Date(0);
   private readonly minRemaining: number;
+  private readonly exitOnRateLimit: boolean;
 
   // Accumulated metrics
   private _totalWaitMs: number = 0;
   private _waitCount: number = 0;
   private _secondaryHits: number = 0;
 
-  constructor(minRemaining: number = 100) {
+  constructor(minRemaining: number = 100, exitOnRateLimit: boolean = false) {
     this.minRemaining = minRemaining;
+    this.exitOnRateLimit = exitOnRateLimit;
   }
 
   /** Update state from GitHub response headers. */
@@ -43,6 +59,10 @@ export class RateLimiter {
   async waitIfNeeded(): Promise<number> {
     if (this.remaining >= this.minRemaining) {
       return 0;
+    }
+
+    if (this.exitOnRateLimit) {
+      throw new RateLimitExitError(this.remaining, this.resetAt);
     }
 
     const now = Date.now();

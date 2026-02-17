@@ -166,6 +166,7 @@ Options for enrich:
   --limit N            Max items per entity type per run
   --priority TYPE      Start with: repos|prs|comments (default: repos)
   --stale-days N       Repo refresh threshold in days (default: 7)
+  --exit-on-rate-limit Exit cleanly (exit 0) when rate-limited instead of sleeping
 
 Environment variables:
   CLICKHOUSE_URL       ClickHouse HTTP URL (default: http://localhost:8123)
@@ -645,6 +646,7 @@ async function cmdEnrich() {
     limit: parseIntArg("--limit", args["--limit"]),
     staleDays: parseIntArg("--stale-days", args["--stale-days"]),
     priority: args["--priority"] as "repos" | "prs" | "comments" | undefined,
+    exitOnRateLimit: args["--exit-on-rate-limit"] !== undefined,
   });
 
   log("\n=== Enrichment Summary ===");
