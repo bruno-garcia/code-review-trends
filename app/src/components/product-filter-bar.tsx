@@ -60,7 +60,7 @@ export function ProductFilterBar() {
   const selectedProducts = allProducts.filter((p) => selectedSet.has(p.id));
 
   // Only show filter on pages that use it
-  if (pathname !== "/bots" && pathname !== "/compare") {
+  if (pathname !== "/bots" && pathname !== "/compare" && pathname !== "/orgs") {
     return null;
   }
 
@@ -90,7 +90,7 @@ export function ProductFilterBar() {
   }
 
   return (
-    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg">
+    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg sticky top-16 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Compact row — entire bar is clickable to toggle the picker */}
         <div
@@ -142,13 +142,13 @@ export function ProductFilterBar() {
             })}
             {allProducts.length - selectedProducts.length > 0 && (
               <span className="px-2 py-1 rounded-full text-xs whitespace-nowrap text-violet-400 border border-dashed border-violet-400/30 bg-violet-400/5">
-                +{allProducts.length - selectedProducts.length} more
+                {allProducts.length - selectedProducts.length} unselected
               </span>
             )}
           </div>
 
           <span
-            className="shrink-0 p-1.5 rounded text-theme-muted"
+            className="shrink-0 p-2 rounded-lg bg-theme-surface-alt border border-theme-border text-theme-text hover:bg-theme-border transition-colors"
             aria-hidden="true"
           >
             <ChevronDown
@@ -192,7 +192,7 @@ export function ProductFilterBar() {
               </button>
             </div>
 
-            {/* Product grid — ordered by ranking (total reviews DESC) */}
+            {/* Product grid — ordered by growth rate */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
               {allProducts.map((p, i) => {
                 const isSelected = selectedSet.has(p.id);

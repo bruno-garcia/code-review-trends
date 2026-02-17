@@ -16,6 +16,7 @@ import {
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 import { ThemedProductHeader } from "@/components/themed-product-header";
+import { SectionHeading } from "@/components/section-heading";
 
 
 export default async function ProductPage({
@@ -162,7 +163,7 @@ export default async function ProductPage({
 
       {/* Activity chart */}
       <section data-testid="bot-activity-chart">
-        <h2 className="text-2xl font-semibold mb-4">Activity Over Time</h2>
+        <SectionHeading id="activity">Activity Over Time</SectionHeading>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <SingleBotChart data={chartData} />
         </div>
@@ -171,7 +172,7 @@ export default async function ProductPage({
       {/* Bot History (multi-bot products) */}
       {productBots.length > 1 && (
         <section data-testid="bot-history-section">
-          <h2 className="text-2xl font-semibold mb-4">Bot History</h2>
+          <SectionHeading id="bot-history">Bot History</SectionHeading>
           <p className="text-theme-muted mb-4">
             This product has operated under multiple bot accounts over time.
           </p>
@@ -216,7 +217,7 @@ export default async function ProductPage({
 
       {/* Comments per PR */}
       <section data-testid="bot-comments-per-pr">
-        <h2 className="text-2xl font-semibold mb-4">Comments per PR</h2>
+        <SectionHeading id="comments-per-pr">Comments per PR</SectionHeading>
         {commentsPerPR.length > 0 ? (
           <div className="bg-theme-surface rounded-xl p-5 border border-theme-border inline-block">
             <p className="text-sm text-theme-muted">Avg Comments / PR</p>
@@ -236,7 +237,7 @@ export default async function ProductPage({
       {/* Top Languages */}
       {totalReviews > 0 && languageData.length > 0 && (
         <section data-testid="bot-languages">
-          <h2 className="text-2xl font-semibold mb-4">Top Languages</h2>
+          <SectionHeading id="languages">Top Languages</SectionHeading>
           <p className="text-theme-muted mb-6">
             Programming languages of repos where this bot reviews code.
           </p>

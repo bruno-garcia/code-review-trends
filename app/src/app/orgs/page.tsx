@@ -5,8 +5,8 @@ import {
   getProducts,
 } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
-import { InfoTooltip } from "@/components/info-tooltip";
 import { OrgFilters } from "./org-filters";
+import { OrgProductSync } from "./org-product-sync";
 
 
 const PAGE_SIZE = 50;
@@ -22,55 +22,40 @@ export default async function OrgsPage({
   const languages = parseArray(sp.lang);
   const productIds = parseArray(sp.product);
   const sort = parseSortParam(sp.sort);
+  const search = String(sp.q ?? "").trim();
   const page = Math.max(1, parseInt(String(sp.page ?? "1"), 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
   // Fetch data + filter options in parallel
   const [result, languageOptions, products] = await Promise.all([
-    getOrgList({ languages, productIds, sort, limit: PAGE_SIZE, offset }),
+    getOrgList({ languages, productIds, sort, search, limit: PAGE_SIZE, offset }),
     getOrgLanguageOptions(),
     getProducts(),
   ]);
 
   const total = Number(result.total);
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const productOptions = products.map((p) => ({
-    id: p.id,
-    name: p.name,
-    avatar_url: p.avatar_url,
-    brand_color: p.brand_color,
-  }));
-
-  // Build a product name lookup for display
   const productNameMap = new Map(products.map((p) => [p.id, p.name]));
 
+  const isFiltered = productIds.length > 0 || languages.length > 0 || search.length > 0;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <OrgProductSync />
       <div>
         <h1 className="text-3xl font-bold">Organizations</h1>
         <p className="mt-2 text-theme-muted">
-          {total.toLocaleString()} organizations using AI code review on GitHub.
+          {total.toLocaleString()} organizations
+          {isFiltered ? " matching current filters" : " using AI code review on GitHub"}.
         </p>
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-theme-muted">
-          <InfoTooltip text="Total GitHub stars across all of the organization's repos that have AI-reviewed PRs.">
-            <span>⭐ Stars</span>
-          </InfoTooltip>
-          <InfoTooltip text="Number of repositories in this organization that have at least one pull request reviewed by an AI bot.">
-            <span>Repos</span>
-          </InfoTooltip>
-          <InfoTooltip text="Total number of pull requests that received a review from an AI code review bot.">
-            <span>AI PRs</span>
-          </InfoTooltip>
-        </div>
       </div>
 
       {/* Filters */}
       <OrgFilters
         languageOptions={languageOptions}
-        productOptions={productOptions}
         selectedLanguages={languages}
-        selectedProducts={productIds}
         sort={sort}
+        search={search}
       />
 
       {/* Results */}
@@ -108,21 +93,21 @@ export default async function OrgsPage({
                     {org.owner}
                   </span>
                   {org.languages.filter(Boolean).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-0.5">
+                    <div className="flex flex-wrap gap-1 mt-0.5 items-center">
                       {org.languages
                         .filter(Boolean)
-                        .slice(0, 4)
+                        .slice(0, 6)
                         .map((lang) => (
                           <span
                             key={lang}
-                            className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60"
+                            className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60 leading-none"
                           >
                             {lang}
                           </span>
                         ))}
-                      {org.languages.filter(Boolean).length > 4 && (
-                        <span className="text-xs text-theme-muted">
-                          +{org.languages.filter(Boolean).length - 4}
+                      {org.languages.filter(Boolean).length > 6 && (
+                        <span className="text-xs text-theme-muted leading-none">
+                          +{org.languages.filter(Boolean).length - 6}
                         </span>
                       )}
                     </div>
@@ -135,14 +120,14 @@ export default async function OrgsPage({
                     {org.product_ids.slice(0, 3).map((pid) => (
                       <span
                         key={pid}
-                        className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60"
+                        className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60 leading-none"
                         title={productNameMap.get(pid) ?? pid}
                       >
                         {productNameMap.get(pid) ?? pid}
                       </span>
                     ))}
                     {org.product_ids.length > 3 && (
-                      <span className="text-xs text-theme-muted">
+                      <span className="text-xs text-theme-muted leading-none">
                         +{org.product_ids.length - 3}
                       </span>
                     )}
@@ -159,7 +144,7 @@ export default async function OrgsPage({
                   </span>
                   {Number(org.total_prs) > 0 && (
                     <span className="hidden lg:inline text-theme-muted w-20 text-right" title="Pull requests reviewed by AI bots">
-                      {formatNumber(Number(org.total_prs))} AI PRs
+                      {formatNumber(Number(org.total_prs))} PRs
                     </span>
                   )}
                 </div>

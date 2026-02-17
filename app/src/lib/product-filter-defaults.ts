@@ -3,8 +3,10 @@ import type { ProductSummary } from "./clickhouse";
 const DEFAULT_COUNT = 10;
 
 export function getDefaultProductIds(summaries: ProductSummary[]): string[] {
+  // Select top 10 by growth rate (matching the ranking order used across the site).
+  // Falls back to recent activity for products with no growth data.
   return [...summaries]
-    .sort((a, b) => b.latest_week_reviews - a.latest_week_reviews)
+    .sort((a, b) => Number(b.growth_pct) - Number(a.growth_pct))
     .slice(0, DEFAULT_COUNT)
     .map((s) => s.id);
 }

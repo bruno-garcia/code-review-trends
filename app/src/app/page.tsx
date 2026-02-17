@@ -8,6 +8,7 @@ import {
   TotalVolumeChart,
   TopOrgsChart,
 } from "@/components/charts";
+import { SectionHeading } from "@/components/section-heading";
 
 
 
@@ -33,9 +34,7 @@ export default async function Home() {
 
       {/* AI Share — unfiltered */}
       <section data-testid="ai-share-section">
-        <h2 className="text-2xl font-semibold mb-4">
-          AI Share of Code Reviews
-        </h2>
+        <SectionHeading id="ai-share">AI Share of Code Reviews</SectionHeading>
         <p className="text-theme-muted mb-6">
           Percentage of pull request reviews performed by AI bots vs. humans
           over time.
@@ -47,9 +46,7 @@ export default async function Home() {
 
       {/* Total AI Review Volume */}
       <section data-testid="total-volume-section">
-        <h2 className="text-2xl font-semibold mb-4">
-          Total AI Review Volume
-        </h2>
+        <SectionHeading id="volume">Total AI Review Volume</SectionHeading>
         <p className="text-theme-muted mb-6">
           Weekly volume of AI-generated code reviews and review comments across all bots.
         </p>
@@ -60,7 +57,7 @@ export default async function Home() {
 
       {/* Top Organizations — unfiltered */}
       <section data-testid="top-orgs-section">
-        <h2 className="text-2xl font-semibold mb-4">Top Organizations</h2>
+        <SectionHeading id="top-orgs">Top Organizations</SectionHeading>
         <p className="text-theme-muted mb-6">
           Organizations with the most GitHub stars across repos where AI bots review code.
         </p>

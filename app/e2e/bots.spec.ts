@@ -60,9 +60,10 @@ test.describe("Bots listing page", () => {
     await expect(reposHeader.getByText("↑")).toBeVisible();
   });
 
-  test("shows bot sentiment section", async ({ page }) => {
+  test("links to compare page for full comparison", async ({ page }) => {
     await page.goto("/bots");
-    await expect(page.getByTestId("bot-sentiment-section")).toBeVisible();
+    const link = page.getByText("Compare All →");
+    await expect(link).toBeVisible();
   });
 });
 

@@ -6,6 +6,7 @@ import {
   getOrgProducts,
 } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
+import { SectionHeading } from "@/components/section-heading";
 
 
 export default async function OrgPage({
@@ -96,7 +97,7 @@ export default async function OrgPage({
       {/* AI Review Products */}
       {products.length > 0 && (
         <section data-testid="org-products">
-          <h2 className="text-2xl font-semibold mb-4">AI Review Products</h2>
+          <SectionHeading id="products">AI Review Products</SectionHeading>
           <p className="text-theme-muted mb-6">
             AI code review products active on {owner}&apos;s repositories.
           </p>
@@ -147,7 +148,7 @@ export default async function OrgPage({
       {/* Languages */}
       {languages.length > 0 && (
         <section data-testid="org-languages">
-          <h2 className="text-2xl font-semibold mb-4">Languages</h2>
+          <SectionHeading id="languages">Languages</SectionHeading>
           <div className="flex flex-wrap gap-2">
             {languages.map((lang) => (
               <span
@@ -163,7 +164,7 @@ export default async function OrgPage({
 
       {/* Repositories */}
       <section data-testid="org-repos">
-        <h2 className="text-2xl font-semibold mb-4">Repositories</h2>
+        <SectionHeading id="repositories">Repositories</SectionHeading>
         <p className="text-theme-muted mb-6">
           Repositories where AI bots review code.
         </p>
@@ -174,7 +175,7 @@ export default async function OrgPage({
                 <th className="pb-3 pr-4">Repository</th>
                 <th className="pb-3 pr-4 text-right">⭐ Stars</th>
                 <th className="pb-3 pr-4">Language</th>
-                <th className="pb-3 pr-4 text-right">AI PRs</th>
+                <th className="pb-3 pr-4 text-right" title="Pull requests reviewed by AI bots">Reviewed PRs</th>
                 <th className="pb-3 text-right">Bot Comments</th>
               </tr>
             </thead>
