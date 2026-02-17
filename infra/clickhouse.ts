@@ -94,7 +94,7 @@ cat > /etc/clickhouse-server/config.d/listen.xml <<'CFGEOF'
 </clickhouse>
 CFGEOF
 
-# Memory limits — use 90% of RAM (dedicated box), cap individual queries at 1GB
+# Memory limits — use 90% of RAM (dedicated box), cap individual queries at 2GB
 cat > /etc/clickhouse-server/config.d/memory.xml <<'MEMEOF'
 <clickhouse>
   <max_server_memory_usage_to_ram_ratio>0.9</max_server_memory_usage_to_ram_ratio>
@@ -105,7 +105,8 @@ cat > /etc/clickhouse-server/users.d/memory-limits.xml <<'MLEOF'
 <clickhouse>
   <profiles>
     <default>
-      <max_memory_usage>1000000000</max_memory_usage>
+      <max_memory_usage>2000000000</max_memory_usage>
+      <join_algorithm>direct,parallel_hash,hash,grace_hash</join_algorithm>
     </default>
   </profiles>
 </clickhouse>
