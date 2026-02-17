@@ -10,7 +10,7 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 - **`pipeline/`** — TypeScript data collection service. Pulls data from BigQuery (GH Archive) and GitHub API, writes to ClickHouse. Has CLI tools for dev.
 - **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages ClickHouse VM, Cloud Run (Next.js app), Cloud Run Jobs (pipeline), Artifact Registry, Cloud Scheduler, Workload Identity Federation, and Secret Manager. See `infra/README.md`.
 - **`db/`** — ClickHouse schema and data, split by environment:
-  - `db/init/` — runs on **all** environments: schema (`001_schema.sql`) and bot reference data (`002_bot_data.sql`).
+  - `db/init/` — runs on **all** environments: schema (`001_schema.sql`), bot reference data (`002_bot_data.sql`), and additional migrations (`003_pr_bot_reactions.sql`, `004_pr_bot_event_counts.sql`).
 - **`docker-compose.yml`** — Local dev services (ClickHouse).
 
 ## Dev Environment
@@ -82,7 +82,7 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
 6. **Keep it simple.** No ORMs, no abstraction layers over ClickHouse. Raw SQL queries in `app/src/lib/clickhouse.ts`. Parameterized queries only (`{param:Type}` syntax) — never interpolate user input into SQL.
 
-7. **Dark theme by default.** The UI uses a dark color palette (`gray-950` background). All chart colors should be visible on dark backgrounds.
+7. **Dark theme by default.** The UI supports light and dark themes via CSS custom properties and a `ThemeToggle` component. Dark is the default. All chart colors must be legible on both light and dark backgrounds.
 
 8. **Pipeline is idempotent.** All pipeline writes use `ReplacingMergeTree`, so re-running for the same time range just overwrites. No need for delete-before-insert patterns. Safe to retry.
 
@@ -105,22 +105,35 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `.dockerignore` | Docker build exclusions |
 | `app/Dockerfile` | Multi-stage Docker build for Next.js app |
 | `app/src/lib/clickhouse.ts` | ClickHouse client + all data queries (app) |
+| `app/src/lib/migrations.ts` | Versioned schema migration system (auto-migrate on app start) |
 | `app/src/components/charts.tsx` | Recharts chart components (client-side) |
+| `app/src/components/schema-banner.tsx` | Warning banner when app/DB schema versions diverge |
+| `app/src/components/theme-provider.tsx` | Light/dark theme system (CSS custom properties) |
+| `app/src/components/theme-toggle.tsx` | Theme toggle UI component |
 | `app/src/app/page.tsx` | Home page — AI share, volume, leaderboard |
 | `app/src/app/bots/page.tsx` | Bot listing page |
 | `app/src/app/bots/[id]/page.tsx` | Individual bot detail page |
+| `app/src/app/about/page.tsx` | About / methodology page |
+| `app/src/app/status/page.tsx` | Pipeline status page |
+| `app/src/app/orgs/page.tsx` | Organization listing page |
+| `app/src/app/orgs/[owner]/page.tsx` | Individual organization detail page |
+| `app/src/app/compare/page.tsx` | Bot comparison page |
+| `app/src/app/error.tsx` | Error boundary page |
+| `app/src/app/api/revalidate/route.ts` | ISR cache revalidation endpoint |
+| `app/e2e/` | Playwright e2e tests |
 | `db/init/001_schema.sql` | ClickHouse table definitions (all environments) |
 | `db/init/002_bot_data.sql` | Products, bots, bot_logins reference data (all environments) |
+| `db/init/003_pr_bot_reactions.sql` | Bot reactions table (emoji reactions as reviews) |
+| `db/init/004_pr_bot_event_counts.sql` | Materialized view for pre-aggregated event counts |
 | `db/init-ci.sh` | CI init script — runs db/init/*.sql via HTTP |
-| `app/src/lib/migrations.ts` | Versioned schema migration system (auto-migrate on app start) |
-| `app/src/components/schema-banner.tsx` | Warning banner when app/DB schema versions diverge |
-| `app/e2e/` | Playwright e2e tests |
 | `pipeline/Dockerfile` | Multi-stage Docker build for pipeline CLI |
 | `pipeline/schedules.json` | Job schedules (shared by Sentry cron + Cloud Scheduler) |
 | `pipeline/src/bots.ts` | Canonical bot registry |
 | `pipeline/src/clickhouse.ts` | ClickHouse writer (pipeline) |
 | `pipeline/src/bigquery.ts` | GH Archive queries |
-| `pipeline/src/github.ts` | GitHub API enrichment |
+| `pipeline/src/github.ts` | GitHub API client |
+| `pipeline/src/enrichment/` | GraphQL batching enrichment (repos, PRs, comments, reactions) |
+| `pipeline/src/warmup.ts` | Cache warmup (called during deploy) |
 | `pipeline/src/cli.ts` | Pipeline CLI entry point |
 | `pipeline/src/smoke.test.ts` | Smoke tests — BigQuery + GitHub API → ClickHouse → app queries |
 | `pipeline/src/tools/` | Dev inspection/validation tools |
@@ -209,7 +222,7 @@ Every merge to `main` triggers the `deploy-staging` CI job:
 1. Builds app + pipeline container images (tagged with git SHA)
 2. Pushes to GCP Artifact Registry
 3. Deploys app to Cloud Run (`crt-staging-app`)
-4. Updates all 4 pipeline Cloud Run Jobs with new image
+4. Updates all 5 pipeline Cloud Run Jobs with new image
 
 Uses Workload Identity Federation — no service account keys needed.
 

@@ -129,6 +129,76 @@ Example output:
   ...
 ```
 
+### `discover`
+
+Find individual PR-level bot events from BigQuery and write them to `pr_bot_events`. Used by the enrichment stage to know which repos/PRs to fetch metadata for.
+
+```bash
+npm run pipeline -- discover              # last 3 months (default)
+npm run pipeline -- discover --all        # full history from 2023-01-01
+npm run pipeline -- discover --dry-run    # preview without running
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--start YYYY-MM-DD` | 3 months ago | Start date |
+| `--end YYYY-MM-DD` | today | End date |
+| `--all` | — | Discover full history from 2023-01-01 |
+| `--dry-run` | — | Show what would be fetched without running |
+
+### `enrich`
+
+Fetch metadata from GitHub's GraphQL API for repos, PRs, comments, and reactions found by `discover`. Processes in order: repos → PRs → comments → reactions.
+
+```bash
+npm run pipeline -- enrich --limit 4500                    # fetch up to 4500 items per type
+npm run pipeline -- enrich --exit-on-rate-limit            # exit cleanly when rate-limited
+npm run pipeline -- enrich --priority prs                  # start with PRs instead of repos
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--token TOKEN` | `$GITHUB_TOKEN` | GitHub PAT (or set env var) |
+| `--worker-id N` | `0` | Worker ID for hash-based partitioning |
+| `--total-workers N` | `1` | Total parallel workers |
+| `--limit N` | — | Max items per entity type per run |
+| `--priority TYPE` | `repos` | Start with: `repos`, `prs`, `comments`, or `reactions` |
+| `--stale-days N` | `7` | Repo refresh threshold in days |
+| `--exit-on-rate-limit` | — | Exit cleanly (exit 0) when rate-limited instead of sleeping |
+
+Parallel enrichment with multiple GitHub tokens:
+
+```bash
+GITHUB_TOKEN=$TOKEN_A npm run pipeline -- enrich --limit 4500 --worker-id 0 --total-workers 2 &
+GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --total-workers 2 &
+```
+
+### `enrich-status`
+
+Show enrichment progress — how many repos, PRs, comments, and reactions have been fetched vs. pending.
+
+```bash
+npm run pipeline -- enrich-status
+```
+
+### `discover-bots`
+
+Find new bot accounts in GH Archive and the GitHub Marketplace. Used to identify bots to add to the registry.
+
+```bash
+npm run pipeline -- discover-bots
+npm run pipeline -- discover-bots --start 2025-01-01 --end 2025-02-01
+npm run pipeline -- discover-bots --marketplace-only
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--start YYYY-MM-DD` | 30 days ago | Start date |
+| `--end YYYY-MM-DD` | today | End date |
+| `--marketplace-only` | — | Skip BigQuery `[bot]` scan |
+| `--bigquery-only` | — | Skip marketplace scan |
+| `--alert` | — | Capture a Sentry event per new bot found |
+
 ## Dev Tools
 
 These run directly via workspace scripts:
@@ -231,6 +301,8 @@ db/
   init/                        ← Applied to ALL environments
     001_schema.sql             — CREATE TABLE definitions
     002_bot_data.sql           — Products, bots, bot_logins (reference data)
+    003_pr_bot_reactions.sql   — Bot reactions table
+    004_pr_bot_event_counts.sql — Materialized view for pre-aggregated counts
   init-ci.sh                   — CI script: runs db/init/*.sql via HTTP
 ```
 
@@ -242,11 +314,27 @@ db/
 
 ```
 BigQuery (GH Archive)  →  pipeline  →  ClickHouse
+GitHub API            ─┘
                            ├── bigquery.ts    — GH Archive queries
                            ├── clickhouse.ts  — ClickHouse writer
+                           ├── github.ts      — GitHub API client
                            ├── sync.ts        — orchestration (backfill, incremental)
                            ├── bots.ts        — canonical bot registry
                            ├── cli.ts         — CLI entry point (incl. migrate command)
+                           ├── warmup.ts      — cache warmup (called during deploy)
+                           ├── enrichment/
+                           │   ├── worker.ts           — enrichment orchestrator
+                           │   ├── repos.ts            — repo metadata enrichment
+                           │   ├── pull-requests.ts    — PR metadata enrichment
+                           │   ├── comments.ts         — PR comment enrichment
+                           │   ├── reactions.ts        — bot emoji reaction enrichment
+                           │   ├── graphql-repos.ts    — GraphQL batch fetcher (repos)
+                           │   ├── graphql-pull-requests.ts — GraphQL batch fetcher (PRs)
+                           │   ├── graphql-comments.ts — GraphQL batch fetcher (comments)
+                           │   ├── graphql-reactions.ts — GraphQL batch fetcher (reactions)
+                           │   ├── rate-limiter.ts     — GitHub API rate limit handling
+                           │   ├── partitioner.ts      — hash-based work partitioning
+                           │   └── summary.ts          — enrichment progress reporting
                            └── tools/
                                ├── status.ts       — health & monitoring
                                ├── inspect-data.ts — data exploration
@@ -254,10 +342,11 @@ BigQuery (GH Archive)  →  pipeline  →  ClickHouse
                                └── discover-bots.ts   — find new bots in GH Archive
 ```
 
-The pipeline fetches two types of data per date range:
+The pipeline has three stages:
 
-1. **Bot review activity** — weekly counts of `PullRequestReviewEvent` and `PullRequestReviewCommentEvent` per tracked bot, plus distinct repo counts.
-2. **Human review activity** — same metrics for all non-bot accounts, used to calculate AI share percentages.
+1. **Backfill / Sync** (BigQuery → `review_activity` + `human_review_activity`) — weekly counts of `PullRequestReviewEvent` and `PullRequestReviewCommentEvent` per tracked bot, plus distinct repo counts. Human review activity provides the same metrics for non-bot accounts, used to calculate AI share percentages.
+2. **Discover** (BigQuery → `pr_bot_events`) — individual PR-level bot events (which bot touched which PR).
+3. **Enrich** (GitHub API → `repos`, `pull_requests`, `pr_comments`, `pr_bot_reactions`) — fetches metadata via GraphQL batching for repos/PRs/comments/reactions found by discover. Uses hash-based partitioning for parallel workers.
 
 All writes use ClickHouse `ReplacingMergeTree` tables, making every operation idempotent. Re-running the same date range just overwrites existing rows.
 
@@ -282,8 +371,29 @@ The canonical bot list lives in `src/bots.ts`. Current bots:
 | CodeScene | `codescene-delta-analysis[bot]` |
 | Sourcery | `sourcery-ai[bot]` |
 | Ellipsis | `ellipsis-dev[bot]` |
-| Qodo | `qodo-merge-pro[bot]` |
+| Qodo (CodiumAI PR Agent) | `codium-pr-agent[bot]` |
+| Qodo Merge | `qodo-merge[bot]` |
+| Qodo Merge Pro | `qodo-merge-pro[bot]` |
+| Qodo AI | `qodo-ai[bot]` |
 | Greptile | `greptile-apps[bot]` |
+| Sentry | `sentry[bot]` |
+| Seer by Sentry | `seer-by-sentry[bot]` |
+| Codecov AI | `codecov-ai[bot]` |
+| Baz | `baz-reviewer[bot]` |
+| Graphite | `graphite-app[bot]` |
+| CodeAnt | `codeant-ai[bot]` |
+| Windsurf | `windsurf-bot[bot]` |
+| Cubic | `cubic-dev-ai[bot]` |
+| Cursor Bugbot | `cursor[bot]` |
+| Gemini Code Assist | `gemini-code-assist[bot]` |
+| Bito | `bito-code-review[bot]` |
+| Korbit | `korbit-ai[bot]` |
+| Claude | `claude[bot]` |
+| OpenAI Codex | `chatgpt-codex-connector[bot]` |
+| Mesa | `mesa-dot-dev[bot]` |
+| gitStream | `gitstream-cm[bot]` |
+| LinearB | `linearb[bot]` |
+| Augment Code | `augmentcode[bot]` |
 
 To add a new bot:
 
