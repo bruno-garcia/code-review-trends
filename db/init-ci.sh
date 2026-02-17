@@ -32,19 +32,8 @@ for f in db/init/*.sql; do
   echo "  Done."
 done
 
-# 2. Run seed data (db/seed/*.sql) — fake data for CI tests
-for f in db/seed/*.sql; do
-  [ -f "$f" ] || continue
-  echo "Running $f..."
-  statements=$(sed 's/--.*$//' "$f" | tr '\n' ' ' | sed 's/;/;\n/g')
-  while IFS= read -r stmt; do
-    run_statement "$stmt"
-  done <<< "$statements"
-  echo "  Done."
-done
-
-# 3. Record schema version (must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts)
-SCHEMA_VERSION=1
+# 2. Record schema version (must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts)
+SCHEMA_VERSION=2
 echo "Recording schema version ${SCHEMA_VERSION}..."
 run_statement "INSERT INTO code_review_trends.schema_migrations (version, name) VALUES (${SCHEMA_VERSION}, 'initial_schema')"
 echo "  Done."

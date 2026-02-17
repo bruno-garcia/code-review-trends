@@ -10,6 +10,7 @@ const navItems = [
   { href: "/orgs", label: "Orgs" },
   { href: "/compare", label: "Compare" },
   { href: "/about", label: "About" },
+  { href: "/status", label: "Status" },
   {
     href: "https://github.com/bruno-garcia/code-review-trends",
     label: "GitHub",

@@ -123,7 +123,7 @@ export default async function ProductPage({
               {githubLogins.map((login, i) => (
                 <span key={login}>
                   {i > 0 && ", "}
-                  <code className="text-theme-text/80">{login}</code>
+                  <GitHubLogin login={login} />
                 </span>
               ))}
             </span>
@@ -151,7 +151,7 @@ export default async function ProductPage({
             value={commentsPerRepo.toLocaleString()}
           />
           <StatCard
-            label="Growth (4w)"
+            label="Growth (12w)"
             value={`${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`}
             color={growthPct >= 0 ? "text-emerald-400" : "text-red-400"}
           />
@@ -178,7 +178,6 @@ export default async function ProductPage({
               <thead className="text-theme-muted border-b border-theme-border">
                 <tr>
                   <th className="pb-3 pr-4">Bot</th>
-                  <th className="pb-3 pr-4">GitHub Login</th>
                   <th className="pb-3 pr-4 text-right">Reviews</th>
                   <th className="pb-3 pr-4 text-right">Review Comments</th>
                   <th className="pb-3 pr-4 text-right">PR Comments</th>
@@ -189,13 +188,10 @@ export default async function ProductPage({
               <tbody>
                 {productBots.map((bot) => (
                   <tr
-                    key={`${bot.id}-${bot.github_login}`}
+                    key={bot.id}
                     className="border-b border-theme-border/50"
                   >
                     <td className="py-3 pr-4 font-medium">{bot.name}</td>
-                    <td className="py-3 pr-4">
-                      <code className="text-theme-text/80">{bot.github_login}</code>
-                    </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
                       {Number(bot.total_reviews).toLocaleString()}
                     </td>
@@ -249,6 +245,33 @@ export default async function ProductPage({
       )}
     </div>
   );
+}
+
+/** Derive GitHub App URL from a bot login, or null if unknown/defunct. */
+function githubAppUrl(login: string | null | undefined): string | null {
+  if (!login?.endsWith("[bot]")) return null;
+  const slug = login.replace("[bot]", "");
+  // Apps known to no longer exist on GitHub
+  const defunct = new Set(["qodo-merge-pro"]);
+  if (defunct.has(slug)) return null;
+  return `https://github.com/apps/${slug}`;
+}
+
+function GitHubLogin({ login }: { login: string }) {
+  const url = githubAppUrl(login);
+  if (url) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-indigo-400 hover:text-indigo-300"
+      >
+        <code>{login}</code>
+      </a>
+    );
+  }
+  return <code className="text-theme-text/80">{login}</code>;
 }
 
 function StatCard({

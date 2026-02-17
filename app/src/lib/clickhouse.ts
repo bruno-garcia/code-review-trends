@@ -1,6 +1,23 @@
 import { createClient } from "@clickhouse/client";
 import * as Sentry from "@sentry/nextjs";
 
+// Simple in-memory cache with TTL for expensive queries.
+// Lives for the lifetime of a serverless container instance.
+const cache = new Map<string, { data: unknown; expires: number }>();
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function getCached<T>(key: string): T | undefined {
+  const entry = cache.get(key);
+  if (entry && Date.now() < entry.expires) return entry.data as T;
+  if (entry) cache.delete(key);
+  return undefined;
+}
+
+function setCache<T>(key: string, data: T): T {
+  cache.set(key, { data, expires: Date.now() + CACHE_TTL_MS });
+  return data;
+}
+
 export function getClickHouseClient() {
   return createClient({
     url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
@@ -78,6 +95,7 @@ export type ProductSummary = {
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
+  total_reaction_reviews: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -101,6 +119,7 @@ export type BotSummary = {
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
+  total_reaction_reviews: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -251,7 +270,7 @@ export async function getProductById(id: string): Promise<Product | null> {
 
 export async function getProductSummaries(since?: string): Promise<ProductSummary[]> {
   // Don't filter the CTE — apply since via sumIf so growth_pct always has
-  // access to the full 8-week window it needs for comparison.
+  // access to the full 24-week window it needs for comparison.
   const sinceCond = since
     ? "week >= toDate({since:String})"
     : "1";
@@ -261,6 +280,10 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
   return query<ProductSummary>(
     `
     WITH
+      ref AS (
+        SELECT max(week) AS ref_week FROM review_activity FINAL
+        WHERE week < toStartOfWeek(now(), 1)
+      ),
       weekly_product AS (
         SELECT
           b.product_id,
@@ -283,8 +306,9 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
           minIf(week, ${sinceCond}) AS first_seen,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM weekly_product
         GROUP BY product_id
       ),
@@ -298,6 +322,19 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         JOIN bots b FINAL ON c.bot_id = b.id
         WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY b.product_id
+      ),
+      reaction_review_agg AS (
+        SELECT
+          b.product_id,
+          countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
+        FROM pr_bot_reactions r FINAL
+        JOIN bots b FINAL ON r.bot_id = b.id
+        LEFT JOIN (
+          SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_bot_events FINAL
+        ) e ON r.repo_name = e.repo_name AND r.pr_number = e.pr_number AND r.bot_id = e.bot_id
+        WHERE r.reaction_type = 'hooray'
+          AND e.repo_name = ''
+        GROUP BY b.product_id
       )
     SELECT
       p.id,
@@ -310,13 +347,14 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
+      COALESCE(rrv.reaction_reviews, 0) AS total_reaction_reviews,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_period_reviews > 0,
-          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+        if(ra.prev_12w_reviews > 0,
+          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
           0),
         1
       ) AS growth_pct,
@@ -331,6 +369,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     FROM products p FINAL
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
+    LEFT JOIN reaction_review_agg rrv ON p.id = rrv.product_id
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
@@ -381,6 +420,10 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
   return query<ProductComparison>(
     `
     WITH
+      ref AS (
+        SELECT max(week) AS ref_week FROM review_activity FINAL
+        WHERE week < toStartOfWeek(now(), 1)
+      ),
       weekly_product AS (
         SELECT
           b.product_id,
@@ -403,10 +446,11 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
           countIf(DISTINCT week, ${sinceCond}) AS weeks_active,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
-          sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
+          sumIf(review_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_comments,
+          sumIf(pr_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_pr_comments,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM weekly_product
         GROUP BY product_id
       ),
@@ -440,8 +484,8 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
         0), 1) AS approval_rate,
       round(
-        if(ra.prev_period_reviews > 0,
-          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+        if(ra.prev_12w_reviews > 0,
+          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
           0),
         1
       ) AS growth_pct,
@@ -472,8 +516,8 @@ export async function getProductBots(productId: string, since?: string): Promise
         COALESCE(sum(ra.review_count), 0) AS total_reviews,
         COALESCE(sum(ra.review_comment_count), 0) AS total_comments,
         COALESCE(sum(ra.pr_comment_count), 0) AS total_pr_comments,
-        COALESCE(formatDateTime(min(ra.week), '%Y-%m-%d'), '') AS first_week,
-        COALESCE(formatDateTime(max(ra.week), '%Y-%m-%d'), '') AS last_week
+        toString(min(ra.week)) AS first_week,
+        toString(max(ra.week)) AS last_week
       FROM bots b FINAL
       LEFT JOIN (
         SELECT bot_id, min(github_login) AS github_login
@@ -483,6 +527,7 @@ export async function getProductBots(productId: string, since?: string): Promise
       LEFT JOIN review_activity ra FINAL ON b.id = ra.bot_id ${sinceFilter}
       WHERE b.product_id = {productId:String}
       GROUP BY b.id, b.name, bl.github_login, b.brand_color
+      HAVING total_reviews > 0
       ORDER BY total_reviews DESC
     `,
     params,
@@ -587,6 +632,10 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
   return query<BotSummary>(
     `
     WITH
+      ref AS (
+        SELECT max(week) AS ref_week FROM review_activity FINAL
+        WHERE week < toStartOfWeek(now(), 1)
+      ),
       activity_agg AS (
         SELECT
           bot_id,
@@ -596,8 +645,9 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
           minIf(week, ${sinceCond}) AS first_seen,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM review_activity FINAL
         GROUP BY bot_id
       ),
@@ -610,6 +660,18 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
         FROM pr_comments c FINAL
         WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY c.bot_id
+      ),
+      reaction_review_agg AS (
+        SELECT
+          r.bot_id,
+          countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
+        FROM pr_bot_reactions r FINAL
+        LEFT JOIN (
+          SELECT DISTINCT repo_name, pr_number, bot_id FROM pr_bot_events FINAL
+        ) e ON r.repo_name = e.repo_name AND r.pr_number = e.pr_number AND r.bot_id = e.bot_id
+        WHERE r.reaction_type = 'hooray'
+          AND e.repo_name = ''
+        GROUP BY r.bot_id
       )
     SELECT
       b.id,
@@ -621,13 +683,14 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
+      COALESCE(rrv.reaction_reviews, 0) AS total_reaction_reviews,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_period_reviews > 0,
-          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+        if(ra.prev_12w_reviews > 0,
+          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
           0),
         1
       ) AS growth_pct,
@@ -642,6 +705,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     FROM bots AS b FINAL
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
+    LEFT JOIN reaction_review_agg rrv ON b.id = rrv.bot_id
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
@@ -658,6 +722,10 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
   return query<BotComparison>(
     `
     WITH
+      ref AS (
+        SELECT max(week) AS ref_week FROM review_activity FINAL
+        WHERE week < toStartOfWeek(now(), 1)
+      ),
       activity_agg AS (
         SELECT
           bot_id,
@@ -667,10 +735,11 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
           countIf(${sinceCond}) AS weeks_active,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_reviews,
-          sumIf(review_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_comments,
-          sumIf(pr_comment_count, week >= toDate(now()) - INTERVAL 4 WEEK) AS latest_week_pr_comments,
-          sumIf(review_count, week >= toDate(now()) - INTERVAL 8 WEEK AND week < toDate(now()) - INTERVAL 4 WEEK) AS prev_period_reviews
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
+          sumIf(review_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_comments,
+          sumIf(pr_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_pr_comments,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
+          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM review_activity FINAL
         GROUP BY bot_id
       ),
@@ -702,8 +771,8 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
         COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
         0), 1) AS approval_rate,
       round(
-        if(ra.prev_period_reviews > 0,
-          (ra.latest_week_reviews - ra.prev_period_reviews) * 100.0 / ra.prev_period_reviews,
+        if(ra.prev_12w_reviews > 0,
+          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
           0),
         1
       ) AS growth_pct,
@@ -1131,21 +1200,121 @@ export type EnrichmentStats = {
 };
 
 export async function getEnrichmentStats(): Promise<EnrichmentStats> {
+  const cached = getCached<EnrichmentStats>("enrichmentStats");
+  if (cached) return cached;
+
   const rows = await query<EnrichmentStats>(`
     SELECT
       (SELECT count() FROM repos) AS total_discovered_repos,
       (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
-      (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events) AS total_discovered_prs,
+      (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS total_discovered_prs,
       (SELECT count() FROM pull_requests) AS enriched_prs,
       (SELECT countIf(comment_id > 0) FROM pr_comments) AS total_comments
   `);
-  return rows[0] ?? {
+  return setCache("enrichmentStats", rows[0] ?? {
     total_discovered_repos: 0,
     enriched_repos: 0,
     total_discovered_prs: 0,
     enriched_prs: 0,
     total_comments: 0,
-  };
+  });
+}
+
+// --- Data collection stats (for /about page) ---
+
+export type DataCollectionStats = {
+  // BigQuery backfill — which weeks have data
+  weeks_with_data: string[]; // ISO date strings of weeks present in review_activity
+  last_import: string | null; // UTC timestamp of last pipeline_state backfill run
+  // GitHub enrichment — repos
+  repos_total: number; // distinct repos found in pr_bot_events (discovered)
+  repos_ok: number;
+  repos_not_found: number;
+  repos_pending: number;
+  // GitHub enrichment — PRs
+  prs_discovered: number;
+  prs_enriched: number;
+  // GitHub enrichment — comments
+  comments_discovered: number;
+  comments_enriched: number;
+  // GitHub enrichment — reaction scans
+  reactions_total: number;
+  reactions_scanned: number;
+  reactions_found: number;
+};
+
+import { DATA_EPOCH } from "./constants";
+export { DATA_EPOCH };
+
+export async function getDataCollectionStats(): Promise<DataCollectionStats> {
+  const cached = getCached<DataCollectionStats>("dataCollectionStats");
+  if (cached) return cached;
+
+  // Fetch weeks with data + enrichment counts in parallel
+  const [weekRows, countRows] = await Promise.all([
+    query<{ w: string }>(`
+      SELECT DISTINCT toString(week) AS w
+      FROM review_activity FINAL
+      WHERE week >= toDate('${DATA_EPOCH}')
+      ORDER BY w
+    `),
+    query<{
+      repos_total: number;
+      repos_ok: number;
+      repos_not_found: number;
+      prs_discovered: number;
+      prs_enriched: number;
+      comments_discovered: number;
+      comments_enriched: number;
+      reactions_total: number;
+      reactions_scanned: number;
+      reactions_found: number;
+    }>(`
+      SELECT
+        (SELECT uniq(repo_name) FROM pr_bot_events) AS repos_total,
+        (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
+        (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS prs_discovered,
+        (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_bot_events WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments FINAL) AS comments_enriched,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS reactions_total,
+        (SELECT count() FROM reaction_scan_progress FINAL) AS reactions_scanned,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
+    `),
+  ]);
+
+  // Last import from pipeline_state (may not exist)
+  let lastImport: string | null = null;
+  try {
+    const stateRows = await query<{ last_run: string }>(`
+      SELECT toString(max(completed_at)) AS last_run
+      FROM pipeline_state FINAL
+      WHERE job_name = 'backfill'
+    `);
+    if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
+      lastImport = stateRows[0].last_run;
+    }
+  } catch {
+    // pipeline_state table may not exist
+  }
+
+  const base = countRows[0];
+  return setCache("dataCollectionStats", {
+    weeks_with_data: weekRows.map((r) => r.w),
+    last_import: lastImport,
+    repos_total: Number(base?.repos_total ?? 0),
+    repos_ok: Number(base?.repos_ok ?? 0),
+    repos_not_found: Number(base?.repos_not_found ?? 0),
+    repos_pending: Math.max(0, Number(base?.repos_total ?? 0) - Number(base?.repos_ok ?? 0) - Number(base?.repos_not_found ?? 0)),
+    prs_discovered: Number(base?.prs_discovered ?? 0),
+    prs_enriched: Number(base?.prs_enriched ?? 0),
+    comments_discovered: Number(base?.comments_discovered ?? 0),
+    comments_enriched: Number(base?.comments_enriched ?? 0),
+    reactions_total: Number(base?.reactions_total ?? 0),
+    reactions_scanned: Number(base?.reactions_scanned ?? 0),
+    reactions_found: Number(base?.reactions_found ?? 0),
+  });
 }
 
 // --- Category metric queries ---

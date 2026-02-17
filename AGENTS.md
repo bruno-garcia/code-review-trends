@@ -8,10 +8,9 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 
 - **`app/`** — Next.js 16 (App Router, TypeScript, Tailwind CSS v4). Server components fetch from ClickHouse; client components render charts with Recharts.
 - **`pipeline/`** — TypeScript data collection service. Pulls data from BigQuery (GH Archive) and GitHub API, writes to ClickHouse. Has CLI tools for dev.
-- **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages the production ClickHouse VM, networking, and firewall rules. See `infra/README.md`.
+- **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages ClickHouse VM, Cloud Run (Next.js app), Cloud Run Jobs (pipeline), Artifact Registry, Cloud Scheduler, Workload Identity Federation, and Secret Manager. See `infra/README.md`.
 - **`db/`** — ClickHouse schema and data, split by environment:
-  - `db/init/` — runs on **all** environments: schema (`001_schema.sql`), bot reference data (`002_bot_data.sql`), and the seed loader script (`003_seed.sh`).
-  - `db/seed/` — runs on **local dev and CI only**: fake data (`001_fake_data.sql`) for realistic growth curves.
+  - `db/init/` — runs on **all** environments: schema (`001_schema.sql`) and bot reference data (`002_bot_data.sql`).
 - **`docker-compose.yml`** — Local dev services (ClickHouse).
 
 ## Dev Environment
@@ -75,7 +74,7 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
 2. **ClickHouse for analytics.** All data lives in ClickHouse, optimized for analytical queries. Use `ReplacingMergeTree` for idempotent inserts. Design tables for the queries the UI needs.
 
-3. **Fake data first.** Seed data provides realistic growth curves for developing the UI. The data pipeline (BigQuery + GitHub API) is a separate concern — the app should never assume where data came from.
+3. **Pipeline is the only data source.** All data comes from the pipeline (BigQuery + GitHub API). The app should render gracefully with empty tables — no fake/seed data.
 
 4. **Test with Playwright.** E2e tests in `app/e2e/` validate that pages render with data from ClickHouse. Tests run against real ClickHouse (via Docker in CI, local in dev). Use `data-testid` attributes for stable selectors.
 
@@ -87,20 +86,24 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
 8. **Pipeline is idempotent.** All pipeline writes use `ReplacingMergeTree`, so re-running for the same time range just overwrites. No need for delete-before-insert patterns. Safe to retry.
 
-9. **Bot registry is the source of truth.** The canonical list of tracked bots lives in `pipeline/src/bots.ts`. Use `npm run pipeline -- sync-bots` to push to ClickHouse. Seed data is for dev only.
+9. **Bot registry is the source of truth.** The canonical list of tracked bots lives in `pipeline/src/bots.ts`. Use `npm run pipeline -- sync-bots` to push to ClickHouse.
 
 10. **Build dev tools, not just features.** Invest in CLI tools (`inspect`, `validate`, `discover-bots`) that make development fast and reduce reliance on CI or prod for feedback.
 
-11. **Separate schema from seed data.** `db/init/` contains schema and bot reference data — applied to all environments. `db/seed/` contains fake data — only loaded in local dev (via docker-compose `003_seed.sh`) and CI (via `init-ci.sh`). The `migrate` command applies only `db/init/` files to remote databases.
+11. **No fake data.** All data comes from the pipeline (BigQuery + GitHub API). `db/init/` contains schema and bot reference data — applied to all environments. There is no seed data; local dev and CI start with empty tables.
 
-12. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
+12. **2023-01-01 is the epoch.** AI code review became a meaningful category after this date. All pipeline imports start from 2023-01-01. No data before this date is collected or expected.
 
-13. **Never edit existing migration files.** Files in `db/init/` and `db/seed/` that have been committed to `main` are immutable. Schema changes, new reference data, or seed updates must be introduced as new numbered files (e.g., `004_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
+13. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
+
+14. **Never edit existing migration files.** Files in `db/init/` that have been committed to `main` are immutable. Schema changes or new reference data must be introduced as new numbered files (e.g., `003_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
 
 ## Key Files
 
 | Path | Purpose |
 |------|---------|
+| `.dockerignore` | Docker build exclusions |
+| `app/Dockerfile` | Multi-stage Docker build for Next.js app |
 | `app/src/lib/clickhouse.ts` | ClickHouse client + all data queries (app) |
 | `app/src/components/charts.tsx` | Recharts chart components (client-side) |
 | `app/src/app/page.tsx` | Home page — AI share, volume, leaderboard |
@@ -108,10 +111,12 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `app/src/app/bots/[id]/page.tsx` | Individual bot detail page |
 | `db/init/001_schema.sql` | ClickHouse table definitions (all environments) |
 | `db/init/002_bot_data.sql` | Products, bots, bot_logins reference data (all environments) |
-| `db/init/003_seed.sh` | Docker init script that loads db/seed/ (local dev only) |
-| `db/seed/001_fake_data.sql` | Fake review data for local dev and CI only |
-| `db/init-ci.sh` | CI init script — runs db/init/*.sql + db/seed/*.sql via HTTP |
+| `db/init-ci.sh` | CI init script — runs db/init/*.sql via HTTP |
+| `app/src/lib/migrations.ts` | Versioned schema migration system (auto-migrate on app start) |
+| `app/src/components/schema-banner.tsx` | Warning banner when app/DB schema versions diverge |
 | `app/e2e/` | Playwright e2e tests |
+| `pipeline/Dockerfile` | Multi-stage Docker build for pipeline CLI |
+| `pipeline/schedules.json` | Job schedules (shared by Sentry cron + Cloud Scheduler) |
 | `pipeline/src/bots.ts` | Canonical bot registry |
 | `pipeline/src/clickhouse.ts` | ClickHouse writer (pipeline) |
 | `pipeline/src/bigquery.ts` | GH Archive queries |
@@ -121,10 +126,15 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `pipeline/src/tools/` | Dev inspection/validation tools |
 | `infra/index.ts` | Pulumi entrypoint — wires all components |
 | `infra/config.ts` | Typed Pulumi config loader |
+| `infra/artifact-registry.ts` | Container image registry |
+| `infra/cloud-run-app.ts` | Cloud Run service for Next.js |
+| `infra/cloud-run-jobs.ts` | Cloud Run Jobs + Cloud Scheduler triggers |
 | `infra/network.ts` | VPC, subnet, router, NAT, static IP |
 | `infra/firewall.ts` | Firewall rules (SSH, ClickHouse) |
 | `infra/clickhouse.ts` | ClickHouse VM with startup script |
 | `infra/secrets.ts` | Secret Manager + random password generation |
+| `infra/service-accounts.ts` | Runtime and deploy service accounts with IAM |
+| `infra/workload-identity.ts` | WIF pool + provider for GitHub Actions auth |
 | `infra/Pulumi.staging.yaml` | Staging stack config (GCP project, machine types) |
 | `infra/tests/infra.test.ts` | Pulumi unit tests (mocked, no cloud calls) |
 | `infra/test-vm.sh` | Integration test (creates real VM, validates, tears down) |
@@ -135,7 +145,7 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 2. Run `npm run pipeline -- sync-bots` to push to ClickHouse.
 3. Update `db/init/002_bot_data.sql` to match (validated by `bots.test.ts`).
 4. The UI picks it up automatically — no code changes needed.
-5. Optionally add fake data in `db/seed/001_fake_data.sql` for dev.
+5. Run the pipeline to backfill data for the new bot.
 
 ## Managing Remote Databases
 
@@ -192,6 +202,27 @@ GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --to
 
 **Rate limits:** Each GitHub token gets 5,000 API calls/hour. The enrichment worker auto-throttles when remaining calls drop below 100, waiting for the reset window. With 2 tokens you get ~10K calls/hour.
 
+## Deployment
+
+### Staging (automatic)
+Every merge to `main` triggers the `deploy-staging` CI job:
+1. Builds app + pipeline container images (tagged with git SHA)
+2. Pushes to GCP Artifact Registry
+3. Deploys app to Cloud Run (`crt-staging-app`)
+4. Updates all 4 pipeline Cloud Run Jobs with new image
+
+Uses Workload Identity Federation — no service account keys needed.
+
+### Production (future — manual)
+Will use `workflow_dispatch` to deploy a specific image tag.
+Same infrastructure, different Pulumi stack.
+
+### Rollback
+Redeploy with an older git SHA:
+```bash
+gcloud run deploy crt-staging-app --image=<registry>/app:<old-sha> --region=us-central1
+```
+
 ## Adding a New Chart / Metric
 
 1. Add the query to `app/src/lib/clickhouse.ts` with proper types.
@@ -204,6 +235,7 @@ GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --to
 - **Never commit directly to `main`.** Always create a feature branch and open a pull request. No exceptions.
 - Branch names: `<type>/<short-description>` (e.g., `fix/clickhouse-left-join`, `feat/mobile-nav`).
 - One logical change per PR. Keep PRs focused and reviewable.
+- **Merges to `main` auto-deploy to staging** via the `deploy-staging` CI job.
 
 ## Conventions
 
@@ -214,3 +246,6 @@ GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --to
 - **Test IDs** — `data-testid="section-name"` on key sections for Playwright.
 - **No `.env` in git** — use `.env.local` for local dev. CI sets env vars directly.
 - **ClickHouse queries** — use `toString()` to cast `Date` columns in SELECT (not `formatDateTime`), and never alias a column with the same name as the source column when filtering on it.
+- **Docker images** — tagged with git SHA, built from repo root context.
+- **Secrets** — stored in GCP Secret Manager, encrypted in Pulumi config. Never in source.
+- **Job schedules** — defined in `pipeline/schedules.json`, the single source of truth.

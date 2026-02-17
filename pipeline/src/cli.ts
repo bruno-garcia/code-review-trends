@@ -17,6 +17,9 @@
 
 // Sentry must be imported first to instrument all subsequent modules
 import { Sentry, log, withCronMonitor, countMetric } from "./sentry.js";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const schedules: Record<string, { cron: string; maxRuntime: number; description: string }> = require("../schedules.json");
 
 /**
  * Expected CLI errors (bad args, missing creds, etc.).
@@ -54,6 +57,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   status: cmdStatus,
   migrate: cmdMigrate,
   discover: cmdDiscover,
+  "discover-bots": cmdDiscoverBots,
   enrich: cmdEnrich,
   "enrich-status": cmdEnrichStatus,
   help: cmdHelp,
@@ -74,15 +78,9 @@ async function main() {
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
   log(`ClickHouse: ${chUrl}`);
 
-  // Commands that run on a schedule get cron monitoring
-  const cronSchedules: Record<string, { type: "crontab"; value: string }> = {
-    sync:     { type: "crontab", value: "0 */6 * * *" },
-    backfill: { type: "crontab", value: "0 2 * * 1" },
-    discover: { type: "crontab", value: "0 3 * * *" },
-    enrich:   { type: "crontab", value: "0 */4 * * *" },
-  };
-
-  const cronSlug = cronSchedules[command] ? `pipeline-${command}` : undefined;
+  // Commands that run on a schedule get cron monitoring (from schedules.json)
+  const schedule = schedules[command as keyof typeof schedules];
+  const cronSlug = schedule ? `pipeline-${command}` : undefined;
 
   const run = async () => Sentry.startSpan(
     { op: "pipeline.command", name: `pipeline ${command}` },
@@ -90,7 +88,7 @@ async function main() {
   );
 
   if (cronSlug) {
-    await withCronMonitor(cronSlug, run, cronSchedules[command]);
+    await withCronMonitor(cronSlug, run, { type: "crontab", value: schedule.cron }, schedule.maxRuntime);
   } else {
     await run();
   }
@@ -113,7 +111,8 @@ Commands:
   status             Show pipeline health, data freshness, and coverage
   migrate            Apply schema + bot data to ClickHouse (staging/prod/local)
   discover           Discover PR bot events from BigQuery into pr_bot_events
-  enrich             Run GitHub API enrichment (repos → PRs → comments)
+  discover-bots      Find new bot accounts (BigQuery + Marketplace + App verification)
+  enrich             Run GitHub API enrichment (repos → PRs → comments → reactions)
   enrich-status      Show enrichment progress
   help               Show this help message
 
@@ -153,13 +152,21 @@ Options for discover:
   --all                Discover full history from 2023-01-01
   --dry-run            Show what would be fetched without running
 
+Options for discover-bots:
+  --start YYYY-MM-DD   Start date (default: 30 days ago)
+  --end YYYY-MM-DD     End date (default: today)
+  --marketplace-only   Skip BigQuery [bot] scan
+  --bigquery-only      Skip marketplace scan
+  --alert              Capture a Sentry event per new bot (for "new issue" email alerts)
+
 Options for enrich:
   --token TOKEN        GitHub PAT (or set GITHUB_TOKEN env var)
   --worker-id N        Worker ID for partitioning (default: 0)
   --total-workers N    Total workers (default: 1)
   --limit N            Max items per entity type per run
-  --priority TYPE      Start with: repos|prs|comments (default: repos)
+  --priority TYPE      Start with: repos|prs|comments|reactions (default: repos)
   --stale-days N       Repo refresh threshold in days (default: 7)
+  --exit-on-rate-limit Exit cleanly (exit 0) when rate-limited instead of sleeping
 
 Environment variables:
   CLICKHOUSE_URL       ClickHouse HTTP URL (default: http://localhost:8123)
@@ -327,6 +334,38 @@ async function cmdStatus() {
   await runStatus(process.argv.slice(3));
 }
 
+/**
+ * Schema migration versions — must match MIGRATIONS in app/src/lib/migrations.ts.
+ * When adding a new migration to the app, add the corresponding entry here.
+ */
+const SCHEMA_MIGRATIONS: { version: number; name: string }[] = [
+  { version: 1, name: "initial_schema" },
+  { version: 2, name: "pr_bot_reactions" },
+];
+
+/** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table. */
+async function querySchemaVersion(client: import("@clickhouse/client").ClickHouseClient, database: string): Promise<{
+  version: number;
+  appliedVersions: { version: number; name: string; applied_at: string }[];
+}> {
+  try {
+    const result = await client.query({
+      query: `SELECT version, name, toString(applied_at) as applied_at FROM ${database}.schema_migrations ORDER BY version`,
+      format: "JSONEachRow",
+    });
+    const rows = (await result.json()) as { version: number; name: string; applied_at: string }[];
+    const maxVersion = rows.reduce((max, r) => Math.max(max, r.version), 0);
+    return { version: maxVersion, appliedVersions: rows };
+  } catch (err) {
+    // Table doesn't exist yet — fresh database
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("UNKNOWN_TABLE") || msg.includes("doesn't exist") || msg.includes("does not exist")) {
+      return { version: 0, appliedVersions: [] };
+    }
+    throw err;
+  }
+}
+
 async function cmdMigrate() {
   const args = parseArgs();
   const dryRun = "--dry-run" in args;
@@ -338,6 +377,8 @@ async function cmdMigrate() {
   const { resolve, dirname } = await import("path");
   const { fileURLToPath } = await import("url");
   const { execFileSync } = await import("child_process");
+
+  const targetVersion = SCHEMA_MIGRATIONS[SCHEMA_MIGRATIONS.length - 1].version;
 
   // Find all SQL files in db/init/ (schema + bot data), sorted by name
   const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -363,22 +404,7 @@ async function cmdMigrate() {
     }
   }
 
-  console.log(`Found ${sqlFiles.length} SQL files in db/init/:`);
-  for (const file of sqlFiles) {
-    const count = allStatements.filter((s) => s.file === file.name).length;
-    console.log(`  ${file.name} (${count} statements)`);
-  }
-  console.log(`Total: ${allStatements.length} statements`);
-
-  if (dryRun) {
-    console.log("\n(dry run — showing statements that would be applied)\n");
-    for (const { file, sql } of allStatements) {
-      const firstLine = sql.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? sql;
-      console.log(`  [${file}] ${firstLine.trim().slice(0, 70)}`);
-    }
-    console.log(`\nWould also sync ${PRODUCTS.length} products and ${BOTS.length} bots from registry.`);
-    return;
-  }
+  // --- Resolve ClickHouse connection ---
 
   let clickhouseUrl: string;
   let clickhousePassword: string;
@@ -387,11 +413,11 @@ async function cmdMigrate() {
   if (useLocal || !stackExplicitlyProvided) {
     clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
     clickhousePassword = process.env.CLICKHOUSE_PASSWORD ?? "dev";
-    console.log(`\nUsing local ClickHouse: ${clickhouseUrl}`);
+    console.log(`Target: local ClickHouse (${clickhouseUrl})`);
   } else {
     // Get credentials from Pulumi stack outputs
     const infraDir = resolve(__dirname, "../../infra");
-    console.log(`\nReading credentials from Pulumi stack '${stack}'...`);
+    console.log(`Target: Pulumi stack '${stack}'`);
 
     try {
       clickhouseUrl = execFileSync(
@@ -430,11 +456,9 @@ async function cmdMigrate() {
   }
 
   const clickhouseUser = process.env.CLICKHOUSE_USER ?? "default";
+  const clickhouseDb = process.env.CLICKHOUSE_DB ?? "code_review_trends";
 
-  // Apply SQL statements
-  console.log(`\nApplying ${allStatements.length} SQL statements...\n`);
-  let applied = 0;
-  let errors = 0;
+  // --- Query current DB version ---
 
   const { createClient } = await import("@clickhouse/client");
   const client = createClient({
@@ -444,6 +468,62 @@ async function cmdMigrate() {
   });
 
   try {
+    const { version: currentVersion, appliedVersions } = await querySchemaVersion(client, clickhouseDb);
+    const appliedSet = new Set(appliedVersions.map((v) => v.version));
+    const pendingMigrations = SCHEMA_MIGRATIONS.filter((m) => !appliedSet.has(m.version));
+
+    // --- Show version summary ---
+
+    console.log("");
+    console.log(`Schema version:  v${currentVersion} → v${targetVersion}`);
+    if (currentVersion > targetVersion) {
+      console.log(`Status:          ⚠ database is ahead of CLI (v${currentVersion} > v${targetVersion})`);
+    } else if (currentVersion === targetVersion) {
+      console.log(`Status:          ✓ up to date`);
+    } else if (currentVersion === 0) {
+      console.log(`Status:          fresh database (${pendingMigrations.length} migrations to record)`);
+    } else {
+      console.log(`Status:          ${pendingMigrations.length} migration(s) to record`);
+    }
+
+    // Show migration history
+    console.log("");
+    for (const m of SCHEMA_MIGRATIONS) {
+      const applied = appliedVersions.find((a) => a.version === m.version);
+      if (applied) {
+        console.log(`  v${m.version} ${m.name} — applied ${applied.applied_at}`);
+      } else {
+        console.log(`  v${m.version} ${m.name} — pending`);
+      }
+    }
+
+    // Show SQL files
+    console.log("");
+    console.log(`SQL files (${sqlFiles.length}):`);
+    for (const file of sqlFiles) {
+      const count = allStatements.filter((s) => s.file === file.name).length;
+      console.log(`  ${file.name} (${count} statements)`);
+    }
+
+    if (dryRun) {
+      console.log(`\n(dry run — showing what would be applied)\n`);
+      for (const { file, sql } of allStatements) {
+        const firstLine = sql.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? sql;
+        console.log(`  [${file}] ${firstLine.trim().slice(0, 70)}`);
+      }
+      console.log(`\nWould also sync ${PRODUCTS.length} products and ${BOTS.length} bots from registry.`);
+      if (pendingMigrations.length > 0) {
+        console.log(`Would record ${pendingMigrations.length} migration version(s): ${pendingMigrations.map((m) => `v${m.version}`).join(", ")}`);
+      }
+      return;
+    }
+
+    // --- Apply SQL statements ---
+
+    console.log(`\nApplying ${allStatements.length} SQL statements...\n`);
+    let applied = 0;
+    let errors = 0;
+
     for (const { file, sql } of allStatements) {
       const firstLine = sql.split("\n").find((l) => !l.startsWith("--") && l.trim().length > 0) ?? sql;
       const preview = firstLine.trim().slice(0, 70);
@@ -472,7 +552,7 @@ async function cmdMigrate() {
       url: clickhouseUrl,
       username: clickhouseUser,
       password: clickhousePassword,
-      database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
+      database: clickhouseDb,
     });
     try {
       await syncProducts(chClient, PRODUCTS);
@@ -480,22 +560,25 @@ async function cmdMigrate() {
       await syncBots(chClient, BOTS);
       console.log(`  ✓ Synced ${BOTS.length} bots`);
 
-      // Record the schema version in schema_migrations.
-      // This must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts.
-      // The schema_migrations table is created by 001_schema.sql above.
-      const SCHEMA_VERSION = 1;
-      console.log(`\nRecording schema version ${SCHEMA_VERSION}...`);
-      await chClient.insert({
-        table: "schema_migrations",
-        values: [{ version: SCHEMA_VERSION, name: "initial_schema" }],
-        format: "JSONEachRow",
-      });
-      console.log(`  ✓ Schema version ${SCHEMA_VERSION} recorded`);
+      // Record each pending migration version in schema_migrations.
+      // All SQL files are applied above (idempotent), so we just need to
+      // record the versions that weren't previously tracked.
+      if (pendingMigrations.length > 0) {
+        console.log(`\nRecording schema version(s)...`);
+        await chClient.insert({
+          table: "schema_migrations",
+          values: pendingMigrations.map((m) => ({ version: m.version, name: m.name })),
+          format: "JSONEachRow",
+        });
+        for (const m of pendingMigrations) {
+          console.log(`  ✓ v${m.version} ${m.name}`);
+        }
+      }
     } finally {
       await chClient.close();
     }
 
-    console.log(`\nDone: ${applied} SQL statements applied, ${PRODUCTS.length} products and ${BOTS.length} bots synced.`);
+    console.log(`\nDone: ${applied} SQL statements applied, schema v${currentVersion} → v${targetVersion}.`);
   } finally {
     await client.close();
   }
@@ -553,6 +636,66 @@ async function cmdDiscover() {
   }
 }
 
+async function cmdDiscoverBots() {
+  const args = parseArgs();
+  const endDate = args["--end"] ?? new Date().toISOString().split("T")[0];
+  const startDate =
+    args["--start"] ??
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+  const marketplaceOnly = "--marketplace-only" in args;
+  const bigqueryOnly = "--bigquery-only" in args;
+  const alert = "--alert" in args;
+
+  if (marketplaceOnly && bigqueryOnly) {
+    throw new CliError("Flags --marketplace-only and --bigquery-only are mutually exclusive.");
+  }
+
+  const { discoverBots } = await import("./tools/discover-bots.js");
+
+  const summary = await Sentry.startSpan(
+    { op: "pipeline.discover-bots", name: `discover-bots ${startDate}→${endDate}` },
+    () => discoverBots({ startDate, endDate, marketplaceOnly, bigqueryOnly }),
+  );
+
+  // Emit metrics
+  countMetric("pipeline.discover_bots.total_found", summary.total_found);
+  countMetric("pipeline.discover_bots.already_tracked", summary.already_tracked);
+  countMetric("pipeline.discover_bots.ignored", summary.ignored);
+  countMetric("pipeline.discover_bots.new_with_app", summary.new_with_app);
+  countMetric("pipeline.discover_bots.new_without_app", summary.new_without_app);
+  countMetric("pipeline.discover_bots.from_bigquery", summary.from_bigquery);
+  countMetric("pipeline.discover_bots.from_marketplace", summary.from_marketplace);
+  countMetric("pipeline.discover_bots.apps_verified", summary.apps_verified);
+  countMetric("pipeline.discover_bots.apps_not_found", summary.apps_not_found);
+
+  // Alert: capture one Sentry event per new bot (fingerprinted by login)
+  if (alert && summary.new_bots.length > 0) {
+    for (const bot of summary.new_bots) {
+      Sentry.captureMessage(`New bot discovered: ${bot.login}`, {
+        level: "info",
+        fingerprint: ["discover-bots-new", bot.login],
+        tags: {
+          "discover_bots.login": bot.login,
+          "discover_bots.source": bot.source,
+        },
+        contexts: {
+          bot: {
+            login: bot.login,
+            name: bot.marketplace_name ?? "",
+            event_count: bot.event_count,
+            repo_count: bot.repo_count,
+            source: bot.source,
+            github_app_url: bot.github_app_url ?? "",
+          },
+        },
+      });
+    }
+    log(`Sent ${summary.new_bots.length} Sentry alert(s) for new bot(s)`);
+  }
+}
+
 async function cmdEnrich() {
   const args = parseArgs();
   const token = args["--token"] ?? process.env.GITHUB_TOKEN;
@@ -578,13 +721,15 @@ async function cmdEnrich() {
     totalWorkers: parseIntArg("--total-workers", args["--total-workers"]),
     limit: parseIntArg("--limit", args["--limit"]),
     staleDays: parseIntArg("--stale-days", args["--stale-days"]),
-    priority: args["--priority"] as "repos" | "prs" | "comments" | undefined,
+    priority: args["--priority"] as "repos" | "prs" | "comments" | "reactions" | undefined,
+    exitOnRateLimit: args["--exit-on-rate-limit"] !== undefined,
   });
 
   log("\n=== Enrichment Summary ===");
   log(`Repos:     ${result.repos.fetched} fetched, ${result.repos.skipped} skipped, ${result.repos.errors} errors`);
   log(`PRs:       ${result.pullRequests.fetched} fetched, ${result.pullRequests.skipped} skipped, ${result.pullRequests.errors} errors`);
   log(`Comments:  ${result.comments.fetched} fetched, ${result.comments.skipped} skipped, ${result.comments.replies_filtered} replies filtered, ${result.comments.errors} errors`);
+  log(`Reactions: ${result.reactions.fetched} PRs with bot reactions, ${result.reactions.scanned} scanned, ${result.reactions.skipped} skipped, ${result.reactions.errors} errors`);
   log(`Stale repos refreshed: ${result.reposRefreshed}`);
   log(`Duration: ${Math.ceil(result.duration / 1000)}s`);
 }
@@ -653,11 +798,26 @@ async function cmdEnrichStatus() {
     const reposPerHour = Number(pace1h.cnt) || (Number(pace24h.cnt) / 24);
     const etaReposHours = reposPerHour > 0 ? repoPending / reposPerHour : null;
 
+    // Reaction scan stats
+    const [reactionStats] = await query<{
+      total: string;
+      scanned: string;
+      with_reactions: string;
+    }>(
+      ch,
+      `SELECT
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_events) as total,
+        (SELECT count() FROM reaction_scan_progress) as scanned,
+        (SELECT count(DISTINCT (repo_name, pr_number)) FROM pr_bot_reactions) as with_reactions`,
+    ).catch(() => [{ total: "0", scanned: "0", with_reactions: "0" }]);
+    const reactionPending = Number(reactionStats.total) - Number(reactionStats.scanned);
+
     console.log("=== Enrichment Status ===");
     console.log(`\nDiscovered events: ${total_events}`);
-    console.log(`\nRepos:    ${repoStats.enriched} enriched / ${repoStats.not_found} not found / ${repoPending} pending (${repoStats.total} total)`);
-    console.log(`PRs:      ${prStats.enriched} enriched / ${prPending} pending (${prStats.total} total)`);
-    console.log(`Comments: ${commentStats.enriched} enriched / ${commentPending} pending (${commentStats.total} total)`);
+    console.log(`\nRepos:     ${repoStats.enriched} enriched / ${repoStats.not_found} not found / ${repoPending} pending (${repoStats.total} total)`);
+    console.log(`PRs:       ${prStats.enriched} enriched / ${prPending} pending (${prStats.total} total)`);
+    console.log(`Comments:  ${commentStats.enriched} enriched / ${commentPending} pending (${commentStats.total} total)`);
+    console.log(`Reactions: ${reactionStats.scanned} scanned / ${reactionStats.with_reactions} with bot reactions / ${reactionPending} pending (${reactionStats.total} total)`);
 
     // Completion percentages
     const repoPct = Number(repoStats.total) > 0
@@ -667,13 +827,30 @@ async function cmdEnrichStatus() {
     const commentPct = Number(commentStats.total) > 0
       ? ((Number(commentStats.enriched) / Number(commentStats.total)) * 100).toFixed(1) : "0";
 
-    console.log(`\n=== Progress ===`);
-    console.log(`Repos:    ${repoPct}% complete`);
-    console.log(`PRs:      ${prPct}% complete`);
-    console.log(`Comments: ${commentPct}% complete`);
+    const reactionPct = Number(reactionStats.total) > 0
+      ? ((Number(reactionStats.scanned) / Number(reactionStats.total)) * 100).toFixed(1) : "0";
 
+    console.log(`\n=== Progress ===`);
+    console.log(`Repos:     ${repoPct}% complete`);
+    console.log(`PRs:       ${prPct}% complete`);
+    console.log(`Comments:  ${commentPct}% complete`);
+    console.log(`Reactions: ${reactionPct}% complete`);
+
+    // Pace section — repos + reactions
+    const reactionPace1h = (await query<{ cnt: string }>(
+      ch,
+      `SELECT count() as cnt FROM reaction_scan_progress WHERE scanned_at > now() - toIntervalHour(1)`,
+    ).catch(() => [{ cnt: "0" }]))[0] ?? { cnt: "0" };
+    const reactionPace24h = (await query<{ cnt: string }>(
+      ch,
+      `SELECT count() as cnt FROM reaction_scan_progress WHERE scanned_at > now() - toIntervalDay(1)`,
+    ).catch(() => [{ cnt: "0" }]))[0] ?? { cnt: "0" };
+
+    const reactionsPerHour = Number(reactionPace1h.cnt) || (Number(reactionPace24h.cnt) / 24);
+    const etaReactionsHours = reactionsPerHour > 0 && reactionPending > 0 ? reactionPending / reactionsPerHour : null;
+
+    console.log(`\n=== Pace ===`);
     if (reposPerHour > 0) {
-      console.log(`\n=== Pace ===`);
       console.log(`Repos enriched (last 1h):  ${pace1h.cnt}`);
       console.log(`Repos enriched (last 24h): ${pace24h.cnt}`);
       console.log(`Effective rate: ~${Math.round(reposPerHour)} repos/hour`);
@@ -685,6 +862,74 @@ async function cmdEnrichStatus() {
         } else {
           console.log(`ETA (repos): ~${(etaReposHours / 24).toFixed(1)} days`);
         }
+      }
+    }
+    if (reactionsPerHour > 0) {
+      console.log(`Reactions scanned (last 1h):  ${reactionPace1h.cnt}`);
+      console.log(`Reactions scanned (last 24h): ${reactionPace24h.cnt}`);
+      console.log(`Effective rate: ~${Math.round(reactionsPerHour)} PRs/hour`);
+      if (etaReactionsHours !== null) {
+        if (etaReactionsHours < 1) {
+          console.log(`ETA (reactions): ~${Math.round(etaReactionsHours * 60)} minutes`);
+        } else if (etaReactionsHours < 48) {
+          console.log(`ETA (reactions): ~${etaReactionsHours.toFixed(1)} hours`);
+        } else {
+          console.log(`ETA (reactions): ~${(etaReactionsHours / 24).toFixed(1)} days`);
+        }
+      }
+    }
+    if (reposPerHour === 0 && reactionsPerHour === 0) {
+      console.log("No recent enrichment activity detected.");
+    }
+
+    // Reaction breakdown by bot
+    const reactionsByBot = await query<{
+      bot_id: string;
+      reaction_count: string;
+      pr_count: string;
+    }>(
+      ch,
+      `SELECT
+         bot_id,
+         count() AS reaction_count,
+         countDistinct((repo_name, pr_number)) AS pr_count
+       FROM pr_bot_reactions
+       GROUP BY bot_id
+       ORDER BY pr_count DESC`,
+    ).catch(() => []);
+
+    if (reactionsByBot.length > 0) {
+      console.log(`\n=== Bot Reactions Found ===`);
+      console.log(`${"Bot".padEnd(25)} ${"PRs".padStart(8)} ${"Reactions".padStart(12)}`);
+      console.log("-".repeat(47));
+      for (const row of reactionsByBot) {
+        console.log(`${row.bot_id.padEnd(25)} ${row.pr_count.padStart(8)} ${row.reaction_count.padStart(12)}`);
+      }
+    }
+
+    // Top repos with bot reactions
+    const topReactionRepos = await query<{
+      repo_name: string;
+      bot_id: string;
+      pr_count: string;
+    }>(
+      ch,
+      `SELECT
+         repo_name,
+         bot_id,
+         countDistinct(pr_number) AS pr_count
+       FROM pr_bot_reactions
+       GROUP BY repo_name, bot_id
+       ORDER BY pr_count DESC
+       LIMIT 10`,
+    ).catch(() => []);
+
+    if (topReactionRepos.length > 0) {
+      console.log(`\n=== Top Repos with Bot Reactions ===`);
+      console.log(`${"Repo".padEnd(45)} ${"Bot".padEnd(20)} ${"PRs".padStart(6)}`);
+      console.log("-".repeat(73));
+      for (const row of topReactionRepos) {
+        console.log(`${row.repo_name.padEnd(45)} ${row.bot_id.padEnd(20)} ${row.pr_count.padStart(6)}`);
       }
     }
   } finally {

@@ -414,3 +414,47 @@ export async function query<T>(
   });
   return (await result.json()) as T[];
 }
+
+// ── Bot reactions on PRs ────────────────────────────────────────────────
+
+export type PrBotReactionRow = {
+  repo_name: string;
+  pr_number: number;
+  bot_id: string;
+  reaction_type: string;
+  reacted_at: string; // ISO datetime
+  reaction_id: number;
+};
+
+/**
+ * Insert bot reaction rows discovered via the GitHub Reactions API.
+ */
+export async function insertPrBotReactions(
+  client: ClickHouseClient,
+  rows: PrBotReactionRow[],
+): Promise<void> {
+  if (rows.length === 0) return;
+  await client.insert({
+    table: "pr_bot_reactions",
+    values: rows.map((r) => ({
+      ...r,
+      reacted_at: toCHDateTime(r.reacted_at),
+    })),
+    format: "JSONEachRow",
+  });
+}
+
+/**
+ * Insert sentinel rows marking PRs as scanned for reactions.
+ */
+export async function insertReactionScanProgress(
+  client: ClickHouseClient,
+  rows: { repo_name: string; pr_number: number }[],
+): Promise<void> {
+  if (rows.length === 0) return;
+  await client.insert({
+    table: "reaction_scan_progress",
+    values: rows,
+    format: "JSONEachRow",
+  });
+}

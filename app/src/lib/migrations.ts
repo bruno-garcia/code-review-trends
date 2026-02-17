@@ -22,7 +22,7 @@ import type { ClickHouseClient } from "@clickhouse/client";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 1;
+export const EXPECTED_SCHEMA_VERSION = 2;
 
 export type SchemaStatus = {
   status: "ok" | "app_behind" | "db_behind" | "migrating" | "error";
@@ -184,8 +184,36 @@ const MIGRATION_001: Migration = {
   ],
 };
 
+/**
+ * Migration 2 — pr_bot_reactions + reaction_scan_progress.
+ * Matches db/init/003_pr_bot_reactions.sql.
+ */
+const MIGRATION_002: Migration = {
+  version: 2,
+  name: "pr_bot_reactions",
+  statements: [
+    `CREATE TABLE IF NOT EXISTS pr_bot_reactions (
+      repo_name String,
+      pr_number UInt32,
+      bot_id String,
+      reaction_type String,
+      reacted_at DateTime,
+      reaction_id UInt64,
+      updated_at DateTime DEFAULT now()
+    ) ENGINE = ReplacingMergeTree(updated_at)
+    ORDER BY (repo_name, pr_number, bot_id, reaction_id)`,
+
+    `CREATE TABLE IF NOT EXISTS reaction_scan_progress (
+      repo_name String,
+      pr_number UInt32,
+      scanned_at DateTime DEFAULT now()
+    ) ENGINE = ReplacingMergeTree(scanned_at)
+    ORDER BY (repo_name, pr_number)`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

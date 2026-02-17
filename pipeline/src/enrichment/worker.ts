@@ -8,10 +8,11 @@
 import { Octokit } from "@octokit/rest";
 import { Sentry, log, countMetric, distributionMetric, gaugeMetric } from "../sentry.js";
 import { createCHClient } from "../clickhouse.js";
-import { RateLimiter } from "./rate-limiter.js";
+import { RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
 import { enrichPullRequests } from "./pull-requests.js";
 import { enrichComments } from "./comments.js";
+import { enrichReactions } from "./reactions.js";
 import type { WorkerConfig } from "./partitioner.js";
 
 export type EnrichmentOptions = {
@@ -20,13 +21,15 @@ export type EnrichmentOptions = {
   totalWorkers?: number;
   limit?: number;
   staleDays?: number;
-  priority?: "repos" | "prs" | "comments";
+  priority?: "repos" | "prs" | "comments" | "reactions";
+  exitOnRateLimit?: boolean;
 };
 
 export type EnrichmentResult = {
   repos: { fetched: number; skipped: number; errors: number };
   pullRequests: { fetched: number; skipped: number; errors: number };
   comments: { fetched: number; skipped: number; replies_filtered: number; errors: number };
+  reactions: { fetched: number; scanned: number; skipped: number; errors: number };
   reposRefreshed: number;
   duration: number;
 };
@@ -36,7 +39,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
 
   const octokit = new Octokit({ auth: options.githubToken });
   const ch = createCHClient();
-  const rateLimiter = new RateLimiter();
+  const rateLimiter = new RateLimiter(100, options.exitOnRateLimit ?? false);
   const workerId = options.workerId ?? 0;
   const totalWorkers = options.totalWorkers ?? 1;
   if (totalWorkers < 1) throw new Error(`totalWorkers must be >= 1, got ${totalWorkers}`);
@@ -54,8 +57,8 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   }
 
   // Determine execution order based on priority
-  type Step = "repos" | "prs" | "comments";
-  const defaultOrder: Step[] = ["repos", "prs", "comments"];
+  type Step = "repos" | "prs" | "comments" | "reactions";
+  const defaultOrder: Step[] = ["repos", "prs", "comments", "reactions"];
   let order: Step[];
   if (options.priority && options.priority !== "repos") {
     // Move priority step to front, keep others in default relative order
@@ -68,51 +71,81 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   let reposResult = { fetched: 0, skipped: 0, errors: 0 };
   let prsResult = { fetched: 0, skipped: 0, errors: 0 };
   let commentsResult = { fetched: 0, skipped: 0, replies_filtered: 0, errors: 0 };
+  let reactionsResult = { fetched: 0, scanned: 0, skipped: 0, errors: 0 };
 
+  let rateLimitExit = false;
   try {
     for (const step of order) {
-      switch (step) {
-        case "repos":
-          reposResult = await Sentry.startSpan(
-            { op: "enrichment", name: "enrich.repos" },
-            () => enrichRepos(octokit, ch, rateLimiter, partition, { limit }),
-          );
+      try {
+        switch (step) {
+          case "repos":
+            reposResult = await Sentry.startSpan(
+              { op: "enrichment", name: "enrich.repos" },
+              () => enrichRepos(octokit, ch, rateLimiter, partition, { limit }),
+            );
+            break;
+          case "prs":
+            prsResult = await Sentry.startSpan(
+              { op: "enrichment", name: "enrich.pull-requests" },
+              () => enrichPullRequests(octokit, ch, rateLimiter, partition, { limit }),
+            );
+            break;
+          case "comments":
+            commentsResult = await Sentry.startSpan(
+              { op: "enrichment", name: "enrich.comments" },
+              () => enrichComments(octokit, ch, rateLimiter, partition, { limit }),
+            );
+            break;
+          case "reactions":
+            reactionsResult = await Sentry.startSpan(
+              { op: "enrichment", name: "enrich.reactions" },
+              () => enrichReactions(octokit, ch, rateLimiter, partition, { limit }),
+            );
+            break;
+        }
+      } catch (e) {
+        if (e instanceof RateLimitExitError) {
+          log(`[worker] ${e.message}`);
+          rateLimitExit = true;
           break;
-        case "prs":
-          prsResult = await Sentry.startSpan(
-            { op: "enrichment", name: "enrich.pull-requests" },
-            () => enrichPullRequests(octokit, ch, rateLimiter, partition, { limit }),
-          );
-          break;
-        case "comments":
-          commentsResult = await Sentry.startSpan(
-            { op: "enrichment", name: "enrich.comments" },
-            () => enrichComments(octokit, ch, rateLimiter, partition, { limit }),
-          );
-          break;
+        }
+        throw e;
       }
     }
 
-    // Refresh stale repos
-    log("[worker] Refreshing stale repos...");
-    const refreshResult = await Sentry.startSpan(
-      { op: "enrichment", name: "enrich.refresh-stale-repos" },
-      () => refreshStaleRepos(octokit, ch, rateLimiter, partition, {
-        staleDays: options.staleDays ?? 7,
-        limit: limit ? Math.min(limit, 500) : 500,
-      }),
-    );
+    // Refresh stale repos (skip if we already hit the rate limit)
+    let refreshResult = { refreshed: 0 };
+    if (!rateLimitExit) {
+      log("[worker] Refreshing stale repos...");
+      try {
+        refreshResult = await Sentry.startSpan(
+          { op: "enrichment", name: "enrich.refresh-stale-repos" },
+          () => refreshStaleRepos(octokit, ch, rateLimiter, partition, {
+            staleDays: options.staleDays ?? 7,
+            limit: limit ? Math.min(limit, 500) : 500,
+          }),
+        );
+      } catch (e) {
+        if (e instanceof RateLimitExitError) {
+          log(`[worker] ${e.message}`);
+          rateLimitExit = true;
+        } else {
+          throw e;
+        }
+      }
+    }
 
     const duration = Date.now() - start;
     const rl = rateLimiter.waitSummary();
     const workTime = duration - rl.totalWaitMs;
     const totalItems = reposResult.fetched + reposResult.skipped + reposResult.errors
       + prsResult.fetched + prsResult.skipped + prsResult.errors
-      + commentsResult.fetched + commentsResult.skipped + commentsResult.errors;
+      + commentsResult.fetched + commentsResult.skipped + commentsResult.errors
+      + reactionsResult.scanned + reactionsResult.skipped + reactionsResult.errors;
     const itemsPerSec = workTime > 0 ? (totalItems / (workTime / 1000)).toFixed(1) : "∞";
     const rlPct = duration > 0 ? ((rl.totalWaitMs / duration) * 100).toFixed(1) : "0";
 
-    log(`[worker] Enrichment complete in ${Math.ceil(duration / 1000)}s`);
+    log(`[worker] Enrichment ${rateLimitExit ? "stopped (rate limit)" : "complete"} in ${Math.ceil(duration / 1000)}s`);
     log(`[worker]   Items processed: ${totalItems} (${itemsPerSec} items/s effective)`);
     log(`[worker]   Rate-limit waits: ${rl.waitCount} pauses, ${Math.ceil(rl.totalWaitMs / 1000)}s total (${rlPct}% of wall time)`);
     if (rl.secondaryHits > 0) {
@@ -129,6 +162,10 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     countMetric("pipeline.enrich.comments.fetched", commentsResult.fetched, { phase: "comments" });
     countMetric("pipeline.enrich.comments.skipped", commentsResult.skipped, { phase: "comments" });
     countMetric("pipeline.enrich.comments.errors", commentsResult.errors, { phase: "comments" });
+    countMetric("pipeline.enrich.reactions.fetched", reactionsResult.fetched, { phase: "reactions" });
+    countMetric("pipeline.enrich.reactions.skipped", reactionsResult.skipped, { phase: "reactions" });
+    countMetric("pipeline.enrich.reactions.scanned", reactionsResult.scanned, { phase: "reactions" });
+    countMetric("pipeline.enrich.reactions.errors", reactionsResult.errors, { phase: "reactions" });
     distributionMetric("pipeline.enrich.duration", duration, "millisecond");
     distributionMetric("pipeline.ratelimit.total_wait", rl.totalWaitMs, "millisecond");
     countMetric("pipeline.ratelimit.total_pauses", rl.waitCount);
@@ -139,6 +176,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
       repos: reposResult,
       pullRequests: prsResult,
       comments: commentsResult,
+      reactions: reactionsResult,
       reposRefreshed: refreshResult.refreshed,
       duration,
     };

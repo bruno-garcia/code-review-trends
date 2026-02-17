@@ -13,6 +13,21 @@ export interface EnvironmentConfig {
   clickhouseDomain: pulumi.Output<string>;
   /** Resource name prefix: crt-{env} */
   namePrefix: string;
+
+  // App hosting
+  appDomain: pulumi.Output<string>;
+
+  // Container registry
+  artifactRegistryLocation: string;
+
+  // Secrets (stored in Pulumi config, created in Secret Manager)
+  sentryDsnApp: pulumi.Output<string>;
+  sentryDsnPipeline: pulumi.Output<string>;
+  sentryAuthToken: pulumi.Output<string>;
+  githubToken: pulumi.Output<string>;
+
+  // WIF
+  githubRepo: string;
 }
 
 export function loadConfig(): EnvironmentConfig {
@@ -26,5 +41,13 @@ export function loadConfig(): EnvironmentConfig {
     clickhouseDiskSizeGb: config.requireNumber("clickhouseDiskSizeGb"),
     clickhouseDomain: config.requireSecret("clickhouseDomain"),
     namePrefix: `${PROJECT_PREFIX}-${environment}`,
+
+    appDomain: config.requireSecret("appDomain"),
+    artifactRegistryLocation: config.require("artifactRegistryLocation"),
+    sentryDsnApp: config.requireSecret("sentryDsnApp"),
+    sentryDsnPipeline: config.requireSecret("sentryDsnPipeline"),
+    sentryAuthToken: config.requireSecret("sentryAuthToken"),
+    githubToken: config.requireSecret("githubToken"),
+    githubRepo: config.require("githubRepo"),
   };
 }
