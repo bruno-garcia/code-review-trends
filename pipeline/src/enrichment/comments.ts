@@ -15,10 +15,11 @@ import {
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
 import { Sentry, log, logError, countMetric } from "../sentry.js";
-import { type RateLimiter } from "./rate-limiter.js";
+import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
+import { fetchCommentsBatch, GRAPHQL_COMMENT_BATCH_SIZE, type CommentBatchInput } from "./graphql-comments.js";
 
 /**
  * Fetch and insert bot review comments with reactions for PRs
@@ -108,7 +109,7 @@ export async function enrichComments(
   let unknownBot = 0;
   let repliesFiltered = 0;
   let errors = 0;
-  const BATCH_SIZE = 50;
+  const BATCH_SIZE = GRAPHQL_COMMENT_BATCH_SIZE;
 
   for (let batchStart = 0; batchStart < validCombos.length; batchStart += BATCH_SIZE) {
     const batch = validCombos.slice(batchStart, batchStart + BATCH_SIZE);
@@ -117,117 +118,101 @@ export async function enrichComments(
     await Sentry.startSpan(
       { op: "enrichment.batch", name: batchLabel },
       async () => {
+        // Build batch inputs, skipping unknown bots
+        const batchInputs: CommentBatchInput[] = [];
         for (const { repo_name, pr_number, bot_id } of batch) {
-          const [owner, repo] = repo_name.split("/");
-          if (!owner || !repo) continue;
-
           const bot = BOT_BY_ID.get(bot_id);
-          if (!bot) {
-            unknownBot++;
-            continue;
-          }
+          if (!bot) { unknownBot++; continue; }
+          batchInputs.push({ repo_name, pr_number, bot_id, bot_login: bot.github_login });
+        }
 
-          const loginSet = new Set([bot.github_login]);
+        try {
+          const results = await fetchCommentsBatch(octokit, rateLimiter, batchInputs);
 
-          await rateLimiter.waitIfNeeded();
-
-          try {
-            // Paginate through all review comments on the PR.
-            const rows: PrCommentRow[] = [];
-            let page = 1;
-
-            while (true) {
-              const { data, headers } = await octokit.rest.pulls.listReviewComments({
-                owner,
-                repo,
-                pull_number: pr_number,
-                per_page: 100,
-                page,
-              });
-              rateLimiter.update(headers as Record<string, string>);
-
-              for (const comment of data) {
-                const login = comment.user?.login;
-                if (!login || !loginSet.has(login)) continue;
-
-                // Filter out replies — we only want top-level review comments.
-                if (comment.in_reply_to_id) {
-                  repliesFiltered++;
-                  continue;
-                }
-
-                const reactions = comment.reactions;
-                rows.push({
-                  repo_name,
-                  pr_number,
-                  comment_id: String(comment.id),
-                  bot_id,
-                  body_length: comment.body?.length ?? 0,
-                  created_at: comment.created_at,
-                  thumbs_up: reactions?.["+1"] ?? 0,
-                  thumbs_down: reactions?.["-1"] ?? 0,
-                  laugh: reactions?.laugh ?? 0,
-                  confused: reactions?.confused ?? 0,
-                  heart: reactions?.heart ?? 0,
-                  hooray: reactions?.hooray ?? 0,
-                  eyes: reactions?.eyes ?? 0,
-                  rocket: reactions?.rocket ?? 0,
-                });
-              }
-
-              if (data.length < 100) break;
-              page++;
-
-              await rateLimiter.waitIfNeeded();
+          for (const result of results) {
+            if (result.error === "repo_not_found" || result.error === "pr_not_found") {
+              notFound++;
+              continue;
             }
 
-            if (rows.length > 0) {
-              await insertPrComments(ch, rows);
+            if (result.comments.length > 0) {
+              await insertPrComments(ch, result.comments);
             } else {
-              // Insert a sentinel row so this PR/bot combo isn't re-fetched on
-              // subsequent runs (the bot left a review but no line-level comments).
+              // Sentinel row — no bot comments found
               await insertPrComments(ch, [{
-                repo_name,
-                pr_number,
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
                 comment_id: "0",
-                bot_id,
+                bot_id: result.input.bot_id,
                 body_length: 0,
                 created_at: new Date().toISOString(),
-                thumbs_up: 0,
-                thumbs_down: 0,
-                laugh: 0,
-                confused: 0,
-                heart: 0,
-                hooray: 0,
-                eyes: 0,
-                rocket: 0,
+                thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+                heart: 0, hooray: 0, eyes: 0, rocket: 0,
               }]);
             }
-            fetched++;
-          } catch (err: unknown) {
-            const status = (err as { status?: number }).status;
 
-            if (status === 404) {
-              notFound++;
-            } else if (status === 403) {
-              const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
-              if (headers) {
-                rateLimiter.update(headers);
-                const retryAfter = headers["retry-after"];
-                if (retryAfter) {
-                  await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+            if (result.hasMore) {
+              log(`[comments] ${result.input.repo_name}#${result.input.pr_number} has >100 review threads, saved partial`);
+            }
+
+            fetched++;
+          }
+        } catch (err: unknown) {
+          if (err instanceof RateLimitExitError) throw err;
+
+          logError(`[comments] Batch GraphQL failed, processing individually: ${err instanceof Error ? err.message : err}`);
+
+          // Fall back to REST for this batch
+          for (const { repo_name, pr_number, bot_id } of batch) {
+            const [owner, repo] = repo_name.split("/");
+            if (!owner || !repo) continue;
+            const bot = BOT_BY_ID.get(bot_id);
+            if (!bot) { unknownBot++; continue; }
+            const loginSet = new Set([bot.github_login]);
+
+            await rateLimiter.waitIfNeeded();
+            try {
+              const rows: PrCommentRow[] = [];
+              let page = 1;
+              while (true) {
+                const { data, headers } = await octokit.rest.pulls.listReviewComments({
+                  owner, repo, pull_number: pr_number, per_page: 100, page,
+                });
+                rateLimiter.update(headers as Record<string, string>);
+                for (const comment of data) {
+                  const login = comment.user?.login;
+                  if (!login || !loginSet.has(login)) continue;
+                  if (comment.in_reply_to_id) { repliesFiltered++; continue; }
+                  const reactions = comment.reactions;
+                  rows.push({
+                    repo_name, pr_number, comment_id: String(comment.id), bot_id,
+                    body_length: comment.body?.length ?? 0, created_at: comment.created_at,
+                    thumbs_up: reactions?.["+1"] ?? 0, thumbs_down: reactions?.["-1"] ?? 0,
+                    laugh: reactions?.laugh ?? 0, confused: reactions?.confused ?? 0,
+                    heart: reactions?.heart ?? 0, hooray: reactions?.hooray ?? 0,
+                    eyes: reactions?.eyes ?? 0, rocket: reactions?.rocket ?? 0,
+                  });
                 }
+                if (data.length < 100) break;
+                page++;
+                await rateLimiter.waitIfNeeded();
               }
-              if (headers?.["retry-after"] || headers?.["x-ratelimit-remaining"] === "0") {
-                rateLimited++;
+              if (rows.length > 0) {
+                await insertPrComments(ch, rows);
               } else {
-                handleEnterprisePolicyError(err, repo_name, "comments");
-                forbidden++;
+                await insertPrComments(ch, [{
+                  repo_name, pr_number, comment_id: "0", bot_id,
+                  body_length: 0, created_at: new Date().toISOString(),
+                  thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+                  heart: 0, hooray: 0, eyes: 0, rocket: 0,
+                }]);
               }
-            } else {
-              Sentry.captureException(err, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "comments", repo: repo_name, pr_number, bot_id } } });
-              logError(`[comments] Error: ${repo_name}#${pr_number}: ${err instanceof Error ? err.message : err}`);
-              errors++;
+              fetched++;
+            } catch (innerErr: unknown) {
+              const status = (innerErr as { status?: number }).status;
+              if (status === 404) notFound++;
+              else if (status === 403) forbidden++;
+              else errors++;
             }
           }
         }
