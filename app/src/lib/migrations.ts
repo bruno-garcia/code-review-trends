@@ -336,7 +336,20 @@ async function runMigrations(
     let applied = 0;
     for (const migration of pending) {
       for (const sql of migration.statements) {
-        await client.command({ query: sql });
+        try {
+          await client.command({ query: sql });
+        } catch (err) {
+          // Log the failed SQL statement for debugging
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.error(
+            `[schema-migration] Migration DDL failed:`,
+            err
+          );
+          return {
+            applied,
+            error: `Migration ${migration.version} (${migration.name}) failed: ${errorMsg}`,
+          };
+        }
       }
       // Record this migration
       await client.insert({
