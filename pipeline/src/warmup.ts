@@ -110,15 +110,17 @@ export async function fetchPage(
       totalDuration += duration;
 
       if (res.status >= 200 && res.status < 400) {
-        // Check for schema error banner — indicates ClickHouse is unreachable.
-        // No retry: if the banner is present, it won't go away by retrying.
+        // Check for schema error banner — indicates a non-OK schema status
+        // (e.g., ClickHouse unreachable, migration in progress, version mismatch).
+        // No retry: during warmup, any schema issue signals a problem that won't
+        // resolve by retrying the same page — the deploy should halt.
         if (body.includes('data-testid="schema-banner"')) {
           return {
             page,
             status: res.status,
             duration_ms: totalDuration,
             ok: false,
-            error: "Page contains schema error banner — ClickHouse may be unreachable",
+            error: "Page contains schema error banner — schema status is not OK",
             attempts: attempt,
           };
         }

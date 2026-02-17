@@ -207,7 +207,9 @@ export type WeeklyTotalVolume = {
 };
 
 async function query<T>(sql: string, params?: Record<string, unknown>, cacheTtl?: number): Promise<T[]> {
-  const cacheKey = params ? `${sql}|${JSON.stringify(params)}` : sql;
+  const cacheKey = params && Object.keys(params).length > 0
+    ? `${sql}|${JSON.stringify(params, Object.keys(params).sort())}`
+    : sql;
   const cached = getCached<T[]>(cacheKey);
   if (cached) return cached;
 
@@ -383,7 +385,6 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
-    REFERENCE_CACHE_TTL_MS,
   );
 }
 

@@ -228,7 +228,7 @@ describe("fetchPage", () => {
     );
     assert.equal(result.ok, false);
     assert.equal(result.status, 200);
-    assert.equal(result.error, "Page contains schema error banner — ClickHouse may be unreachable");
+    assert.equal(result.error, "Page contains schema error banner — schema status is not OK");
     assert.equal(result.attempts, 1); // no retry for content errors
   });
 
