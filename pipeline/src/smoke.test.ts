@@ -740,6 +740,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
             bot_id: testBotId,
             actor_login: "copilot[bot]",
             event_type: "PullRequestReviewEvent",
+            review_state: '',
           },
         ]);
 

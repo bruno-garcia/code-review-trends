@@ -1182,8 +1182,8 @@ export async function getCategoryStarAdoption(): Promise<CategoryStarAdoption[]>
       sum(r.stars) AS total_stars,
       round(avg(r.stars), 0) AS avg_repo_stars
     FROM pr_bot_events e
-    JOIN bots b ON e.bot_id = b.id
-    JOIN products p ON b.product_id = p.id
+    JOIN bots b FINAL ON e.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
     JOIN repos r ON e.repo_name = r.name
     WHERE r.fetch_status = 'ok'
     GROUP BY b.product_id, p.name, p.brand_color
@@ -1208,8 +1208,8 @@ export async function getCategoryPRSize(): Promise<CategoryPRSize[]> {
       round(avg(pr.additions + pr.deletions), 0) AS avg_pr_size,
       countDistinct(e.repo_name, e.pr_number) AS total_prs
     FROM pr_bot_events e
-    JOIN bots b ON e.bot_id = b.id
-    JOIN products p ON b.product_id = p.id
+    JOIN bots b FINAL ON e.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
     JOIN pull_requests pr ON e.repo_name = pr.repo_name AND e.pr_number = pr.pr_number
     GROUP BY b.product_id, p.name, p.brand_color
     ORDER BY avg_pr_size DESC
@@ -1236,8 +1236,8 @@ export async function getCategoryMergeRate(): Promise<CategoryMergeRate[]> {
       round(countDistinctIf((e.repo_name, e.pr_number), pr.merged_at IS NOT NULL) * 100.0
         / countDistinct(e.repo_name, e.pr_number), 1) AS merge_rate
     FROM pr_bot_events e
-    JOIN bots b ON e.bot_id = b.id
-    JOIN products p ON b.product_id = p.id
+    JOIN bots b FINAL ON e.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
     JOIN pull_requests pr ON e.repo_name = pr.repo_name AND e.pr_number = pr.pr_number
     GROUP BY b.product_id, p.name, p.brand_color
     HAVING total_prs > 0
@@ -1271,6 +1271,7 @@ export async function getCategoryResponseTime(): Promise<CategoryResponseTime[]>
     JOIN products p FINAL ON b.product_id = p.id
     JOIN pull_requests pr ON fc.repo_name = pr.repo_name AND fc.pr_number = pr.pr_number
     WHERE pr.created_at >= '2020-01-01'
+      AND fc.first_comment_at >= pr.created_at
     GROUP BY b.product_id, p.name, p.brand_color
     HAVING total_prs >= 5
     ORDER BY median_response_minutes ASC
@@ -1362,8 +1363,8 @@ export async function getCategoryReviewVerdicts(): Promise<CategoryReviewVerdict
       count() AS total_reviews,
       round(countIf(e.review_state = 'approved') * 100.0 / count(), 1) AS approval_pct
     FROM pr_bot_events e
-    JOIN bots b ON e.bot_id = b.id
-    JOIN products p ON b.product_id = p.id
+    JOIN bots b FINAL ON e.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
     WHERE e.review_state != '' AND e.event_type = 'PullRequestReviewEvent'
     GROUP BY b.product_id, p.name, p.brand_color
     ORDER BY approval_pct DESC

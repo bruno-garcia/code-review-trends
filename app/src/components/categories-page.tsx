@@ -175,15 +175,31 @@ export function CategoriesPage({
     [controversy, selectedSet],
   );
 
-  const lessChattyData: BarItem[] = useMemo(
-    () =>
-      filterByProduct(commentsPerPR).map((c) => ({
-        name: c.bot_name,
-        value: Number(c.avg_comments_per_pr),
-        color: colorMap[c.product_id] || "#818cf8",
-      })),
-    [commentsPerPR, selectedSet, colorMap],
-  );
+  const lessChattyData: BarItem[] = useMemo(() => {
+    const filtered = filterByProduct(commentsPerPR);
+    // Aggregate bot-level data to product-level
+    const byProduct = new Map<string, { totalComments: number; totalPrs: number }>();
+    for (const c of filtered) {
+      const existing = byProduct.get(c.product_id);
+      if (existing) {
+        existing.totalComments += Number(c.total_comments);
+        existing.totalPrs += Number(c.total_prs);
+      } else {
+        byProduct.set(c.product_id, {
+          totalComments: Number(c.total_comments),
+          totalPrs: Number(c.total_prs),
+        });
+      }
+    }
+    return Array.from(byProduct.entries()).map(([productId, agg]) => {
+      const product = comparisons.find((p) => p.id === productId);
+      return {
+        name: product?.name ?? productId,
+        value: agg.totalPrs > 0 ? agg.totalComments / agg.totalPrs : 0,
+        color: colorMap[productId] || "#818cf8",
+      };
+    });
+  }, [commentsPerPR, selectedSet, colorMap, comparisons]);
 
   const mostDetailedData: BarItem[] = useMemo(
     () =>

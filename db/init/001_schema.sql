@@ -64,12 +64,13 @@ CREATE TABLE IF NOT EXISTS code_review_trends.pr_bot_events (
     bot_id String,
     actor_login String,
     event_type String,
+    review_state String DEFAULT '',
     event_week Date,
     discovered_at DateTime DEFAULT now()
 ) ENGINE = ReplacingMergeTree()
-ORDER BY (repo_name, pr_number, bot_id, event_type, event_week);
+ORDER BY (repo_name, pr_number, bot_id, event_type, event_week, review_state);
 
--- Add review_state to pr_bot_events (approved, changes_requested, commented, or empty)
+-- Schema migration: add review_state column to existing databases
 ALTER TABLE code_review_trends.pr_bot_events ADD COLUMN IF NOT EXISTS review_state String DEFAULT '';
 
 -- Repo metadata (refreshed periodically)
