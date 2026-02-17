@@ -598,11 +598,8 @@ async function cmdDiscoverBots() {
   countMetric("pipeline.discover_bots.apps_not_found", summary.apps_not_found);
 
   // Alert: capture one Sentry event per new bot (fingerprinted by login)
-  if (alert && summary.new_with_app > 0) {
-    const newBots = summary.results.filter(
-      (r) => !r.tracked && !r.ignored && r.github_app_exists !== false,
-    );
-    for (const bot of newBots) {
+  if (alert && summary.new_bots.length > 0) {
+    for (const bot of summary.new_bots) {
       Sentry.captureMessage(`New bot discovered: ${bot.login}`, {
         level: "info",
         fingerprint: ["discover-bots-new", bot.login],
@@ -617,12 +614,12 @@ async function cmdDiscoverBots() {
             event_count: bot.event_count,
             repo_count: bot.repo_count,
             source: bot.source,
-            github_app_url: `https://github.com/apps/${bot.login.replace("[bot]", "")}`,
+            github_app_url: bot.github_app_url ?? "",
           },
         },
       });
     }
-    log(`Sent ${newBots.length} Sentry alert(s) for new bot(s)`);
+    log(`Sent ${summary.new_bots.length} Sentry alert(s) for new bot(s)`);
   }
 }
 
