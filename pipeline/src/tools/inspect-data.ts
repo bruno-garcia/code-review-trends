@@ -228,7 +228,7 @@ async function showBotData(botId: string) {
     }
 
     // Deduplicated reaction reviews (reaction-only, no other activity)
-    const [dedupedStats] = await query<{
+    const dedupedRows = await query<{
       reaction_only_prs: string;
       total_reaction_prs: string;
     }>(
@@ -244,7 +244,8 @@ async function showBotData(botId: string) {
        FROM pr_bot_reactions r
        WHERE r.bot_id = {botId:String} AND r.reaction_type = 'hooray'`,
       { botId },
-    ).catch(() => [{ reaction_only_prs: "0", total_reaction_prs: "0" }]);
+    ).catch(() => []);
+    const dedupedStats = dedupedRows[0] ?? { reaction_only_prs: "0", total_reaction_prs: "0" };
 
     if (Number(dedupedStats.total_reaction_prs) > 0) {
       console.log(`\n  Total 🎉 PRs: ${dedupedStats.total_reaction_prs}`);
@@ -253,7 +254,7 @@ async function showBotData(botId: string) {
     }
 
     // Reaction scan progress for this bot's repos
-    const [scanProgress] = await query<{
+    const scanRows = await query<{
       total_prs: string;
       scanned_prs: string;
     }>(
@@ -266,7 +267,8 @@ async function showBotData(botId: string) {
          ON e.repo_name = s.repo_name AND e.pr_number = s.pr_number
        WHERE e.bot_id = {botId:String}`,
       { botId },
-    ).catch(() => [{ total_prs: "0", scanned_prs: "0" }]);
+    ).catch(() => []);
+    const scanProgress = scanRows[0] ?? { total_prs: "0", scanned_prs: "0" };
 
     const scanPct = Number(scanProgress.total_prs) > 0
       ? ((Number(scanProgress.scanned_prs) / Number(scanProgress.total_prs)) * 100).toFixed(1) : "0";
