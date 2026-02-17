@@ -9,13 +9,13 @@ import { DATA_EPOCH } from "@/lib/constants";
 /** Generate all Monday dates from epoch to today. */
 function allExpectedWeeks(): string[] {
   const weeks: string[] = [];
-  const d = new Date(DATA_EPOCH);
-  // Align to first Monday on or after epoch
-  while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
+  const d = new Date(DATA_EPOCH + "T00:00:00Z");
+  // Align to first Monday on or after epoch (UTC)
+  while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1);
   const today = new Date();
   while (d <= today) {
     weeks.push(d.toISOString().split("T")[0]);
-    d.setDate(d.getDate() + 7);
+    d.setUTCDate(d.getUTCDate() + 7);
   }
   return weeks;
 }
