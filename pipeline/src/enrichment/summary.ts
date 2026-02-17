@@ -12,6 +12,8 @@
 export function summarizeOrgs(repoNames: string[], maxShown: number = 5): string {
   const orgCounts = new Map<string, number>();
   for (const name of repoNames) {
+    // Skip invalid values (undefined, null, empty strings)
+    if (!name || name.trim() === "") continue;
     const org = name.split("/")[0] ?? name;
     orgCounts.set(org, (orgCounts.get(org) ?? 0) + 1);
   }
@@ -36,6 +38,8 @@ export function summarizeOrgs(repoNames: string[], maxShown: number = 5): string
 export function summarizeRepos(items: { repo_name: string }[], maxShown: number = 5): string {
   const repoCounts = new Map<string, number>();
   for (const { repo_name } of items) {
+    // Skip invalid values (undefined, null, empty strings)
+    if (!repo_name || repo_name.trim() === "") continue;
     repoCounts.set(repo_name, (repoCounts.get(repo_name) ?? 0) + 1);
   }
 

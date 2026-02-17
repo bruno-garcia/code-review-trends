@@ -81,10 +81,21 @@ export async function enrichComments(
        AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))`,
   ))[0] ?? { total_pending: "0" };
 
-  log(`[comments] Processing ${combos.length} of ${total_pending} pending combos`);
-  if (combos.length > 0) {
-    log(`[comments] ${summarizeOrgs(combos.map((c) => c.repo_name))}`);
-    log(`[comments] ${summarizeRepos(combos)}`);
+  // Filter out combos with invalid repo_name values
+  const invalidCombos = combos.filter((c) => !c.repo_name || c.repo_name.trim() === "");
+  if (invalidCombos.length > 0) {
+    logError(`[comments] WARNING: Found ${invalidCombos.length} combos with invalid repo_name (undefined/null/empty) - skipping these`);
+    Sentry.captureMessage(
+      `Invalid repo_name values in pr_bot_events: ${invalidCombos.length} combos`,
+      { level: "warning", contexts: { enrichment: { phase: "comments", invalid_count: invalidCombos.length } } }
+    );
+  }
+  const validCombos = combos.filter((c) => c.repo_name && c.repo_name.trim() !== "");
+
+  log(`[comments] Processing ${validCombos.length} of ${total_pending} pending combos`);
+  if (validCombos.length > 0) {
+    log(`[comments] ${summarizeOrgs(validCombos.map((c) => c.repo_name))}`);
+    log(`[comments] ${summarizeRepos(validCombos)}`);
   }
 
   let fetched = 0;
@@ -96,8 +107,8 @@ export async function enrichComments(
   let errors = 0;
   const BATCH_SIZE = 50;
 
-  for (let batchStart = 0; batchStart < combos.length; batchStart += BATCH_SIZE) {
-    const batch = combos.slice(batchStart, batchStart + BATCH_SIZE);
+  for (let batchStart = 0; batchStart < validCombos.length; batchStart += BATCH_SIZE) {
+    const batch = validCombos.slice(batchStart, batchStart + BATCH_SIZE);
     const batchLabel = `comments batch ${batchStart}–${batchStart + batch.length}`;
 
     await Sentry.startSpan(
@@ -221,7 +232,7 @@ export async function enrichComments(
     );
 
     const processed = fetched + notFound + forbidden + rateLimited + unknownBot + errors;
-    log(`[comments] Progress: ${processed}/${combos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
+    log(`[comments] Progress: ${processed}/${validCombos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.comments.batch", 1);
   }
 

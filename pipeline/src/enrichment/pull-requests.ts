@@ -73,10 +73,21 @@ export async function enrichPullRequests(
        AND e.repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))`,
   ))[0] ?? { total_pending: "0" };
 
-  log(`[pull-requests] Processing ${prs.length} of ${total_pending} pending PRs`);
-  if (prs.length > 0) {
-    log(`[pull-requests] ${summarizeOrgs(prs.map((p) => p.repo_name))}`);
-    log(`[pull-requests] ${summarizeRepos(prs)}`);
+  // Filter out PRs with invalid repo_name values
+  const invalidPrs = prs.filter((p) => !p.repo_name || p.repo_name.trim() === "");
+  if (invalidPrs.length > 0) {
+    logError(`[pull-requests] WARNING: Found ${invalidPrs.length} PRs with invalid repo_name (undefined/null/empty) - skipping these`);
+    Sentry.captureMessage(
+      `Invalid repo_name values in pr_bot_events: ${invalidPrs.length} PRs`,
+      { level: "warning", contexts: { enrichment: { phase: "pull-requests", invalid_count: invalidPrs.length } } }
+    );
+  }
+  const validPrs = prs.filter((p) => p.repo_name && p.repo_name.trim() !== "");
+
+  log(`[pull-requests] Processing ${validPrs.length} of ${total_pending} pending PRs`);
+  if (validPrs.length > 0) {
+    log(`[pull-requests] ${summarizeOrgs(validPrs.map((p) => p.repo_name))}`);
+    log(`[pull-requests] ${summarizeRepos(validPrs)}`);
   }
 
   let fetched = 0;
@@ -86,8 +97,8 @@ export async function enrichPullRequests(
   let errors = 0;
   const BATCH_SIZE = 100;
 
-  for (let batchStart = 0; batchStart < prs.length; batchStart += BATCH_SIZE) {
-    const batch = prs.slice(batchStart, batchStart + BATCH_SIZE);
+  for (let batchStart = 0; batchStart < validPrs.length; batchStart += BATCH_SIZE) {
+    const batch = validPrs.slice(batchStart, batchStart + BATCH_SIZE);
     const batchLabel = `prs batch ${batchStart}–${batchStart + batch.length}`;
 
     await Sentry.startSpan(
@@ -167,7 +178,7 @@ export async function enrichPullRequests(
     );
 
     const processed = fetched + notFound + forbidden + rateLimited + errors;
-    log(`[pull-requests] Progress: ${processed}/${prs.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
+    log(`[pull-requests] Progress: ${processed}/${validPrs.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.prs.batch", 1);
   }
 
