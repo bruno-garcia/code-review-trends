@@ -24,6 +24,19 @@ pulumi.runtime.setMocks({
   },
 });
 
+// Mock GCP config (project/region used by Cloud Run, Artifact Registry, etc.)
+vi.mock("@pulumi/gcp", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    config: {
+      ...(actual.config as Record<string, unknown>),
+      project: "test-project",
+      region: "us-central1",
+    },
+  };
+});
+
 // Mock Pulumi config
 vi.mock("@pulumi/pulumi", async (importOriginal) => {
   const actual = (await importOriginal()) as typeof pulumi;
@@ -34,6 +47,13 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
       clickhouseMachineType: "e2-medium",
       clickhouseDiskSizeGb: "20",
       clickhouseDomain: "ch-test.example.com",
+      appDomain: "staging-test.example.com",
+      artifactRegistryLocation: "us-central1",
+      sentryDsnApp: "https://test@sentry.io/app",
+      sentryDsnPipeline: "https://test@sentry.io/pipeline",
+      sentryAuthToken: "sntrys_test_token",
+      githubToken: "ghp_test_token",
+      githubRepo: "test-owner/test-repo",
     };
 
     require(key: string): string {

@@ -217,14 +217,101 @@ describe("clickhouse VM", () => {
   });
 });
 
+describe("service accounts", () => {
+  it("creates runtime and deploy SAs with correct names", async () => {
+    const { loadConfig } = await import("../config");
+    const { createServiceAccounts } = await import("../service-accounts");
+    const cfg = loadConfig();
+    const sas = createServiceAccounts(cfg);
+
+    const runtimeName = await outputValue(sas.runtimeSa.accountId);
+    expect(runtimeName).toBe("crt-test-run");
+
+    const deployName = await outputValue(sas.deploySa.accountId);
+    expect(deployName).toBe("crt-test-deploy");
+  });
+});
+
+describe("workload identity", () => {
+  it("creates pool and provider", async () => {
+    const { loadConfig } = await import("../config");
+    const { createServiceAccounts } = await import("../service-accounts");
+    const { createWorkloadIdentity } = await import("../workload-identity");
+    const cfg = loadConfig();
+    const sas = createServiceAccounts(cfg);
+    const wif = createWorkloadIdentity(cfg, sas.deploySa);
+
+    expect(wif.pool).toBeDefined();
+    expect(wif.provider).toBeDefined();
+
+    const poolId = await outputValue(wif.pool.workloadIdentityPoolId);
+    expect(poolId).toBe("crt-test-github");
+  });
+});
+
+describe("artifact registry", () => {
+  it("creates Docker repository with correct URL", async () => {
+    const { loadConfig } = await import("../config");
+    const { createArtifactRegistry } = await import("../artifact-registry");
+    const cfg = loadConfig();
+    const ar = createArtifactRegistry(cfg);
+
+    const url = await outputValue(ar.registryUrl);
+    expect(url).toContain("us-central1-docker.pkg.dev");
+
+    const format = await outputValue(ar.repository.format);
+    expect(format).toBe("DOCKER");
+  });
+});
+
+describe("cloud run app", () => {
+  it("creates service with correct name", async () => {
+    const { loadConfig } = await import("../config");
+    const { createSecrets } = await import("../secrets");
+    const { createServiceAccounts } = await import("../service-accounts");
+    const { createCloudRunApp } = await import("../cloud-run-app");
+    const cfg = loadConfig();
+    const secrets = createSecrets(cfg);
+    const sas = createServiceAccounts(cfg);
+    const app = createCloudRunApp(cfg, sas.runtimeSa, secrets);
+
+    const name = await outputValue(app.service.name);
+    expect(name).toBe("crt-test-app");
+    expect(app.serviceUrl).toBeDefined();
+  });
+});
+
+describe("cloud run jobs", () => {
+  it("creates jobs without throwing", async () => {
+    const { loadConfig } = await import("../config");
+    const { createSecrets } = await import("../secrets");
+    const { createServiceAccounts } = await import("../service-accounts");
+    const { createCloudRunJobs } = await import("../cloud-run-jobs");
+    const cfg = loadConfig();
+    const secrets = createSecrets(cfg);
+    const sas = createServiceAccounts(cfg);
+
+    // Should not throw — creates resources as side effects
+    expect(() => createCloudRunJobs(cfg, sas.runtimeSa, secrets)).not.toThrow();
+  });
+});
+
 describe("stack outputs", () => {
   it("exports all required outputs", async () => {
     const outputs = await import("../index");
 
+    // Existing outputs
     expect(outputs.clickhouseExternalIp).toBeDefined();
     expect(outputs.clickhouseInternalIp).toBeDefined();
     expect(outputs.clickhouseVmName).toBeDefined();
     expect(outputs.clickhouseUrl).toBeDefined();
     expect(outputs.clickhousePassword).toBeDefined();
+
+    // New outputs
+    expect(outputs.appUrl).toBeDefined();
+    expect(outputs.artifactRegistryUrl).toBeDefined();
+    expect(outputs.workloadIdentityProvider).toBeDefined();
+    expect(outputs.deployServiceAccountEmail).toBeDefined();
+    expect(outputs.runtimeServiceAccountEmail).toBeDefined();
   });
 });
