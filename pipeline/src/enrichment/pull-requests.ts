@@ -98,7 +98,7 @@ export async function enrichPullRequests(
   let fetched = 0;
   let notFound = 0;
   let forbidden = 0;
-  let rateLimited = 0;
+  const rateLimited = 0;
   let errors = 0;
   const BATCH_SIZE = GRAPHQL_PR_BATCH_SIZE;
 

@@ -17,7 +17,7 @@ import { BOT_BY_ID } from "../bots.js";
 import { Sentry, log, logError, countMetric } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
-import { handleEnterprisePolicyError } from "./enterprise-policy.js";
+// handleEnterprisePolicyError removed — GraphQL batch handles errors differently
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
 import { fetchCommentsBatch, GRAPHQL_COMMENT_BATCH_SIZE, type CommentBatchInput } from "./graphql-comments.js";
 
@@ -105,7 +105,7 @@ export async function enrichComments(
   let fetched = 0;
   let notFound = 0;
   let forbidden = 0;
-  let rateLimited = 0;
+  const rateLimited = 0;
   let unknownBot = 0;
   let repliesFiltered = 0;
   let errors = 0;
