@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
 
 type LanguageOption = { value: string; count: number };
 type ProductOption = { id: string; name: string; avatar_url: string; brand_color: string };
@@ -21,6 +21,7 @@ export function OrgFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState(
     selectedLanguages.length > 0 || selectedProducts.length > 0,
   );
@@ -50,9 +51,12 @@ export function OrgFilters({
         }
       }
       const qs = params.toString();
-      router.push(`/orgs${qs ? `?${qs}` : ""}`);
+      document.dispatchEvent(new Event("navigation-start"));
+      startTransition(() => {
+        router.push(`/orgs${qs ? `?${qs}` : ""}`);
+      });
     },
-    [router, searchParams],
+    [router, searchParams, startTransition],
   );
 
   const toggleLanguage = (lang: string) => {
@@ -76,7 +80,7 @@ export function OrgFilters({
   const hasFilters = selectedLanguages.length > 0 || selectedProducts.length > 0;
 
   return (
-    <div data-testid="org-filters">
+    <div data-testid="org-filters" className={`transition-opacity duration-200 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
       {/* Controls row */}
       <div className="flex items-center gap-3 flex-wrap">
         {/* Sort */}
