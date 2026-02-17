@@ -41,6 +41,10 @@ function formatWeekLong(week: string | number) {
 /** Ensure the tooltip popup renders above the Legend overlay. */
 const TOOLTIP_WRAPPER_STYLE: React.CSSProperties = { zIndex: 10 };
 const MAX_BAR_SIZE = 80;
+
+/** Snappy animation defaults for all Recharts elements (default is 1500ms) */
+const ANIM_DURATION = 300;
+const ANIM_EASING = "ease-out" as const;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const descendingItemSorter = (item: any) => -(Number(item.value) || 0);
 
@@ -172,6 +176,8 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
             fill="#a78bfa"
             fillOpacity={0.2}
             name={`AI Share (${label})`}
+            animationDuration={ANIM_DURATION}
+            animationEasing={ANIM_EASING}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -238,6 +244,8 @@ export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
             fill={color}
             fillOpacity={0.2}
             name={label}
+            animationDuration={ANIM_DURATION}
+            animationEasing={ANIM_EASING}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -296,6 +304,8 @@ export function ReviewVolumeChart({
               stroke={color}
               fill={color}
               fillOpacity={0.5}
+              animationDuration={ANIM_DURATION}
+              animationEasing={ANIM_EASING}
             />
           );
         })}
@@ -374,6 +384,8 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
               stroke={current.colors[i]}
               name={current.names[i]}
               dot={false}
+              animationDuration={ANIM_DURATION}
+              animationEasing={ANIM_EASING}
             />
           ))}
         </LineChart>
@@ -421,6 +433,8 @@ export function BotRadarChart({
                 stroke={color}
                 fill={color}
                 fillOpacity={0.15}
+                animationDuration={ANIM_DURATION}
+                animationEasing={ANIM_EASING}
               />
             );
           })}
@@ -488,9 +502,30 @@ export function BotReactionLeaderboardChart({
           />
           <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
-          <Bar dataKey="total_thumbs_up" fill="#10b981" name="👍" stackId="a" />
-          <Bar dataKey="total_heart" fill="#ec4899" name="❤️" stackId="a" />
-          <Bar dataKey="total_thumbs_down" fill="#ef4444" name="👎" stackId="a" />
+          <Bar
+            dataKey="total_thumbs_up"
+            fill="#10b981"
+            name="👍"
+            stackId="a"
+            animationDuration={ANIM_DURATION}
+            animationEasing={ANIM_EASING}
+          />
+          <Bar
+            dataKey="total_heart"
+            fill="#ec4899"
+            name="❤️"
+            stackId="a"
+            animationDuration={ANIM_DURATION}
+            animationEasing={ANIM_EASING}
+          />
+          <Bar
+            dataKey="total_thumbs_down"
+            fill="#ef4444"
+            name="👎"
+            stackId="a"
+            animationDuration={ANIM_DURATION}
+            animationEasing={ANIM_EASING}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -553,7 +588,7 @@ export function BotLanguageChart({ data }: { data: BotLanguageData[] }) {
           <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
           <Legend />
           {bots.map((bot, i) => (
-            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} maxBarSize={MAX_BAR_SIZE} />
+            <Bar key={bot} dataKey={bot} fill={COLORS[i % COLORS.length]} maxBarSize={MAX_BAR_SIZE} animationDuration={ANIM_DURATION} animationEasing={ANIM_EASING} />
           ))}
         </BarChart>
       </ResponsiveContainer>
@@ -656,7 +691,7 @@ export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
               "Avg Comments/PR",
             ]}
           />
-          <Bar dataKey="avg_comments_per_pr" fill="#6366f1" name="Avg Comments/PR">
+          <Bar dataKey="avg_comments_per_pr" fill="#6366f1" name="Avg Comments/PR" animationDuration={ANIM_DURATION} animationEasing={ANIM_EASING}>
             {data.map((_, i) => (
               <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
             ))}
@@ -709,7 +744,7 @@ export function CompareBarChart({
           contentStyle={c.tooltipStyle}
           formatter={(value) => [fmt(Number(value)), label]}
         />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+        <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={ANIM_DURATION} animationEasing={ANIM_EASING}>
           {data.map((entry, i) => (
             <Cell key={`cell-${i}`} fill={entry.color} />
           ))}
