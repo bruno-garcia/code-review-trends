@@ -93,14 +93,13 @@ export default async function RootLayout({
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
                 </span>
                 <span>
-                  Data import in progress — some{" "}
                   <Link
                     href="/status"
                     className="text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors"
                   >
-                    statistics
+                    Data import in progress
                   </Link>
-                  {" "}may be incomplete
+                  {" "}— some statistics may be incomplete
                 </span>
               </div>
             )}
