@@ -59,7 +59,7 @@ export async function enrichComments(
     bot_id: string;
   }>(
     ch,
-    `SELECT DISTINCT e.repo_name, e.pr_number, e.bot_id,
+    `SELECT DISTINCT e.repo_name AS repo_name, e.pr_number AS pr_number, e.bot_id AS bot_id,
             max(e.event_week) as latest_week,
             COALESCE(max(r.stars), 0) as repo_stars
      FROM pr_bot_events e

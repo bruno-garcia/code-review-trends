@@ -55,7 +55,7 @@ export async function enrichPullRequests(
     pr_number: number;
   }>(
     ch,
-    `SELECT DISTINCT e.repo_name, e.pr_number,
+    `SELECT DISTINCT e.repo_name AS repo_name, e.pr_number AS pr_number,
             max(e.event_week) as latest_week,
             COALESCE(max(r.stars), 0) as repo_stars
      FROM pr_bot_events e
