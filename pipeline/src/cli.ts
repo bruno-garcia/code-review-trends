@@ -760,8 +760,21 @@ async function cmdEnrichStatus() {
     console.log(`Comments:  ${commentPct}% complete`);
     console.log(`Reactions: ${reactionPct}% complete`);
 
+    // Pace section — repos + reactions
+    const reactionPace1h = (await query<{ cnt: string }>(
+      ch,
+      `SELECT count() as cnt FROM reaction_scan_progress WHERE scanned_at > now() - toIntervalHour(1)`,
+    ).catch(() => [{ cnt: "0" }]))[0] ?? { cnt: "0" };
+    const reactionPace24h = (await query<{ cnt: string }>(
+      ch,
+      `SELECT count() as cnt FROM reaction_scan_progress WHERE scanned_at > now() - toIntervalDay(1)`,
+    ).catch(() => [{ cnt: "0" }]))[0] ?? { cnt: "0" };
+
+    const reactionsPerHour = Number(reactionPace1h.cnt) || (Number(reactionPace24h.cnt) / 24);
+    const etaReactionsHours = reactionsPerHour > 0 && reactionPending > 0 ? reactionPending / reactionsPerHour : null;
+
+    console.log(`\n=== Pace ===`);
     if (reposPerHour > 0) {
-      console.log(`\n=== Pace ===`);
       console.log(`Repos enriched (last 1h):  ${pace1h.cnt}`);
       console.log(`Repos enriched (last 24h): ${pace24h.cnt}`);
       console.log(`Effective rate: ~${Math.round(reposPerHour)} repos/hour`);
@@ -773,6 +786,74 @@ async function cmdEnrichStatus() {
         } else {
           console.log(`ETA (repos): ~${(etaReposHours / 24).toFixed(1)} days`);
         }
+      }
+    }
+    if (reactionsPerHour > 0) {
+      console.log(`Reactions scanned (last 1h):  ${reactionPace1h.cnt}`);
+      console.log(`Reactions scanned (last 24h): ${reactionPace24h.cnt}`);
+      console.log(`Effective rate: ~${Math.round(reactionsPerHour)} PRs/hour`);
+      if (etaReactionsHours !== null) {
+        if (etaReactionsHours < 1) {
+          console.log(`ETA (reactions): ~${Math.round(etaReactionsHours * 60)} minutes`);
+        } else if (etaReactionsHours < 48) {
+          console.log(`ETA (reactions): ~${etaReactionsHours.toFixed(1)} hours`);
+        } else {
+          console.log(`ETA (reactions): ~${(etaReactionsHours / 24).toFixed(1)} days`);
+        }
+      }
+    }
+    if (reposPerHour === 0 && reactionsPerHour === 0) {
+      console.log("No recent enrichment activity detected.");
+    }
+
+    // Reaction breakdown by bot
+    const reactionsByBot = await query<{
+      bot_id: string;
+      reaction_count: string;
+      pr_count: string;
+    }>(
+      ch,
+      `SELECT
+         bot_id,
+         count() AS reaction_count,
+         countDistinct((repo_name, pr_number)) AS pr_count
+       FROM pr_bot_reactions
+       GROUP BY bot_id
+       ORDER BY pr_count DESC`,
+    ).catch(() => []);
+
+    if (reactionsByBot.length > 0) {
+      console.log(`\n=== Bot Reactions Found ===`);
+      console.log(`${"Bot".padEnd(25)} ${"PRs".padStart(8)} ${"Reactions".padStart(12)}`);
+      console.log("-".repeat(47));
+      for (const row of reactionsByBot) {
+        console.log(`${row.bot_id.padEnd(25)} ${row.pr_count.padStart(8)} ${row.reaction_count.padStart(12)}`);
+      }
+    }
+
+    // Top repos with bot reactions
+    const topReactionRepos = await query<{
+      repo_name: string;
+      bot_id: string;
+      pr_count: string;
+    }>(
+      ch,
+      `SELECT
+         repo_name,
+         bot_id,
+         countDistinct(pr_number) AS pr_count
+       FROM pr_bot_reactions
+       GROUP BY repo_name, bot_id
+       ORDER BY pr_count DESC
+       LIMIT 10`,
+    ).catch(() => []);
+
+    if (topReactionRepos.length > 0) {
+      console.log(`\n=== Top Repos with Bot Reactions ===`);
+      console.log(`${"Repo".padEnd(45)} ${"Bot".padEnd(20)} ${"PRs".padStart(6)}`);
+      console.log("-".repeat(73));
+      for (const row of topReactionRepos) {
+        console.log(`${row.repo_name.padEnd(45)} ${row.bot_id.padEnd(20)} ${row.pr_count.padStart(6)}`);
       }
     }
   } finally {

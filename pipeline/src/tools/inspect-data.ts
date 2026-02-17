@@ -43,6 +43,12 @@ async function showOverview() {
       "bot_logins",
       "review_activity",
       "human_review_activity",
+      "pr_bot_events",
+      "repos",
+      "pull_requests",
+      "pr_comments",
+      "pr_bot_reactions",
+      "reaction_scan_progress",
     ];
 
     for (const table of tables) {
@@ -167,7 +173,7 @@ async function showBotData(botId: string) {
       );
     }
 
-    console.log("\nReactions (from pr_comments, last 8 weeks):");
+    console.log("\nComment reactions (from pr_comments, last 8 weeks):");
     const reactions = await query<{
       week: string;
       thumbs_up: string;
@@ -191,6 +197,103 @@ async function showBotData(botId: string) {
       console.log(
         `  ${row.week}  👍${row.thumbs_up}  👎${row.thumbs_down}  ❤️${row.heart}`,
       );
+    }
+
+    // Bot emoji reactions on PRs (🎉 = review with no findings)
+    console.log("\nEmoji reactions on PRs (from pr_bot_reactions):");
+    const botReactions = await query<{
+      reaction_type: string;
+      total: string;
+      unique_prs: string;
+    }>(
+      client,
+      `SELECT
+         reaction_type,
+         count() AS total,
+         countDistinct((repo_name, pr_number)) AS unique_prs
+       FROM pr_bot_reactions
+       WHERE bot_id = {botId:String}
+       GROUP BY reaction_type
+       ORDER BY total DESC`,
+      { botId },
+    ).catch(() => []);
+
+    if (botReactions.length === 0) {
+      console.log("  (none found — reaction scan may still be in progress)");
+    } else {
+      for (const row of botReactions) {
+        const emoji = row.reaction_type === "hooray" ? "🎉" : row.reaction_type;
+        console.log(`  ${emoji} ${row.reaction_type}: ${row.total} reactions on ${row.unique_prs} PRs`);
+      }
+    }
+
+    // Deduplicated reaction reviews (reaction-only, no other activity)
+    const [dedupedStats] = await query<{
+      reaction_only_prs: string;
+      total_reaction_prs: string;
+    }>(
+      client,
+      `SELECT
+         countDistinctIf(
+           (r.repo_name, r.pr_number),
+           (r.repo_name, r.pr_number, r.bot_id) NOT IN (
+             SELECT (repo_name, pr_number, bot_id) FROM pr_bot_events
+           )
+         ) AS reaction_only_prs,
+         countDistinct((r.repo_name, r.pr_number)) AS total_reaction_prs
+       FROM pr_bot_reactions r
+       WHERE r.bot_id = {botId:String} AND r.reaction_type = 'hooray'`,
+      { botId },
+    ).catch(() => [{ reaction_only_prs: "0", total_reaction_prs: "0" }]);
+
+    if (Number(dedupedStats.total_reaction_prs) > 0) {
+      console.log(`\n  Total 🎉 PRs: ${dedupedStats.total_reaction_prs}`);
+      console.log(`  Reaction-only reviews (no other bot activity): ${dedupedStats.reaction_only_prs}`);
+      console.log(`  Overlapping with existing events: ${Number(dedupedStats.total_reaction_prs) - Number(dedupedStats.reaction_only_prs)}`);
+    }
+
+    // Reaction scan progress for this bot's repos
+    const [scanProgress] = await query<{
+      total_prs: string;
+      scanned_prs: string;
+    }>(
+      client,
+      `SELECT
+         countDistinct((e.repo_name, e.pr_number)) AS total_prs,
+         countDistinctIf((e.repo_name, e.pr_number), s.pr_number > 0) AS scanned_prs
+       FROM pr_bot_events e
+       LEFT JOIN reaction_scan_progress s
+         ON e.repo_name = s.repo_name AND e.pr_number = s.pr_number
+       WHERE e.bot_id = {botId:String}`,
+      { botId },
+    ).catch(() => [{ total_prs: "0", scanned_prs: "0" }]);
+
+    const scanPct = Number(scanProgress.total_prs) > 0
+      ? ((Number(scanProgress.scanned_prs) / Number(scanProgress.total_prs)) * 100).toFixed(1) : "0";
+    console.log(`\n  Reaction scan progress: ${scanProgress.scanned_prs}/${scanProgress.total_prs} PRs scanned (${scanPct}%)`);
+
+    // Sample reaction PRs
+    const samplePrs = await query<{
+      repo_name: string;
+      pr_number: string;
+      reaction_type: string;
+      reacted_at: string;
+    }>(
+      client,
+      `SELECT repo_name, pr_number, reaction_type, toString(reacted_at) AS reacted_at
+       FROM pr_bot_reactions
+       WHERE bot_id = {botId:String}
+       ORDER BY reacted_at DESC
+       LIMIT 5`,
+      { botId },
+    ).catch(() => []);
+
+    if (samplePrs.length > 0) {
+      console.log("\n  Recent reaction PRs:");
+      for (const row of samplePrs) {
+        const emoji = row.reaction_type === "hooray" ? "🎉" : row.reaction_type;
+        console.log(`    ${emoji} ${row.repo_name}#${row.pr_number} (${row.reacted_at})`);
+      }
     }
   } finally {
     await client.close();
