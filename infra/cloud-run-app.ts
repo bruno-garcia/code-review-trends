@@ -8,6 +8,28 @@ export interface CloudRunAppResult {
   serviceUrl: pulumi.Output<string>;
 }
 
+const PLACEHOLDER_IMAGE = "us-docker.pkg.dev/cloudrun/container/hello";
+
+/**
+ * Read the currently-deployed container image from Cloud Run so that
+ * `pulumi up` preserves whatever CI deployed rather than reverting to
+ * the placeholder.  On the very first run (service doesn't exist yet)
+ * we fall back to the placeholder — CI will deploy the real image
+ * immediately after.
+ */
+function currentAppImage(serviceName: string): pulumi.Output<string> {
+  return pulumi.output(
+    gcp.cloudrunv2
+      .getService({
+        name: serviceName,
+        location: gcp.config.region!,
+        project: gcp.config.project!,
+      })
+      .then((s) => s.templates?.[0]?.containers?.[0]?.image || PLACEHOLDER_IMAGE)
+      .catch(() => PLACEHOLDER_IMAGE),
+  );
+}
+
 export function createCloudRunApp(
   cfg: EnvironmentConfig,
   runtimeSa: gcp.serviceaccount.Account,
@@ -15,11 +37,13 @@ export function createCloudRunApp(
   parent?: pulumi.Resource,
 ): CloudRunAppResult {
   const prefix = cfg.namePrefix;
+  const appServiceName = `${prefix}-app`;
+  const image = currentAppImage(appServiceName);
 
   const service = new gcp.cloudrunv2.Service(
     `${prefix}-app`,
     {
-      name: `${prefix}-app`,
+      name: appServiceName,
       location: gcp.config.region!,
       ingress: "INGRESS_TRAFFIC_ALL",
       template: {
@@ -30,8 +54,10 @@ export function createCloudRunApp(
         },
         containers: [
           {
-            // Placeholder image — CI manages the actual image via `gcloud run deploy --image=...`
-            image: "us-docker.pkg.dev/cloudrun/container/hello",
+            // CI manages the actual image via `gcloud run deploy --image=...`.
+            // On `pulumi up` we re-use whatever image is currently running
+            // to avoid reverting CI deploys. See currentAppImage() above.
+            image,
             ports: { containerPort: 8080 },
             resources: {
               limits: { memory: "2Gi", cpu: "1" },
@@ -72,11 +98,7 @@ export function createCloudRunApp(
         ],
       },
     },
-    {
-      parent,
-      // CI updates the image on each deploy — don't let Pulumi revert it
-      ignoreChanges: ["template.containers[0].image"],
-    },
+    { parent },
   );
 
   // Allow unauthenticated access (public website)

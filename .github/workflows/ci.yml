@@ -193,6 +193,28 @@ jobs:
             --region=${REGION} \
             --quiet
 
+          # Ensure the new revision is serving 100% of traffic.
+          # gcloud run deploy *should* do this, but if it doesn't (e.g. due
+          # to v1/v2 API quirks), this is an explicit safety net.
+          gcloud run services update-traffic crt-staging-app \
+            --to-latest \
+            --region=${REGION} \
+            --quiet
+
+          # Verify the correct image is serving
+          SERVING_REV=$(gcloud run services describe crt-staging-app \
+            --region=${REGION} \
+            --format='value(status.traffic[0].revisionName)')
+          SERVING_IMAGE=$(gcloud run revisions describe "${SERVING_REV}" \
+            --region=${REGION} \
+            --format='value(spec.containers[0].image)')
+          echo "Serving revision: ${SERVING_REV}"
+          echo "Serving image:    ${SERVING_IMAGE}"
+          if [[ "${SERVING_IMAGE}" == *"cloudrun/container/hello"* ]]; then
+            echo "::error::Deploy verification failed — still serving the GCP placeholder image"
+            exit 1
+          fi
+
       - name: Update pipeline job images
         run: |
           for job in sync backfill discover enrich discover-bots; do
