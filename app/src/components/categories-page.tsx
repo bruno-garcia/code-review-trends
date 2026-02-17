@@ -19,6 +19,15 @@ import type {
 
 type BarItem = { name: string; value: number; color: string };
 
+function SampleSize({ label }: { label?: string }) {
+  if (!label) return null;
+  return (
+    <p className="mt-3 text-[10px] text-theme-muted/50 leading-tight">
+      {label}
+    </p>
+  );
+}
+
 function CategorySection({
   id,
   title,
@@ -26,6 +35,7 @@ function CategorySection({
   data,
   formatValue,
   lowerIsBetter = false,
+  sampleSize,
 }: {
   id: string;
   title: string;
@@ -33,6 +43,7 @@ function CategorySection({
   data: BarItem[];
   formatValue: (v: number) => string;
   lowerIsBetter?: boolean;
+  sampleSize?: string;
 }) {
   const sorted = [...data].sort((a, b) =>
     lowerIsBetter ? a.value - b.value : b.value - a.value,
@@ -90,6 +101,7 @@ function CategorySection({
           })}
         </div>
       )}
+      {sorted.length > 0 && <SampleSize label={sampleSize} />}
       {pick && pickProduct && sorted.length > 0 && (
         <div className="mt-4 pt-3 border-t border-theme-border/50">
           <p className="text-xs text-theme-muted">
@@ -420,6 +432,57 @@ export function CategoriesPage({
       .slice(0, 5);
   }, [languageData, selectedSet, colorMap, botToProduct]);
 
+  // --- Sample size labels ---
+  const fmt = (n: number) => n.toLocaleString();
+
+  const mostLovedSample = useMemo(() => {
+    const totalVotes = fc.reduce((s, c) => s + Number(c.thumbs_up) + Number(c.thumbs_down), 0);
+    return totalVotes > 0 ? `Based on ${fmt(totalVotes)} reactions across ${fmt(fc.length)} products` : undefined;
+  }, [fc]);
+
+  const lessChattyPRs = useMemo(() => {
+    const filtered = filterByProduct(commentsPerPR);
+    const totalPrs = filtered.reduce((s, c) => s + Number(c.total_prs), 0);
+    const totalComments = filtered.reduce((s, c) => s + Number(c.total_comments), 0);
+    return totalPrs > 0 ? `Based on ${fmt(totalComments)} comments across ${fmt(totalPrs)} PRs` : undefined;
+  }, [commentsPerPR, selectedSet]);
+
+  const controversySample = useMemo(() => {
+    const filtered = filterByProduct(controversy);
+    const totalVotes = filtered.reduce((s, c) => s + Number(c.total_thumbs_up) + Number(c.total_thumbs_down), 0);
+    return totalVotes > 0 ? `Based on ${fmt(totalVotes)} reactions` : undefined;
+  }, [controversy, selectedSet]);
+
+  const wallOfTextSample = useMemo(() => {
+    const filtered = filterByProduct(commentDetail);
+    const total = filtered.reduce((s, c) => s + Number(c.total_comments), 0);
+    return total > 0 ? `Based on ${fmt(total)} comments` : undefined;
+  }, [commentDetail, selectedSet]);
+
+  const bigPRsSample = useMemo(() => {
+    const filtered = filterByProduct(prSize);
+    const total = filtered.reduce((s, c) => s + Number(c.total_prs), 0);
+    return total > 0 ? `Based on ${fmt(total)} enriched PRs` : undefined;
+  }, [prSize, selectedSet]);
+
+  const bigProjectsSample = useMemo(() => {
+    const filtered = filterByProduct(starAdoption);
+    const total = filtered.reduce((s, c) => s + Number(c.repo_count), 0);
+    return total > 0 ? `Based on ${fmt(total)} repos with star data` : undefined;
+  }, [starAdoption, selectedSet]);
+
+  const mergeSample = useMemo(() => {
+    const filtered = filterByProduct(mergeRate);
+    const total = filtered.reduce((s, c) => s + Number(c.total_prs), 0);
+    return total > 0 ? `Based on ${fmt(total)} enriched PRs` : undefined;
+  }, [mergeRate, selectedSet]);
+
+  const responseSample = useMemo(() => {
+    const filtered = filterByProduct(responseTime);
+    const total = filtered.reduce((s, c) => s + Number(c.total_prs), 0);
+    return total > 0 ? `Based on ${fmt(total)} PRs with comment timestamps` : undefined;
+  }, [responseTime, selectedSet]);
+
   return (
     <div data-testid="categories-page">
       {/* Jump links nav */}
@@ -455,6 +518,7 @@ export function CategoriesPage({
             description="Highest approval rate (👍 / (👍+👎)) across all review comments. The comments developers keep, not dismiss."
             data={mostLovedData}
             formatValue={(v) => `${v.toFixed(1)}%`}
+            sampleSize={mostLovedSample}
           />
           <CategorySection
             id="signal-over-noise"
@@ -463,6 +527,7 @@ export function CategoriesPage({
             data={lessChattyData}
             formatValue={(v) => `${v.toFixed(2)}/PR`}
             lowerIsBetter
+            sampleSize={lessChattyPRs}
           />
         </div>
       </section>
@@ -484,6 +549,7 @@ export function CategoriesPage({
             description="Most polarizing — these bots get both 👍 and 👎 on the same reviews. Strong opinions either way."
             data={controversyData}
             formatValue={(v) => `${(v * 100).toFixed(0)}%`}
+            sampleSize={controversySample}
           />
           <CategorySection
             id="wall-of-text"
@@ -491,6 +557,7 @@ export function CategoriesPage({
             description="Longest average comments. Thorough or noisy? You decide — but your PR thread will be long."
             data={mostDetailedData}
             formatValue={(v) => `${v.toLocaleString()} chars`}
+            sampleSize={wallOfTextSample}
           />
         </div>
       </section>
@@ -523,6 +590,7 @@ export function CategoriesPage({
             description="Average PR size (additions + deletions) reviewed by each product."
             data={bigPRsData}
             formatValue={(v) => `${v.toLocaleString()} lines`}
+            sampleSize={bigPRsSample}
           />
         </div>
       </section>
@@ -541,6 +609,7 @@ export function CategoriesPage({
             description="Average GitHub stars of repos using each product."
             data={bigProjectsData}
             formatValue={(v) => `${v.toLocaleString()} ★ avg`}
+            sampleSize={bigProjectsSample}
           />
           <CategorySection
             id="enterprise-ready"
@@ -600,6 +669,7 @@ export function CategoriesPage({
             description="Percentage of bot-reviewed PRs that get merged."
             data={mergeData}
             formatValue={(v) => `${v.toFixed(1)}%`}
+            sampleSize={mergeSample}
           />
           <CategorySection
             id="response-time"
@@ -608,6 +678,7 @@ export function CategoriesPage({
             data={responseData}
             formatValue={formatMinutes}
             lowerIsBetter
+            sampleSize={responseSample}
           />
         </div>
       </section>
