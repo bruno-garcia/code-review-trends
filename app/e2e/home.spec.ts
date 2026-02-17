@@ -67,11 +67,10 @@ test.describe("Home page", () => {
     await expect(page.getByTestId("top-orgs-chart")).toBeVisible();
   });
 
-  test("shows data coverage when data exists", async ({ page }) => {
+  test("shows data import status when enrichment is incomplete", async ({ page }) => {
     await page.goto("/");
-    // data-coverage is conditionally rendered — only shown when repos or comments exist
-    const section = page.getByTestId("data-coverage");
-    // Just verify the page loads without error; section may or may not be visible
+    // data-import-status is conditionally rendered in the layout footer
+    // when enrichment is incomplete — just verify the page loads without error
     await expect(page.getByTestId("hero")).toBeVisible();
   });
 });

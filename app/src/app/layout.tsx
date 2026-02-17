@@ -5,7 +5,7 @@ import { Logo } from "@/components/logo";
 import { NavLinks } from "@/components/nav-links";
 import { ThemeProvider, themeScript } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getProductSummaries } from "@/lib/clickhouse";
+import { getProductSummaries, getEnrichmentStats } from "@/lib/clickhouse";
 import { getDefaultProductIds } from "@/lib/product-filter-defaults";
 import { ProductFilterProvider } from "@/lib/product-filter";
 import { ProductFilterBar } from "@/components/product-filter-bar";
@@ -32,8 +32,16 @@ export default async function RootLayout({
   // Gracefully handle missing ClickHouse during next build (pre-render).
   // Pages are force-dynamic so this only matters for static shells like /_not-found.
   let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
+  let enrichmentIncomplete = false;
   try {
-    summaries = await getProductSummaries();
+    const [summariesData, enrichment] = await Promise.all([
+      getProductSummaries(),
+      getEnrichmentStats(),
+    ]);
+    summaries = summariesData;
+    enrichmentIncomplete =
+      enrichment.total_discovered_repos > enrichment.enriched_repos ||
+      enrichment.total_discovered_prs > enrichment.enriched_prs;
   } catch {
     // ClickHouse unavailable (e.g. during build) — render with empty filter list
   }
@@ -78,6 +86,24 @@ export default async function RootLayout({
             </main>
           </ProductFilterProvider>
           <footer className="border-t border-theme-border py-8 text-center text-sm text-theme-muted">
+            {enrichmentIncomplete && (
+              <div className="mb-4 inline-flex items-center gap-2 justify-center" data-testid="data-import-status">
+                <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+                <span>
+                  Data import in progress — some{" "}
+                  <Link
+                    href="/status"
+                    className="text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors"
+                  >
+                    statistics
+                  </Link>
+                  {" "}may be incomplete
+                </span>
+              </div>
+            )}
             <p>
               Data sourced from{" "}
               <a
