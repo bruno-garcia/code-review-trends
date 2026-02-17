@@ -13,7 +13,7 @@ import type {
   BotReactions,
 } from "@/lib/clickhouse";
 import { useTheme } from "@/components/theme-provider";
-import { getThemedBrandColor, shouldInvertAvatar } from "@/lib/theme-overrides";
+import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 
 export function FilteredBotsPage({
   activity,
@@ -142,7 +142,7 @@ export function FilteredBotsPage({
                           width={20}
                           height={20}
                           className="rounded-full bg-theme-surface-alt border border-theme-border"
-                          style={shouldInvertAvatar(product.id, resolved) ? { filter: "invert(1) hue-rotate(180deg)" } : undefined}
+                          style={getAvatarStyle(product.id, resolved)}
                         />
                       )}
                       <span
@@ -230,7 +230,7 @@ export function FilteredBotsPage({
                   width={40}
                   height={40}
                   className="rounded-full bg-theme-surface border border-theme-border"
-                  style={shouldInvertAvatar(product.id, resolved) ? { filter: "invert(1) hue-rotate(180deg)" } : undefined}
+                  style={getAvatarStyle(product.id, resolved)}
                 />
               )}
               <h2

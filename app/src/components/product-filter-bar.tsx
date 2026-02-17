@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useProductFilter } from "@/lib/product-filter";
 import { TimeRangeSelector } from "@/components/time-range-selector";
 import { useTheme } from "@/components/theme-provider";
-import { getThemedBrandColor, shouldInvertAvatar } from "@/lib/theme-overrides";
+import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 
 function ChevronDown({ className }: { className?: string }) {
   return (
@@ -113,7 +113,6 @@ export function ProductFilterBar() {
           <div className="flex-1 hidden sm:flex flex-wrap items-center gap-1.5">
             {selectedProducts.map((p) => {
               const color = getThemedBrandColor(p.id, p.brand_color, resolved);
-              const invert = shouldInvertAvatar(p.id, resolved);
               return (
               <span
                 key={p.id}
@@ -130,7 +129,7 @@ export function ProductFilterBar() {
                   width={16}
                   height={16}
                   className="rounded-full"
-                  style={invert ? { filter: "invert(1) hue-rotate(180deg)" } : undefined}
+                  style={getAvatarStyle(p.id, resolved)}
                 />
                 {p.name}
               </span>
@@ -188,7 +187,6 @@ export function ProductFilterBar() {
               {allProducts.map((p, i) => {
                 const isSelected = selectedSet.has(p.id);
                 const color = getThemedBrandColor(p.id, p.brand_color, resolved);
-                const invert = shouldInvertAvatar(p.id, resolved);
                 return (
                   <button
                     key={p.id}
@@ -216,7 +214,7 @@ export function ProductFilterBar() {
                       width={20}
                       height={20}
                       className="rounded-full"
-                      style={invert ? { filter: "invert(1) hue-rotate(180deg)" } : undefined}
+                      style={getAvatarStyle(p.id, resolved)}
                     />
                     <span className="truncate flex-1 text-left">{p.name}</span>
                     <span className={`text-xs tabular-nums shrink-0 ${isSelected ? "text-theme-muted" : "text-theme-muted-dim"}`}>

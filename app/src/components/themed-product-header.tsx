@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "@/components/theme-provider";
-import { getThemedBrandColor, shouldInvertAvatar } from "@/lib/theme-overrides";
+import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 
 /**
  * Product header (avatar + name) with theme-aware colors and logo rendering.
@@ -20,8 +20,6 @@ export function ThemedProductHeader({
 }) {
   const { resolved } = useTheme();
   const color = brandColor ? getThemedBrandColor(productId, brandColor, resolved) : undefined;
-  const invert = shouldInvertAvatar(productId, resolved);
-
   return (
     <div className="mt-4 flex items-center gap-4">
       {avatarUrl && (
@@ -31,7 +29,7 @@ export function ThemedProductHeader({
           width={48}
           height={48}
           className="rounded-full bg-theme-surface border border-theme-border"
-          style={invert ? { filter: "invert(1) hue-rotate(180deg)" } : undefined}
+          style={getAvatarStyle(productId, resolved)}
         />
       )}
       <h1

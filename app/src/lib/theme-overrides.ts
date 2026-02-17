@@ -70,6 +70,12 @@ export function getThemedBrandColor(
 }
 
 /**
+ * CSS filter style to invert a dark-on-dark logo for visibility on dark backgrounds.
+ * Reuse this constant instead of inline style objects in components.
+ */
+export const INVERT_AVATAR_STYLE: React.CSSProperties = { filter: "invert(1) hue-rotate(180deg)" };
+
+/**
  * Check if a product's avatar should be inverted on the current theme.
  */
 export function shouldInvertAvatar(
@@ -79,4 +85,14 @@ export function shouldInvertAvatar(
   const override = THEME_OVERRIDES[productId];
   if (!override) return false;
   return resolved === "dark" && !!override.invert_avatar_dark;
+}
+
+/**
+ * Returns the invert style object if the avatar needs inversion, or undefined.
+ */
+export function getAvatarStyle(
+  productId: string,
+  resolved: "light" | "dark",
+): React.CSSProperties | undefined {
+  return shouldInvertAvatar(productId, resolved) ? INVERT_AVATAR_STYLE : undefined;
 }
