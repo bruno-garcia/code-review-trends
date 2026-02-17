@@ -4,6 +4,11 @@ import { createNetwork } from "./network";
 import { createFirewallRules } from "./firewall";
 import { createSecrets } from "./secrets";
 import { createClickHouseVM } from "./clickhouse";
+import { createServiceAccounts } from "./service-accounts";
+import { createWorkloadIdentity } from "./workload-identity";
+import { createArtifactRegistry } from "./artifact-registry";
+import { createCloudRunApp } from "./cloud-run-app";
+import { createCloudRunJobs } from "./cloud-run-jobs";
 
 const cfg = loadConfig();
 
@@ -25,9 +30,37 @@ const clickhouse = createClickHouseVM(
   secrets.clickhousePassword,
 );
 
+// Service accounts: runtime (Cloud Run) and deploy (CI/CD)
+const serviceAccounts = createServiceAccounts(cfg);
+
+// Workload Identity Federation: GitHub Actions → deploy SA
+const workloadIdentity = createWorkloadIdentity(cfg, serviceAccounts.deploySa);
+
+// Artifact Registry: Docker container images
+const artifactRegistry = createArtifactRegistry(cfg);
+
+// Cloud Run: web application service
+const cloudRunApp = createCloudRunApp(cfg, serviceAccounts.runtimeSa, secrets);
+
+// Cloud Run Jobs: pipeline batch jobs
+createCloudRunJobs(cfg, serviceAccounts.runtimeSa, secrets);
+
 // Outputs — used by the app and pipeline
 export const clickhouseExternalIp = network.clickhouseExternalIp.address;
 export const clickhouseInternalIp = clickhouse.internalIp;
 export const clickhouseVmName = clickhouse.vm.name;
 export const clickhouseUrl = pulumi.secret(pulumi.interpolate`https://${cfg.clickhouseDomain}:${CADDY_HTTPS_PORT}`);
 export const clickhousePassword = pulumi.secret(secrets.clickhousePassword);
+
+// App hosting
+export const appUrl = cloudRunApp.serviceUrl;
+
+// Container registry
+export const artifactRegistryUrl = artifactRegistry.registryUrl;
+
+// CI auth (Workload Identity Federation)
+export const workloadIdentityProvider = pulumi.secret(workloadIdentity.provider.name);
+export const deployServiceAccountEmail = pulumi.secret(serviceAccounts.deploySa.email);
+
+// Reference
+export const runtimeServiceAccountEmail = pulumi.secret(serviceAccounts.runtimeSa.email);

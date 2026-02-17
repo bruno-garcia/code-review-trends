@@ -34,6 +34,7 @@ export function createServiceAccounts(
     new gcp.projects.IAMMember(
       `${prefix}-run-${shortRole}`,
       {
+        project: gcp.config.project!,
         role,
         member: pulumi.interpolate`serviceAccount:${runtimeSa.email}`,
       },
@@ -61,6 +62,7 @@ export function createServiceAccounts(
     new gcp.projects.IAMMember(
       `${prefix}-deploy-${shortRole}`,
       {
+        project: gcp.config.project!,
         role,
         member: pulumi.interpolate`serviceAccount:${deploySa.email}`,
       },

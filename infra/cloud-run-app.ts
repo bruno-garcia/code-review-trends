@@ -32,7 +32,7 @@ export function createCloudRunApp(
           {
             // Placeholder image — CI manages the actual image via `gcloud run deploy --image=...`
             image: "us-docker.pkg.dev/cloudrun/container/hello",
-            ports: [{ containerPort: 8080 }],
+            ports: { containerPort: 8080 },
             resources: {
               limits: { memory: "512Mi", cpu: "1" },
             },
