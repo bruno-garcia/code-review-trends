@@ -207,25 +207,17 @@ jobs:
             exit 1
           fi
 
-          echo "Warming up: ${WARMUP_URL}"
+          # Read pipeline Sentry DSN from Secret Manager (same DSN used by pipeline jobs)
+          SENTRY_DSN=$(gcloud secrets versions access latest \
+            --secret=crt-staging-sentry-dsn-pipeline --quiet 2>/dev/null || true)
 
-          PAGES=("/" "/bots" "/orgs" "/compare" "/about" "/status")
-          FAILED=0
-
-          for page in "${PAGES[@]}"; do
-            echo -n "  ${page} ... "
-            STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${WARMUP_URL}${page}")
-            if [[ "${STATUS}" -ge 200 && "${STATUS}" -lt 400 ]]; then
-              echo "OK (${STATUS})"
-            else
-              echo "FAILED (${STATUS})"
-              FAILED=1
-            fi
-          done
-
-          if [[ "${FAILED}" -eq 1 ]]; then
+          # Run the instrumented warmup script — creates Sentry spans + metrics per page.
+          # Non-zero exit means some pages failed; we warn but don't block the deploy.
+          SENTRY_DSN="${SENTRY_DSN}" \
+          NODE_ENV=staging \
+          npm run warmup --workspace=pipeline -- "${WARMUP_URL}" || {
             echo "::warning::Some pages failed to warm up — proceeding with traffic switch anyway"
-          fi
+          }
 
       - name: Switch traffic to new revision
         run: |

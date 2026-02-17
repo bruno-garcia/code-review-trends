@@ -12,6 +12,7 @@
     "validate": "tsx src/tools/validate-schema.ts",
     "discover-bots": "tsx src/tools/discover-bots.ts",
     "status": "tsx src/tools/status.ts",
+    "warmup": "tsx src/warmup.ts",
     "test": "node --import tsx --test src/**/*.test.ts --test-skip-pattern=smoke",
     "test:smoke": "node --import tsx --test src/smoke.test.ts"
   },
