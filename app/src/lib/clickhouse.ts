@@ -489,8 +489,8 @@ export async function getProductBots(productId: string, since?: string): Promise
         COALESCE(sum(ra.review_count), 0) AS total_reviews,
         COALESCE(sum(ra.review_comment_count), 0) AS total_comments,
         COALESCE(sum(ra.pr_comment_count), 0) AS total_pr_comments,
-        COALESCE(formatDateTime(min(ra.week), '%Y-%m-%d'), '') AS first_week,
-        COALESCE(formatDateTime(max(ra.week), '%Y-%m-%d'), '') AS last_week
+        toString(min(ra.week)) AS first_week,
+        toString(max(ra.week)) AS last_week
       FROM bots b FINAL
       LEFT JOIN (
         SELECT bot_id, min(github_login) AS github_login
@@ -500,6 +500,7 @@ export async function getProductBots(productId: string, since?: string): Promise
       LEFT JOIN review_activity ra FINAL ON b.id = ra.bot_id ${sinceFilter}
       WHERE b.product_id = {productId:String}
       GROUP BY b.id, b.name, bl.github_login, b.brand_color
+      HAVING total_reviews > 0
       ORDER BY total_reviews DESC
     `,
     params,
