@@ -7,13 +7,15 @@
 
 import { Octokit } from "@octokit/rest";
 import { Sentry, log, countMetric, distributionMetric, gaugeMetric } from "../sentry.js";
-import { createCHClient } from "../clickhouse.js";
+import { createCHClient, query } from "../clickhouse.js";
 import { RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
 import { enrichPullRequests } from "./pull-requests.js";
 import { enrichComments } from "./comments.js";
 import { enrichReactions } from "./reactions.js";
 import type { WorkerConfig } from "./partitioner.js";
+
+const ROUND_ROBIN_THRESHOLD = 0.70;
 
 export type EnrichmentOptions = {
   githubToken: string;
@@ -58,7 +60,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
 
   // Determine execution order based on priority
   type Step = "repos" | "prs" | "comments" | "reactions";
-  const defaultOrder: Step[] = ["repos", "prs", "comments", "reactions"];
+  const defaultOrder: Step[] = ["repos", "comments", "reactions", "prs"];
   let order: Step[];
   if (options.priority && options.priority !== "repos") {
     // Move priority step to front, keep others in default relative order
@@ -66,6 +68,39 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     order = [options.priority as Step, ...rest];
   } else {
     order = defaultOrder;
+  }
+
+  // Check stage completion percentages and skip stages above threshold
+  const completionRows = await query<{
+    repos_total: string; repos_done: string;
+    comments_total: string; comments_done: string;
+    reactions_total: string; reactions_done: string;
+    prs_total: string; prs_done: string;
+  }>(ch, `SELECT
+    (SELECT countDistinct(repo_name) FROM pr_bot_events) as repos_total,
+    (SELECT count() FROM repos) as repos_done,
+    (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_bot_events WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) as comments_total,
+    (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_comments) as comments_done,
+    (SELECT countDistinct(repo_name, pr_number) FROM pr_bot_events) as reactions_total,
+    (SELECT count() FROM reaction_scan_progress) as reactions_done,
+    (SELECT countDistinct(repo_name, pr_number) FROM pr_bot_events) as prs_total,
+    (SELECT count() FROM pull_requests) as prs_done`);
+
+  const c = completionRows[0];
+  const completion: Record<Step, number> = {
+    repos: Number(c.repos_total) > 0 ? Number(c.repos_done) / Number(c.repos_total) : 0,
+    comments: Number(c.comments_total) > 0 ? Number(c.comments_done) / Number(c.comments_total) : 0,
+    reactions: Number(c.reactions_total) > 0 ? Number(c.reactions_done) / Number(c.reactions_total) : 0,
+    prs: Number(c.prs_total) > 0 ? Number(c.prs_done) / Number(c.prs_total) : 0,
+  };
+
+  log(`[worker] Stage completion: ${order.map((s) => `${s} ${Math.round(completion[s] * 100)}%`).join(", ")}`);
+
+  const belowThreshold = order.filter((s) => completion[s] < ROUND_ROBIN_THRESHOLD);
+  if (belowThreshold.length > 0 && belowThreshold.length < order.length) {
+    const skipped = order.filter((s) => completion[s] >= ROUND_ROBIN_THRESHOLD);
+    log(`[worker] Skipping stages above ${Math.round(ROUND_ROBIN_THRESHOLD * 100)}% complete: ${skipped.join(", ")}`);
+    order = belowThreshold;
   }
 
   let reposResult = { fetched: 0, skipped: 0, errors: 0 };
