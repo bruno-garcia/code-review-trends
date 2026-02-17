@@ -114,6 +114,10 @@ export async function enrichReactions(
         sentinels.push({ repo_name: result.input.repo_name, pr_number: result.input.pr_number });
         scanned++;
 
+        if (result.hasMore) {
+          log(`[reactions] ${result.input.repo_name}#${result.input.pr_number} has >20 hooray reactions, saved partial`);
+        }
+
         if (result.reactions.length > 0) {
           reactionRows.push(...result.reactions);
           fetched++;
