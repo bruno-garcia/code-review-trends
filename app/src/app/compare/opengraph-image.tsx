@@ -2,10 +2,11 @@ import { ImageResponse } from "next/og";
 import * as Sentry from "@sentry/nextjs";
 import { getProductSummaries } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
+import { OG_SIZE, OG_BG, OgFooter, OgFallback } from "@/lib/og-utils";
 
 export const runtime = "nodejs";
 export const alt = "Compare AI Code Review Products";
-export const size = { width: 1200, height: 630 };
+export const size = OG_SIZE;
 export const contentType = "image/png";
 
 export default async function Image() {
@@ -26,9 +27,15 @@ export default async function Image() {
     Sentry.captureException(err, { tags: { route: "compare/opengraph-image" } });
   }
 
-  const maxReviews = topProducts.length > 0
-    ? Math.max(...topProducts.map((p) => p.rawReviews), 1)
-    : 1;
+  // Fallback when no data is available
+  if (topProducts.length === 0) {
+    return new ImageResponse(
+      <OgFallback title="Compare AI Code Review Products" />,
+      { ...size },
+    );
+  }
+
+  const maxReviews = Math.max(...topProducts.map((p) => p.rawReviews), 1);
 
   return new ImageResponse(
     (
@@ -38,8 +45,7 @@ export default async function Image() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          background:
-            "linear-gradient(135deg, #0a0a1a 0%, #1a1040 50%, #0a0a1a 100%)",
+          background: OG_BG,
           fontFamily: "system-ui, -apple-system, sans-serif",
           color: "#e2e8f0",
           padding: "60px 80px",
@@ -129,37 +135,8 @@ export default async function Image() {
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginTop: "24px",
-          }}
-        >
-          <div style={{ fontSize: "18px", color: "#64748b", display: "flex" }}>
-            codereviewtrends.com/compare
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div
-              style={{
-                width: "28px",
-                height: "28px",
-                display: "flex",
-                background: "linear-gradient(135deg, #a78bfa, #6d28d9)",
-                borderRadius: "5px",
-                transform: "rotate(45deg)",
-                opacity: 0.9,
-              }}
-            />
-            <div
-              style={{ fontSize: "18px", fontWeight: 700, display: "flex" }}
-            >
-              <span style={{ color: "#c4b5fd" }}>Code</span>
-              <span style={{ color: "#a78bfa" }}>Review</span>
-              <span style={{ color: "#22d3ee" }}>Trends</span>
-            </div>
-          </div>
+        <div style={{ display: "flex", marginTop: "24px" }}>
+          <OgFooter url="codereviewtrends.com/compare" />
         </div>
       </div>
     ),

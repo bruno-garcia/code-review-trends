@@ -2,10 +2,11 @@ import { ImageResponse } from "next/og";
 import * as Sentry from "@sentry/nextjs";
 import { getProductById, getProductSummaries } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
+import { OG_SIZE, OG_BG, OgFooter, OgFallback } from "@/lib/og-utils";
 
 export const runtime = "nodejs";
 export const alt = "AI Code Review Product Stats";
-export const size = { width: 1200, height: 630 };
+export const size = OG_SIZE;
 export const contentType = "image/png";
 
 export default async function Image({
@@ -15,7 +16,7 @@ export default async function Image({
 }) {
   const { id } = await params;
 
-  let name = id;
+  let name = "";
   let description = "";
   let brandColor = "#7c3aed";
   let avatarUrl = "";
@@ -47,6 +48,14 @@ export default async function Image({
     });
   }
 
+  // Fallback when data fetch fails — show product avatar (if cached) and site branding
+  if (!name) {
+    return new ImageResponse(
+      <OgFallback title={id} avatarUrl={avatarUrl} brandColor={brandColor} />,
+      { ...size },
+    );
+  }
+
   return new ImageResponse(
     (
       <div
@@ -55,8 +64,7 @@ export default async function Image({
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          background:
-            "linear-gradient(135deg, #0a0a1a 0%, #1a1040 50%, #0a0a1a 100%)",
+          background: OG_BG,
           fontFamily: "system-ui, -apple-system, sans-serif",
           color: "#e2e8f0",
           padding: "60px 80px",
@@ -131,7 +139,7 @@ export default async function Image({
           {description || "AI code review product"}
         </div>
 
-        {/* Stats — 3 boxes, no rank */}
+        {/* Stats — 3 boxes */}
         <div
           style={{
             display: "flex",
@@ -139,116 +147,41 @@ export default async function Image({
             marginBottom: "40px",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              padding: "20px 36px",
-              borderRadius: "16px",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              background: "rgba(255, 255, 255, 0.05)",
-            }}
-          >
-            <div style={{ fontSize: "16px", color: "#94a3b8", display: "flex" }}>
-              Reviews
-            </div>
+          {[
+            { label: "Reviews", value: reviews },
+            { label: "Repos", value: repos },
+            { label: "Growth (12w)", value: growth },
+          ].map((stat) => (
             <div
+              key={stat.label}
               style={{
-                fontSize: "40px",
-                fontWeight: 800,
-                color: brandColor,
                 display: "flex",
+                flexDirection: "column",
+                padding: "20px 36px",
+                borderRadius: "16px",
+                border: "1px solid rgba(148, 163, 184, 0.2)",
+                background: "rgba(255, 255, 255, 0.05)",
               }}
             >
-              {reviews}
+              <div style={{ fontSize: "16px", color: "#94a3b8", display: "flex" }}>
+                {stat.label}
+              </div>
+              <div
+                style={{
+                  fontSize: "40px",
+                  fontWeight: 800,
+                  color: brandColor,
+                  display: "flex",
+                }}
+              >
+                {stat.value}
+              </div>
             </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              padding: "20px 36px",
-              borderRadius: "16px",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              background: "rgba(255, 255, 255, 0.05)",
-            }}
-          >
-            <div style={{ fontSize: "16px", color: "#94a3b8", display: "flex" }}>
-              Repos
-            </div>
-            <div
-              style={{
-                fontSize: "40px",
-                fontWeight: 800,
-                color: brandColor,
-                display: "flex",
-              }}
-            >
-              {repos}
-            </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              padding: "20px 36px",
-              borderRadius: "16px",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              background: "rgba(255, 255, 255, 0.05)",
-            }}
-          >
-            <div style={{ fontSize: "16px", color: "#94a3b8", display: "flex" }}>
-              Growth (12w)
-            </div>
-            <div
-              style={{
-                fontSize: "40px",
-                fontWeight: 800,
-                color: brandColor,
-                display: "flex",
-              }}
-            >
-              {growth}
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ fontSize: "18px", color: "#64748b", display: "flex" }}>
-            codereviewtrends.com
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div
-              style={{
-                width: "28px",
-                height: "28px",
-                display: "flex",
-                background: "linear-gradient(135deg, #a78bfa, #6d28d9)",
-                borderRadius: "5px",
-                transform: "rotate(45deg)",
-                opacity: 0.9,
-              }}
-            />
-            <div
-              style={{
-                fontSize: "18px",
-                fontWeight: 700,
-                display: "flex",
-              }}
-            >
-              <span style={{ color: "#c4b5fd" }}>Code</span>
-              <span style={{ color: "#a78bfa" }}>Review</span>
-              <span style={{ color: "#22d3ee" }}>Trends</span>
-            </div>
-          </div>
-        </div>
+        <OgFooter url={`codereviewtrends.com/bots/${id}`} />
       </div>
     ),
     { ...size },
