@@ -13,7 +13,7 @@ import {
   query,
 } from "../clickhouse.js";
 import { extractReactionCounts } from "../github.js";
-import { Sentry, log, logError, countMetric } from "../sentry.js";
+import { Sentry, log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
@@ -131,6 +131,11 @@ export async function enrichPullRequests(
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
 
+          captureEnrichmentError(err, "pull-requests", {
+            fallback: "rest",
+            batchSize: batch.length,
+            repos: [...new Set(batch.map(b => b.repo_name))],
+          });
           logError(
             `[pull-requests] Batch GraphQL failed, processing individually: ${err instanceof Error ? err.message : err}`,
           );
@@ -195,7 +200,7 @@ export async function enrichPullRequests(
                   forbidden++;
                 }
               } else {
-                Sentry.captureException(innerErr, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "pull-requests", repo: repo_name, pr_number } } });
+                captureEnrichmentError(innerErr, "pull-requests", { repo: repo_name, pr_number });
                 logError(`[pull-requests] REST fallback error: ${repo_name}#${pr_number}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
                 errors++;
               }

@@ -14,7 +14,7 @@ import {
   type PrCommentRow,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
-import { Sentry, log, logError, countMetric } from "../sentry.js";
+import { Sentry, log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 // handleEnterprisePolicyError removed — GraphQL batch handles errors differently
@@ -154,6 +154,11 @@ export async function enrichComments(
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
 
+          captureEnrichmentError(err, "comments", {
+            fallback: "rest",
+            batchSize: batch.length,
+            repos: [...new Set(batch.map(b => b.repo_name))],
+          });
           logError(`[comments] Batch GraphQL failed, processing individually: ${err instanceof Error ? err.message : err}`);
 
           // Fall back to REST for this batch
@@ -223,7 +228,7 @@ export async function enrichComments(
                   forbidden++;
                 }
               } else {
-                Sentry.captureException(innerErr, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "comments", repo: repo_name, pr_number, bot_id } } });
+                captureEnrichmentError(innerErr, "comments", { repo: repo_name, pr_number, bot_id });
                 logError(`[comments] REST fallback error: ${repo_name}#${pr_number}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
                 errors++;
               }

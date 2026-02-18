@@ -85,6 +85,63 @@ Sentry.init({
   },
 });
 
+// ── Error classification for fingerprinting ────────────────────────────
+
+/**
+ * Classify an error into a stable category for Sentry fingerprinting.
+ * Groups transient GitHub/network errors so they don't create duplicate issues.
+ */
+function classifyError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.includes("ECONNRESET")) return "econnreset";
+  if (message.includes("ECONNREFUSED")) return "econnrefused";
+  if (message.includes("ETIMEDOUT") || message.includes("Timeout")) return "timeout";
+  if (message.includes("other side closed")) return "connection-closed";
+  if (message.includes("502") || message.includes("Bad Gateway")) return "github-502";
+  if (message.includes("503") || message.includes("Service Unavailable")) return "github-503";
+  // HTML error pages from GitHub (502/503 proxied through nginx)
+  if (message.includes("<html>") || message.includes("<!DOCTYPE html>") || message.includes("Server Error")) return "github-html-error";
+  return "unknown";
+}
+
+/**
+ * Capture an exception with a stable fingerprint based on error type and phase.
+ * This ensures transient network errors group into one issue per phase instead
+ * of splitting on message/stacktrace differences.
+ */
+export function captureEnrichmentError(
+  err: unknown,
+  phase: string,
+  extra?: {
+    fallback?: string;
+    batchSize?: number;
+    repos?: string[];
+    repo?: string;
+    pr_number?: number;
+    bot_id?: string;
+  },
+): void {
+  const errorClass = classifyError(err);
+  Sentry.captureException(err, {
+    fingerprint: ["enrichment", phase, errorClass],
+    tags: {
+      phase,
+      "error.class": errorClass,
+      ...(extra?.fallback ? { fallback: extra.fallback } : {}),
+    },
+    contexts: {
+      enrichment: {
+        phase,
+        ...(extra?.batchSize != null ? { batch_size: extra.batchSize } : {}),
+        ...(extra?.repos ? { repos: extra.repos.slice(0, 10) } : {}),
+        ...(extra?.repo ? { repo: extra.repo } : {}),
+        ...(extra?.pr_number != null ? { pr_number: extra.pr_number } : {}),
+        ...(extra?.bot_id ? { bot_id: extra.bot_id } : {}),
+      },
+    },
+  });
+}
+
 // ── Timestamped logger ─────────────────────────────────────────────────
 
 /** Timestamped console.log — use instead of raw console.log in pipeline code. */

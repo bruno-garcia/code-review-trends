@@ -84,8 +84,11 @@ async function main() {
   const cronSlug = schedule ? `pipeline-${command}` : undefined;
 
   const run = async () => Sentry.startSpan(
-    { op: "pipeline.command", name: `pipeline ${command}` },
-    async () => handler(),
+    { op: "pipeline.command", name: `pipeline ${command}`, forceTransaction: true },
+    async (span) => {
+      log(`[sentry] Root span started: trace=${span.spanContext().traceId} span=${span.spanContext().spanId}`);
+      await handler();
+    },
   );
 
   if (cronSlug) {
@@ -94,8 +97,8 @@ async function main() {
     await run();
   }
 
-  // Flush all events before the process exits
-  await Sentry.flush(5000);
+  // Flush all events before the process exits (10s to handle large batches of spans/errors)
+  await Sentry.flush(10000);
 }
 
 async function cmdHelp() {

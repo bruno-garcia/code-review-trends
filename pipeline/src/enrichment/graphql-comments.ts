@@ -126,7 +126,11 @@ export async function fetchCommentsBatch(
   try {
     const response = await octokit.request("POST /graphql", { query: queryStr });
     rateLimiter.update(response.headers as Record<string, string>);
-    const data = response.data.data as Record<string, unknown>;
+    const data = response.data.data as Record<string, unknown> | undefined;
+    if (!data) {
+      // GraphQL returned errors-only response (no data field) — treat all as partial errors
+      return inputs.map((input) => ({ input, comments: [], hasMore: false, error: "partial_error" }));
+    }
     return parseResults(byRepo, repoIndex, data);
   } catch (err: unknown) {
     const gqlErr = err as {
