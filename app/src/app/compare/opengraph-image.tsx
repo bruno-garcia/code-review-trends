@@ -8,7 +8,7 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function Image() {
-  let topProducts: { name: string; reviews: string; color: string }[] = [];
+  let topProducts: { name: string; reviews: string; color: string; rawReviews: number }[] = [];
 
   try {
     const summaries = await getProductSummaries();
@@ -19,10 +19,15 @@ export default async function Image() {
         name: s.name,
         reviews: formatNumber(Number(s.total_reviews)),
         color: s.brand_color || "#7c3aed",
+        rawReviews: Number(s.total_reviews),
       }));
   } catch {
     // ClickHouse unavailable
   }
+
+  const maxReviews = topProducts.length > 0
+    ? Math.max(...topProducts.map((p) => p.rawReviews))
+    : 1;
 
   return new ImageResponse(
     (
@@ -100,7 +105,7 @@ export default async function Image() {
               >
                 <div
                   style={{
-                    width: "70%",
+                    width: `${Math.max((p.rawReviews / maxReviews) * 100, 5)}%`,
                     height: "100%",
                     display: "flex",
                     background: `linear-gradient(90deg, ${p.color}cc, ${p.color}66)`,

@@ -19,10 +19,10 @@ export default async function Image() {
       const max = Math.max(...recent.map((t) => t.bot_share_pct), 1);
       const sparkW = 400;
       const sparkH = 120;
-      const step = sparkW / (recent.length - 1);
+      const step = recent.length > 1 ? sparkW / (recent.length - 1) : 0;
       sparkPath = recent
         .map((t, i) => {
-          const x = i * step;
+          const x = recent.length > 1 ? i * step : sparkW / 2;
           const y = sparkH - (t.bot_share_pct / max) * sparkH;
           return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
         })
