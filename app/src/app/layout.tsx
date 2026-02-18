@@ -42,8 +42,8 @@ export default async function RootLayout({
   // will show a waiting screen instead of rendering children.
   const schemaStatus = await getSchemaStatus();
 
-  // Gracefully handle missing ClickHouse during next build (pre-render).
-  // Pages use ISR (revalidate=300) — this gracefully handles cases where ClickHouse is temporarily unavailable.
+  // Gracefully handle missing ClickHouse during build or revalidation.
+  // Pages use ISR (revalidate=300) — this handles ClickHouse being temporarily unavailable.
   let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
   let enrichmentIncomplete = false;
   try {
