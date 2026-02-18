@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   getOrgList,
@@ -8,6 +9,12 @@ import { formatNumber } from "@/lib/format";
 import { OrgFilters } from "./org-filters";
 import { OrgProductSync } from "./org-product-sync";
 
+export const metadata: Metadata = {
+  title: "Organizations Using AI Code Review",
+  description:
+    "Browse thousands of organizations using AI code review on GitHub. Filter by language, product, and sort by stars, repos, or PRs.",
+  alternates: { canonical: "/orgs" },
+};
 
 const PAGE_SIZE = 50;
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   getProductById,
@@ -17,7 +18,44 @@ import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 import { ThemedProductHeader } from "@/components/themed-product-header";
 import { SectionHeading } from "@/components/section-heading";
+import { JsonLd } from "@/components/json-ld";
+import { formatNumber } from "@/lib/format";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const [product, summaries] = await Promise.all([
+    getProductById(id),
+    getProductSummaries(),
+  ]);
+  if (!product) return { title: "Product Not Found" };
+
+  const summary = summaries.find((s) => s.id === id);
+  const reviews = summary ? formatNumber(Number(summary.total_reviews)) : "0";
+  const repos = summary ? formatNumber(Number(summary.total_repos)) : "0";
+  const growth = summary ? Number(summary.growth_pct).toFixed(1) : "0";
+
+  const title = `${product.name} AI Code Review Stats & Trends`;
+  const description = `${product.name} has performed ${reviews} code reviews across ${repos} repos (${Number(growth) >= 0 ? "+" : ""}${growth}% growth). See weekly trends, language breakdown, and comparisons.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/bots/${id}` },
+    openGraph: {
+      title,
+      description,
+      url: `/bots/${id}`,
+    },
+    twitter: {
+      title,
+      description,
+    },
+  };
+}
 
 export default async function ProductPage({
   params,
@@ -79,6 +117,18 @@ export default async function ProductPage({
 
   return (
     <div className="space-y-10">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: product.name,
+          description: product.description,
+          url: product.website,
+          applicationCategory: "DeveloperApplication",
+          operatingSystem: "Web",
+          ...(product.avatar_url ? { image: product.avatar_url } : {}),
+        }}
+      />
       <div>
         <Link
           href="/bots"

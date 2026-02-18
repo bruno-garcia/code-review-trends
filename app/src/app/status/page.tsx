@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import { getDataCollectionStats, type DataCollectionStats } from "@/lib/clickhouse";
 import { DataCollectionPanel } from "@/components/data-collection-stats";
 
+export const metadata: Metadata = {
+  title: "Pipeline Status",
+  description:
+    "Live status of the Code Review Trends data pipelines. BigQuery import progress, GitHub API enrichment status, and data freshness.",
+  alternates: { canonical: "/status" },
+};
 
 export default async function StatusPage() {
   let stats: DataCollectionStats;

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -8,6 +9,29 @@ import {
 import { formatNumber } from "@/lib/format";
 import { SectionHeading } from "@/components/section-heading";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ owner: string }>;
+}): Promise<Metadata> {
+  const { owner } = await params;
+  const summary = await getOrgSummary(owner);
+  if (!summary) return { title: "Organization Not Found" };
+
+  const repos = Number(summary.repo_count);
+  const prs = Number(summary.total_prs);
+  const stars = formatNumber(Number(summary.total_stars));
+
+  const title = `${owner} — AI Code Review Usage on GitHub`;
+  const description = `${owner} uses AI code review across ${repos} ${repos === 1 ? "repo" : "repos"} (${stars} stars${prs > 0 ? `, ${formatNumber(prs)} PRs reviewed` : ""}). See which AI tools review their code.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/orgs/${owner}` },
+    openGraph: { title, description, url: `/orgs/${owner}` },
+  };
+}
 
 export default async function OrgPage({
   params,

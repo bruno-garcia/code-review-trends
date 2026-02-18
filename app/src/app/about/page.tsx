@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getDataCollectionStats } from "@/lib/clickhouse";
 import { SectionHeading } from "@/components/section-heading";
+
+export const metadata: Metadata = {
+  title: "Methodology",
+  description:
+    "How Code Review Trends tracks AI code review adoption on GitHub. Data sources, counting methodology, ranking system, and known limitations.",
+  alternates: { canonical: "/about" },
+};
 
 const linkClass = "text-blue-400 hover:text-blue-300";
 const codeClass =

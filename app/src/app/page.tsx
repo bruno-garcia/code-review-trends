@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   getWeeklyTotals,
   getWeeklyTotalVolume,
@@ -9,8 +10,11 @@ import {
   TopOrgsChart,
 } from "@/components/charts";
 import { SectionHeading } from "@/components/section-heading";
+import { JsonLd } from "@/components/json-ld";
 
-
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function Home() {
   const [totals, totalVolume, topOrgs] = await Promise.all([
@@ -19,8 +23,36 @@ export default async function Home() {
     getTopOrgsByStars(20),
   ]);
 
+  // Compute latest AI share % for structured data
+  const latestWeek = totals.length > 0 ? totals[totals.length - 1] : null;
+  const latestPct = latestWeek ? latestWeek.bot_share_pct : null;
+
   return (
     <div className="space-y-12">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Dataset",
+          name: "AI Code Review Trends on GitHub",
+          description:
+            latestPct != null
+              ? `AI bots perform ${latestPct}% of public GitHub code reviews. Tracking adoption of 22+ AI code review products since January 2023.`
+              : "Tracking the adoption of AI code review bots across public GitHub repositories since January 2023.",
+          url: "https://codereviewtrends.com",
+          temporalCoverage: "2023-01-01/..",
+          license: "https://github.com/bruno-garcia/code-review-trends",
+          creator: {
+            "@type": "Person",
+            name: "Bruno Garcia",
+            url: "https://github.com/bruno-garcia",
+          },
+          distribution: {
+            "@type": "DataDownload",
+            contentUrl: "https://codereviewtrends.com",
+            encodingFormat: "text/html",
+          },
+        }}
+      />
       {/* Hero */}
       <section className="text-center py-8" data-testid="hero">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
