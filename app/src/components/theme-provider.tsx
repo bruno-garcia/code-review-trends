@@ -79,6 +79,41 @@ function subscribeToSystemTheme(callback: () => void) {
   return () => mql.removeEventListener("change", callback);
 }
 
+// --- Sentry Feedback widget theme overrides ---
+// CSS custom properties set on the #sentry-feedback host element pierce the
+// Shadow DOM and override the :host rules inside, binding the widget to the
+// app's theme toggle rather than the OS preference.
+const SENTRY_FEEDBACK_THEME = {
+  dark: {
+    "--foreground": "#ebe6ef",
+    "--background": "#12121a",
+    "--accent-foreground": "white",
+    "--accent-background": "#7c5fcf",
+    "--success-color": "#2da98c",
+    "--error-color": "#f55459",
+    "--border": "1.5px solid rgba(235, 230, 239, 0.15)",
+    "--box-shadow": "0px 4px 24px 0px rgba(43, 34, 51, 0.12)",
+    "--interactive-filter": "brightness(150%)",
+  },
+  light: {
+    "--foreground": "#2b2233",
+    "--background": "#ffffff",
+    "--accent-foreground": "white",
+    "--accent-background": "#6d28d9",
+    "--success-color": "#268d75",
+    "--error-color": "#df3338",
+    "--border": "1.5px solid rgba(41, 35, 47, 0.13)",
+    "--box-shadow": "0px 4px 24px 0px rgba(43, 34, 51, 0.12)",
+    "--interactive-filter": "brightness(95%)",
+  },
+} as const;
+
+function applySentryFeedbackTheme(el: HTMLElement, theme: "light" | "dark") {
+  for (const [prop, value] of Object.entries(SENTRY_FEEDBACK_THEME[theme])) {
+    el.style.setProperty(prop, value);
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Read stored theme from localStorage, reactive via useSyncExternalStore
   const theme = useSyncExternalStore(
@@ -99,6 +134,30 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Apply class to <html> whenever resolved theme changes
   useEffect(() => {
     document.documentElement.classList.toggle("dark", resolved === "dark");
+  }, [resolved]);
+
+  // Sync Sentry Feedback widget theme with the app.
+  // The widget is injected asynchronously by the Sentry SDK, so we use a
+  // MutationObserver to detect when #sentry-feedback appears in the DOM and
+  // apply the theme immediately. On subsequent theme changes the element is
+  // already present and we update it directly.
+  useEffect(() => {
+    const el = document.getElementById("sentry-feedback");
+    if (el) {
+      applySentryFeedbackTheme(el, resolved);
+      return;
+    }
+
+    // Widget not yet in DOM — watch for it.
+    const observer = new MutationObserver(() => {
+      const added = document.getElementById("sentry-feedback");
+      if (added) {
+        applySentryFeedbackTheme(added, resolved);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, [resolved]);
 
   const setTheme = useCallback((next: Theme) => {
