@@ -119,7 +119,13 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `app/src/app/orgs/[owner]/page.tsx` | Individual organization detail page |
 | `app/src/app/compare/page.tsx` | Bot comparison page |
 | `app/src/app/error.tsx` | Error boundary page |
-| `app/src/app/api/revalidate/route.ts` | ISR cache revalidation endpoint |
+| `app/src/app/opengraph-image.tsx` | Homepage OG image (dynamic, queries ClickHouse) |
+| `app/src/app/bots/[id]/opengraph-image.tsx` | Per-product OG image (avatar, stats, brand color) |
+| `app/src/app/compare/opengraph-image.tsx` | Compare page OG image (top products bar chart) |
+| `app/src/app/orgs/opengraph-image.tsx` | Orgs listing OG image (top org avatars) |
+| `app/src/app/sitemap.ts` | Dynamic sitemap (static pages + products + top orgs) |
+| `app/src/app/robots.ts` | robots.txt generation |
+| `app/src/components/json-ld.tsx` | Reusable JSON-LD structured data component |
 | `app/e2e/` | Playwright e2e tests |
 | `db/init/001_schema.sql` | ClickHouse table definitions (all environments) |
 | `db/init/002_bot_data.sql` | Products, bots, bot_logins reference data (all environments) |
@@ -239,6 +245,19 @@ Redeploy with an older git SHA:
 gcloud run deploy crt-staging-app --image=<registry>/app:<old-sha> --region=us-central1
 ```
 
+## OG Images & SEO
+
+OG images are dynamically generated at request time by Next.js using `next/og` (Satori). They query ClickHouse for live data — no static files, no cron jobs, no manual regeneration. When bot descriptions or stats change, OG images automatically reflect current data on the next request.
+
+Key SEO files:
+- **OG images:** `opengraph-image.tsx` in route directories (homepage, bots/[id], compare, orgs)
+- **Sitemap:** `app/src/app/sitemap.ts` — auto-generates from products + top orgs
+- **Robots:** `app/src/app/robots.ts`
+- **Structured data:** `JsonLd` component in `app/src/components/json-ld.tsx`
+- **Per-page metadata:** `generateMetadata` or static `metadata` export on every page
+
+OG image routes are tested in Playwright (`app/e2e/og-images.spec.ts`) — CI verifies they return 200 with valid PNG content.
+
 ## Adding a New Chart / Metric
 
 1. Add the query to `app/src/lib/clickhouse.ts` with proper types.
@@ -265,3 +284,4 @@ gcloud run deploy crt-staging-app --image=<registry>/app:<old-sha> --region=us-c
 - **Docker images** — tagged with git SHA, built from repo root context.
 - **Secrets** — stored in GCP Secret Manager, encrypted in Pulumi config. Never in source.
 - **Job schedules** — defined in `pipeline/schedules.json`, the single source of truth.
+- **No empty catch blocks.** Exceptions must either bubble up or be captured with `Sentry.captureException(err)`. When catching, add context relevant to the error using Sentry scopes — tags (e.g., `route`, `productId`) and `contexts` (e.g., the query that failed). A catch block with just a comment like `// ignore` is never acceptable.

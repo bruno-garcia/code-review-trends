@@ -18,9 +18,13 @@ import "./globals.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Code Review Trends — AI Code Review Adoption on GitHub",
+  metadataBase: new URL("https://codereviewtrends.com"),
+  title: {
+    default: "Code Review Trends — AI Code Review Adoption on GitHub",
+    template: "%s — Code Review Trends",
+  },
   description:
-    "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles.",
+    "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles for AI code review products.",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -28,6 +32,17 @@ export const metadata: Metadata = {
       { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
     ],
     apple: "/apple-icon.png",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Code Review Trends",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  alternates: {
+    canonical: "/",
   },
 };
 
