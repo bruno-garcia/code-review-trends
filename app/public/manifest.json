@@ -1,0 +1,21 @@
+{
+  "name": "Code Review Trends",
+  "short_name": "CRT",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#7c3aed",
+  "background_color": "#0a0a0f",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/"
+}

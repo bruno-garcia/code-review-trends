@@ -21,6 +21,14 @@ export const metadata: Metadata = {
   title: "Code Review Trends — AI Code Review Adoption on GitHub",
   description:
     "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export default async function RootLayout({
