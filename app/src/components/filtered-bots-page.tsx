@@ -25,6 +25,7 @@ type LeaderboardSortKey =
   | "growth_pct";
 
 const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: string }[] = [
+  { key: "growth_pct", label: "Growth", title: "Sort by review growth rate" },
   { key: "total_reviews", label: "Reviews", title: "Sort by total PR reviews submitted" },
   { key: "total_comments", label: "Review Comments", title: "Sort by total review comments posted" },
   { key: "total_pr_comments", label: "PR Comments", title: "Sort by total PR comments" },
@@ -32,7 +33,6 @@ const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: stri
   { key: "total_orgs", label: "Orgs", title: "Sort by max organizations active in a single week" },
   { key: "avg_comments_per_review", label: "Avg C/R", title: "Sort by average comments per review" },
   { key: "approval_rate", label: "Approval", title: "Sort by approval rate" },
-  { key: "growth_pct", label: "Growth", title: "Sort by review growth rate" },
 ];
 
 export function FilteredBotsPage({
@@ -50,7 +50,7 @@ export function FilteredBotsPage({
   );
 
   // Leaderboard sort state
-  const [sortKey, setSortKey] = useState<LeaderboardSortKey>("total_reviews");
+  const [sortKey, setSortKey] = useState<LeaderboardSortKey>("growth_pct");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   function handleSort(key: LeaderboardSortKey) {
@@ -196,6 +196,18 @@ export function FilteredBotsPage({
                     </Link>
                   </td>
                   <td className="py-3 pr-4 text-right tabular-nums">
+                    <span
+                      className={
+                        Number(product.growth_pct) >= 0
+                          ? "text-emerald-400"
+                          : "text-red-400"
+                      }
+                    >
+                      {Number(product.growth_pct) >= 0 ? "+" : ""}
+                      {Number(product.growth_pct).toFixed(1)}%
+                    </span>
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums">
                     {Number(product.total_reviews).toLocaleString()}
                   </td>
                   <td className="py-3 pr-4 text-right tabular-nums">
@@ -215,18 +227,6 @@ export function FilteredBotsPage({
                   </td>
                   <td className="py-3 pr-4 text-right tabular-nums">
                     {Number(product.approval_rate).toFixed(0)}%
-                  </td>
-                  <td className="py-3 text-right tabular-nums">
-                    <span
-                      className={
-                        Number(product.growth_pct) >= 0
-                          ? "text-emerald-400"
-                          : "text-red-400"
-                      }
-                    >
-                      {Number(product.growth_pct) >= 0 ? "+" : ""}
-                      {Number(product.growth_pct).toFixed(1)}%
-                    </span>
                   </td>
                 </tr>
               ))}

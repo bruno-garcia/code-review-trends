@@ -67,11 +67,10 @@ export default async function ProductPage({
   const commentsPerRepo = Number(summary?.comments_per_repo ?? 0);
   const growthPct = Number(summary?.growth_pct ?? 0);
 
-  // Rank among all products
-  const reviewRank =
-    [...allSummaries]
-      .sort((a, b) => Number(b.total_reviews) - Number(a.total_reviews))
-      .findIndex((s) => s.id === id) + 1;
+  // Rank among all products (by growth rate — see /about#rankings).
+  // allSummaries is already sorted by growth_pct DESC, total_reviews DESC
+  // from getProductSummaries, so we can use the index directly.
+  const growthRank = allSummaries.findIndex((s) => s.id === id) + 1;
 
   // Collect unique GitHub logins from bots
   const githubLogins = [
@@ -127,7 +126,7 @@ export default async function ProductPage({
             </span>
           )}
           <span className="text-sm text-theme-muted/70">
-            Rank: <span className="text-theme-text font-medium">#{reviewRank}</span>{" "}
+            Rank: <span className="text-theme-text font-medium">#{growthRank}</span>{" "}
             of {allSummaries.length}
           </span>
         </div>
