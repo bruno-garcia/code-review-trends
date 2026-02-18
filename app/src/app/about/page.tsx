@@ -114,7 +114,9 @@ export default async function AboutPage() {
             <p className="mt-2 text-theme-text-secondary leading-relaxed">
               To avoid double-counting, a reaction review is only counted if
               the bot has no other activity on that PR (no review event, no
-              comments). This captures bots like Sentry that add 🎉 when they
+              comments). This captures bots like{" "}
+              <Link href="/bots/sentry" className={linkClass}>Sentry</Link>{" "}
+              that add 🎉 when they
               review a PR and find no issues — a deliberate low-noise approach
               that avoids leaving a formal review or comment.
             </p>
