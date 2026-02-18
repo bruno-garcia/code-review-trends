@@ -26,12 +26,11 @@ import * as Sentry from "@sentry/nextjs";
 export const EXPECTED_SCHEMA_VERSION = 4;
 
 export type SchemaStatus = {
-  status: "ok" | "app_behind" | "db_behind" | "migrating" | "error";
+  /** "ok" | "app_behind" | "migrating" — connection failures and DDL errors throw instead. */
+  status: "ok" | "app_behind" | "migrating";
   dbVersion: number;
   expectedVersion: number;
   error?: string;
-  /** Sentry event ID for error/db_behind statuses — link to this for details. */
-  sentryEventId?: string;
 };
 
 type Migration = {
@@ -469,24 +468,12 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
       return status;
     }
 
-    // DB is behind — try to auto-migrate
-    let result: { applied: number; error?: string };
-    try {
-      result = await runMigrations(client);
-    } catch (migrationErr) {
-      // DDL failure — migration SQL threw (e.g., permission denied, syntax error)
-      console.error("[schema-migration] Migration DDL failed:", migrationErr);
-      const eventId = Sentry.captureException(migrationErr, {
-        tags: { component: "schema-migration", reason: "ddl_failure" },
-        extra: { dbVersion, expectedVersion: EXPECTED_SCHEMA_VERSION },
-      });
-      return {
-        status: "db_behind",
-        dbVersion,
-        expectedVersion: EXPECTED_SCHEMA_VERSION,
-        sentryEventId: eventId,
-      };
-    }
+    // DB is behind — try to auto-migrate.
+    // DDL failures (permission denied, syntax error) throw — the layout's
+    // global-error.tsx handles them. Do NOT catch-and-return here: that
+    // produces an HTTP 200 that ISR caches, turning a transient failure
+    // into a long-lived outage (see Principle #1 in AGENTS.md).
+    const result = await runMigrations(client);
 
     if (result.error) {
       // Lock contention — re-check if someone else finished
@@ -518,18 +505,11 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     _cachedAt = Date.now();
     return status;
   } catch (err) {
-    // ClickHouse unreachable or misconfigured (e.g., empty URL during build)
-    console.error("[schema-migration] Failed:", err);
-    const eventId = Sentry.captureException(err, {
-      tags: { component: "schema-migration", reason: "connection_failure" },
-      extra: { expectedVersion: EXPECTED_SCHEMA_VERSION },
-    });
-    return {
-      status: "error",
-      dbVersion: 0,
-      expectedVersion: EXPECTED_SCHEMA_VERSION,
-      sentryEventId: eventId,
-    };
+    // ClickHouse unreachable or misconfigured — let it throw.
+    // global-error.tsx renders a retry button and captures to Sentry.
+    // Do NOT return a status object here: that produces an HTTP 200 that
+    // ISR caches, turning a transient hiccup into a long-lived outage.
+    throw err;
   }
 }
 

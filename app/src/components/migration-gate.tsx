@@ -16,10 +16,9 @@ export function MigrationGate({
   status: SchemaStatus;
   children: React.ReactNode;
 }) {
-  const needsGate =
-    status.status === "migrating" ||
-    status.status === "db_behind" ||
-    status.status === "error";
+  // "error" and "db_behind" now throw from getSchemaStatus() (→ global-error.tsx),
+  // so only "migrating" (lock contention during deploy) needs the spinner gate.
+  const needsGate = status.status === "migrating";
 
   return needsGate ? <MigrationScreen status={status} /> : <>{children}</>;
 }
@@ -35,9 +34,6 @@ function MigrationScreen({ status }: { status: SchemaStatus }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const isError = status.status === "error";
-  const isMigrating = status.status === "migrating";
-
   return (
     <div
       className="flex items-center justify-center min-h-[60vh]"
@@ -51,18 +47,10 @@ function MigrationScreen({ status }: { status: SchemaStatus }) {
         </div>
 
         <h2 className="text-xl font-semibold text-theme-text mb-2">
-          {isError
-            ? "Connecting to database…"
-            : isMigrating
-              ? "Updating database…"
-              : "Preparing database…"}
+          Updating database…
         </h2>
         <p className="text-theme-muted text-sm leading-relaxed">
-          {isError
-            ? "Waiting for the database to become available. This page will refresh automatically."
-            : isMigrating
-              ? `Migrating schema from v${status.dbVersion} to v${status.expectedVersion}. This usually takes a few seconds.`
-              : `Running schema migration to v${status.expectedVersion}. This usually takes a few seconds.`}
+          Migrating schema from v{status.dbVersion} to v{status.expectedVersion}. This usually takes a few seconds.
         </p>
         <span className="sr-only">Loading, please wait.</span>
       </div>

@@ -1332,8 +1332,13 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
       lastImport = stateRows[0].last_run;
     }
-  } catch {
-    // pipeline_state table may not exist
+  } catch (err) {
+    // pipeline_state table may not exist on fresh installs — that's expected.
+    // Capture anyway so genuine failures (auth, network) aren't silent.
+    Sentry.captureException(err, {
+      level: "warning",
+      tags: { query: "getDataCollectionStats", section: "pipeline_state" },
+    });
   }
 
   const base = countRows[0];
@@ -1384,7 +1389,10 @@ export async function getPrCommentSyncPct(): Promise<number | null> {
       "prCommentSyncPct",
       (Number(row.weeks_with_pr_comments) / totalWeeks) * 100,
     );
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { query: "getPrCommentSyncPct" },
+    });
     return null;
   }
 }

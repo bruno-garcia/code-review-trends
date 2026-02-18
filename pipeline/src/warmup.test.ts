@@ -232,6 +232,18 @@ describe("fetchPage", () => {
     assert.equal(result.attempts, 1); // no retry for content errors
   });
 
+  it("detects status page database error in 200 response", async () => {
+    const errorBody = '<html><div data-testid="status-error">Timeout error.</div></html>';
+    const result = await fetchPage(
+      "https://example.com", "/status", 5000, 2,
+      async () => mockResponse(200, errorBody), quiet,
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 200);
+    assert.equal(result.error, "Page contains database error — status page query failed");
+    assert.equal(result.attempts, 1); // no retry for content errors
+  });
+
   it("passes content check for normal 200 response", async () => {
     const result = await fetchPage(
       "https://example.com", "/", 5000, 0,

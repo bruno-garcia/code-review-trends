@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { getDataCollectionStats } from "@/lib/clickhouse";
 import { SectionHeading } from "@/components/section-heading";
 
@@ -22,8 +23,10 @@ export default async function AboutPage() {
     if (stats.reactions_total > 0) {
       enrichmentPct = (stats.reactions_scanned / stats.reactions_total) * 100;
     }
-  } catch {
-    // ClickHouse may be unreachable — leave enrichmentPct null
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { route: "about", section: "enrichment-pct" },
+    });
   }
 
   return (

@@ -125,6 +125,20 @@ export async function fetchPage(
           };
         }
 
+        // Check for status page database error — indicates ClickHouse query
+        // timeout or connectivity issue. If cached by ISR, the error persists
+        // until revalidation succeeds, so catch it early during deploy.
+        if (body.includes('data-testid="status-error"')) {
+          return {
+            page,
+            status: res.status,
+            duration_ms: totalDuration,
+            ok: false,
+            error: "Page contains database error — status page query failed",
+            attempts: attempt,
+          };
+        }
+
         return {
           page,
           status: res.status,
