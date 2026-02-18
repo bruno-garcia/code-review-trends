@@ -400,20 +400,11 @@ async function runMigrations(
     let applied = 0;
     for (const migration of pending) {
       for (const sql of migration.statements) {
-        try {
-          await client.command({ query: sql });
-        } catch (err) {
-          // Log the failed SQL statement for debugging
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          console.error(
-            `[schema-migration] Migration DDL failed:`,
-            err
-          );
-          return {
-            applied,
-            error: `Migration ${migration.version} (${migration.name}) failed: ${errorMsg}`,
-          };
-        }
+        // Let DDL errors throw — the `finally` block releases the lock,
+        // and the caller (getSchemaStatus) re-throws to produce a 500.
+        // Catching here and returning an error string would produce a cached
+        // HTTP 200 "migrating" status (see Principle #1 in AGENTS.md).
+        await client.command({ query: sql });
       }
       // Record this migration
       await client.insert({
