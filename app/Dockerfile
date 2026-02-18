@@ -19,9 +19,10 @@ ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV NEXT_PUBLIC_COMMIT_SHA=$NEXT_PUBLIC_COMMIT_SHA
 ENV SENTRY_DSN_CRT_FRONTEND=$SENTRY_DSN_CRT_FRONTEND
 ENV NEXT_TELEMETRY_DISABLED=1
-# Pages are fully dynamic (no static generation), but Next.js build
-# still type-checks server components that import the ClickHouse client.
-# Provide a dummy URL so the build doesn't fail on missing env vars.
+# Pages use ISR (revalidate=300). During build, the query() helper detects
+# NEXT_PHASE=phase-production-build and returns empty arrays, so pre-renders
+# succeed without ClickHouse. Real data is fetched on first request.
+# Provide a dummy URL so the ClickHouse client constructor doesn't fail.
 ENV CLICKHOUSE_URL=""
 RUN npm run build --workspace=app
 
