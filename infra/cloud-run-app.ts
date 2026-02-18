@@ -105,7 +105,7 @@ export function createCloudRunApp(
               // Frontend Sentry DSN — public, visible in the client bundle.
               // Stored in Secret Manager for consistency but not truly secret.
               {
-                name: "NEXT_PUBLIC_SENTRY_DSN",
+                name: "SENTRY_DSN_CRT_FRONTEND",
                 valueSource: {
                   secretKeyRef: {
                     secret: secrets.sentryDsnAppFrontendSecret.secretId,
@@ -125,7 +125,7 @@ export function createCloudRunApp(
               },
               // Backend Sentry DSN — private, server-side only.
               {
-                name: "SENTRY_DSN",
+                name: "SENTRY_DSN_CRT_BACKEND",
                 valueSource: {
                   secretKeyRef: {
                     secret: secrets.sentryDsnAppBackendSecret.secretId,

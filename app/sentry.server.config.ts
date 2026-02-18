@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   // Backend DSN — private, injected at runtime via Secret Manager.
   // Separate from the frontend DSN so it can be rotated independently.
-  dsn: process.env.SENTRY_DSN,
+  dsn: process.env.SENTRY_DSN_CRT_BACKEND,
 
   // Performance — sample 100% of traces
   tracesSampleRate: 1.0,

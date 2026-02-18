@@ -2,10 +2,11 @@ import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
   // Frontend DSN — baked into the client bundle at build time.
-  // Set via NEXT_PUBLIC_SENTRY_DSN build arg (see Dockerfile / CI).
+  // Set via SENTRY_DSN_CRT_FRONTEND build arg (see Dockerfile / CI).
+  // Exposed to client code via next.config.ts `env` key.
   // Intentionally separate from the server-side DSN so the backend
   // DSN can be rotated independently if the public one is abused.
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  dsn: process.env.SENTRY_DSN_CRT_FRONTEND,
 
   tracesSampleRate: 1.0,
   replaysOnErrorSampleRate: 1.0,

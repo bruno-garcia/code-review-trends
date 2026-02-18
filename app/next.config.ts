@@ -31,9 +31,12 @@ const nextConfig: NextConfig = {
   // Only set it for non-Vercel builds (local dev, self-hosted).
   ...(process.env.VERCEL ? {} : { deploymentId: commitSha }),
 
-  // Expose the SHA to client components for the version stamp
+  // Expose build-time values to client components.
+  // NEXT_PUBLIC_* vars are auto-exposed by Next.js, but we use custom names
+  // (SENTRY_DSN_CRT_*) to avoid the NEXT_PUBLIC_ convention for clarity.
   env: {
     NEXT_PUBLIC_COMMIT_SHA: commitSha,
+    SENTRY_DSN_CRT_FRONTEND: process.env.SENTRY_DSN_CRT_FRONTEND ?? "",
   },
 };
 
