@@ -322,9 +322,8 @@ export default async function AboutPage() {
         </p>
         <p className="text-theme-muted text-sm italic">
           The default &ldquo;Top 10&rdquo; product selection in the filter bar
-          uses recent activity (reviews in the last 4 weeks) rather than growth,
-          since it serves a different purpose: showing the most actively used
-          products right now.
+          also uses growth rate, so newly emerging tools appear by default
+          alongside established ones.
         </p>
       </section>
 
