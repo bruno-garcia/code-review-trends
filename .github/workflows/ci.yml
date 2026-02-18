@@ -140,6 +140,9 @@ jobs:
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [lint-and-build, e2e]
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
     permissions:
       id-token: write
       contents: read
