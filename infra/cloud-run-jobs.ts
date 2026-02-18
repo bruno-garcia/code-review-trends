@@ -35,6 +35,8 @@ const schedules = JSON.parse(fs.readFileSync(schedulesPath, "utf-8")) as Record<
   { cron: string; description: string; maxRuntime: number }
 >;
 
+// Job definitions — args are passed to the pipeline CLI container.
+// --env is appended automatically from the Pulumi environment config.
 const jobs = [
   { name: "sync", args: ["sync"], timeout: "1800s" },
   { name: "backfill", args: ["backfill"], timeout: "7200s" },
@@ -106,6 +108,8 @@ export function createCloudRunJobs(
     const jobName = `${prefix}-${job.name}`;
     const extraEnvs = job.name === "enrich" ? [githubTokenEnv] : [];
     const image = currentJobImage(jobName);
+    // Append --env so every pipeline invocation knows its environment
+    const jobArgs = [...job.args, "--env", cfg.environment];
 
     const crJob = new gcp.cloudrunv2.Job(
       jobName,
@@ -135,7 +139,7 @@ export function createCloudRunJobs(
             containers: [
               {
                 image, // CI updates via gcloud; we preserve the current image on pulumi up
-                args: job.args,
+                args: jobArgs,
                 resources: {
                   limits: { memory: "512Mi", cpu: "1" },
                 },

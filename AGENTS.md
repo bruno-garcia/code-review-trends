@@ -51,10 +51,10 @@ npm run inspect -- --query "SELECT ..."  # arbitrary query
 npm run validate
 
 # Pipeline CLI
-npm run pipeline -- sync-bots            # push bot definitions to ClickHouse
-npm run pipeline -- fetch-bigquery       # pull data from GH Archive (needs GCP)
-npm run pipeline -- fetch-bigquery --dry-run  # preview without running
-npm run pipeline -- help                 # show all commands
+npm run pipeline -- sync-bots --env development      # push bot definitions to ClickHouse
+npm run pipeline -- fetch-bigquery --env development  # pull data from GH Archive (needs GCP)
+npm run pipeline -- fetch-bigquery --env development --dry-run  # preview without running
+npm run pipeline -- help                              # show all commands (no --env needed)
 ```
 
 ### Pipeline smoke tests
@@ -190,26 +190,29 @@ export CLICKHOUSE_URL=https://...
 export CLICKHOUSE_PASSWORD=...
 export GITHUB_TOKEN=...   # GitHub PAT for enrichment
 
+# All commands require --env (development | staging | production).
+# This identifies where the code runs, not which DB it connects to.
+
 # 1. Backfill: BigQuery → review_activity + human_review_activity
 #    Aggregates weekly bot/human review counts from GH Archive.
-npm run pipeline -- backfill              # resume from last checkpoint
-npm run pipeline -- backfill --no-resume  # re-fetch everything
-npm run pipeline -- backfill --all        # full history from 2023-01-01
+npm run pipeline -- backfill --env staging              # resume from last checkpoint
+npm run pipeline -- backfill --env staging --no-resume  # re-fetch everything
+npm run pipeline -- backfill --env staging --all        # full history from 2023-01-01
 
 # 2. Discover: BigQuery → pr_bot_events
 #    Finds individual PR-level bot events (which bot touched which PR).
-npm run pipeline -- discover              # last 3 months (default)
-npm run pipeline -- discover --all        # full history from 2023-01-01
+npm run pipeline -- discover --env staging              # last 3 months (default)
+npm run pipeline -- discover --env staging --all        # full history from 2023-01-01
 
 # 3. Enrich: GitHub API → repos, pull_requests, pr_comments
 #    Fetches metadata for repos/PRs/comments found by discover.
 #    Processes repos first, then PRs (need repos), then comments (need PRs).
-npm run pipeline -- enrich --limit 4500   # fetch up to 4500 items per stage
-npm run pipeline -- enrich-status         # show enrichment progress
+npm run pipeline -- enrich --env staging --limit 4500   # fetch up to 4500 items per stage
+npm run pipeline -- enrich-status --env staging         # show enrichment progress
 
 # Parallel enrichment with multiple GitHub tokens (doubles throughput):
-GITHUB_TOKEN=$TOKEN_A npm run pipeline -- enrich --limit 4500 --worker-id 0 --total-workers 2 &
-GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --limit 4500 --worker-id 1 --total-workers 2 &
+GITHUB_TOKEN=$TOKEN_A npm run pipeline -- enrich --env staging --limit 4500 --worker-id 0 --total-workers 2 &
+GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --env staging --limit 4500 --worker-id 1 --total-workers 2 &
 ```
 
 **How reentrance works:** Each stage queries ClickHouse for what's NOT yet done (e.g., repos in `pr_bot_events` but not in `repos` table). Workers partition work by hash modulo, so parallel workers don't overlap. `ReplacingMergeTree` deduplicates any accidental re-inserts.
