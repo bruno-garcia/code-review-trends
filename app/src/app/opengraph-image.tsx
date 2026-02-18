@@ -62,12 +62,12 @@ export default async function Image() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "16px",
+            gap: "20px",
             marginBottom: "24px",
           }}
         >
-          <OgLogo size={48} />
-          <OgWordmark fontSize={28} />
+          <OgLogo size={96} />
+          <OgWordmark fontSize={48} />
         </div>
 
         {/* Main stat */}

@@ -7,6 +7,9 @@
  * - Use inline styles only
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 /** Standard OG image dimensions. */
 export const OG_SIZE = { width: 1200, height: 630 };
 
@@ -15,55 +18,50 @@ export const OG_BG =
   "linear-gradient(135deg, #0a0a1a 0%, #1a1040 50%, #0a0a1a 100%)";
 
 /**
- * Site logo SVG for OG images — simplified version of the favicon logo.
- * Uses no gradient IDs or CSS variables (Satori-safe).
+ * Site logo as a base64 data URL — the actual 400x400 PNG from branding.
+ * Read once at module load time (server-side only, not shipped to clients).
+ *
+ * Tries multiple paths because Next.js standalone output in a monorepo
+ * places public/ under a different path than during development.
  */
-export function OgLogo({ size = 28 }: { size?: number }) {
+const logoBase64 = (() => {
+  const candidates = [
+    join(process.cwd(), "public/branding/logo-400x400.png"),
+    join(process.cwd(), "app/public/branding/logo-400x400.png"),
+  ];
+  for (const path of candidates) {
+    try {
+      const buf = readFileSync(path);
+      return `data:image/png;base64,${buf.toString("base64")}`;
+    } catch {
+      // Try next candidate
+    }
+  }
+  return "";
+})();
+
+/**
+ * Site logo for OG images — uses the actual branding PNG.
+ * Falls back to a simple purple diamond if the file isn't available.
+ */
+export function OgLogo({ size = 48 }: { size?: number }) {
+  if (logoBase64) {
+    // eslint-disable-next-line jsx-a11y/alt-text -- OG image, no alt needed
+    return <img src={logoBase64} width={size} height={size} />;
+  }
+  // Fallback: simple diamond shape
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 52 52"
-      fill="none"
-    >
-      <rect
-        x="26"
-        y="2"
-        width="33.94"
-        height="33.94"
-        rx="7"
-        transform="rotate(45 26 2)"
-        fill="#7c3aed"
-        opacity="0.25"
-      />
-      <line
-        x1="22"
-        y1="14"
-        x2="22"
-        y2="40"
-        stroke="#a78bfa"
-        strokeWidth="4.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M22 20 C23 20, 25 18, 29 15"
-        stroke="#a78bfa"
-        strokeWidth="4.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <circle cx="22" cy="14" r="5" fill="#c4b5fd" />
-      <circle cx="22" cy="40" r="5" fill="#7c3aed" />
-      <circle cx="30" cy="14" r="4.5" fill="#a78bfa" />
-      <polyline
-        points="31,36 36,29 44,23"
-        stroke="#22d3ee"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
+    <div
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        display: "flex",
+        background: "linear-gradient(135deg, #a78bfa, #6d28d9)",
+        borderRadius: `${Math.round(size / 6)}px`,
+        transform: "rotate(45deg)",
+        opacity: 0.9,
+      }}
+    />
   );
 }
 
@@ -92,8 +90,8 @@ export function OgFooter({ url = "codereviewtrends.com" }: { url?: string }) {
         {url}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <OgLogo size={28} />
-        <OgWordmark />
+        <OgLogo size={48} />
+        <OgWordmark fontSize={28} />
       </div>
     </div>
   );
@@ -150,12 +148,12 @@ export function OgFallback({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "16px",
+          gap: "20px",
           marginBottom: "24px",
         }}
       >
-        <OgLogo size={48} />
-        <OgWordmark fontSize={28} />
+        <OgLogo size={96} />
+        <OgWordmark fontSize={48} />
       </div>
 
       {/* Title */}
