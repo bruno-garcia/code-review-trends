@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import * as Sentry from "@sentry/nextjs";
 import { getTopOrgsByStars } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
 
@@ -16,8 +17,8 @@ export default async function Image() {
       owner: o.owner,
       stars: formatNumber(Number(o.total_stars)),
     }));
-  } catch {
-    // ClickHouse unavailable
+  } catch (err) {
+    Sentry.captureException(err, { tags: { route: "orgs/opengraph-image" } });
   }
 
   return new ImageResponse(

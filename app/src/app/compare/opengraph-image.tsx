@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import * as Sentry from "@sentry/nextjs";
 import { getProductSummaries } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
 
@@ -21,8 +22,8 @@ export default async function Image() {
         color: s.brand_color || "#7c3aed",
         rawReviews: Number(s.total_reviews),
       }));
-  } catch {
-    // ClickHouse unavailable
+  } catch (err) {
+    Sentry.captureException(err, { tags: { route: "compare/opengraph-image" } });
   }
 
   const maxReviews = topProducts.length > 0

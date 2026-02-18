@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import * as Sentry from "@sentry/nextjs";
 import { getProductSummaries, getOrgList } from "@/lib/clickhouse";
 
 const BASE_URL = "https://codereviewtrends.com";
@@ -26,8 +27,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
       });
     }
-  } catch {
-    // ClickHouse unavailable — skip dynamic entries
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { route: "sitemap", section: "products" },
+    });
   }
 
   // Top organization pages (limit to top 500 by stars to keep sitemap reasonable)
@@ -40,8 +43,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.5,
       });
     }
-  } catch {
-    // ClickHouse unavailable — skip dynamic entries
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { route: "sitemap", section: "orgs" },
+    });
   }
 
   return entries;

@@ -247,9 +247,7 @@ gcloud run deploy crt-staging-app --image=<registry>/app:<old-sha> --region=us-c
 
 ## OG Images & SEO
 
-OG images are **dynamically generated** at request time by Next.js using `next/og` (Satori). They query ClickHouse for live data — no static files, no cron jobs, no manual regeneration. When bot descriptions or stats change, OG images automatically reflect current data on the next request.
-
-Use the **`og-images` skill** when creating or modifying OG images. It documents Satori's rendering quirks (every `<div>` needs `display: flex`), the project's visual conventions, and testing patterns.
+OG images are dynamically generated at request time by Next.js using `next/og` (Satori). They query ClickHouse for live data — no static files, no cron jobs, no manual regeneration. When bot descriptions or stats change, OG images automatically reflect current data on the next request.
 
 Key SEO files:
 - **OG images:** `opengraph-image.tsx` in route directories (homepage, bots/[id], compare, orgs)
@@ -286,3 +284,4 @@ OG image routes are tested in Playwright (`app/e2e/og-images.spec.ts`) — CI ve
 - **Docker images** — tagged with git SHA, built from repo root context.
 - **Secrets** — stored in GCP Secret Manager, encrypted in Pulumi config. Never in source.
 - **Job schedules** — defined in `pipeline/schedules.json`, the single source of truth.
+- **No empty catch blocks.** Exceptions must either bubble up or be captured with `Sentry.captureException(err)`. When catching, add context relevant to the error using Sentry scopes — tags (e.g., `route`, `productId`) and `contexts` (e.g., the query that failed). A catch block with just a comment like `// ignore` is never acceptable.

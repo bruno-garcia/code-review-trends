@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import * as Sentry from "@sentry/nextjs";
 import { getWeeklyTotals } from "@/lib/clickhouse";
 
 export const runtime = "nodejs";
@@ -28,8 +29,8 @@ export default async function Image() {
         })
         .join(" ");
     }
-  } catch {
-    // ClickHouse unavailable — render without data
+  } catch (err) {
+    Sentry.captureException(err, { tags: { route: "opengraph-image" } });
   }
 
   const headline = latestPct

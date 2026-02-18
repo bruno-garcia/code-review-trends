@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import * as Sentry from "@sentry/nextjs";
 import { getProductById, getProductSummaries } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
 
@@ -40,8 +41,10 @@ export default async function Image({
       const g = Number(summary.growth_pct);
       growth = `${g >= 0 ? "+" : ""}${g.toFixed(1)}%`;
     }
-  } catch {
-    // ClickHouse unavailable
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { route: "bots/[id]/opengraph-image", productId: id },
+    });
   }
 
   return new ImageResponse(
