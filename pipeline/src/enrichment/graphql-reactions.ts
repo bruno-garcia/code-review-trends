@@ -166,7 +166,10 @@ export async function fetchReactionsBatch(
   try {
     const response = await octokit.request("POST /graphql", { query: queryStr });
     rateLimiter.update(response.headers as Record<string, string>);
-    const data = response.data.data as Record<string, unknown>;
+    const data = response.data.data as Record<string, unknown> | undefined;
+    if (!data) {
+      throw new Error("GraphQL response contained no data field");
+    }
 
     return buildResults(byRepo, repoIndex, data);
   } catch (err: unknown) {
