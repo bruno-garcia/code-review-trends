@@ -28,8 +28,20 @@ export default async function AboutPage() {
         <p className="text-theme-text-secondary leading-relaxed">
           <a href="https://www.gharchive.org/" target="_blank" rel="noopener noreferrer" className={linkClass}>GH Archive</a> stores
           all public GitHub events in BigQuery. We query these daily tables to
-          count how AI code review bots interact with pull requests. Additional
-          metadata (stars, languages, reactions) comes from the GitHub REST API.
+          count how AI code review bots interact with pull requests. The{" "}
+          <a href="#ai-share" className={linkClass}>AI Share</a> percentage and
+          all trend charts are computed entirely from this BigQuery data —
+          no GitHub API calls are involved, so these numbers reflect the
+          complete public event stream with no sampling or enrichment gaps.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Additional metadata — repository stars, primary languages, comment
+          reactions (👍/👎), and emoji-based review signals (🎉) — comes from
+          the GitHub REST API via a separate{" "}
+          <Link href="/status" className={linkClass}>enrichment pipeline</Link>.
+          This data powers per-product detail pages, language breakdowns, and
+          approval rates, but does <em>not</em> feed into the AI Share
+          calculation.
         </p>
         <p className="text-theme-muted text-sm italic">
           Note: Only public repositories are included. Activity on private repos
@@ -171,6 +183,18 @@ export default async function AboutPage() {
             ) are excluded from both the AI count and the human count, so they
             don&apos;t inflate either side.
           </p>
+          <p className="text-theme-text-secondary leading-relaxed">
+            Some tracked bots use regular user accounts without the{" "}
+            <code className={codeClass}>[bot]</code> suffix — for example,{" "}
+            <Link href="/bots/copilot" className={linkClass}>GitHub Copilot</Link>{" "}
+            operates as both{" "}
+            <code className={codeClass}>copilot-pull-request-reviewer[bot]</code>{" "}
+            and the regular account{" "}
+            <code className={codeClass}>Copilot</code>. These non-bot accounts
+            are explicitly excluded from the human count in the BigQuery
+            query, so they correctly count as AI activity rather than inflating
+            the human side.
+          </p>
         </div>
 
         <p className="text-theme-text-secondary leading-relaxed">
@@ -182,9 +206,25 @@ export default async function AboutPage() {
           combined. PR Comments (IssueCommentEvent) are tracked in aggregate
           counts but not shown in time-series charts due to incomplete
           historical data. The same counting logic applies to both the bot and
-          non-bot sides, so the ratio is apples-to-apples. Note that we count{" "}
-          <em>events</em>, not unique pull requests — if a bot comments twice on
-          the same PR, that&apos;s two events.
+          non-bot sides, so the ratio is apples-to-apples.
+        </p>
+
+        <p className="text-theme-text-secondary leading-relaxed">
+          <strong className="text-theme-text">Events, not unique PRs</strong>:{" "}
+          We count <em>events</em>, not unique pull requests — if a bot comments
+          twice on the same PR (e.g., once when the PR is opened and again on a
+          new commit push), that&apos;s two events. This means both sides of the
+          ratio scale with activity intensity, not just reach. A bot that runs
+          on every commit to a PR generates more events than one that runs once,
+          and similarly, a human reviewer who leaves multiple rounds of feedback
+          generates more events than one who reviews once. Because the same
+          counting applies to both the AI and human sides, the AI Share
+          percentage remains a fair comparison — it measures share of review{" "}
+          <em>activity</em>, not share of PRs reviewed. We don&apos;t currently
+          have a &ldquo;per run&rdquo; metric (where a run is a single
+          invocation of a bot, whether triggered by a PR opening, a new commit,
+          or an @mention) because GH Archive doesn&apos;t provide enough signal
+          to reliably group events into runs.
         </p>
 
         <p className="text-theme-muted text-sm italic">
@@ -205,22 +245,27 @@ export default async function AboutPage() {
         </p>
         <ul className="list-disc space-y-2 pl-6 text-theme-text-secondary">
           <li>
-            Some bots (like GitHub Copilot) use the formal review API almost
-            exclusively — they show up strongly in Reviews and Review Comments
-            but produce few or no PR Comments.
+            Some bots (like{" "}
+            <Link href="/bots/copilot" className={linkClass}>GitHub Copilot</Link>)
+            use the formal review API almost exclusively — they show up strongly
+            in Reviews and Review Comments but produce few or no PR Comments.
           </li>
           <li>
-            CodeRabbit posts walkthrough summaries as top-level PR comments
+            <Link href="/bots/coderabbit" className={linkClass}>CodeRabbit</Link>{" "}
+            posts walkthrough summaries as top-level PR comments
             alongside inline review comments, so it generates significant
             activity across all three event types.
           </li>
           <li>
-            Sentry posts inline comments pointing out bugs on specific lines
-            (Review Comments), but when it reviews a PR and finds nothing, it
-            signals this with a 🎉 emoji reaction and a CI status check —
-            neither of which produces a trackable event in GH Archive. This
-            means some of Sentry&apos;s review activity is invisible to our
-            data.
+            <Link href="/bots/sentry" className={linkClass}>Sentry</Link> posts
+            inline comments pointing out bugs on specific lines (Review
+            Comments), but when it reviews a PR and finds nothing, it signals
+            this with a 🎉 emoji reaction and a CI status check — neither of
+            which produces a trackable event in GH Archive. This means some of
+            Sentry&apos;s review activity is invisible to our BigQuery-based
+            data — until we enrich it with GitHub API calls (see{" "}
+            <a href="#what-counts" className={linkClass}>Emoji Reactions on PRs</a>{" "}
+            above for how we recover these).
           </li>
         </ul>
         <p className="text-theme-text-secondary leading-relaxed">
@@ -354,15 +399,15 @@ export default async function AboutPage() {
         </p>
         <ul className="list-disc space-y-2 pl-6 text-theme-text-secondary">
           <li>
-            <strong className="text-theme-text">Qodo</strong>: codium-pr-agent[bot],
+            <Link href="/bots/qodo" className={linkClass}><strong className="text-theme-text">Qodo</strong></Link>: codium-pr-agent[bot],
             qodo-merge[bot], qodo-merge-pro[bot]
           </li>
           <li>
-            <strong className="text-theme-text">Sentry</strong>: sentry[bot],
+            <Link href="/bots/sentry" className={linkClass}><strong className="text-theme-text">Sentry</strong></Link>: sentry[bot],
             seer-by-sentry[bot], codecov-ai[bot]
           </li>
           <li>
-            <strong className="text-theme-text">LinearB</strong>: gitstream-cm[bot],
+            <Link href="/bots/linearb" className={linkClass}><strong className="text-theme-text">LinearB</strong></Link>: gitstream-cm[bot],
             linearb[bot]
           </li>
         </ul>
