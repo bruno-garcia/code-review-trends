@@ -128,7 +128,10 @@ export async function fetchCommentsBatch(
     rateLimiter.update(response.headers as Record<string, string>);
     const data = response.data.data as Record<string, unknown> | undefined;
     if (!data) {
-      // GraphQL returned errors-only response (no data field) — treat all as partial errors
+      const gqlErrors = (response.data as { errors?: Array<{ message?: string }> }).errors;
+      const count = gqlErrors?.length ?? 0;
+      const messages = gqlErrors?.map((e) => e.message).filter(Boolean).join(" | ") ?? "";
+      log(`[graphql-comments] Errors-only GraphQL response: ${count} errors${messages ? ` - ${messages}` : ""}`);
       return inputs.map((input) => ({ input, comments: [], hasMore: false, error: "partial_error" }));
     }
     return parseResults(byRepo, repoIndex, data);

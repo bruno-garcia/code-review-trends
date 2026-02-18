@@ -1077,7 +1077,7 @@ main().catch(async (err) => {
   if (eventId) {
     console.error(`Sentry event: ${eventId}`);
   }
-  // Flush Sentry events before exiting
-  await Sentry.flush(5000);
+  // Flush Sentry events before exiting (match success-path timeout)
+  await Sentry.flush(10000);
   process.exit(1);
 });

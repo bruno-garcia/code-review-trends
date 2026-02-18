@@ -92,15 +92,16 @@ Sentry.init({
  * Groups transient GitHub/network errors so they don't create duplicate issues.
  */
 function classifyError(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
-  if (message.includes("ECONNRESET")) return "econnreset";
-  if (message.includes("ECONNREFUSED")) return "econnrefused";
-  if (message.includes("ETIMEDOUT") || message.includes("Timeout")) return "timeout";
+  const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (message.includes("econnreset")) return "econnreset";
+  if (message.includes("econnrefused")) return "econnrefused";
+  if (message.includes("etimedout") || message.includes("timeout")) return "timeout";
   if (message.includes("other side closed")) return "connection-closed";
-  if (message.includes("502") || message.includes("Bad Gateway")) return "github-502";
-  if (message.includes("503") || message.includes("Service Unavailable")) return "github-503";
-  // HTML error pages from GitHub (502/503 proxied through nginx)
-  if (message.includes("<html>") || message.includes("<!DOCTYPE html>") || message.includes("Server Error")) return "github-html-error";
+  // HTML error pages from GitHub (502/503 proxied through nginx) — check before
+  // status codes since proxied responses often contain both HTML and status text
+  if (message.includes("<html>") || message.includes("<!doctype html>") || message.includes("server error")) return "github-html-error";
+  if (message.includes("502") || message.includes("bad gateway")) return "github-502";
+  if (message.includes("503") || message.includes("service unavailable")) return "github-503";
   return "unknown";
 }
 
