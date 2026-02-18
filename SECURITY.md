@@ -41,4 +41,4 @@ The following are **out of scope**:
 - **Parameterized queries.** All ClickHouse queries use `{param:Type}` syntax — no string interpolation of user input.
 - **Workload Identity Federation.** CI/CD authenticates to GCP via OIDC tokens, not long-lived service account keys.
 - **Minimal permissions.** Runtime service accounts have only the IAM roles they need.
-- **Rate limiting.** The web app includes per-IP rate limiting to protect against aggressive crawlers.
+- **Rate limiting.** Cloudflare handles edge-level rate limiting and bot protection.
