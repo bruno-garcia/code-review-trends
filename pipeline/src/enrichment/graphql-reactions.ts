@@ -44,7 +44,7 @@ type GraphQLReactionData = {
   };
 } | null;
 
-function buildResults(
+export function buildResults(
   byRepo: Map<string, ReactionBatchInput[]>,
   repoIndex: Map<string, number>,
   data: Record<string, unknown>,
