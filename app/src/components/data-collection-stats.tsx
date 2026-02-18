@@ -386,7 +386,7 @@ export function DataCollectionPanel({
           {/* Comments */}
           <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
             <h4 className="text-sm font-semibold text-theme-text">
-              <Tooltip text="Bot review comment threads (one per repo/PR/bot combo). Fetched from GitHub API to get reaction data and comment bodies.">
+              <Tooltip text="Bot activity threads (one per repo/PR/bot combo). Each combo is checked via GitHub API for review comments, reaction data, and comment bodies.">
                 Bot Comments
               </Tooltip>
             </h4>

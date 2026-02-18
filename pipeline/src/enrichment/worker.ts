@@ -60,7 +60,9 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
 
   // Determine execution order based on priority
   type Step = "repos" | "prs" | "comments" | "reactions";
-  const defaultOrder: Step[] = ["repos", "comments", "reactions", "prs"];
+  // Reactions before comments/PRs: reaction scans are cheap (50 PRs/call)
+  // and critical for crediting bots that signal reviews via 🎉 emoji.
+  const defaultOrder: Step[] = ["repos", "reactions", "comments", "prs"];
   let order: Step[];
   if (options.priority && options.priority !== "repos") {
     // Move priority step to front, keep others in default relative order
