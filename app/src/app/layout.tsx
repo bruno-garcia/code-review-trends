@@ -103,9 +103,9 @@ export default async function RootLayout({
           <footer className="border-t border-theme-border py-8 text-center text-sm text-theme-muted">
             {enrichmentIncomplete && (
               <div className="mb-4 inline-flex items-center gap-2 justify-center" data-testid="data-import-status">
-                <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                <span className="relative flex h-3 w-3" aria-hidden="true">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
+                  <span className="relative inline-flex rounded-full h-full w-full bg-emerald-500" />
                 </span>
                 <span>
                   <Link
