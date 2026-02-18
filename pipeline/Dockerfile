@@ -15,6 +15,10 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Git SHA for Sentry release tracking (passed via --build-arg GIT_SHA=...)
+ARG GIT_SHA=unknown
+ENV SENTRY_RELEASE=${GIT_SHA}
+
 # Copy package files for workspace-aware npm ci
 COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/pipeline/package.json pipeline/

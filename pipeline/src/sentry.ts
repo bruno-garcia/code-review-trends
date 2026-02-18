@@ -116,6 +116,7 @@ if (!noSentry && !isHelp && !dsn) {
 Sentry.init({
   dsn: noSentry ? undefined : dsn,
   enabled: !noSentry,
+  release: process.env.SENTRY_RELEASE || undefined,
   tracesSampleRate: 1.0,
   environment,
 
@@ -134,6 +135,64 @@ Sentry.init({
     enableLogs: true,
   },
 });
+
+// ── Error classification for fingerprinting ────────────────────────────
+
+/**
+ * Classify an error into a stable category for Sentry fingerprinting.
+ * Groups transient GitHub/network errors so they don't create duplicate issues.
+ */
+function classifyError(err: unknown): string {
+  const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (message.includes("econnreset")) return "econnreset";
+  if (message.includes("econnrefused")) return "econnrefused";
+  if (message.includes("etimedout") || message.includes("timeout")) return "timeout";
+  if (message.includes("other side closed")) return "connection-closed";
+  // HTML error pages from GitHub (502/503 proxied through nginx) — check before
+  // status codes since proxied responses often contain both HTML and status text
+  if (message.includes("<html>") || message.includes("<!doctype html>") || message.includes("server error")) return "github-html-error";
+  if (message.includes("502") || message.includes("bad gateway")) return "github-502";
+  if (message.includes("503") || message.includes("service unavailable")) return "github-503";
+  return "unknown";
+}
+
+/**
+ * Capture an exception with a stable fingerprint based on error type and phase.
+ * This ensures transient network errors group into one issue per phase instead
+ * of splitting on message/stacktrace differences.
+ */
+export function captureEnrichmentError(
+  err: unknown,
+  phase: string,
+  extra?: {
+    fallback?: string;
+    batchSize?: number;
+    repos?: string[];
+    repo?: string;
+    pr_number?: number;
+    bot_id?: string;
+  },
+): void {
+  const errorClass = classifyError(err);
+  Sentry.captureException(err, {
+    fingerprint: ["enrichment", phase, errorClass],
+    tags: {
+      phase,
+      "error.class": errorClass,
+      ...(extra?.fallback ? { fallback: extra.fallback } : {}),
+    },
+    contexts: {
+      enrichment: {
+        phase,
+        ...(extra?.batchSize != null ? { batch_size: extra.batchSize } : {}),
+        ...(extra?.repos ? { repos: extra.repos.slice(0, 10) } : {}),
+        ...(extra?.repo ? { repo: extra.repo } : {}),
+        ...(extra?.pr_number != null ? { pr_number: extra.pr_number } : {}),
+        ...(extra?.bot_id ? { bot_id: extra.bot_id } : {}),
+      },
+    },
+  });
+}
 
 // ── Timestamped logger ─────────────────────────────────────────────────
 

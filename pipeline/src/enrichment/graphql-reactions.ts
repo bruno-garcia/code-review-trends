@@ -166,7 +166,14 @@ export async function fetchReactionsBatch(
   try {
     const response = await octokit.request("POST /graphql", { query: queryStr });
     rateLimiter.update(response.headers as Record<string, string>);
-    const data = response.data.data as Record<string, unknown>;
+    const data = response.data.data as Record<string, unknown> | undefined;
+    if (!data) {
+      const gqlErrors = (response.data as { errors?: Array<{ type?: string; message?: string }> }).errors;
+      const count = gqlErrors?.length ?? 0;
+      const types = gqlErrors ? [...new Set(gqlErrors.map((e) => e.type ?? "unknown"))].join(", ") : "";
+      log(`[graphql-reactions] Errors-only GraphQL response: ${count} errors${types ? ` (${types})` : ""}`);
+      return inputs.map((input) => ({ input, reactions: [], scanned: false, error: "no_data" }));
+    }
 
     return buildResults(byRepo, repoIndex, data);
   } catch (err: unknown) {

@@ -30,6 +30,10 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Git SHA for Sentry release tracking (baked in at build time via NEXT_PUBLIC_*)
+ARG NEXT_PUBLIC_COMMIT_SHA
+ENV NEXT_PUBLIC_COMMIT_SHA=${NEXT_PUBLIC_COMMIT_SHA}
 ENV PORT=8080
 ENV HOSTNAME="0.0.0.0"
 

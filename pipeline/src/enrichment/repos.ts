@@ -12,7 +12,7 @@ import {
   insertRepos,
   query,
 } from "../clickhouse.js";
-import { Sentry, log, logError, countMetric } from "../sentry.js";
+import { Sentry, log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -111,6 +111,11 @@ export async function enrichRepos(
           // If the whole batch fails, fall back to individual REST processing
           if (err instanceof RateLimitExitError) throw err;
 
+          captureEnrichmentError(err, "repos", {
+            fallback: "rest",
+            batchSize: batch.length,
+            repos: batch.map(b => b.repo_name),
+          });
           logError(`[repos] Batch GraphQL query failed, processing individually: ${err instanceof Error ? err.message : err}`);
 
           for (const { repo_name } of batch) {
@@ -166,7 +171,7 @@ export async function enrichRepos(
                   forbidden++;
                 }
               } else {
-                Sentry.captureException(innerErr, { tags: { repo: repo_name }, contexts: { enrichment: { phase: "repos", repo: repo_name } } });
+                captureEnrichmentError(innerErr, "repos", { repo: repo_name });
                 logError(`[repos] REST fallback error: ${repo_name}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
                 errors++;
               }
@@ -284,7 +289,7 @@ export async function refreshStaleRepos(
           log(`[repos] Rate-limited refreshing ${name}, will retry later`);
         }
       } else {
-        Sentry.captureException(err, { tags: { repo: name }, contexts: { enrichment: { phase: "repos.refresh", repo: name } } });
+        captureEnrichmentError(err, "repos.refresh", { repo: name });
         logError(`[repos] Error refreshing ${name}: ${err instanceof Error ? err.message : err}`);
       }
     }

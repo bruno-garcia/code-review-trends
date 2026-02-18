@@ -190,9 +190,20 @@ jobs:
       - name: Build and push pipeline image
         run: |
           docker build -f pipeline/Dockerfile \
+            --build-arg GIT_SHA="${{ github.sha }}" \
             --tag ${{ steps.tags.outputs.pipeline }} \
             .
           docker push ${{ steps.tags.outputs.pipeline }}
+
+      - name: Create Sentry release for pipeline
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: bruno-garcia
+          SENTRY_PROJECT: code-review-trends-worker
+        run: |
+          npx @sentry/cli releases new "${{ github.sha }}"
+          npx @sentry/cli releases set-commits "${{ github.sha }}" --auto
+          npx @sentry/cli releases finalize "${{ github.sha }}"
 
       - name: Deploy app to Cloud Run (no traffic)
         run: |
