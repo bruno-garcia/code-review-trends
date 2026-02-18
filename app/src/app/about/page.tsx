@@ -239,9 +239,10 @@ export default async function AboutPage() {
         <p className="text-theme-muted text-sm italic">
           This means the percentage represents &ldquo;share of non-bot public
           GitHub code review activity attributable to tracked AI bots.&rdquo;
-          The true share of AI-assisted reviews is likely higher, since we
-          miss private repos, untracked tools, and AI tools operating through
-          regular user accounts.
+          The true share of AI-assisted reviews may be higher, since we
+          miss untracked tools and AI tools operating through regular user
+          accounts rather than GitHub App bot accounts. Private repos are also
+          invisible, though their AI adoption rate may differ from public repos.
         </p>
       </section>
 
@@ -309,8 +310,10 @@ export default async function AboutPage() {
           1,000 → 2,000 or 100,000 → 200,000 reviews.
         </p>
         <p className="text-theme-text-secondary leading-relaxed">
-          We chose growth over absolute volume because it better reflects
-          which tools are gaining traction <em>now</em>. The{" "}
+          We chose growth over absolute volume because it makes the ranking
+          more dynamic, giving credit to fast-growing tools over
+          older, established ones — while the 12-week window keeps it
+          stable enough to avoid noise from week-to-week fluctuations. The{" "}
           <Link href="/compare#detailed" className={linkClass}>
             detailed comparison table
           </Link>{" "}
