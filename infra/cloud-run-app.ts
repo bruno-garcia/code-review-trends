@@ -95,7 +95,7 @@ export function createCloudRunApp(
             },
             envs: [
               // Plain env vars
-              { name: "NODE_ENV", value: "production" },
+              { name: "NODE_ENV", value: cfg.environment },
               { name: "CLICKHOUSE_USER", value: "default" },
               { name: "CLICKHOUSE_DB", value: "code_review_trends" },
               {

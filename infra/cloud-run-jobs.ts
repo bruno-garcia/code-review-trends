@@ -55,7 +55,7 @@ export function createCloudRunJobs(
   const prefix = cfg.namePrefix;
 
   const sharedEnvs = [
-    { name: "NODE_ENV", value: "production" },
+    { name: "NODE_ENV", value: cfg.environment },
     { name: "CLICKHOUSE_USER", value: "default" },
     { name: "CLICKHOUSE_DB", value: "code_review_trends" },
     {
