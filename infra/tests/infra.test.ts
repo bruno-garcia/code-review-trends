@@ -181,8 +181,8 @@ describe("clickhouse VM", () => {
     // GPG keys imported in batch mode (no TTY required)
     expect(s).toContain("gpg --batch --yes --dearmor");
 
-    // ClickHouse listens on localhost only
-    expect(s).toContain("<listen_host>127.0.0.1</listen_host>");
+    // ClickHouse listens on all interfaces (firewall controls access)
+    expect(s).toContain("<listen_host>0.0.0.0</listen_host>");
     expect(s).toContain(`<http_port>${CLICKHOUSE_HTTP_PORT}</http_port>`);
 
     // Memory limits — server capped at 90% of RAM, per-query at 4GB, grace_hash fallback, 60s timeout
@@ -270,14 +270,18 @@ describe("artifact registry", () => {
 
 describe("cloud run app", () => {
   it("creates service with correct name and resource limits", async () => {
-    const { loadConfig } = await import("../config");
+    const { loadConfig, CADDY_HTTPS_PORT } = await import("../config");
     const { createSecrets } = await import("../secrets");
     const { createServiceAccounts } = await import("../service-accounts");
     const { createCloudRunApp } = await import("../cloud-run-app");
     const cfg = loadConfig();
     const secrets = createSecrets(cfg);
     const sas = createServiceAccounts(cfg);
-    const app = createCloudRunApp(cfg, sas.runtimeSa, secrets);
+    // Public access (staging) — no VPC access
+    const chAccess = {
+      url: pulumi.interpolate`https://ch-test.example.com:${CADDY_HTTPS_PORT}`,
+    };
+    const app = createCloudRunApp(cfg, sas.runtimeSa, secrets, chAccess);
 
     const name = await outputValue(app.service.name);
     expect(name).toBe("crt-test-app");
@@ -297,16 +301,19 @@ describe("cloud run app", () => {
 
 describe("cloud run jobs", () => {
   it("creates jobs without throwing", async () => {
-    const { loadConfig } = await import("../config");
+    const { loadConfig, CADDY_HTTPS_PORT } = await import("../config");
     const { createSecrets } = await import("../secrets");
     const { createServiceAccounts } = await import("../service-accounts");
     const { createCloudRunJobs } = await import("../cloud-run-jobs");
     const cfg = loadConfig();
     const secrets = createSecrets(cfg);
     const sas = createServiceAccounts(cfg);
+    const chAccess = {
+      url: pulumi.interpolate`https://ch-test.example.com:${CADDY_HTTPS_PORT}`,
+    };
 
     // Should not throw — creates resources as side effects
-    expect(() => createCloudRunJobs(cfg, sas.runtimeSa, secrets)).not.toThrow();
+    expect(() => createCloudRunJobs(cfg, sas.runtimeSa, secrets, chAccess)).not.toThrow();
   });
 });
 

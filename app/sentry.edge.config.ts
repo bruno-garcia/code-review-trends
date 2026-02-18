@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  // Edge runtime (middleware) is server-side — use the backend DSN.
+  dsn: process.env.SENTRY_DSN_CRT_BACKEND,
 
   // Performance
   tracesSampleRate: 1.0,

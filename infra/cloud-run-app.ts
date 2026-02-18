@@ -1,7 +1,8 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { CADDY_HTTPS_PORT, EnvironmentConfig, PLACEHOLDER_IMAGE } from "./config";
+import { EnvironmentConfig, PLACEHOLDER_IMAGE } from "./config";
 import { SecretsResult } from "./secrets";
+import { ClickHouseAccess } from "./index";
 
 export interface CloudRunAppResult {
   service: gcp.cloudrunv2.Service;
@@ -41,6 +42,7 @@ export function createCloudRunApp(
   cfg: EnvironmentConfig,
   runtimeSa: gcp.serviceaccount.Account,
   secrets: SecretsResult,
+  chAccess: ClickHouseAccess,
   parent?: pulumi.Resource,
 ): CloudRunAppResult {
   const prefix = cfg.namePrefix;
@@ -63,6 +65,24 @@ export function createCloudRunApp(
         // pressure. Default Cloud Run concurrency (80) causes too many
         // simultaneous heavy queries under traffic spikes.
         maxInstanceRequestConcurrency: cfg.appConcurrency,
+
+        // VPC access for prod: Cloud Run uses Direct VPC Egress to reach
+        // ClickHouse on its internal IP. Only private-range traffic (10.x)
+        // routes through the VPC; public traffic (Sentry, etc.) goes direct.
+        ...(chAccess.vpcAccess
+          ? {
+              vpcAccess: {
+                networkInterfaces: [
+                  {
+                    network: chAccess.vpcAccess.network,
+                    subnetwork: chAccess.vpcAccess.subnetwork,
+                  },
+                ],
+                egress: "PRIVATE_RANGES_ONLY",
+              },
+            }
+          : {}),
+
         containers: [
           {
             // CI manages the actual image via `gcloud run deploy --image=...`.
@@ -75,15 +95,23 @@ export function createCloudRunApp(
             },
             envs: [
               // Plain env vars
-              { name: "NODE_ENV", value: "production" },
+              { name: "NODE_ENV", value: cfg.environment },
               { name: "CLICKHOUSE_USER", value: "default" },
               { name: "CLICKHOUSE_DB", value: "code_review_trends" },
-              // Constructed from config — Pulumi resolves the secret domain at apply time.
-              // Cloud Run stores this as a plain env var, which is acceptable since
-              // Cloud Run env vars are encrypted at rest and the domain alone isn't a credential.
               {
                 name: "CLICKHOUSE_URL",
-                value: pulumi.interpolate`https://${cfg.clickhouseDomain}:${CADDY_HTTPS_PORT}`,
+                value: chAccess.url,
+              },
+              // Frontend Sentry DSN — public, visible in the client bundle.
+              // Stored in Secret Manager for consistency but not truly secret.
+              {
+                name: "SENTRY_DSN_CRT_FRONTEND",
+                valueSource: {
+                  secretKeyRef: {
+                    secret: secrets.sentryDsnAppFrontendSecret.secretId,
+                    version: "latest",
+                  },
+                },
               },
               // Secret-sourced env vars
               {
@@ -95,11 +123,12 @@ export function createCloudRunApp(
                   },
                 },
               },
+              // Backend Sentry DSN — private, server-side only.
               {
-                name: "SENTRY_DSN",
+                name: "SENTRY_DSN_CRT_BACKEND",
                 valueSource: {
                   secretKeyRef: {
-                    secret: secrets.sentryDsnAppSecret.secretId,
+                    secret: secrets.sentryDsnAppBackendSecret.secretId,
                     version: "latest",
                   },
                 },

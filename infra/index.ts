@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { loadConfig, CADDY_HTTPS_PORT } from "./config";
+import { loadConfig, CADDY_HTTPS_PORT, CLICKHOUSE_HTTP_PORT } from "./config";
 import { createNetwork } from "./network";
 import { createFirewallRules } from "./firewall";
 import { createSecrets } from "./secrets";
@@ -10,6 +10,24 @@ import { createArtifactRegistry } from "./artifact-registry";
 import { createCloudRunApp } from "./cloud-run-app";
 import { createCloudRunJobs } from "./cloud-run-jobs";
 
+/**
+ * How Cloud Run connects to ClickHouse.
+ *
+ * - Public access (staging): Cloud Run → internet → Caddy HTTPS → ClickHouse.
+ *   No VPC access needed; CLICKHOUSE_URL uses the public domain.
+ *
+ * - Private access (prod): Cloud Run → VPC (Direct VPC Egress) → ClickHouse
+ *   internal IP, plain HTTP. No internet exposure for ClickHouse.
+ */
+export interface ClickHouseAccess {
+  url: pulumi.Output<string>;
+  /** Set when clickhousePublicAccess is false — enables Direct VPC Egress on Cloud Run */
+  vpcAccess?: {
+    network: pulumi.Output<string>;
+    subnetwork: pulumi.Output<string>;
+  };
+}
+
 const cfg = loadConfig();
 
 // Secrets: ClickHouse password in Secret Manager
@@ -18,7 +36,7 @@ const secrets = createSecrets(cfg);
 // Network: VPC, subnet, router, NAT, static IP
 const network = createNetwork(cfg);
 
-// Firewall: SSH (IAP), ClickHouse HTTP (public), ClickHouse native (VPC-only)
+// Firewall: SSH (IAP), ClickHouse HTTP (conditional), ClickHouse native (VPC-only)
 createFirewallRules(cfg, network.vpc.name);
 
 // ClickHouse VM with external IP and managed password
@@ -30,6 +48,21 @@ const clickhouse = createClickHouseVM(
   secrets.clickhousePassword,
 );
 
+// Build ClickHouse access config based on environment
+const chAccess: ClickHouseAccess = cfg.clickhousePublicAccess
+  ? {
+      // Staging: public Caddy HTTPS endpoint
+      url: pulumi.interpolate`https://${cfg.clickhouseDomain}:${CADDY_HTTPS_PORT}`,
+    }
+  : {
+      // Prod: internal HTTP via VPC — no internet exposure
+      url: pulumi.interpolate`http://${clickhouse.internalIp}:${CLICKHOUSE_HTTP_PORT}`,
+      vpcAccess: {
+        network: network.vpc.id,
+        subnetwork: network.subnet.id,
+      },
+    };
+
 // Service accounts: runtime (Cloud Run) and deploy (CI/CD)
 const serviceAccounts = createServiceAccounts(cfg);
 
@@ -40,16 +73,16 @@ const workloadIdentity = createWorkloadIdentity(cfg, serviceAccounts.deploySa);
 const artifactRegistry = createArtifactRegistry(cfg);
 
 // Cloud Run: web application service
-const cloudRunApp = createCloudRunApp(cfg, serviceAccounts.runtimeSa, secrets);
+const cloudRunApp = createCloudRunApp(cfg, serviceAccounts.runtimeSa, secrets, chAccess);
 
 // Cloud Run Jobs: pipeline batch jobs
-createCloudRunJobs(cfg, serviceAccounts.runtimeSa, secrets);
+createCloudRunJobs(cfg, serviceAccounts.runtimeSa, secrets, chAccess);
 
 // Outputs — used by the app and pipeline
 export const clickhouseExternalIp = network.clickhouseExternalIp.address;
 export const clickhouseInternalIp = clickhouse.internalIp;
 export const clickhouseVmName = clickhouse.vm.name;
-export const clickhouseUrl = pulumi.secret(pulumi.interpolate`https://${cfg.clickhouseDomain}:${CADDY_HTTPS_PORT}`);
+export const clickhouseUrl = pulumi.secret(chAccess.url);
 export const clickhousePassword = pulumi.secret(secrets.clickhousePassword);
 
 // App hosting

@@ -10,16 +10,20 @@
  * - Metrics (counters, gauges) for job progress
  * - Structured logs with UTC timestamps
  * - DSN from env var (--no-sentry to opt out)
+ * - Required --env flag (development | staging | production)
  */
 
 import * as Sentry from "@sentry/node";
+
+const VALID_ENVS = ["development", "staging", "production"] as const;
+type PipelineEnv = (typeof VALID_ENVS)[number];
 
 const command = process.argv[2] ?? "unknown";
 const isTestRunner = process.env.NODE_TEST_CONTEXT !== undefined;
 const noSentry = process.argv.includes("--no-sentry") || isTestRunner;
 const clickhouseUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
 
-// Mask credentials from ClickHouse URL (only keep host:port)
+// Mask credentials from ClickHouse URL (only keep protocol://host:port)
 function maskUrl(raw: string): string {
   try {
     const u = new URL(raw);
@@ -31,14 +35,56 @@ function maskUrl(raw: string): string {
 
 const maskedClickhouseUrl = maskUrl(clickhouseUrl);
 
-// Determine environment from ClickHouse URL
-function detectEnvironment(): string {
-  if (process.env.NODE_ENV) return process.env.NODE_ENV;
-  if (clickhouseUrl.includes("localhost") || clickhouseUrl.includes("127.0.0.1")) return "development";
-  return "production";
+/**
+ * Parse --env from argv. Required for all pipeline commands.
+ *
+ * The environment identifies where the pipeline *code* is running
+ * (development, staging, production). This is independent of which
+ * ClickHouse database it talks to — that's captured separately as
+ * the `pipeline.clickhouse_url` tag. This distinction matters because
+ * you can run the pipeline locally (development) against a remote
+ * database (staging/production).
+ */
+function parseEnv(): PipelineEnv {
+  const args = process.argv;
+  const idx = args.indexOf("--env");
+  if (idx >= 0 && idx + 1 < args.length && !args[idx + 1].startsWith("--")) {
+    const val = args[idx + 1];
+    if (VALID_ENVS.includes(val as PipelineEnv)) return val as PipelineEnv;
+    console.error(
+      `Error: Invalid --env value "${val}". Must be one of: ${VALID_ENVS.join(", ")}`,
+    );
+    process.exit(1);
+  }
+
+  // Fall back to NODE_ENV (set by Cloud Run jobs) for backward compat
+  const nodeEnv = process.env.NODE_ENV;
+  if (nodeEnv && VALID_ENVS.includes(nodeEnv as PipelineEnv)) return nodeEnv as PipelineEnv;
+
+  // In test runners, default to "development" silently
+  if (isTestRunner) return "development";
+
+  // help/--help don't need environment (no Sentry, no ClickHouse)
+  if (!command || command === "help" || command === "--help" || command === "-h") {
+    return "development";
+  }
+
+  console.error(
+    "Error: --env is required. Specify the runtime environment:\n" +
+    "       --env development   (local dev)\n" +
+    "       --env staging       (staging infra)\n" +
+    "       --env production    (production infra)\n" +
+    "\n" +
+    "       This identifies where the pipeline is running, not which\n" +
+    "       database it connects to (that's shown via CLICKHOUSE_URL).",
+  );
+  process.exit(1);
 }
 
-const environment = detectEnvironment();
+const environment = parseEnv();
+
+/** The validated environment value. Exported for use in CLI logging. */
+export const pipelineEnv: PipelineEnv = environment;
 
 // Parse worker config from argv with validation
 function parseWorkerTag(): string {
@@ -55,11 +101,13 @@ function parseWorkerTag(): string {
 const workerTag = parseWorkerTag();
 
 // DSN from env var only — no hardcoded default
-const dsn = process.env.SENTRY_DSN_CRT_CLI ?? process.env.SENTRY_DSN;
+const dsn = process.env.SENTRY_DSN_CRT_CLI;
 
-if (!noSentry && !dsn) {
+const isHelp = !command || command === "help" || command === "--help" || command === "-h";
+
+if (!noSentry && !isHelp && !dsn) {
   console.error(
-    "Error: Sentry DSN not configured. Set SENTRY_DSN or SENTRY_DSN_CRT_CLI env var.\n" +
+    "Error: Sentry DSN not configured. Set SENTRY_DSN_CRT_CLI env var.\n" +
     "       Use --no-sentry to run without observability.",
   );
   process.exit(1);
@@ -72,6 +120,8 @@ Sentry.init({
   environment,
 
   // Tags applied to all events (transactions, errors, etc.)
+  // environment = where the code runs (dev laptop / staging VM / prod Cloud Run)
+  // clickhouse_url = which database it talks to (may differ from environment)
   initialScope: {
     tags: {
       "pipeline.command": command,

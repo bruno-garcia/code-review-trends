@@ -6,7 +6,7 @@
  * Instrumented with Sentry: one transaction per warmup run, one span per page.
  *
  * Usage:
- *   SENTRY_DSN=... tsx pipeline/src/warmup.ts <base-url>
+ *   SENTRY_DSN_CRT_CLI=... tsx pipeline/src/warmup.ts <base-url>
  *
  * Options:
  *   --timeout <ms>    Per-page timeout in milliseconds (default: 30000)
@@ -321,7 +321,7 @@ async function runWithSentry(args: WarmupArgs): Promise<WarmupSummary> {
 const isDirectRun = process.argv[1]?.endsWith("warmup.ts") || process.argv[1]?.endsWith("warmup.js");
 
 if (isDirectRun) {
-  const dsn = process.env.SENTRY_DSN ?? process.env.SENTRY_DSN_CRT_CLI;
+  const dsn = process.env.SENTRY_DSN_CRT_CLI;
 
   Sentry.init({
     dsn: dsn || undefined,

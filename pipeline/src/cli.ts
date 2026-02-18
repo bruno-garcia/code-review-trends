@@ -15,8 +15,9 @@
  * All commands are idempotent. Safe to re-run.
  */
 
-// Sentry must be imported first to instrument all subsequent modules
-import { Sentry, log, withCronMonitor, countMetric } from "./sentry.js";
+// Sentry must be imported first to instrument all subsequent modules.
+// This also validates --env (required) and configures Sentry environment/tags.
+import { Sentry, log, withCronMonitor, countMetric, pipelineEnv } from "./sentry.js";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const schedules: Record<string, { cron: string; maxRuntime: number; description: string }> = require("../schedules.json");
@@ -77,7 +78,8 @@ async function main() {
   }
 
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
-  log(`ClickHouse: ${chUrl}`);
+  log(`Environment: ${pipelineEnv}`);
+  log(`ClickHouse:  ${chUrl}`);
 
   // Commands that run on a schedule get cron monitoring (from schedules.json)
   const schedule = schedules[command as keyof typeof schedules];
@@ -184,6 +186,9 @@ Environment variables:
   PULUMI_CONFIG_PASSPHRASE  Passphrase for Pulumi secrets (if not using interactive login)
 
 Global options:
+  --env ENV            Runtime environment: development | staging | production (REQUIRED)
+                       Identifies where the pipeline is running, not which DB it talks to.
+                       Falls back to NODE_ENV if set (e.g. in Cloud Run jobs).
   --no-sentry          Disable Sentry observability (tracing, crons, metrics)
   `);
 }

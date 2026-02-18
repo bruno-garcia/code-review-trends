@@ -32,8 +32,22 @@ export interface EnvironmentConfig {
   // Container registry
   artifactRegistryLocation: string;
 
+  /**
+   * Whether ClickHouse is accessible from the public internet.
+   *
+   * - true (staging): Caddy terminates TLS on a public port. Cloud Run
+   *   connects via the external domain + HTTPS.
+   * - false (prod): No public ClickHouse port. Cloud Run uses Direct VPC
+   *   Egress to reach ClickHouse on its internal IP via plain HTTP.
+   */
+  clickhousePublicAccess: boolean;
+
   // Secrets (stored in Pulumi config, created in Secret Manager)
-  sentryDsnApp: pulumi.Output<string>;
+  /** Sentry DSN for the Next.js frontend (public — baked into client bundle) */
+  sentryDsnAppFrontend: pulumi.Output<string>;
+  /** Sentry DSN for the Next.js backend (private — runtime env var via Secret Manager) */
+  sentryDsnAppBackend: pulumi.Output<string>;
+  /** Sentry DSN for the pipeline CLI (private — runtime env var via Secret Manager) */
   sentryDsnPipeline: pulumi.Output<string>;
   sentryAuthToken: pulumi.Output<string>;
   githubToken: pulumi.Output<string>;
@@ -95,7 +109,9 @@ export function loadConfig(): EnvironmentConfig {
     }),
 
     artifactRegistryLocation: config.require("artifactRegistryLocation"),
-    sentryDsnApp: config.requireSecret("sentryDsnApp"),
+    clickhousePublicAccess: config.getBoolean("clickhousePublicAccess") ?? false,
+    sentryDsnAppFrontend: config.requireSecret("sentryDsnAppFrontend"),
+    sentryDsnAppBackend: config.requireSecret("sentryDsnAppBackend"),
     sentryDsnPipeline: config.requireSecret("sentryDsnPipeline"),
     sentryAuthToken: config.requireSecret("sentryAuthToken"),
     githubToken,

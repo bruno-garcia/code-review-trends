@@ -7,7 +7,11 @@ export interface SecretsResult {
   clickhousePassword: pulumi.Output<string>;
   // Secret resource references (for Cloud Run env var bindings)
   clickhousePasswordSecret: gcp.secretmanager.Secret;
-  sentryDsnAppSecret: gcp.secretmanager.Secret;
+  /** Frontend Sentry DSN — public, baked into client bundle at build time */
+  sentryDsnAppFrontendSecret: gcp.secretmanager.Secret;
+  /** Backend Sentry DSN — private, injected at runtime via Secret Manager */
+  sentryDsnAppBackendSecret: gcp.secretmanager.Secret;
+  /** Pipeline Sentry DSN — private, injected at runtime via Secret Manager */
   sentryDsnPipelineSecret: gcp.secretmanager.Secret;
   sentryAuthTokenSecret: gcp.secretmanager.Secret;
   githubTokenSecret: gcp.secretmanager.Secret;
@@ -82,10 +86,17 @@ export function createSecrets(
   );
 
   // Config-sourced secrets (values from `pulumi config set --secret`)
-  const sentryDsnAppSecret = createManagedSecret(
-    `${prefix}-sentry-dsn-app`,
-    `${prefix}-sentry-dsn-app`,
-    cfg.sentryDsnApp,
+  const sentryDsnAppFrontendSecret = createManagedSecret(
+    `${prefix}-sentry-dsn-app-fe`,
+    `${prefix}-sentry-dsn-app-fe`,
+    cfg.sentryDsnAppFrontend,
+    parent,
+  );
+
+  const sentryDsnAppBackendSecret = createManagedSecret(
+    `${prefix}-sentry-dsn-app-be`,
+    `${prefix}-sentry-dsn-app-be`,
+    cfg.sentryDsnAppBackend,
     parent,
   );
 
@@ -113,7 +124,8 @@ export function createSecrets(
   return {
     clickhousePassword: password.result,
     clickhousePasswordSecret,
-    sentryDsnAppSecret,
+    sentryDsnAppFrontendSecret,
+    sentryDsnAppBackendSecret,
     sentryDsnPipelineSecret,
     sentryAuthTokenSecret,
     githubTokenSecret,

@@ -14,8 +14,10 @@ COPY --from=deps /app ./
 COPY . .
 ARG SENTRY_AUTH_TOKEN
 ARG NEXT_PUBLIC_COMMIT_SHA
+ARG SENTRY_DSN_CRT_FRONTEND
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV NEXT_PUBLIC_COMMIT_SHA=$NEXT_PUBLIC_COMMIT_SHA
+ENV SENTRY_DSN_CRT_FRONTEND=$SENTRY_DSN_CRT_FRONTEND
 ENV NEXT_TELEMETRY_DISABLED=1
 # Pages are fully dynamic (no static generation), but Next.js build
 # still type-checks server components that import the ClickHouse client.

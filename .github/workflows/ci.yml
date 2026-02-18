@@ -62,7 +62,7 @@ jobs:
           --health-retries 10
 
     env:
-      HAS_GCP: ${{ secrets.GCP_SA_KEY != '' && 'true' || 'false' }}
+      HAS_GCP: ${{ secrets.GCP_BQ_SA_KEY != '' && 'true' || 'false' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -102,11 +102,13 @@ jobs:
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
 
-      # TODO: Migrate smoke test auth from SA key to Workload Identity Federation
+      # Smoke tests need BigQuery read access. Uses a dedicated SA key with
+      # minimal permissions (bigquery.jobs.create + bigquery.datasets.get).
+      # TODO: Migrate to Workload Identity Federation once PR-level OIDC is set up.
       - uses: google-github-actions/auth@v2
         if: ${{ env.HAS_GCP == 'true' }}
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_BQ_SA_KEY }}
 
       - name: Run pipeline smoke tests
         if: ${{ env.HAS_GCP == 'true' }}
@@ -180,6 +182,7 @@ jobs:
           docker build -f app/Dockerfile \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg NEXT_PUBLIC_COMMIT_SHA="${{ github.sha }}" \
+            --build-arg SENTRY_DSN_CRT_FRONTEND="${{ secrets.SENTRY_DSN_CRT_FRONTEND }}" \
             --tag ${{ steps.tags.outputs.app }} \
             .
           docker push ${{ steps.tags.outputs.app }}
@@ -216,12 +219,12 @@ jobs:
           fi
 
           # Read pipeline Sentry DSN from Secret Manager (same DSN used by pipeline jobs)
-          SENTRY_DSN=$(gcloud secrets versions access latest \
+          SENTRY_DSN_CRT_CLI=$(gcloud secrets versions access latest \
             --secret=crt-staging-sentry-dsn-pipeline --quiet 2>/dev/null || true)
 
           # Run the instrumented warmup script — creates Sentry spans + metrics per page.
           # Non-zero exit means some pages failed; we warn but don't block the deploy.
-          SENTRY_DSN="${SENTRY_DSN}" \
+          SENTRY_DSN_CRT_CLI="${SENTRY_DSN_CRT_CLI}" \
           NODE_ENV=staging \
           npm run warmup --workspace=pipeline -- "${WARMUP_URL}" || {
             echo "::warning::Some pages failed to warm up — proceeding with traffic switch anyway"
