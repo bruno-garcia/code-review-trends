@@ -23,7 +23,7 @@ import * as Sentry from "@sentry/nextjs";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 3;
+export const EXPECTED_SCHEMA_VERSION = 4;
 
 export type SchemaStatus = {
   status: "ok" | "app_behind" | "db_behind" | "migrating" | "error";
@@ -256,8 +256,24 @@ const MIGRATION_003: Migration = {
   ],
 };
 
+/**
+ * Migration 4 — drop orphaned repo_languages table.
+ * Matches db/init/005_drop_repo_languages.sql.
+ *
+ * The table stored per-language byte breakdowns from the old REST-based repo
+ * enrichment. Writing was removed in PR #112, and no app query reads from it.
+ * All language data comes from repos.primary_language instead.
+ */
+const MIGRATION_004: Migration = {
+  version: 4,
+  name: "drop_repo_languages",
+  statements: [
+    `DROP TABLE IF EXISTS repo_languages`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

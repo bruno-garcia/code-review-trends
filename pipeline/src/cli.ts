@@ -346,6 +346,8 @@ async function cmdStatus() {
 const SCHEMA_MIGRATIONS: { version: number; name: string }[] = [
   { version: 1, name: "initial_schema" },
   { version: 2, name: "pr_bot_reactions" },
+  { version: 3, name: "pr_bot_event_counts" },
+  { version: 4, name: "drop_repo_languages" },
 ];
 
 /** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table. */
