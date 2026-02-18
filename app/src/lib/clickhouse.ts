@@ -1,5 +1,10 @@
 import { createClient } from "@clickhouse/client";
 import * as Sentry from "@sentry/nextjs";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
+
+// During `next build`, ClickHouse is unavailable. Pages use ISR (revalidate=300)
+// so build-time pre-renders are placeholders — replaced on first real request.
+const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 
 // Simple in-memory cache with TTL for expensive queries.
 // Lives for the lifetime of a serverless container instance.
@@ -208,6 +213,10 @@ export type WeeklyTotalVolume = {
 };
 
 async function query<T>(sql: string, params?: Record<string, unknown>, cacheTtl?: number): Promise<T[]> {
+  // During build, return empty arrays — no ClickHouse available.
+  // ISR will re-render with real data on first request after deploy.
+  if (isBuildPhase) return [];
+
   const cacheKey = params && Object.keys(params).length > 0
     ? `${sql}|${JSON.stringify(params, Object.keys(params).sort())}`
     : sql;
