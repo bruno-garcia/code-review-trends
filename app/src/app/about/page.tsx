@@ -399,15 +399,15 @@ export default async function AboutPage() {
         </p>
         <ul className="list-disc space-y-2 pl-6 text-theme-text-secondary">
           <li>
-            <Link href="/bots/qodo" className={linkClass}><strong className="text-theme-text">Qodo</strong></Link>: codium-pr-agent[bot],
+            <Link href="/bots/qodo" className={linkClass}><strong>Qodo</strong></Link>: codium-pr-agent[bot],
             qodo-merge[bot], qodo-merge-pro[bot]
           </li>
           <li>
-            <Link href="/bots/sentry" className={linkClass}><strong className="text-theme-text">Sentry</strong></Link>: sentry[bot],
+            <Link href="/bots/sentry" className={linkClass}><strong>Sentry</strong></Link>: sentry[bot],
             seer-by-sentry[bot], codecov-ai[bot]
           </li>
           <li>
-            <Link href="/bots/linearb" className={linkClass}><strong className="text-theme-text">LinearB</strong></Link>: gitstream-cm[bot],
+            <Link href="/bots/linearb" className={linkClass}><strong>LinearB</strong></Link>: gitstream-cm[bot],
             linearb[bot]
           </li>
         </ul>
