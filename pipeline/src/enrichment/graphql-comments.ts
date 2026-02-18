@@ -126,6 +126,20 @@ export async function fetchCommentsBatch(
   try {
     const response = await octokit.request("POST /graphql", { query: queryStr });
     rateLimiter.update(response.headers as Record<string, string>);
+    
+    // Check if response.data.data exists before proceeding
+    // GraphQL can return HTTP 200 with errors and null data
+    if (!response.data.data) {
+      // Check if there are GraphQL errors in the response
+      const errors = (response.data as any).errors as Array<{ type: string; path: string[]; message: string }> | undefined;
+      if (errors && errors.length > 0) {
+        log(`[graphql-comments] GraphQL errors in response: ${errors.length} errors`);
+        return inputs.map((input) => ({ input, comments: [], hasMore: false, error: "partial_error" }));
+      }
+      // No data and no errors - unexpected response format
+      throw new Error("GraphQL response missing data field");
+    }
+    
     const data = response.data.data as Record<string, unknown>;
     return parseResults(byRepo, repoIndex, data);
   } catch (err: unknown) {
