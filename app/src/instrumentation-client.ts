@@ -15,7 +15,10 @@ Sentry.init({
       blockAllMedia: false,
     }),
     Sentry.feedbackIntegration({
-      colorScheme: "dark",
+      // Use "system" so the widget reads prefers-color-scheme by default;
+      // CSS overrides on #sentry-feedback (in globals.css) bind it to the
+      // app's .dark class so it follows the theme toggle, not the OS.
+      colorScheme: "system",
       triggerLabel: "Feedback",
       formTitle: "Send Feedback",
       submitButtonLabel: "Send",

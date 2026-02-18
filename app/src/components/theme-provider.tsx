@@ -101,6 +101,45 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.classList.toggle("dark", resolved === "dark");
   }, [resolved]);
 
+  // Sync Sentry Feedback widget theme with the app.
+  // The widget lives in a Shadow DOM with colorScheme:"system", so it follows
+  // the OS preference by default. Setting CSS custom properties on the host
+  // element from outside overrides the :host rules inside the shadow, binding
+  // the widget to the app's toggle instead.
+  useEffect(() => {
+    const el = document.getElementById("sentry-feedback");
+    if (!el) return;
+
+    const vars =
+      resolved === "dark"
+        ? {
+            "--foreground": "#ebe6ef",
+            "--background": "#12121a",
+            "--accent-foreground": "white",
+            "--accent-background": "#a78bfa",
+            "--success-color": "#2da98c",
+            "--error-color": "#f55459",
+            "--border": "1.5px solid rgba(235, 230, 239, 0.15)",
+            "--box-shadow": "0px 4px 24px 0px rgba(43, 34, 51, 0.12)",
+            "--interactive-filter": "brightness(150%)",
+          }
+        : {
+            "--foreground": "#2b2233",
+            "--background": "#ffffff",
+            "--accent-foreground": "white",
+            "--accent-background": "#7c3aed",
+            "--success-color": "#268d75",
+            "--error-color": "#df3338",
+            "--border": "1.5px solid rgba(41, 35, 47, 0.13)",
+            "--box-shadow": "0px 4px 24px 0px rgba(43, 34, 51, 0.12)",
+            "--interactive-filter": "brightness(95%)",
+          };
+
+    for (const [prop, value] of Object.entries(vars)) {
+      el.style.setProperty(prop, value);
+    }
+  }, [resolved]);
+
   const setTheme = useCallback((next: Theme) => {
     localStorage.setItem(STORAGE_KEY, next);
     notifyStoredThemeListeners(); // triggers useSyncExternalStore re-read
