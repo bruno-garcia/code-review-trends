@@ -220,13 +220,20 @@ export default async function AboutPage() {
           on every commit to a PR generates more events than one that runs once,
           and similarly, a human reviewer who leaves multiple rounds of feedback
           generates more events than one who reviews once. Because the same
-          counting applies to both the AI and human sides, the AI Share
-          percentage remains a fair comparison — it measures share of review{" "}
-          <em>activity</em>, not share of PRs reviewed. We don&apos;t currently
-          have a &ldquo;per run&rdquo; metric (where a run is a single
-          invocation of a bot, whether triggered by a PR opening, a new commit,
-          or an @mention) because GH Archive doesn&apos;t provide enough signal
-          to reliably group events into runs.
+          counting applies to both sides, the AI Share percentage is a{" "}
+          <em>somewhat</em> fair comparison — but with an important caveat:
+          bots are automated and typically re-run on every commit pushed to a
+          PR, generating a new review each time, whereas human reviewers
+          usually review once or twice and don&apos;t re-review on every push.
+          This asymmetry means event-based counting inherently amplifies bot
+          activity relative to human activity, and the AI Share percentage
+          likely overstates the true share of PRs that receive AI review. It
+          measures share of review <em>activity</em> (volume of events), not
+          share of PRs reviewed. We don&apos;t currently have a &ldquo;per
+          run&rdquo; metric (where a run is a single invocation of a bot,
+          whether triggered by a PR opening, a new commit, or an @mention)
+          because GH Archive doesn&apos;t provide enough signal to reliably
+          group events into runs.
         </p>
 
         <p className="text-theme-muted text-sm italic">
