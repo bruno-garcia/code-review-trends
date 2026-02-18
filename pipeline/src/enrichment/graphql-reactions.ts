@@ -30,6 +30,84 @@ export type ReactionBatchResult = {
   error?: string;
 };
 
+type GraphQLReactionData = {
+  number: number;
+  reactions?: {
+    totalCount: number;
+    pageInfo: { hasNextPage: boolean };
+    nodes: Array<{
+      databaseId: number;
+      user: { login: string } | null;
+      createdAt: string;
+      content: string;
+    }>;
+  };
+} | null;
+
+function buildResults(
+  byRepo: Map<string, ReactionBatchInput[]>,
+  repoIndex: Map<string, number>,
+  data: Record<string, unknown>,
+): ReactionBatchResult[] {
+  const results: ReactionBatchResult[] = [];
+
+  for (const [repoName, prInputs] of byRepo) {
+    const rIdx = repoIndex.get(repoName)!;
+    const repoData = data[`repo${rIdx}`] as Record<string, unknown> | null;
+
+    for (let pi = 0; pi < prInputs.length; pi++) {
+      const input = prInputs[pi];
+
+      if (!repoData) {
+        results.push({ input, reactions: [], scanned: false, error: "repo_not_found" });
+        continue;
+      }
+
+      const prData = repoData[`pr${pi}`] as GraphQLReactionData;
+
+      if (!prData) {
+        results.push({ input, reactions: [], scanned: true }); // PR deleted or is an Issue, mark scanned
+        continue;
+      }
+
+      // Check if reactions field is present (could be missing due to field-level error)
+      if (!prData.reactions) {
+        results.push({ input, reactions: [], scanned: false, error: "reactions_unavailable" });
+        continue;
+      }
+
+      // Filter reactions for tracked bot logins
+      const botReactions: PrBotReactionRow[] = [];
+      for (const reaction of prData.reactions.nodes) {
+        const login = reaction.user?.login;
+        if (!login || !TRACKED_LOGINS.has(login)) continue;
+
+        const bot = BOT_BY_LOGIN.get(login);
+        if (!bot) continue;
+
+        botReactions.push({
+          repo_name: input.repo_name,
+          pr_number: input.pr_number,
+          bot_id: bot.id,
+          reaction_type: reaction.content.toLowerCase(),
+          reacted_at: reaction.createdAt,
+          reaction_id: reaction.databaseId,
+        });
+      }
+
+      const hasMore = prData.reactions.pageInfo.hasNextPage;
+      results.push({
+        input,
+        reactions: botReactions,
+        scanned: true,
+        hasMore,
+      });
+    }
+  }
+
+  return results;
+}
+
 export async function fetchReactionsBatch(
   octokit: Octokit,
   rateLimiter: RateLimiter,
@@ -90,69 +168,7 @@ export async function fetchReactionsBatch(
     rateLimiter.update(response.headers as Record<string, string>);
     const data = response.data.data as Record<string, unknown>;
 
-    const results: ReactionBatchResult[] = [];
-
-    for (const [repoName, prInputs] of byRepo) {
-      const rIdx = repoIndex.get(repoName)!;
-      const repoData = data[`repo${rIdx}`] as Record<string, unknown> | null;
-
-      for (let pi = 0; pi < prInputs.length; pi++) {
-        const input = prInputs[pi];
-
-        if (!repoData) {
-          results.push({ input, reactions: [], scanned: false, error: "repo_not_found" });
-          continue;
-        }
-
-        const prData = repoData[`pr${pi}`] as {
-          number: number;
-          reactions: {
-            totalCount: number;
-            pageInfo: { hasNextPage: boolean };
-            nodes: Array<{
-              databaseId: number;
-              user: { login: string } | null;
-              createdAt: string;
-              content: string;
-            }>;
-          };
-        } | null;
-
-        if (!prData) {
-          results.push({ input, reactions: [], scanned: true }); // PR deleted, mark scanned
-          continue;
-        }
-
-        // Filter reactions for tracked bot logins
-        const botReactions: PrBotReactionRow[] = [];
-        for (const reaction of prData.reactions.nodes) {
-          const login = reaction.user?.login;
-          if (!login || !TRACKED_LOGINS.has(login)) continue;
-
-          const bot = BOT_BY_LOGIN.get(login);
-          if (!bot) continue;
-
-          botReactions.push({
-            repo_name: input.repo_name,
-            pr_number: input.pr_number,
-            bot_id: bot.id,
-            reaction_type: reaction.content.toLowerCase(),
-            reacted_at: reaction.createdAt,
-            reaction_id: reaction.databaseId,
-          });
-        }
-
-        const hasMore = prData.reactions.pageInfo.hasNextPage;
-        results.push({
-          input,
-          reactions: botReactions,
-          scanned: true,
-          hasMore,
-        });
-      }
-    }
-
-    return results;
+    return buildResults(byRepo, repoIndex, data);
   } catch (err: unknown) {
     const gqlErr = err as {
       response?: {
@@ -169,7 +185,7 @@ export async function fetchReactionsBatch(
 
     if (gqlErr.response?.data?.data && gqlErr.response?.data?.errors) {
       log(`[graphql-reactions] Partial response: ${gqlErr.response.data.errors.length} errors`);
-      return inputs.map((input) => ({ input, reactions: [], scanned: false, error: "partial_error" }));
+      return buildResults(byRepo, repoIndex, gqlErr.response.data.data);
     }
 
     if (gqlErr.status === 403 || gqlErr.status === 429 || gqlErr.response?.status === 403 || gqlErr.response?.status === 429) {
