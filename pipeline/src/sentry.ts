@@ -68,6 +68,7 @@ if (!noSentry && !dsn) {
 Sentry.init({
   dsn: noSentry ? undefined : dsn,
   enabled: !noSentry,
+  release: process.env.SENTRY_RELEASE || undefined,
   tracesSampleRate: 1.0,
   environment,
 

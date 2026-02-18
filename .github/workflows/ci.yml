@@ -187,6 +187,7 @@ jobs:
       - name: Build and push pipeline image
         run: |
           docker build -f pipeline/Dockerfile \
+            --build-arg GIT_SHA="${{ github.sha }}" \
             --tag ${{ steps.tags.outputs.pipeline }} \
             .
           docker push ${{ steps.tags.outputs.pipeline }}
