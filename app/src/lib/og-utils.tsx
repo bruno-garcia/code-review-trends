@@ -26,8 +26,8 @@ export const OG_BG =
  */
 const logoBase64 = (() => {
   const candidates = [
-    join(process.cwd(), "public/branding/logo-400x400.png"),
-    join(process.cwd(), "app/public/branding/logo-400x400.png"),
+    join(process.cwd(), "public/branding/logo-og.png"),
+    join(process.cwd(), "app/public/branding/logo-og.png"),
   ];
   for (const path of candidates) {
     try {
