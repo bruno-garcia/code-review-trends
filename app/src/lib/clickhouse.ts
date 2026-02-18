@@ -30,7 +30,8 @@ export function getClickHouseClient() {
       username: process.env.CLICKHOUSE_USER ?? "default",
       password: process.env.CLICKHOUSE_PASSWORD ?? "dev",
       database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
-      keep_alive: { enabled: true },
+      request_timeout: 15_000,
+      keep_alive: { enabled: true, idle_socket_ttl: 1500 },
     });
   }
   return _client;
@@ -816,7 +817,7 @@ export type OrgByStars = {
 export async function getTopOrgsByStars(limit?: number): Promise<OrgByStars[]> {
   return query<OrgByStars>(
     `SELECT owner, sum(stars) AS total_stars, count() AS repo_count
-     FROM repos
+     FROM repos FINAL
      WHERE fetch_status = 'ok'
      GROUP BY owner
      ORDER BY total_stars DESC
@@ -922,9 +923,9 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
       r.primary_language AS language,
       countDistinct(e.repo_name, e.pr_number) AS pr_count,
       count() AS comment_count
-    FROM pr_bot_events e
-    JOIN bots b ON e.bot_id = b.id
-    JOIN repos r ON e.repo_name = r.name
+    FROM pr_bot_events e FINAL
+    JOIN bots b FINAL ON e.bot_id = b.id
+    JOIN repos r FINAL ON e.repo_name = r.name
     ${where}
     GROUP BY e.bot_id, b.name, r.primary_language
     ORDER BY pr_count DESC
@@ -962,13 +963,13 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       COALESCE(any(cm.thumbs_up), 0) AS thumbs_up,
       COALESCE(any(cm.thumbs_down), 0) AS thumbs_down,
       COALESCE(any(cm.heart), 0) AS heart
-    FROM repos r
+    FROM repos r FINAL
     LEFT JOIN (
       SELECT
         r2.owner,
         countDistinct(e.repo_name, e.pr_number) AS total_prs
-      FROM pr_bot_events e
-      JOIN repos r2 ON e.repo_name = r2.name
+      FROM pr_bot_events e FINAL
+      JOIN repos r2 FINAL ON e.repo_name = r2.name
       WHERE r2.owner = {owner:String} AND r2.fetch_status = 'ok'
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
@@ -980,7 +981,7 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
         sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
         sumIf(c.heart, c.comment_id > 0) AS heart
       FROM pr_comments c FINAL
-      JOIN repos r3 ON c.repo_name = r3.name
+      JOIN repos r3 FINAL ON c.repo_name = r3.name
       WHERE r3.owner = {owner:String} AND r3.fetch_status = 'ok'
       GROUP BY r3.owner
     ) cm ON r.owner = cm.owner
@@ -1009,17 +1010,17 @@ export async function getOrgRepos(owner: string): Promise<OrgRepo[]> {
       r.primary_language,
       COALESCE(pr.pr_count, 0) AS pr_count,
       COALESCE(cm.bot_comment_count, 0) AS bot_comment_count
-    FROM repos r
+    FROM repos r FINAL
     LEFT JOIN (
       SELECT repo_name, countDistinct(repo_name, pr_number) AS pr_count
-      FROM pr_bot_events
-      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+      FROM pr_bot_events FINAL
+      WHERE repo_name IN (SELECT name FROM repos FINAL WHERE owner = {owner:String} AND fetch_status = 'ok')
       GROUP BY repo_name
     ) pr ON r.name = pr.repo_name
     LEFT JOIN (
       SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
       FROM pr_comments FINAL
-      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+      WHERE repo_name IN (SELECT name FROM repos FINAL WHERE owner = {owner:String} AND fetch_status = 'ok')
       GROUP BY repo_name
     ) cm ON r.name = cm.repo_name
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
@@ -1048,10 +1049,10 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
       p.avatar_url,
       countDistinct(e.repo_name, e.pr_number) AS pr_count,
       count() AS event_count
-    FROM pr_bot_events e
-    JOIN repos r ON e.repo_name = r.name
-    JOIN bots b ON e.bot_id = b.id
-    JOIN products p ON b.product_id = p.id
+    FROM pr_bot_events e FINAL
+    JOIN repos r FINAL ON e.repo_name = r.name
+    JOIN bots b FINAL ON e.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
     GROUP BY p.id, p.name, p.brand_color, p.avatar_url
     ORDER BY pr_count DESC
@@ -1103,7 +1104,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
 
   if (languages && languages.length > 0) {
     conditions.push(
-      "r.owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))"
+      "r.owner IN (SELECT DISTINCT owner FROM repos FINAL WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))"
     );
     params.languages = languages;
   }
@@ -1138,7 +1139,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       groupUniqArray(r.primary_language) AS languages,
       COALESCE(any(pr.total_prs), 0) AS total_prs,
       COALESCE(any(pr.product_ids), []) AS product_ids
-    FROM repos r
+    FROM repos r FINAL
     LEFT JOIN (
       SELECT
         r2.owner,
@@ -1149,11 +1150,11 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
           uniqExactMerge(s.pr_count) AS repo_pr_count,
           groupUniqArray(b.product_id) AS repo_product_ids
         FROM pr_bot_event_counts s
-        JOIN bots b ON s.bot_id = b.id
+        JOIN bots b FINAL ON s.bot_id = b.id
         ${productJoinFilter}
         GROUP BY s.repo_name
       ) repo_agg
-      JOIN repos r2 ON repo_agg.repo_name = r2.name
+      JOIN repos r2 FINAL ON repo_agg.repo_name = r2.name
       WHERE r2.fetch_status = 'ok'
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
@@ -1168,7 +1169,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
   const countQuery = `
     SELECT count() AS total FROM (
       SELECT r.owner
-      FROM repos r
+      FROM repos r FINAL
       LEFT JOIN (
         SELECT
           r2.owner,
@@ -1177,11 +1178,11 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
           SELECT s.repo_name,
             uniqExactMerge(s.pr_count) AS repo_pr_count
           FROM pr_bot_event_counts s
-          JOIN bots b ON s.bot_id = b.id
+          JOIN bots b FINAL ON s.bot_id = b.id
           ${productJoinFilter}
           GROUP BY s.repo_name
         ) repo_agg
-        JOIN repos r2 ON repo_agg.repo_name = r2.name
+        JOIN repos r2 FINAL ON repo_agg.repo_name = r2.name
         WHERE r2.fetch_status = 'ok'
         GROUP BY r2.owner
       ) pr ON r.owner = pr.owner
@@ -1210,7 +1211,7 @@ export type OrgFilterOption = {
 export async function getOrgLanguageOptions(): Promise<OrgFilterOption[]> {
   return query<OrgFilterOption>(`
     SELECT primary_language AS value, count(DISTINCT owner) AS count
-    FROM repos
+    FROM repos FINAL
     WHERE fetch_status = 'ok' AND primary_language != ''
     GROUP BY primary_language
     HAVING count >= 10
@@ -1232,11 +1233,11 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
 
   const rows = await query<EnrichmentStats>(`
     SELECT
-      (SELECT count() FROM repos) AS total_discovered_repos,
-      (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
-      (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS total_discovered_prs,
-      (SELECT count() FROM pull_requests) AS enriched_prs,
-      (SELECT countIf(comment_id > 0) FROM pr_comments) AS total_comments
+      (SELECT count() FROM repos FINAL) AS total_discovered_repos,
+      (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS enriched_repos,
+      (SELECT uniq(repo_name, pr_number) FROM pr_bot_events FINAL) AS total_discovered_prs,
+      (SELECT count() FROM pull_requests FINAL) AS enriched_prs,
+      (SELECT countIf(comment_id > 0) FROM pr_comments FINAL) AS total_comments
   `);
   return setCache("enrichmentStats", rows[0] ?? {
     total_discovered_repos: 0,
@@ -1298,16 +1299,16 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       reactions_found: number;
     }>(`
       SELECT
-        (SELECT uniq(repo_name) FROM pr_bot_events) AS repos_total,
+        (SELECT uniq(repo_name) FROM pr_bot_events FINAL) AS repos_total,
         (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
         (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS prs_discovered,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events FINAL) AS prs_discovered,
         (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
-        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_bot_events WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_bot_events FINAL WHERE event_type IN ('PullRequestReviewCommentEvent', 'IssueCommentEvent')) AS comments_discovered,
         (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments FINAL) AS comments_enriched,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events) AS reactions_total,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events FINAL) AS reactions_total,
         (SELECT count() FROM reaction_scan_progress FINAL) AS reactions_scanned,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions FINAL) AS reactions_found
     `),
   ]);
 
