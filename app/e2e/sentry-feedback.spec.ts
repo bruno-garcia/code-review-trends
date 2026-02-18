@@ -32,39 +32,40 @@ test.describe("Sentry feedback widget theme", () => {
 
   test("uses light colors on light theme", async ({ page }) => {
     await page.getByTestId("theme-light").click();
-    await page.waitForTimeout(200);
 
-    const bg = await getSentryVar(page, "--background");
-    const fg = await getSentryVar(page, "--foreground");
-    expect(bg).toBe("#ffffff");
-    expect(fg).toBe("#2b2233");
+    await expect(async () => {
+      expect(await getSentryVar(page, "--background")).toBe("#ffffff");
+      expect(await getSentryVar(page, "--foreground")).toBe("#2b2233");
+    }).toPass();
   });
 
   test("uses dark colors on dark theme", async ({ page }) => {
     await page.getByTestId("theme-dark").click();
-    await page.waitForTimeout(200);
 
-    const bg = await getSentryVar(page, "--background");
-    const fg = await getSentryVar(page, "--foreground");
-    expect(bg).toBe("#12121a");
-    expect(fg).toBe("#ebe6ef");
+    await expect(async () => {
+      expect(await getSentryVar(page, "--background")).toBe("#12121a");
+      expect(await getSentryVar(page, "--foreground")).toBe("#ebe6ef");
+    }).toPass();
   });
 
   test("toggles theme dynamically without losing the widget", async ({ page }) => {
     // Light
     await page.getByTestId("theme-light").click();
-    await page.waitForTimeout(200);
-    expect(await getSentryVar(page, "--background")).toBe("#ffffff");
+    await expect(async () => {
+      expect(await getSentryVar(page, "--background")).toBe("#ffffff");
+    }).toPass();
 
     // Dark
     await page.getByTestId("theme-dark").click();
-    await page.waitForTimeout(200);
-    expect(await getSentryVar(page, "--background")).toBe("#12121a");
+    await expect(async () => {
+      expect(await getSentryVar(page, "--background")).toBe("#12121a");
+    }).toPass();
 
     // Back to light
     await page.getByTestId("theme-light").click();
-    await page.waitForTimeout(200);
-    expect(await getSentryVar(page, "--background")).toBe("#ffffff");
+    await expect(async () => {
+      expect(await getSentryVar(page, "--background")).toBe("#ffffff");
+    }).toPass();
 
     // Widget still visible after cycling
     await expect(page.locator("#sentry-feedback")).toBeAttached();
