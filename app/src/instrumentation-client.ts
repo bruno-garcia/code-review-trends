@@ -32,3 +32,6 @@ Sentry.init({
   // Release tracking — matches the commit SHA from next.config.ts
   release: process.env.NEXT_PUBLIC_COMMIT_SHA,
 });
+
+// Required by @sentry/nextjs to instrument client-side navigations
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
