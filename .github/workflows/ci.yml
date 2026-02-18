@@ -219,12 +219,12 @@ jobs:
           fi
 
           # Read pipeline Sentry DSN from Secret Manager (same DSN used by pipeline jobs)
-          SENTRY_DSN=$(gcloud secrets versions access latest \
+          SENTRY_DSN_CRT_CLI=$(gcloud secrets versions access latest \
             --secret=crt-staging-sentry-dsn-pipeline --quiet 2>/dev/null || true)
 
           # Run the instrumented warmup script — creates Sentry spans + metrics per page.
           # Non-zero exit means some pages failed; we warn but don't block the deploy.
-          SENTRY_DSN="${SENTRY_DSN}" \
+          SENTRY_DSN_CRT_CLI="${SENTRY_DSN_CRT_CLI}" \
           NODE_ENV=staging \
           npm run warmup --workspace=pipeline -- "${WARMUP_URL}" || {
             echo "::warning::Some pages failed to warm up — proceeding with traffic switch anyway"

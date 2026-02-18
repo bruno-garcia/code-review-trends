@@ -101,7 +101,7 @@ function parseWorkerTag(): string {
 const workerTag = parseWorkerTag();
 
 // DSN from env var only — no hardcoded default
-const dsn = process.env.SENTRY_DSN_CRT_CLI ?? process.env.SENTRY_DSN;
+const dsn = process.env.SENTRY_DSN_CRT_CLI;
 
 const isHelp = !command || command === "help" || command === "--help" || command === "-h";
 
