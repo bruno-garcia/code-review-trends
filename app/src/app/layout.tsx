@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s — Code Review Trends",
   },
   description:
-    "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles for 22+ AI code review products.",
+    "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles for AI code review products.",
   manifest: "/manifest.json",
   icons: {
     icon: [

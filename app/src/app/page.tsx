@@ -13,9 +13,13 @@ import {
 import { SectionHeading } from "@/components/section-heading";
 import { JsonLd } from "@/components/json-ld";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const products = await getProductSummaries();
+  return {
+    description: `Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles for ${products.length} AI code review products.`,
+    alternates: { canonical: "/" },
+  };
+}
 
 export default async function Home() {
   const [totals, totalVolume, topOrgs, products] = await Promise.all([
