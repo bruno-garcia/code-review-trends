@@ -1,7 +1,6 @@
 import { ImageResponse } from "next/og";
 import * as Sentry from "@sentry/nextjs";
 import { getProductSummaries } from "@/lib/clickhouse";
-import { formatNumber } from "@/lib/format";
 import { OG_SIZE, OG_BG, OgFooter, OgFallback } from "@/lib/og-utils";
 
 export const runtime = "nodejs";
@@ -10,19 +9,23 @@ export const size = OG_SIZE;
 export const contentType = "image/png";
 
 export default async function Image() {
-  let topProducts: { name: string; reviews: string; color: string; rawReviews: number }[] = [];
+  let topProducts: { name: string; growth: string; color: string; rawGrowth: number }[] = [];
 
   try {
     const summaries = await getProductSummaries();
     topProducts = summaries
-      .sort((a, b) => Number(b.total_reviews) - Number(a.total_reviews))
+      .filter((s) => Number(s.growth_pct) > 0)
+      .sort((a, b) => Number(b.growth_pct) - Number(a.growth_pct))
       .slice(0, 6)
-      .map((s) => ({
-        name: s.name,
-        reviews: formatNumber(Number(s.total_reviews)),
-        color: s.brand_color || "#7c3aed",
-        rawReviews: Number(s.total_reviews),
-      }));
+      .map((s) => {
+        const g = Number(s.growth_pct);
+        return {
+          name: s.name,
+          growth: `+${g.toFixed(1)}%`,
+          color: s.brand_color || "#7c3aed",
+          rawGrowth: g,
+        };
+      });
   } catch (err) {
     Sentry.captureException(err, { tags: { route: "compare/opengraph-image" } });
   }
@@ -35,7 +38,7 @@ export default async function Image() {
     );
   }
 
-  const maxReviews = Math.max(...topProducts.map((p) => p.rawReviews), 1);
+  const maxGrowth = Math.max(...topProducts.map((p) => p.rawGrowth), 1);
 
   return new ImageResponse(
     (
@@ -70,7 +73,7 @@ export default async function Image() {
             display: "flex",
           }}
         >
-          Side-by-side: volume, growth, repos, and more
+          Fastest growing — 12-week review volume change
         </div>
 
         {/* Bar chart */}
@@ -112,7 +115,7 @@ export default async function Image() {
               >
                 <div
                   style={{
-                    width: `${Math.max((p.rawReviews / maxReviews) * 100, 5)}%`,
+                    width: `${Math.max((p.rawGrowth / maxGrowth) * 100, 5)}%`,
                     height: "100%",
                     display: "flex",
                     background: `linear-gradient(90deg, ${p.color}cc, ${p.color}66)`,
@@ -128,7 +131,7 @@ export default async function Image() {
                   display: "flex",
                 }}
               >
-                {p.reviews}
+                {p.growth}
               </div>
             </div>
           ))}
