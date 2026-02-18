@@ -12,11 +12,16 @@ config:
   gcp:project:
     secure: v1:pPeFMdNeIwwNUtMk:ZBEWf3Wc4tu/V8VTkVtbQLL9kAQxTnsy7f5OiQ==
   code-review-trends:artifactRegistryLocation: us-central1
+  code-review-trends:clickhousePublicAccess: "true"
   code-review-trends:githubRepo: bruno-garcia/code-review-trends
   code-review-trends:clickhouseDomain:
     secure: v1:WtI0hDYGsugbuqPR:beB4SPLLDn9yw1pLMb+9mZRUqlc/wf91ZWmAZce6VM88K8qhuP0=
   code-review-trends:appDomain:
     secure: v1:Cl9tlY9PoPO32Ntm:5JFf8PrN6xLThPSY27xcmScuYzFWaWAtwCNZkGqnryORDQ+tnJvmKjrC8CE=
+  # TODO: Set these after creating the 3 Sentry DSNs:
+  #   pulumi config set code-review-trends:sentryDsnAppFrontend <public-dsn> --secret
+  #   pulumi config set code-review-trends:sentryDsnAppBackend <backend-dsn> --secret
+  # Then remove the old sentryDsnApp key.
   code-review-trends:sentryDsnApp:
     secure: v1:JD6cuoPbJpa4ANnm:Buup6FYvl/yhKgrcIxiLch11AbCg6WsvpHKD9j3JM95TQDr4mhvhXthK6iSkDzdtusQg8u0KAa53WPvPYC6daOC5O/dey3GqQP6rgSQmWpyFDBeET+QvGFafE2uD9Dtf0jkZ+oE=
   code-review-trends:sentryDsnPipeline:

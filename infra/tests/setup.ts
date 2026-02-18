@@ -76,7 +76,9 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
       clickhouseDomain: "ch-test.example.com",
       appDomain: "staging-test.example.com",
       artifactRegistryLocation: "us-central1",
-      sentryDsnApp: "https://test@sentry.io/app",
+      clickhousePublicAccess: "true",
+      sentryDsnAppFrontend: "https://test-fe@sentry.io/app",
+      sentryDsnAppBackend: "https://test-be@sentry.io/app",
       sentryDsnPipeline: "https://test@sentry.io/pipeline",
       sentryAuthToken: "sntrys_test_token",
       githubToken: "ghp_test_token",
@@ -85,6 +87,12 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
 
     get(key: string): string | undefined {
       return this.values[key];
+    }
+
+    getBoolean(key: string): boolean | undefined {
+      const val = this.values[key];
+      if (val === undefined) return undefined;
+      return val === "true";
     }
 
     getNumber(key: string): number | undefined {

@@ -1,6 +1,11 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { EnvironmentConfig, CADDY_HTTPS_PORT, SUBNET_CIDR } from "./config";
+import {
+  EnvironmentConfig,
+  CADDY_HTTPS_PORT,
+  CLICKHOUSE_HTTP_PORT,
+  SUBNET_CIDR,
+} from "./config";
 
 export function createFirewallRules(
   cfg: EnvironmentConfig,
@@ -23,19 +28,37 @@ export function createFirewallRules(
     { parent },
   );
 
-  // HTTPS (Caddy reverse proxy) — open to the internet for Vercel access
-  // Caddy terminates TLS and proxies to ClickHouse on localhost
-  // Note: logical name kept as "clickhouse-http" to match existing Pulumi state
+  if (cfg.clickhousePublicAccess) {
+    // HTTPS (Caddy reverse proxy) — open to the internet.
+    // Caddy terminates TLS and proxies to ClickHouse on localhost.
+    // Used by staging where Cloud Run connects via the public domain.
+    // Note: logical name kept as "clickhouse-http" to match existing Pulumi state
+    new gcp.compute.Firewall(
+      `${prefix}-clickhouse-http`,
+      {
+        name: `${prefix}-clickhouse-https`,
+        network: vpcName,
+        allows: [
+          { protocol: "tcp", ports: [String(CADDY_HTTPS_PORT)] },
+          { protocol: "tcp", ports: ["80"] },
+        ],
+        sourceRanges: ["0.0.0.0/0"],
+        targetTags: ["clickhouse"],
+      },
+      { parent },
+    );
+  }
+
+  // ClickHouse HTTP port — VPC-internal only.
+  // Used by Cloud Run (via Direct VPC Egress) in prod, and available
+  // for internal tooling in both environments.
   new gcp.compute.Firewall(
-    `${prefix}-clickhouse-http`,
+    `${prefix}-clickhouse-http-internal`,
     {
-      name: `${prefix}-clickhouse-https`,
+      name: `${prefix}-clickhouse-http-internal`,
       network: vpcName,
-      allows: [
-        { protocol: "tcp", ports: [String(CADDY_HTTPS_PORT)] },
-        { protocol: "tcp", ports: ["80"] },
-      ],
-      sourceRanges: ["0.0.0.0/0"],
+      allows: [{ protocol: "tcp", ports: [String(CLICKHOUSE_HTTP_PORT)] }],
+      sourceRanges: [SUBNET_CIDR],
       targetTags: ["clickhouse"],
     },
     { parent },

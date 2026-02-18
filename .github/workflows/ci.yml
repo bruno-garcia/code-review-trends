@@ -62,7 +62,7 @@ jobs:
           --health-retries 10
 
     env:
-      HAS_GCP: ${{ secrets.GCP_SA_KEY != '' && 'true' || 'false' }}
+      HAS_GCP: ${{ secrets.GCP_BQ_SA_KEY != '' && 'true' || 'false' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -102,11 +102,13 @@ jobs:
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
 
-      # TODO: Migrate smoke test auth from SA key to Workload Identity Federation
+      # Smoke tests need BigQuery read access. Uses a dedicated SA key with
+      # minimal permissions (bigquery.jobs.create + bigquery.datasets.get).
+      # TODO: Migrate to Workload Identity Federation once PR-level OIDC is set up.
       - uses: google-github-actions/auth@v2
         if: ${{ env.HAS_GCP == 'true' }}
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_BQ_SA_KEY }}
 
       - name: Run pipeline smoke tests
         if: ${{ env.HAS_GCP == 'true' }}
@@ -175,11 +177,19 @@ jobs:
           echo "app=${GAR}/app:${SHA}" >> $GITHUB_OUTPUT
           echo "pipeline=${GAR}/pipeline:${SHA}" >> $GITHUB_OUTPUT
 
+      - name: Read frontend Sentry DSN from Secret Manager
+        id: sentry
+        run: |
+          DSN=$(gcloud secrets versions access latest \
+            --secret=crt-staging-sentry-dsn-app-fe --quiet 2>/dev/null || true)
+          echo "fe_dsn=${DSN}" >> $GITHUB_OUTPUT
+
       - name: Build and push app image
         run: |
           docker build -f app/Dockerfile \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg NEXT_PUBLIC_COMMIT_SHA="${{ github.sha }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_DSN="${{ steps.sentry.outputs.fe_dsn }}" \
             --tag ${{ steps.tags.outputs.app }} \
             .
           docker push ${{ steps.tags.outputs.app }}

@@ -4,6 +4,7 @@ import {
   EnvironmentConfig,
   CLICKHOUSE_HTTP_PORT,
   CADDY_HTTPS_PORT,
+  SUBNET_CIDR,
 } from "./config";
 
 export interface ClickHouseResult {
@@ -86,10 +87,14 @@ fi
 
 # ---- Configure ClickHouse ----
 
-# Listen on localhost only — Caddy handles external access
+# Listen on all interfaces — firewall rules control external access.
+# Staging: only Caddy port (${CADDY_HTTPS_PORT}) is open to the internet;
+#   the ClickHouse HTTP port (${CLICKHOUSE_HTTP_PORT}) is VPC-internal only.
+# Prod: no public ports; Cloud Run reaches ClickHouse via Direct VPC Egress
+#   on the internal IP.
 cat > /etc/clickhouse-server/config.d/listen.xml <<'CFGEOF'
 <clickhouse>
-  <listen_host>127.0.0.1</listen_host>
+  <listen_host>0.0.0.0</listen_host>
   <http_port>${CLICKHOUSE_HTTP_PORT}</http_port>
 </clickhouse>
 CFGEOF
@@ -125,6 +130,7 @@ cat > /etc/clickhouse-server/users.d/default-password.xml <<'PWEOF'
       <networks>
         <ip>127.0.0.1</ip>
         <ip>::1</ip>
+        <ip>${SUBNET_CIDR}</ip>
       </networks>
     </default>
   </users>

@@ -119,6 +119,7 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `app/src/app/orgs/[owner]/page.tsx` | Individual organization detail page |
 | `app/src/app/compare/page.tsx` | Bot comparison page |
 | `app/src/app/error.tsx` | Error boundary page |
+| `app/src/middleware.ts` | Per-IP rate limiting (in-memory sliding window) |
 | `app/src/app/api/revalidate/route.ts` | ISR cache revalidation endpoint |
 | `app/e2e/` | Playwright e2e tests |
 | `db/init/001_schema.sql` | ClickHouse table definitions (all environments) |

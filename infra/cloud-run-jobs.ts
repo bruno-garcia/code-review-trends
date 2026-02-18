@@ -2,8 +2,9 @@ import * as fs from "fs";
 import * as path from "path";
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { CADDY_HTTPS_PORT, EnvironmentConfig, PLACEHOLDER_IMAGE } from "./config";
+import { EnvironmentConfig, PLACEHOLDER_IMAGE } from "./config";
 import { SecretsResult } from "./secrets";
+import { ClickHouseAccess } from "./index";
 
 /** Read current image from an existing Cloud Run Job, falling back to placeholder. */
 function currentJobImage(jobName: string): pulumi.Output<string> {
@@ -46,6 +47,7 @@ export function createCloudRunJobs(
   cfg: EnvironmentConfig,
   runtimeSa: gcp.serviceaccount.Account,
   secrets: SecretsResult,
+  chAccess: ClickHouseAccess,
   parent?: pulumi.Resource,
 ): void {
   const prefix = cfg.namePrefix;
@@ -56,7 +58,7 @@ export function createCloudRunJobs(
     { name: "CLICKHOUSE_DB", value: "code_review_trends" },
     {
       name: "CLICKHOUSE_URL",
-      value: pulumi.interpolate`https://${cfg.clickhouseDomain}:${CADDY_HTTPS_PORT}`,
+      value: chAccess.url,
     },
     {
       name: "CLICKHOUSE_PASSWORD",
@@ -116,6 +118,20 @@ export function createCloudRunJobs(
             serviceAccount: runtimeSa.email,
             timeout: job.timeout,
             maxRetries: 1,
+            // VPC access for prod: jobs reach ClickHouse via internal IP
+            ...(chAccess.vpcAccess
+              ? {
+                  vpcAccess: {
+                    networkInterfaces: [
+                      {
+                        network: chAccess.vpcAccess.network,
+                        subnetwork: chAccess.vpcAccess.subnetwork,
+                      },
+                    ],
+                    egress: "PRIVATE_RANGES_ONLY",
+                  },
+                }
+              : {}),
             containers: [
               {
                 image, // CI updates via gcloud; we preserve the current image on pulumi up
