@@ -177,19 +177,12 @@ jobs:
           echo "app=${GAR}/app:${SHA}" >> $GITHUB_OUTPUT
           echo "pipeline=${GAR}/pipeline:${SHA}" >> $GITHUB_OUTPUT
 
-      - name: Read frontend Sentry DSN from Secret Manager
-        id: sentry
-        run: |
-          DSN=$(gcloud secrets versions access latest \
-            --secret=crt-staging-sentry-dsn-app-fe --quiet 2>/dev/null || true)
-          echo "fe_dsn=${DSN}" >> $GITHUB_OUTPUT
-
       - name: Build and push app image
         run: |
           docker build -f app/Dockerfile \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg NEXT_PUBLIC_COMMIT_SHA="${{ github.sha }}" \
-            --build-arg SENTRY_DSN_CRT_FRONTEND="${{ steps.sentry.outputs.fe_dsn }}" \
+            --build-arg SENTRY_DSN_CRT_FRONTEND="${{ vars.SENTRY_DSN_CRT_FRONTEND }}" \
             --tag ${{ steps.tags.outputs.app }} \
             .
           docker push ${{ steps.tags.outputs.app }}
