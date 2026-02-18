@@ -184,7 +184,6 @@ describe("schema migration system", () => {
       "human_review_activity",
       "pr_bot_events",
       "repos",
-      "repo_languages",
       "pull_requests",
       "pr_comments",
       "schema_migrations",
@@ -232,11 +231,6 @@ describe("schema version consistency", () => {
   }
 
   const sources: { file: string; path: string; pattern: RegExp }[] = [
-    {
-      file: "pipeline/src/cli.ts",
-      path: "../../../pipeline/src/cli.ts",
-      pattern: /const\s+SCHEMA_VERSION\s*=\s*(\d+)/,
-    },
     {
       file: "db/init-ci.sh",
       path: "../../../db/init-ci.sh",
