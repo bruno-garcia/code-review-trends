@@ -26,7 +26,7 @@ export default async function Image() {
   }
 
   const maxReviews = topProducts.length > 0
-    ? Math.max(...topProducts.map((p) => p.rawReviews))
+    ? Math.max(...topProducts.map((p) => p.rawReviews), 1)
     : 1;
 
   return new ImageResponse(
