@@ -104,8 +104,8 @@ export default async function RootLayout({
             {enrichmentIncomplete && (
               <div className="mb-4 inline-flex items-center gap-2 justify-center" data-testid="data-import-status">
                 <span className="relative flex h-3 w-3" aria-hidden="true">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-100" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
+                  <span className="relative inline-flex rounded-full h-full w-full bg-emerald-500" />
                 </span>
                 <span>
                   <Link
