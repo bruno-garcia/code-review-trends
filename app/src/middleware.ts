@@ -17,14 +17,16 @@ const MAX_REQUESTS = 100; // requests per window per IP
 
 const counters = new Map<string, { count: number; resetAt: number }>();
 
-function getClientIp(request: NextRequest): string {
-  // Cloud Run (and most reverse proxies) set x-forwarded-for
+function getClientIp(request: NextRequest): string | null {
+  // Cloud Run's load balancer always sets x-forwarded-for.
+  // In local dev (next dev) the header may be absent — return null
+  // so we skip rate limiting rather than grouping all unknown traffic
+  // into a single bucket.
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
     return forwarded.split(",")[0].trim();
   }
-  // Fallback — Cloud Run always provides x-forwarded-for
-  return "unknown";
+  return null;
 }
 
 // Periodic cleanup to prevent memory leaks from stale entries
@@ -42,6 +44,11 @@ export function middleware(request: NextRequest) {
   cleanup();
 
   const ip = getClientIp(request);
+  if (!ip) {
+    // No IP available (local dev) — skip rate limiting
+    return NextResponse.next();
+  }
+
   const now = Date.now();
 
   let entry = counters.get(ip);
