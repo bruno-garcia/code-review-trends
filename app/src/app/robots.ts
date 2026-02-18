@@ -1,6 +1,15 @@
 import type { MetadataRoute } from "next";
 
+const SITE_URL = process.env.SITE_URL;
+const isProduction = SITE_URL === "https://codereviewtrends.com";
+
 export default function robots(): MetadataRoute.Robots {
+  if (!isProduction) {
+    return {
+      rules: [{ userAgent: "*", disallow: "/" }],
+    };
+  }
+
   return {
     rules: [
       {
@@ -9,6 +18,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/"],
       },
     ],
-    sitemap: "https://codereviewtrends.com/sitemap.xml",
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

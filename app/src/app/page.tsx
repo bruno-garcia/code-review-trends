@@ -3,6 +3,7 @@ import {
   getWeeklyTotals,
   getWeeklyTotalVolume,
   getTopOrgsByStars,
+  getProductSummaries,
 } from "@/lib/clickhouse";
 import {
   BotShareChart,
@@ -17,10 +18,11 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const [totals, totalVolume, topOrgs] = await Promise.all([
+  const [totals, totalVolume, topOrgs, products] = await Promise.all([
     getWeeklyTotals(),
     getWeeklyTotalVolume(),
     getTopOrgsByStars(20),
+    getProductSummaries(),
   ]);
 
   // Compute latest AI share % for structured data
@@ -36,8 +38,8 @@ export default async function Home() {
           name: "AI Code Review Trends on GitHub",
           description:
             latestPct != null
-              ? `AI bots perform ${latestPct}% of public GitHub code reviews. Tracking adoption of 22+ AI code review products since January 2023.`
-              : "Tracking the adoption of AI code review bots across public GitHub repositories since January 2023.",
+              ? `AI bots perform ${latestPct}% of public GitHub code reviews. Tracking adoption of ${products.length} AI code review products since January 2023.`
+              : `Tracking the adoption of AI code review bots across public GitHub repositories since January 2023.`,
           url: "https://codereviewtrends.com",
           temporalCoverage: "2023-01-01/..",
           license: "https://github.com/bruno-garcia/code-review-trends",

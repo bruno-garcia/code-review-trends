@@ -61,28 +61,33 @@ test.describe("OG meta tags", () => {
 });
 
 test.describe("SEO files", () => {
-  test("sitemap.xml returns valid XML with expected routes", async ({
-    request,
-  }) => {
+  test("sitemap.xml returns valid XML", async ({ request }) => {
     const res = await request.get("/sitemap.xml");
     expect(res.status()).toBe(200);
     const body = await res.text();
     expect(body).toContain("<urlset");
-    expect(body).toContain("codereviewtrends.com");
-    expect(body).toContain("/bots");
-    expect(body).toContain("/compare");
-    expect(body).toContain("/orgs");
-    expect(body).toContain("/about");
+    // Without SITE_URL=https://codereviewtrends.com, sitemap returns empty.
+    // In CI/dev, just verify it's valid XML.
+    if (process.env.SITE_URL === "https://codereviewtrends.com") {
+      expect(body).toContain("codereviewtrends.com");
+      expect(body).toContain("/bots");
+      expect(body).toContain("/compare");
+      expect(body).toContain("/orgs");
+      expect(body).toContain("/about");
+    }
   });
 
-  test("robots.txt allows crawling and references sitemap", async ({
-    request,
-  }) => {
+  test("robots.txt returns valid response", async ({ request }) => {
     const res = await request.get("/robots.txt");
     expect(res.status()).toBe(200);
     const body = await res.text();
-    expect(body).toContain("Allow: /");
-    expect(body).toContain("Sitemap:");
-    expect(body).toContain("sitemap.xml");
+    expect(body).toContain("User-Agent: *");
+    // Without SITE_URL=https://codereviewtrends.com, robots blocks all crawling (safe default).
+    if (process.env.SITE_URL === "https://codereviewtrends.com") {
+      expect(body).toContain("Allow: /");
+      expect(body).toContain("Sitemap:");
+    } else {
+      expect(body).toContain("Disallow: /");
+    }
   });
 });

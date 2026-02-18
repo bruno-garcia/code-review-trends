@@ -5,12 +5,15 @@ import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "AI Code Review Products",
-  description:
-    "Profiles, stats, and weekly trends for 22+ AI code review products on GitHub. Compare CodeRabbit, Copilot, Cursor, Claude, and more.",
-  alternates: { canonical: "/bots" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const summaries = await getProductSummaries();
+  const count = summaries.length;
+  return {
+    title: "AI Code Review Products",
+    description: `Profiles, stats, and weekly trends for ${count} AI code review products on GitHub. Compare CodeRabbit, Copilot, Sentry, Cursor, and more.`,
+    alternates: { canonical: "/bots" },
+  };
+}
 
 export default async function BotsPage({
   searchParams,
