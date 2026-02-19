@@ -75,6 +75,10 @@ export function ProductFilterProvider({
     setRangeRaw(r);
   }, []);
 
+  // Guards the sync effect from running with stale state during the
+  // same render cycle as the init effect's startTransition.
+  const skipNextSyncRef = useRef(false);
+
   // On mount: read products + range from URL.
   useEffect(() => {
     if (initializedRef.current) return;
@@ -89,6 +93,7 @@ export function ProductFilterProvider({
         .split(",")
         .filter((id) => validIds.has(id));
       if (ids.length > 0) {
+        skipNextSyncRef.current = true;
         startTransition(() => {
           setSelectedRaw(ids);
         });
@@ -110,8 +115,16 @@ export function ProductFilterProvider({
   useEffect(() => {
     if (!initializedRef.current) return;
 
+    // Skip one sync cycle after init read products from URL —
+    // the startTransition hasn't committed yet, so selectedProductIds
+    // still holds defaults and would incorrectly wipe ?products=.
+    if (skipNextSyncRef.current) {
+      skipNextSyncRef.current = false;
+      return;
+    }
+
     const isSyncPage = PRODUCT_SYNC_PAGES.some(
-      (p) => pathname === p || pathname.startsWith(p + "/"),
+      (p) => pathname === p,
     );
     if (!isSyncPage) return;
 
