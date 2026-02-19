@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 6;
+export const EXPECTED_SCHEMA_VERSION = 7;
 
 export type SchemaStatus = {
   /**
@@ -374,8 +374,76 @@ const MIGRATION_006: Migration = {
   ],
 };
 
+/**
+ * Migration 7 — reaction_only_repo_counts refreshable materialized view.
+ * Based on db/init/008_reaction_only_repo_counts.sql, plus an INSERT backfill
+ * for immediate population (not present in init SQL since the refreshable MV
+ * handles it there).
+ *
+ * Pre-aggregates reaction-only reviews per (repo_name, bot_id) with two counts:
+ *   - pr_count: PRs where this bot reacted but has no event (per-bot NOT EXISTS)
+ *   - exclusive_pr_count: subset where NO bot has an event (safe to add to event totals)
+ *
+ * Enables the org listing page to include reaction-based products (e.g. Sentry)
+ * without scanning raw pr_bot_reactions at query time.
+ */
+const MIGRATION_007: Migration = {
+  version: 7,
+  name: "reaction_only_repo_counts",
+  statements: [
+    // Target table
+    `CREATE TABLE IF NOT EXISTS reaction_only_repo_counts (
+      repo_name String,
+      bot_id String,
+      pr_count UInt64,
+      exclusive_pr_count UInt64
+    ) ENGINE = ReplacingMergeTree()
+    ORDER BY (repo_name, bot_id)`,
+
+    // Refreshable materialized view — recomputes every 30 minutes
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS reaction_only_repo_counts_mv
+    REFRESH EVERY 30 MINUTE
+    TO reaction_only_repo_counts
+    AS SELECT
+      r.repo_name,
+      r.bot_id,
+      uniqExact(r.pr_number) AS pr_count,
+      uniqExactIf(r.pr_number, ev.pr_number IS NULL) AS exclusive_pr_count
+    FROM pr_bot_reactions r FINAL
+    LEFT JOIN (
+      SELECT DISTINCT repo_name, pr_number
+      FROM pr_bot_events
+    ) ev ON r.repo_name = ev.repo_name AND r.pr_number = ev.pr_number
+    WHERE r.reaction_type = 'hooray'
+      AND NOT EXISTS (
+        SELECT 1 FROM pr_bot_events e
+        WHERE e.repo_name = r.repo_name AND e.pr_number = r.pr_number AND e.bot_id = r.bot_id
+      )
+    GROUP BY r.repo_name, r.bot_id`,
+
+    // Backfill — run the same query to populate immediately
+    `INSERT INTO reaction_only_repo_counts
+    SELECT
+      r.repo_name,
+      r.bot_id,
+      uniqExact(r.pr_number) AS pr_count,
+      uniqExactIf(r.pr_number, ev.pr_number IS NULL) AS exclusive_pr_count
+    FROM pr_bot_reactions r FINAL
+    LEFT JOIN (
+      SELECT DISTINCT repo_name, pr_number
+      FROM pr_bot_events
+    ) ev ON r.repo_name = ev.repo_name AND r.pr_number = ev.pr_number
+    WHERE r.reaction_type = 'hooray'
+      AND NOT EXISTS (
+        SELECT 1 FROM pr_bot_events e
+        WHERE e.repo_name = r.repo_name AND e.pr_number = r.pr_number AND e.bot_id = r.bot_id
+      )
+    GROUP BY r.repo_name, r.bot_id`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

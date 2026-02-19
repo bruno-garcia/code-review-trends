@@ -975,21 +975,35 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       sum(r.stars) AS total_stars,
       count() AS repo_count,
       groupUniqArray(r.primary_language) AS languages,
-      COALESCE(any(pr.total_prs), 0) AS total_prs,
+      COALESCE(any(ev.event_prs), 0) + COALESCE(any(rr.exclusive_reaction_prs), 0) AS total_prs,
       COALESCE(any(cm.total_bot_comments), 0) AS total_bot_comments,
       COALESCE(any(cm.thumbs_up), 0) AS thumbs_up,
       COALESCE(any(cm.thumbs_down), 0) AS thumbs_down,
       COALESCE(any(cm.heart), 0) AS heart
     FROM repos r
     LEFT JOIN (
-      SELECT
-        r2.owner,
-        countDistinct(e.repo_name, e.pr_number) AS total_prs
+      SELECT r2.owner,
+        countDistinct(e.repo_name, e.pr_number) AS event_prs
       FROM pr_bot_events e
       JOIN repos r2 ON e.repo_name = r2.name
       WHERE r2.owner = {owner:String} AND r2.fetch_status = 'ok'
       GROUP BY r2.owner
-    ) pr ON r.owner = pr.owner
+    ) ev ON r.owner = ev.owner
+    LEFT JOIN (
+      -- Exclusive reaction-only PRs from MV (no events from ANY bot).
+      -- Disjoint from event PRs, so addition is safe.
+      SELECT r2.owner,
+        sum(repo_exclusive) AS exclusive_reaction_prs
+      FROM (
+        SELECT rrc.repo_name,
+          max(rrc.exclusive_pr_count) AS repo_exclusive
+        FROM reaction_only_repo_counts rrc
+        WHERE rrc.repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+        GROUP BY rrc.repo_name
+      ) repo_agg
+      JOIN repos r2 ON repo_agg.repo_name = r2.name
+      GROUP BY r2.owner
+    ) rr ON r.owner = rr.owner
     LEFT JOIN (
       SELECT
         r3.owner,
@@ -1025,15 +1039,23 @@ export async function getOrgRepos(owner: string): Promise<OrgRepo[]> {
       r.name,
       r.stars,
       r.primary_language,
-      COALESCE(pr.pr_count, 0) AS pr_count,
+      COALESCE(ev.event_prs, 0) + COALESCE(rr.exclusive_reaction_prs, 0) AS pr_count,
       COALESCE(cm.bot_comment_count, 0) AS bot_comment_count
     FROM repos r
     LEFT JOIN (
-      SELECT repo_name, countDistinct(repo_name, pr_number) AS pr_count
+      SELECT repo_name, countDistinct(pr_number) AS event_prs
       FROM pr_bot_events
       WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
       GROUP BY repo_name
-    ) pr ON r.name = pr.repo_name
+    ) ev ON r.name = ev.repo_name
+    LEFT JOIN (
+      -- Exclusive reaction-only PRs from MV, per repo.
+      SELECT repo_name,
+        max(exclusive_pr_count) AS exclusive_reaction_prs
+      FROM reaction_only_repo_counts
+      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+      GROUP BY repo_name
+    ) rr ON r.name = rr.repo_name
     LEFT JOIN (
       SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
       FROM pr_comments
@@ -1060,18 +1082,37 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
   return query<OrgProduct>(
     `
     SELECT
-      p.id AS product_id,
-      p.name AS product_name,
-      p.brand_color,
-      p.avatar_url,
-      countDistinct(e.repo_name, e.pr_number) AS pr_count,
-      count() AS event_count
-    FROM pr_bot_events e
-    JOIN repos r ON e.repo_name = r.name
-    JOIN bots b ON e.bot_id = b.id
-    JOIN products p ON b.product_id = p.id
-    WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
-    GROUP BY p.id, p.name, p.brand_color, p.avatar_url
+      product_id,
+      any(product_name) AS product_name,
+      any(brand_color) AS brand_color,
+      any(avatar_url) AS avatar_url,
+      countDistinct(repo_name, pr_number) AS pr_count,
+      sum(is_event) AS event_count
+    FROM (
+      SELECT p.id AS product_id, p.name AS product_name,
+        p.brand_color AS brand_color, p.avatar_url AS avatar_url,
+        e.repo_name AS repo_name, e.pr_number AS pr_number, 1 AS is_event
+      FROM pr_bot_events e
+      JOIN repos r ON e.repo_name = r.name
+      JOIN bots b ON e.bot_id = b.id
+      JOIN products p ON b.product_id = p.id
+      WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
+      UNION ALL
+      SELECT p.id AS product_id, p.name AS product_name,
+        p.brand_color AS brand_color, p.avatar_url AS avatar_url,
+        rx.repo_name AS repo_name, rx.pr_number AS pr_number, 0 AS is_event
+      FROM pr_bot_reactions rx FINAL
+      JOIN repos r ON rx.repo_name = r.name
+      JOIN bots b ON rx.bot_id = b.id
+      JOIN products p ON b.product_id = p.id
+      WHERE rx.reaction_type = 'hooray'
+        AND r.fetch_status = 'ok' AND r.owner = {owner:String}
+        AND NOT EXISTS (
+          SELECT 1 FROM pr_bot_events e
+          WHERE e.repo_name = rx.repo_name AND e.pr_number = rx.pr_number AND e.bot_id = rx.bot_id
+        )
+    )
+    GROUP BY product_id
     ORDER BY pr_count DESC
     `,
     { owner },
@@ -1126,11 +1167,13 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     params.languages = languages;
   }
 
-  // Product filter: only orgs where pr_bot_events includes these products
+  // Product filter: only orgs where pr_bot_events or reactions include these products
   let productJoinFilter = "";
+  let reactionProductFilter = "";
   if (productIds && productIds.length > 0) {
     productJoinFilter = "WHERE b.product_id IN ({productIds:Array(String)})";
-    havingConditions.push("COALESCE(any(pr.total_prs), 0) > 0");
+    reactionProductFilter = "AND b.product_id IN ({productIds:Array(String)})";
+    havingConditions.push("(COALESCE(any(pr.total_prs), 0) > 0 OR COALESCE(any(rr.reaction_activity), 0) > 0)");
     params.productIds = productIds;
   }
 
@@ -1144,18 +1187,21 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     ? `HAVING ${havingConditions.join(" AND ")}`
     : "";
 
-  // Uses pr_bot_event_counts materialized view (~471K rows) instead of
-  // scanning the full pr_bot_events table (~7.4M rows). Two-level aggregation:
-  // 1. Inner: merge uniqExact states per repo (unions PR sets across bots)
-  // 2. Outer: sum exact per-repo counts by owner
+  // Uses pr_bot_event_counts MV for events, plus reaction_only_repo_counts MV
+  // for reaction-only reviews. The repo_counts MV has two columns:
+  //   - pr_count: per-bot reaction-only PRs (Sentry shows up as a product)
+  //   - exclusive_pr_count: subset with NO events from any bot (safe to add to total_prs)
   const dataQuery = `
     SELECT
       r.owner,
       sum(r.stars) AS total_stars,
       count() AS repo_count,
       groupUniqArray(r.primary_language) AS languages,
-      COALESCE(any(pr.total_prs), 0) AS total_prs,
-      COALESCE(any(pr.product_ids), []) AS product_ids
+      COALESCE(any(pr.total_prs), 0) + COALESCE(any(rr.exclusive_reaction_prs), 0) AS total_prs,
+      arrayDistinct(arrayConcat(
+        COALESCE(any(pr.product_ids), []),
+        COALESCE(any(rr.reaction_product_ids), [])
+      )) AS product_ids
     FROM repos r
     LEFT JOIN (
       SELECT
@@ -1175,6 +1221,29 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       WHERE r2.fetch_status = 'ok'
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
+    LEFT JOIN (
+      -- Two-level aggregation: per-repo first (max deduplicates across bots),
+      -- then per-owner. Prevents double-counting when multiple bots react on
+      -- the same exclusive PR (a PR with no events from any bot).
+      SELECT r2.owner,
+        sum(repo_agg.repo_exclusive) AS exclusive_reaction_prs,
+        sum(repo_agg.repo_activity) AS reaction_activity,
+        arrayDistinct(arrayFlatten(groupArray(repo_agg.repo_product_ids))) AS reaction_product_ids
+      FROM (
+        SELECT rrc.repo_name,
+          max(rrc.exclusive_pr_count) AS repo_exclusive,
+          sum(rrc.pr_count) AS repo_activity,
+          groupUniqArray(b.product_id) AS repo_product_ids
+        FROM reaction_only_repo_counts rrc
+        JOIN bots b ON rrc.bot_id = b.id
+        WHERE 1=1
+          ${reactionProductFilter}
+        GROUP BY rrc.repo_name
+      ) repo_agg
+      JOIN repos r2 ON repo_agg.repo_name = r2.name
+      WHERE r2.fetch_status = 'ok'
+      GROUP BY r2.owner
+    ) rr ON r.owner = rr.owner
     WHERE ${whereClause}
     GROUP BY r.owner
     ${havingClause}
@@ -1203,6 +1272,22 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
         WHERE r2.fetch_status = 'ok'
         GROUP BY r2.owner
       ) pr ON r.owner = pr.owner
+      LEFT JOIN (
+        SELECT r2.owner,
+          sum(repo_agg.repo_activity) AS reaction_activity
+        FROM (
+          SELECT rrc.repo_name,
+            sum(rrc.pr_count) AS repo_activity
+          FROM reaction_only_repo_counts rrc
+          JOIN bots b ON rrc.bot_id = b.id
+          WHERE 1=1
+            ${reactionProductFilter}
+          GROUP BY rrc.repo_name
+        ) repo_agg
+        JOIN repos r2 ON repo_agg.repo_name = r2.name
+        WHERE r2.fetch_status = 'ok'
+        GROUP BY r2.owner
+      ) rr ON r.owner = rr.owner
       WHERE ${whereClause}
       GROUP BY r.owner
       ${havingClause}
