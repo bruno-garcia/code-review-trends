@@ -33,7 +33,7 @@ class CliError extends Error {
   }
 }
 
-import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
+import { BOTS, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import {
   createCHClient,
   syncProducts,
