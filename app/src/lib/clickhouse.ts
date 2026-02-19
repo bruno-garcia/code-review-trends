@@ -838,7 +838,7 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       groupUniqArray(r.primary_language) AS languages,
       COALESCE(any(pr.total_prs), 0) AS total_prs,
       COALESCE(any(cm.total_bot_comments), 0) AS total_bot_comments
-    FROM repos r FINAL
+    FROM repos r
     LEFT JOIN (
       SELECT
         r2.owner,
@@ -852,8 +852,8 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       SELECT
         r3.owner,
         countIf(c.comment_id > 0) AS total_bot_comments
-      FROM pr_comments c FINAL
-      JOIN repos r3 FINAL ON c.repo_name = r3.name
+      FROM pr_comments c
+      JOIN repos r3 ON c.repo_name = r3.name
       WHERE r3.owner = {owner:String} AND r3.fetch_status = 'ok'
       GROUP BY r3.owner
     ) cm ON r.owner = cm.owner
@@ -1164,13 +1164,13 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       comments_enriched: number;
     }>(`
       SELECT
-        (SELECT uniq(repo_name) FROM pr_bot_events FINAL) AS repos_total,
-        (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
-        (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events FINAL) AS prs_discovered,
-        (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
-        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_bot_events FINAL) AS comments_discovered,
-        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments FINAL) AS comments_enriched
+        (SELECT count(DISTINCT repo_name) FROM pr_bot_event_counts) AS repos_total,
+        (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
+        (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
+        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS prs_discovered,
+        (SELECT count() FROM pull_requests) AS prs_enriched,
+        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name, bot_id)) AS comments_discovered,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched
     `),
   ]);
 
