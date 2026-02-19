@@ -140,7 +140,9 @@ export function ProductFilterProvider({
       params.delete("products");
     }
 
-    const qs = params.toString();
+    // replaceAll("%2C", ",") keeps commas readable — URLSearchParams
+    // percent-encodes them but they're safe in query values.
+    const qs = params.toString().replaceAll("%2C", ",");
     const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 

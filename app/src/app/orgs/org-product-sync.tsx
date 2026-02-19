@@ -43,8 +43,14 @@ export function OrgProductSync() {
       }
     }
 
-    const qs = params.toString();
+    const qs = params.toString().replaceAll("%2C", ",");
     const newPath = `/orgs${qs ? `?${qs}` : ""}`;
+
+    // Skip if URL already matches — avoids redundant server re-render
+    // when ProductFilterProvider init reads products from URL and
+    // updates context state (which re-triggers this effect).
+    const currentPath = `${window.location.pathname}${window.location.search}`;
+    if (newPath === currentPath) return;
 
     document.dispatchEvent(
       new CustomEvent("navigation-start", { detail: { href: newPath } }),
