@@ -58,6 +58,7 @@ export function ProductFilterBar() {
 
   const selectedSet = new Set(selectedProductIds);
   const selectedProducts = allProducts.filter((p) => selectedSet.has(p.id));
+  const isSelectionEmpty = selectedProducts.length === 0;
 
   // Only show filter on pages that use it
   if (pathname !== "/bots" && pathname !== "/compare" && pathname !== "/orgs") {
@@ -98,13 +99,13 @@ export function ProductFilterBar() {
           aria-expanded={expanded}
         >
           <span className="text-sm whitespace-nowrap shrink-0 text-theme-muted">
-            <span className={`font-semibold tabular-nums ${selectedProducts.length === 0 ? "text-red-400" : "text-violet-400"}`}>{selectedProducts.length}</span>
+            <span className={`font-semibold tabular-nums ${isSelectionEmpty ? "text-red-400" : "text-violet-400"}`}>{selectedProducts.length}</span>
             {" of "}
             <span className="font-semibold text-theme-text-secondary tabular-nums">{allProducts.length}</span>
             {" products "}
-            <span className={`underline underline-offset-2 ${selectedProducts.length === 0 ? "text-red-400 decoration-red-400/40 hover:decoration-red-400" : "text-violet-400 decoration-violet-400/40 hover:decoration-violet-400"}`}>selected</span>
+            <span className={`underline underline-offset-2 ${isSelectionEmpty ? "text-red-400 decoration-red-400/40 hover:decoration-red-400" : "text-violet-400 decoration-violet-400/40 hover:decoration-violet-400"}`}>selected</span>
           </span>
-          {selectedProducts.length === 0 && !expanded && (
+          {isSelectionEmpty && !expanded && (
             <span className="text-xs text-red-400/80 hidden sm:inline">
               Click to pick a product
             </span>

@@ -31,11 +31,17 @@ export function OrgProductSync() {
       params.append(key, val);
     }
 
-    // Only add product params when not all products are selected
+    // Add product params when not all products are selected.
+    // Use a sentinel value for empty selection so the server can
+    // distinguish "no filter" (all) from "nothing selected" (none).
     const allSelected = selectedProductIds.length === allProducts.length;
     if (!allSelected) {
-      for (const id of selectedProductIds) {
-        params.append("product", id);
+      if (selectedProductIds.length === 0) {
+        params.append("product", "none");
+      } else {
+        for (const id of selectedProductIds) {
+          params.append("product", id);
+        }
       }
     }
 
