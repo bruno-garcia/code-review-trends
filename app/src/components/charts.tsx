@@ -133,7 +133,7 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
     comments: { dataKey: "bot_comment_share_pct", label: "Review Comments" },
   };
 
-  const { dataKey, label } = metricConfig[metric];
+  const { dataKey, label } = metricConfig[metric] ?? metricConfig.reviews;
 
   return (
     <div>
@@ -202,7 +202,7 @@ export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
     comments: { dataKey: "total_comments", label: "Review Comments", color: "#22d3ee" },
   };
 
-  const { dataKey, label, color } = metricConfig[metric];
+  const { dataKey, label, color } = metricConfig[metric] ?? metricConfig.reviews;
 
   return (
     <div data-testid="total-volume-chart">
@@ -339,7 +339,7 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
     },
   };
 
-  const current = lines[metric];
+  const current = lines[metric] ?? lines.reviews;
 
   return (
     <div>
