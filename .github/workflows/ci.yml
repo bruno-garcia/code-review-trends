@@ -45,9 +45,9 @@ jobs:
       - name: Build pipeline
         run: npm run build --workspace=pipeline
 
-  e2e:
+  test-pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     services:
       clickhouse:
         image: clickhouse/clickhouse-server:latest
@@ -64,9 +64,6 @@ jobs:
           --health-timeout 3s
           --health-retries 10
 
-    env:
-      HAS_GCP: ${{ secrets.GCP_BQ_SA_KEY != '' && 'true' || 'false' }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -77,10 +74,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-        working-directory: app
 
       - name: Init ClickHouse schema and seed data
         run: bash db/init-ci.sh
@@ -113,6 +106,63 @@ jobs:
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
 
+  test-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:latest
+        ports:
+          - 8123:8123
+          - 9000:9000
+        env:
+          CLICKHOUSE_DB: code_review_trends
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: dev
+        options: >-
+          --health-cmd "clickhouse-client --password dev --query 'SELECT 1'"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      HAS_GCP: ${{ secrets.GCP_BQ_SA_KEY != '' && 'true' || 'false' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+        working-directory: app
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+        working-directory: app
+
+      - name: Init ClickHouse schema and seed data
+        run: bash db/init-ci.sh
+        env:
+          CLICKHOUSE_URL: http://localhost:8123
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: dev
+
       # Smoke tests need BigQuery read access. Uses a dedicated SA key with
       # minimal permissions (bigquery.jobs.create + bigquery.datasets.get).
       # TODO: Migrate to Workload Identity Federation once PR-level OIDC is set up.
@@ -138,6 +188,14 @@ jobs:
               -d "OPTIMIZE TABLE code_review_trends.${table} FINAL" || true
           done
 
+      - name: Build app
+        run: npm run build --workspace=app
+        env:
+          CLICKHOUSE_URL: http://localhost:8123
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: dev
+          CLICKHOUSE_DB: code_review_trends
+
       - name: Run Playwright tests
         run: npm run test:e2e --workspace=app
         env:
@@ -157,7 +215,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [lint-and-build, e2e]
+    needs: [lint-and-build, test-pipeline, test-e2e]
     concurrency:
       group: deploy-staging
       cancel-in-progress: false
@@ -198,23 +256,25 @@ jobs:
           echo "app=${GAR}/app:${SHA}" >> $GITHUB_OUTPUT
           echo "pipeline=${GAR}/pipeline:${SHA}" >> $GITHUB_OUTPUT
 
-      - name: Build and push app image
+      - name: Build and push images
         run: |
           docker build -f app/Dockerfile \
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg NEXT_PUBLIC_COMMIT_SHA="${{ github.sha }}" \
             --build-arg SENTRY_DSN_CRT_FRONTEND="${{ secrets.SENTRY_DSN_CRT_FRONTEND }}" \
             --tag ${{ steps.tags.outputs.app }} \
-            .
-          docker push ${{ steps.tags.outputs.app }}
-
-      - name: Build and push pipeline image
-        run: |
+            . &
+          APP_PID=$!
           docker build -f pipeline/Dockerfile \
             --build-arg GIT_SHA="${{ github.sha }}" \
             --tag ${{ steps.tags.outputs.pipeline }} \
-            .
-          docker push ${{ steps.tags.outputs.pipeline }}
+            . &
+          PIPE_PID=$!
+          wait $APP_PID || exit 1
+          wait $PIPE_PID || exit 1
+          docker push ${{ steps.tags.outputs.app }} &
+          docker push ${{ steps.tags.outputs.pipeline }} &
+          wait
 
       - name: Create Sentry release for pipeline
         env:
