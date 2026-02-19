@@ -77,7 +77,7 @@ export const PRODUCTS: ProductDefinition[] = [
     description:
       "GitHub's native AI pair programmer. Provides inline code review suggestions directly in the GitHub pull request UI. Part of the Copilot suite that includes code completion, chat, and workspace features.",
     docs_url: "https://docs.github.com/en/copilot",
-    brand_color: "#1f6feb",
+    brand_color: "#58a6ff",
     avatar_url: "https://avatars.githubusercontent.com/in/946600?v=4",
   },
   {
@@ -308,7 +308,7 @@ export const BOTS: BotDefinition[] = [
     website: "https://github.com/features/copilot",
     description:
       "GitHub's native AI pair programmer. Provides inline code review suggestions directly in the PR UI.",
-    brand_color: "#1f6feb",
+    brand_color: "#58a6ff",
     avatar_url: "https://avatars.githubusercontent.com/in/946600?v=4",
   },
   // CodeScene

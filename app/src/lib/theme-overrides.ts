@@ -21,7 +21,7 @@ type ThemeOverride = {
 const THEME_OVERRIDES: Record<string, ThemeOverride> = {
   copilot: {
     // DB may still have old #e5e7eb (invisible on white). Force GitHub blue on light.
-    brand_color_light: "#1f6feb",
+    brand_color_light: "#58a6ff",
   },
   "openai-codex": {
     // Default #808080 is too muted on both themes
