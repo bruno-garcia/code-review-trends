@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useProductFilter } from "@/lib/product-filter";
+import { useMemo } from "react";
+import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
+import { useUrlState } from "@/lib/use-url-state";
 import {
   ReviewVolumeChart,
 } from "@/components/charts";
@@ -44,21 +45,31 @@ export function FilteredBotsPage({
 }) {
   const { selectedProductIds } = useProductFilter();
   const { resolved } = useTheme();
+  const buildUrl = useFilterUrl();
   const selectedSet = useMemo(
     () => new Set(selectedProductIds),
     [selectedProductIds],
   );
 
-  // Leaderboard sort state
-  const [sortKey, setSortKey] = useState<LeaderboardSortKey>("growth_pct");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Leaderboard sort state (synced to URL for sharing)
+  const [rawSortKey, setRawSortKey] = useUrlState("sort", "growth_pct");
+  const [rawSortDir, setRawSortDir] = useUrlState("dir", "desc");
+
+  const validSortKeys = useMemo(
+    () => new Set(LEADERBOARD_COLUMNS.map((c) => c.key)),
+    [],
+  );
+  const sortKey: LeaderboardSortKey = validSortKeys.has(rawSortKey as LeaderboardSortKey)
+    ? (rawSortKey as LeaderboardSortKey)
+    : "growth_pct";
+  const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
   function handleSort(key: LeaderboardSortKey) {
     if (key === sortKey) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+      setRawSortDir(sortDir === "desc" ? "asc" : "desc");
     } else {
-      setSortKey(key);
-      setSortDir("desc");
+      setRawSortKey(key);
+      setRawSortDir("desc");
     }
   }
 
@@ -132,7 +143,7 @@ export function FilteredBotsPage({
         <div className="flex items-center justify-between mb-4">
           <SectionHeading id="leaderboard">Leaderboard</SectionHeading>
           <Link
-            href="/compare"
+            href={buildUrl("/compare")}
             className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
           >
             Full comparison →
@@ -173,7 +184,7 @@ export function FilteredBotsPage({
                 >
                   <td className="py-3 pr-4">
                     <Link
-                      href={`/bots/${product.id}`}
+                      href={buildUrl(`/bots/${product.id}`)}
                       className="font-medium hover:opacity-80 flex items-center gap-2"
                     >
                       {product.avatar_url && (
@@ -247,7 +258,7 @@ export function FilteredBotsPage({
         {filteredSummaries.map((product) => (
           <Link
             key={product.id}
-            href={`/bots/${product.id}`}
+            href={buildUrl(`/bots/${product.id}`)}
             className="block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors"
             data-testid={`bot-card-${product.id}`}
           >

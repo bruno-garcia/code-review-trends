@@ -27,7 +27,10 @@ export default async function OrgsPage({
 
   // Parse filters from search params
   const languages = parseArray(sp.lang);
-  const rawProductIds = parseArray(sp.product);
+  // Support both ?products=a,b (new format) and ?product=a&product=b (legacy)
+  const rawProductIds = sp.products
+    ? String(sp.products).split(",").filter(Boolean)
+    : parseArray(sp.product);
   // "none" is a sentinel from OrgProductSync meaning "0 products selected"
   const noneSelected = rawProductIds.length === 1 && rawProductIds[0] === "none";
   const productIds = noneSelected ? [] : rawProductIds;

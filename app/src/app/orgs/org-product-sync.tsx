@@ -7,10 +7,10 @@ import { useProductFilter } from "@/lib/product-filter";
 /**
  * Syncs the global product filter selection into URL search params.
  * When the user changes the product filter via the global bar, this
- * component updates ?product= params, triggering a server re-fetch.
+ * component updates ?products= param, triggering a server re-fetch.
  *
- * It only adds params when not all products are selected (to keep
- * URLs clean when no filtering is active).
+ * Uses router.push (not replaceState) because the Orgs page needs
+ * a server re-render to query ClickHouse with the new product filter.
  */
 export function OrgProductSync() {
   const { selectedProductIds, allProducts } = useProductFilter();
@@ -27,7 +27,7 @@ export function OrgProductSync() {
 
     const params = new URLSearchParams();
     for (const [key, val] of searchParams.entries()) {
-      if (key === "product" || key === "page") continue;
+      if (key === "products" || key === "product" || key === "page") continue;
       params.append(key, val);
     }
 
@@ -37,11 +37,9 @@ export function OrgProductSync() {
     const allSelected = selectedProductIds.length === allProducts.length;
     if (!allSelected) {
       if (selectedProductIds.length === 0) {
-        params.append("product", "none");
+        params.set("products", "none");
       } else {
-        for (const id of selectedProductIds) {
-          params.append("product", id);
-        }
+        params.set("products", selectedProductIds.join(","));
       }
     }
 

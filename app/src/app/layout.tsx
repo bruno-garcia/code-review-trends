@@ -101,32 +101,31 @@ export default async function RootLayout({
       </head>
       <body className="bg-theme-bg text-theme-text antialiased transition-colors">
         <ThemeProvider>
-          <SchemaBanner status={schemaStatus} />
-          <NavigationProgress />
-          <nav className="border-b border-theme-border bg-theme-nav sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between h-16 gap-4">
-                <Link href="/" className="flex items-center flex-shrink-0">
-                  <Logo />
-                </Link>
-                <div className="flex items-center gap-3 sm:gap-6 text-sm text-nav-link overflow-x-auto flex-shrink min-w-0">
-                  <NavLinks />
-                  <ThemeToggle />
+          <ProductFilterProvider
+            allProducts={allProducts}
+            defaultProductIds={defaultProductIds}
+          >
+            <SchemaBanner status={schemaStatus} />
+            <NavigationProgress />
+            <nav className="border-b border-theme-border bg-theme-nav sticky top-0 z-50">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-16 gap-4">
+                  <Link href="/" className="flex items-center flex-shrink-0">
+                    <Logo />
+                  </Link>
+                  <div className="flex items-center gap-3 sm:gap-6 text-sm text-nav-link overflow-x-auto flex-shrink min-w-0">
+                    <NavLinks />
+                    <ThemeToggle />
+                  </div>
                 </div>
               </div>
-            </div>
-          </nav>
-          <MigrationGate status={schemaStatus}>
-            <ProductFilterProvider
-              allProducts={allProducts}
-              defaultProductIds={defaultProductIds}
-            >
+            </nav>
+            <MigrationGate status={schemaStatus}>
               <ProductFilterBar />
               <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {children}
               </main>
-            </ProductFilterProvider>
-          </MigrationGate>
+              </MigrationGate>
           <footer className="border-t border-theme-border py-8 text-sm text-theme-muted">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               {enrichmentIncomplete && (
@@ -175,6 +174,7 @@ export default async function RootLayout({
               </div>
             </div>
           </footer>
+          </ProductFilterProvider>
         </ThemeProvider>
       </body>
     </html>

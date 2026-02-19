@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useFilterUrl } from "@/lib/product-filter";
 
 const navItems = [
   { href: "/", label: "Overview" },
@@ -12,11 +13,15 @@ const navItems = [
   { href: "/about", label: "About" },
 ];
 
+/** Pages where global filter params (products, range) should be preserved in nav links */
+const FILTER_PAGES = new Set(["/bots", "/compare", "/orgs"]);
+
 const inactiveClasses =
   "text-nav-link hover:text-nav-link-active transition-colors";
 
 export function NavLinks() {
   const pathname = usePathname();
+  const buildUrl = useFilterUrl();
 
   return (
     <>
@@ -24,10 +29,12 @@ export function NavLinks() {
         const isActive =
           href === "/" ? pathname === "/" : pathname.startsWith(href);
 
+        const finalHref = FILTER_PAGES.has(href) ? buildUrl(href) : href;
+
         return (
           <Link
             key={href}
-            href={href}
+            href={finalHref}
             aria-current={isActive ? "page" : undefined}
             className={
               isActive
