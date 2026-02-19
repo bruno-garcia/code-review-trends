@@ -7,8 +7,8 @@ import { EnvironmentConfig } from "./config";
  *
  * How it works:
  * 1. A cron job on the VM checks disk usage every 15 minutes.
- * 2. If usage exceeds 80%, it writes a structured log entry to stderr
- *    which the GCE serial console forwards to Cloud Logging.
+ * 2. If usage exceeds 80%, it writes a structured log entry to syslog via
+ *    the `logger` command, which GCE forwards to Cloud Logging.
  * 3. A log-based metric counts these entries.
  * 4. An alert policy fires when the metric is > 0 and emails the operator.
  *
@@ -38,7 +38,7 @@ export function createDiskMonitoring(
     `${prefix}-disk-high`,
     {
       name: `${prefix}-disk-high`,
-      filter: `resource.type="gce_instance" AND resource.labels.instance_id=~".*" AND textPayload=~"DISK_HIGH" AND resource.labels.zone="${gcp.config.zone!}"`,
+      filter: `resource.type="gce_instance" AND textPayload=~"DISK_HIGH.*${prefix}-clickhouse" AND resource.labels.zone="${gcp.config.zone!}"`,
       description: "ClickHouse VM disk usage exceeded 80%",
       metricDescriptor: {
         metricKind: "DELTA",
