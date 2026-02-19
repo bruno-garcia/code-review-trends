@@ -9,7 +9,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI ? "github" : "html",
   use: {
     baseURL,
@@ -22,9 +22,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: process.env.NEXT_PORT
-      ? `npx next dev --port ${process.env.NEXT_PORT}`
-      : "npx next dev",
+    command: process.env.CI
+      ? (process.env.NEXT_PORT ? `npx next start --port ${process.env.NEXT_PORT}` : "npx next start")
+      : (process.env.NEXT_PORT ? `npx next dev --port ${process.env.NEXT_PORT}` : "npx next dev"),
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
