@@ -57,24 +57,22 @@ export default async function RootLayout({
   // Connection failures throw → global-error.tsx (500, not ISR-cached).
   const schemaStatus = await getSchemaStatus();
 
-  // Gracefully handle missing ClickHouse during build or revalidation.
-  // Pages use ISR (revalidate=300) — this handles ClickHouse being temporarily unavailable.
-  let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
+  // Product summaries are critical — they drive the filter on every page.
+  // If this fails, let it throw → error boundary → 500 → not cached by ISR.
+  // (connection() in query() already prevents static generation during build.)
+  const summaries = await getProductSummaries();
+
+  // Enrichment stats are optional — only used for the "data import in progress"
+  // footer banner. The page is fully functional without it.
   let enrichmentIncomplete = false;
   try {
-    const [summariesData, enrichment] = await Promise.all([
-      getProductSummaries(),
-      getEnrichmentStats(),
-    ]);
-    summaries = summariesData;
+    const enrichment = await getEnrichmentStats();
     enrichmentIncomplete =
       enrichment.total_discovered_repos > enrichment.enriched_repos ||
       enrichment.total_discovered_prs > enrichment.enriched_prs;
   } catch (err) {
-    // ClickHouse unavailable (e.g. during build) — render with empty filter list.
-    // The page is still functional (nav, content) without the product filter data.
     Sentry.captureException(err, {
-      tags: { route: "layout", section: "product-summaries" },
+      tags: { route: "layout", section: "enrichment-stats" },
     });
   }
   const defaultProductIds = getDefaultProductIds(summaries);
