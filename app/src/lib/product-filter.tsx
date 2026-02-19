@@ -134,7 +134,7 @@ export function ProductFilterProvider({
       selectedProductIds.length === defaultProductIds.length &&
       defaultProductIds.every((id) => selectedProductIds.includes(id));
 
-    if (!isDefault) {
+    if (!isDefault && selectedProductIds.length > 0) {
       params.set("products", selectedProductIds.join(","));
     } else {
       params.delete("products");

@@ -26,14 +26,14 @@ test.describe("Products in URL", () => {
     await page.goto("/bots");
     await expandPicker(page);
 
+    // Deselect all, then select one specific product
     await page.getByTestId("filter-deselect-all").click();
-    await expect(page).toHaveURL(/products=/);
+    await page
+      .getByTestId("product-filter-bar")
+      .getByRole("button", { name: /coderabbit/i })
+      .click();
 
-    // URL contains exactly one product id
-    const url = new URL(page.url());
-    const ids = url.searchParams.get("products")!.split(",");
-    expect(ids.length).toBe(1);
-    expect(ids[0]).toBeTruthy();
+    await expect(page).toHaveURL(/products=coderabbit/);
   });
 
   test("default selection keeps URL clean (no ?products=)", async ({
