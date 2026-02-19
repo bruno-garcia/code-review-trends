@@ -1,4 +1,4 @@
-# Code Review Trends
+# <picture><source media="(prefers-color-scheme: dark)" srcset="app/public/branding/logo-readme-dark.svg"><source media="(prefers-color-scheme: light)" srcset="app/public/branding/logo-readme-light.svg"><img src="app/public/branding/logo-readme-light.svg" height="32" alt="logo"></picture> Code Review Trends
 
 Tracking the adoption of AI code review bots on GitHub.
 
