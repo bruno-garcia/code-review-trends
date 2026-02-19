@@ -65,21 +65,25 @@ export default async function RootLayout({
   // footer banner. The page is fully functional without it.
   //
   // Start both in parallel so a slow getEnrichmentStats() doesn't delay summaries.
+  // Attach .catch() to enrichmentPromise eagerly — if summariesPromise rejects first,
+  // the function throws before we await enrichment. Without the eager catch, the
+  // enrichment rejection would be unhandled and crash the Node.js process.
   const summariesPromise = getProductSummaries();
-  const enrichmentPromise = getEnrichmentStats();
+  const enrichmentPromise = getEnrichmentStats().catch((err) => {
+    Sentry.captureException(err, {
+      tags: { route: "layout", section: "enrichment-stats" },
+    });
+    return null;
+  });
 
   const summaries = await summariesPromise;
 
   let enrichmentIncomplete = false;
-  try {
-    const enrichment = await enrichmentPromise;
+  const enrichment = await enrichmentPromise;
+  if (enrichment) {
     enrichmentIncomplete =
       enrichment.total_discovered_repos > enrichment.enriched_repos ||
       enrichment.total_discovered_prs > enrichment.enriched_prs;
-  } catch (err) {
-    Sentry.captureException(err, {
-      tags: { route: "layout", section: "enrichment-stats" },
-    });
   }
   const defaultProductIds = getDefaultProductIds(summaries);
   const allProducts = summaries.map((s) => ({
