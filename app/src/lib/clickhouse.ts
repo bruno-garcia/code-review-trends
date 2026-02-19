@@ -309,7 +309,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         SELECT product_id, week, sum(review_count) AS review_count,
           sum(review_comment_count) AS review_comment_count,
           sum(pr_comment_count) AS pr_comment_count,
-          max(repo_count) AS repo_count, max(org_count) AS org_count
+          sum(repo_count) AS repo_count, sum(org_count) AS org_count
         FROM (
           SELECT b.product_id, ra.week, ra.review_count, ra.review_comment_count,
             ra.pr_comment_count, ra.repo_count, ra.org_count
@@ -439,7 +439,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         SELECT product_id, week, sum(review_count) AS review_count,
           sum(review_comment_count) AS review_comment_count,
           sum(pr_comment_count) AS pr_comment_count,
-          max(repo_count) AS repo_count, max(org_count) AS org_count
+          sum(repo_count) AS repo_count, sum(org_count) AS org_count
         FROM (
           SELECT b.product_id, ra.week, ra.review_count, ra.review_comment_count,
             ra.pr_comment_count, ra.repo_count, ra.org_count
