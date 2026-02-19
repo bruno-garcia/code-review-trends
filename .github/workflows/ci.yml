@@ -144,7 +144,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -273,8 +273,11 @@ jobs:
           wait $APP_PID || exit 1
           wait $PIPE_PID || exit 1
           docker push ${{ steps.tags.outputs.app }} &
+          PUSH_APP=$!
           docker push ${{ steps.tags.outputs.pipeline }} &
-          wait
+          PUSH_PIPE=$!
+          wait $PUSH_APP || exit 1
+          wait $PUSH_PIPE || exit 1
 
       - name: Create Sentry release for pipeline
         env:
