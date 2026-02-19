@@ -66,8 +66,6 @@ export function ProductFilterBar() {
 
   function toggleProduct(id: string) {
     if (selectedSet.has(id)) {
-      // Enforce minimum 1
-      if (selectedProductIds.length <= 1) return;
       setSelectedProductIds(selectedProductIds.filter((pid) => pid !== id));
     } else {
       setSelectedProductIds([...selectedProductIds, id]);
@@ -79,10 +77,7 @@ export function ProductFilterBar() {
   }
 
   function deselectAll() {
-    // Keep first selected product (minimum 1 rule)
-    if (selectedProductIds.length > 0) {
-      setSelectedProductIds([selectedProductIds[0]]);
-    }
+    setSelectedProductIds([]);
   }
 
   function resetToTop10() {
@@ -103,12 +98,17 @@ export function ProductFilterBar() {
           aria-expanded={expanded}
         >
           <span className="text-sm whitespace-nowrap shrink-0 text-theme-muted">
-            <span className="font-semibold text-violet-400 tabular-nums">{selectedProducts.length}</span>
+            <span className={`font-semibold tabular-nums ${selectedProducts.length === 0 ? "text-red-400" : "text-violet-400"}`}>{selectedProducts.length}</span>
             {" of "}
             <span className="font-semibold text-theme-text-secondary tabular-nums">{allProducts.length}</span>
             {" products "}
-            <span className="text-violet-400 underline underline-offset-2 decoration-violet-400/40 hover:decoration-violet-400">selected</span>
+            <span className={`underline underline-offset-2 ${selectedProducts.length === 0 ? "text-red-400 decoration-red-400/40 hover:decoration-red-400" : "text-violet-400 decoration-violet-400/40 hover:decoration-violet-400"}`}>selected</span>
           </span>
+          {selectedProducts.length === 0 && !expanded && (
+            <span className="text-xs text-red-400/80 hidden sm:inline">
+              Click to pick a product
+            </span>
+          )}
 
           <div className="border-l border-theme-border pl-3 ml-1" onClick={(e) => e.stopPropagation()}>
             <TimeRangeSelector />

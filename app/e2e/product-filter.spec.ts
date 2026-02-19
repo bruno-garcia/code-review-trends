@@ -83,10 +83,9 @@ test.describe("Product filter", () => {
     expect(match).toBeTruthy();
     expect(match![1]).toBe(match![2]);
 
-    // Deselect all — minimum 1 enforced
+    // Deselect all — truly empties the selection
     await page.getByTestId("filter-deselect-all").click();
-    await expect(bar.getByText(/1 of \d+ products selected/)).toBeVisible();
-    await expect(page.getByTestId("leaderboard-table").locator("tbody tr")).toHaveCount(1);
+    await expect(bar.getByText(/0 of \d+ products selected/)).toBeVisible();
   });
 
   test("reset to top 10", async ({ page }) => {
@@ -107,22 +106,16 @@ test.describe("Product filter", () => {
     await page.goto("/bots");
     await expandPicker(page);
 
-    // Deselect all → 1 product, then add 2 more → 3
+    // Deselect all → 0 products, then add 3 → 3
     await page.getByTestId("filter-deselect-all").click();
     const bar = page.getByTestId("product-filter-bar");
-    await expect(bar.getByText(/1 of \d+ products selected/)).toBeVisible();
+    await expect(bar.getByText(/0 of \d+ products selected/)).toBeVisible();
 
-    // Find unselected products and click two of them
+    // Select 3 products
     const picker = page.getByTestId("product-filter-picker");
     const allButtons = picker.locator("[data-testid^='filter-product-']");
-    const count = await allButtons.count();
-    let added = 0;
-    for (let i = 0; i < count && added < 2; i++) {
-      const cls = await allButtons.nth(i).getAttribute("class");
-      if (cls?.includes("opacity-50")) {
-        await allButtons.nth(i).click();
-        added++;
-      }
+    for (let i = 0; i < 3; i++) {
+      await allButtons.nth(i).click();
     }
     await expect(bar.getByText(/3 of \d+ products selected/)).toBeVisible();
 
@@ -143,14 +136,14 @@ test.describe("Product filter", () => {
 
     await page.getByTestId("filter-deselect-all").click();
     await expect(
-      page.getByTestId("product-filter-bar").getByText(/1 of \d+ products selected/),
+      page.getByTestId("product-filter-bar").getByText(/0 of \d+ products selected/),
     ).toBeVisible();
 
+    // Reload — empty selection is not persisted, falls back to defaults
     await page.reload();
     await expect(
-      page.getByTestId("product-filter-bar").getByText(/1 of \d+ products selected/),
+      page.getByTestId("product-filter-bar").getByText(/10 of \d+ products selected/),
     ).toBeVisible();
-    await expect(page.getByTestId("leaderboard-table").locator("tbody tr")).toHaveCount(1);
   });
 
   test("URL override with ?products=", async ({ page }) => {

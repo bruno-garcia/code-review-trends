@@ -53,10 +53,8 @@ export function ProductFilterProvider({
   const initializedRef = useRef(false);
   const urlOverrideRef = useRef(false);
 
-  // Enforce minimum 1 selection
   const setSelectedProductIds = useCallback(
     (ids: string[]) => {
-      if (ids.length === 0) return;
       setSelectedRaw(ids);
     },
     [],
