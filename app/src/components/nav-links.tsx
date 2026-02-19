@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/", label: "Overview" },
-  { href: "/bots", label: "Bots" },
   { href: "/orgs", label: "Orgs" },
+  { href: "/bots", label: "Bots" },
   { href: "/compare", label: "Compare" },
-  { href: "/about", label: "About" },
   { href: "/status", label: "Status" },
+  { href: "/about", label: "About" },
 ];
 
 const inactiveClasses =
