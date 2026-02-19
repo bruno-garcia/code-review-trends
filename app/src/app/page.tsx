@@ -83,7 +83,7 @@ export default async function Home() {
         </div>
         <p className="mt-3 text-xs text-theme-muted/70">
           * &ldquo;Reviews&rdquo; includes all PR events (comments, approvals, and commit-triggered responses). Bots typically react to every push, inflating their share relative to humans.{" "}
-          <a href="/about" className="underline hover:text-theme-foreground">See methodology.</a>
+          <Link href="/about#what-counts" className="underline hover:text-theme-foreground">See methodology.</Link>
         </p>
       </section>
 
