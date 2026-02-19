@@ -27,15 +27,20 @@ export default async function OrgsPage({
 
   // Parse filters from search params
   const languages = parseArray(sp.lang);
-  const productIds = parseArray(sp.product);
+  const rawProductIds = parseArray(sp.product);
+  // "none" is a sentinel from OrgProductSync meaning "0 products selected"
+  const noneSelected = rawProductIds.length === 1 && rawProductIds[0] === "none";
+  const productIds = noneSelected ? [] : rawProductIds;
   const sort = parseSortParam(sp.sort);
   const search = String(sp.q ?? "").trim();
   const page = Math.max(1, parseInt(String(sp.page ?? "1"), 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  // Fetch data + filter options in parallel
+  // Fetch data + filter options in parallel — skip org query when explicitly nothing selected
   const [result, languageOptions, products] = await Promise.all([
-    getOrgList({ languages, productIds, sort, search, limit: PAGE_SIZE, offset }),
+    noneSelected
+      ? Promise.resolve({ orgs: [], total: 0 })
+      : getOrgList({ languages, productIds, sort, search, limit: PAGE_SIZE, offset }),
     getOrgLanguageOptions(),
     getProducts(),
   ]);
@@ -44,7 +49,7 @@ export default async function OrgsPage({
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const productNameMap = new Map(products.map((p) => [p.id, p.name]));
 
-  const isFiltered = productIds.length > 0 || languages.length > 0 || search.length > 0;
+  const isFiltered = noneSelected || productIds.length > 0 || languages.length > 0 || search.length > 0;
 
   return (
     <div className="space-y-6">
