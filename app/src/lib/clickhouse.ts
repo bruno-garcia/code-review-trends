@@ -1321,15 +1321,23 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     `),
   ]);
 
-  // Last import from pipeline_state
+  // Last import from pipeline_state — table is created by the pipeline (not the
+  // app's migration system), so it may not exist in fresh environments or CI.
+  // Check existence first instead of catching: no error is swallowed.
   let lastImport: string | null = null;
-  const stateRows = await query<{ last_run: string }>(`
-    SELECT toString(max(completed_at)) AS last_run
-    FROM pipeline_state FINAL
-    WHERE job_name = 'backfill'
+  const tableExists = await query<{ exists: number }>(`
+    SELECT count() AS exists FROM system.tables
+    WHERE database = currentDatabase() AND name = 'pipeline_state'
   `);
-  if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
-    lastImport = stateRows[0].last_run;
+  if (tableExists[0]?.exists) {
+    const stateRows = await query<{ last_run: string }>(`
+      SELECT toString(max(completed_at)) AS last_run
+      FROM pipeline_state FINAL
+      WHERE job_name = 'backfill'
+    `);
+    if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
+      lastImport = stateRows[0].last_run;
+    }
   }
 
   const base = countRows[0];
