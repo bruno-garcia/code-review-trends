@@ -30,6 +30,33 @@ import type { WeeklyBotReviewRow } from "./bigquery.js";
 const quiet = () => {};
 
 /**
+ * Delete all fake data inserted by tests. Called in after() hooks to
+ * prevent test data from polluting the database (especially dangerous
+ * if tests accidentally run against a non-local ClickHouse).
+ */
+async function cleanupTestData(ch: ClickHouseClient): Promise<void> {
+  // All backfill tests use 2018/2019 date ranges
+  await ch.command({
+    query: `DELETE FROM review_activity WHERE week < '2023-01-01'`,
+  });
+  await ch.command({
+    query: `DELETE FROM human_review_activity WHERE week < '2023-01-01'`,
+  });
+  // syncRecent writes to the current week — delete the fake row it inserts.
+  // The fake fetcher always returns exactly review_count=5000 for human
+  // and review_count=42 for bots, so match on that to avoid deleting real data.
+  await ch.command({
+    query: `DELETE FROM human_review_activity WHERE review_count = 5000 AND review_comment_count = 12000`,
+  });
+  await ch.command({
+    query: `DELETE FROM review_activity WHERE review_count = 42 AND review_comment_count = 100 AND pr_comment_count = 50`,
+  });
+  await ch.command({
+    query: `DELETE FROM pipeline_state WHERE job_name = 'backfill'`,
+  });
+}
+
+/**
  * Creates a fake DataFetcher that returns deterministic data.
  * For any date range, returns one bot row and one human row
  * for the Monday of the start week.
@@ -275,13 +302,12 @@ describe("backfill integration", () => {
       ) ENGINE = ReplacingMergeTree(completed_at)
       ORDER BY (job_name, chunk_start)`,
     });
-    // Clean up test state from previous runs
-    await ch.command({
-      query: `DELETE FROM pipeline_state WHERE job_name = 'backfill'`,
-    });
+    // Clean up test data from previous runs
+    await cleanupTestData(ch);
   });
 
   after(async () => {
+    await cleanupTestData(ch);
     await ch.close();
   });
 
@@ -534,6 +560,7 @@ describe("syncRecent integration", () => {
   });
 
   after(async () => {
+    await cleanupTestData(ch);
     await ch.close();
   });
 
