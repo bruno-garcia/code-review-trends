@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import * as Sentry from "@sentry/nextjs";
-import { getDataCollectionStats } from "@/lib/clickhouse";
+
 import { SectionHeading } from "@/components/section-heading";
 
 export const metadata: Metadata = {
@@ -17,18 +16,6 @@ const codeClass =
 
 
 export default async function AboutPage() {
-  let enrichmentPct: number | null = null;
-  try {
-    const stats = await getDataCollectionStats();
-    if (stats.reactions_total > 0) {
-      enrichmentPct = (stats.reactions_scanned / stats.reactions_total) * 100;
-    }
-  } catch (err) {
-    Sentry.captureException(err, {
-      tags: { route: "about", section: "enrichment-pct" },
-    });
-  }
-
   return (
     <div data-testid="about-page" className="mx-auto max-w-5xl space-y-12 px-4 py-8">
       <h1 className="text-4xl font-bold text-theme-text">Methodology</h1>
@@ -137,16 +124,6 @@ export default async function AboutPage() {
               <Link href="/status" className={linkClass}>/status</Link>{" "}
               page for current progress.
             </p>
-            {enrichmentPct !== null && enrichmentPct < 90 && (
-              <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400" data-testid="enrichment-warning">
-                <strong>Note:</strong> Reaction scan data has not yet been fully
-                collected ({enrichmentPct.toFixed(1)}% complete). Reaction
-                review counts may be incomplete.{" "}
-                <Link href="/status" className="text-red-300 hover:text-red-200 underline">
-                  View status →
-                </Link>
-              </div>
-            )}
           </div>
         </div>
       </section>

@@ -55,15 +55,6 @@ export default async function OrgPage({
   const repoCount = Number(summary.repo_count);
   const totalPrs = Number(summary.total_prs);
   const totalBotComments = Number(summary.total_bot_comments);
-  const thumbsUp = Number(summary.thumbs_up);
-  const thumbsDown = Number(summary.thumbs_down);
-  const heart = Number(summary.heart);
-  const totalReactions = thumbsUp + thumbsDown + heart;
-  const approvalRate =
-    thumbsUp + thumbsDown > 0
-      ? ((thumbsUp / (thumbsUp + thumbsDown)) * 100).toFixed(1)
-      : null;
-
   return (
     <div className="space-y-10">
       {/* Header */}
@@ -105,18 +96,6 @@ export default async function OrgPage({
         <StatCard label="PRs with AI Review" value={formatNumber(totalPrs)} />
         <StatCard label="Bot Comments" value={formatNumber(totalBotComments)} />
       </div>
-
-      {/* Reactions row */}
-      {totalReactions > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="org-reactions">
-          <StatCard label="👍 Thumbs Up" value={formatNumber(thumbsUp)} />
-          <StatCard label="👎 Thumbs Down" value={formatNumber(thumbsDown)} />
-          <StatCard label="❤️ Hearts" value={formatNumber(heart)} />
-          {approvalRate && (
-            <StatCard label="Approval Rate" value={`${approvalRate}%`} />
-          )}
-        </div>
-      )}
 
       {/* AI Review Products */}
       {products.length > 0 && (

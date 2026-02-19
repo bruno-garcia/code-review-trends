@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { ProductComparison, BotCommentsPerPR, BotReactions } from "@/lib/clickhouse";
-import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, COLORS } from "@/components/charts";
+import type { ProductComparison, BotCommentsPerPR } from "@/lib/clickhouse";
+import { BotRadarChart, CommentsPerPRChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor } from "@/lib/theme-overrides";
 import { useProductFilter } from "@/lib/product-filter";
@@ -72,30 +72,6 @@ const METRICS: {
     format: (v) => Number(v).toLocaleString(),
   },
   {
-    key: "approval_rate",
-    label: "Approval Rate",
-    description: "👍 / (👍 + 👎) — how often reviews are approved",
-    format: (v) => `${Number(v).toFixed(1)}%`,
-  },
-  {
-    key: "thumbs_up",
-    label: "👍 Reactions",
-    description: "Total thumbs-up reactions received",
-    format: (v) => Number(v).toLocaleString(),
-  },
-  {
-    key: "thumbs_down",
-    label: "👎 Reactions",
-    description: "Total thumbs-down reactions received",
-    format: (v) => Number(v).toLocaleString(),
-  },
-  {
-    key: "heart",
-    label: "❤️ Reactions",
-    description: "Total heart reactions received",
-    format: (v) => Number(v).toLocaleString(),
-  },
-  {
     key: "latest_week_reviews",
     label: "Recent Reviews (4w)",
     description: "Reviews in the last 4 weeks",
@@ -131,11 +107,9 @@ function normalize(products: ProductComparison[], key: SortKey): number[] {
 export function CompareCharts({
   products: allProducts,
   commentsPerPR: allCommentsPerPR,
-  reactionLeaderboard: allReactionLeaderboard,
 }: {
   products: ProductComparison[];
   commentsPerPR: BotCommentsPerPR[];
-  reactionLeaderboard: BotReactions[];
 }) {
   const { selectedProductIds } = useProductFilter();
   const { resolved } = useTheme();
@@ -143,10 +117,6 @@ export function CompareCharts({
   const commentsPerPR = allCommentsPerPR.filter((c) =>
     selectedProductIds.includes(c.product_id),
   );
-  const filteredReactions = allReactionLeaderboard.filter((r) =>
-    selectedProductIds.includes(r.product_id),
-  );
-
   const [sortKey, setSortKey] = useState<SortKey>("growth_pct");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -177,7 +147,6 @@ export function CompareCharts({
     { key: "total_pr_comments" as SortKey, label: "PR Comments" },
     { key: "total_repos" as SortKey, label: "Repos" },
     { key: "total_orgs" as SortKey, label: "Orgs" },
-    { key: "approval_rate" as SortKey, label: "Approval" },
     { key: "latest_week_reviews" as SortKey, label: "Recent Activity" },
   ];
 
@@ -311,7 +280,6 @@ export function CompareCharts({
             { key: "total_repos" as SortKey, label: "Active Repos" },
             { key: "total_orgs" as SortKey, label: "Organizations" },
             { key: "avg_comments_per_review" as SortKey, label: "Avg Comments/Review" },
-            { key: "approval_rate" as SortKey, label: "Approval Rate %" },
             { key: "comments_per_repo" as SortKey, label: "Comments per Repo" },
           ].map(({ key, label }) => {
             const chartData = [...products]
@@ -373,17 +341,6 @@ export function CompareCharts({
         </div>
       </section>
 
-      {/* Bot Sentiment */}
-      <section data-testid="bot-sentiment-section" id="sentiment">
-        <SectionHeading id="sentiment">Bot Sentiment</SectionHeading>
-        <p className="text-theme-muted mb-6">
-          How developers react to each bot&apos;s review comments — thumbs up,
-          hearts, and thumbs down.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <BotReactionLeaderboardChart data={filteredReactions} />
-        </div>
-      </section>
     </div>
   );
 }

@@ -21,7 +21,6 @@ type LeaderboardSortKey =
   | "total_repos"
   | "total_orgs"
   | "avg_comments_per_review"
-  | "approval_rate"
   | "growth_pct";
 
 const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: string }[] = [
@@ -32,7 +31,6 @@ const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: stri
   { key: "total_repos", label: "Repos", title: "Sort by max repos active in a single week" },
   { key: "total_orgs", label: "Orgs", title: "Sort by max organizations active in a single week" },
   { key: "avg_comments_per_review", label: "Avg C/R", title: "Sort by average comments per review" },
-  { key: "approval_rate", label: "Approval", title: "Sort by approval rate" },
 ];
 
 export function FilteredBotsPage({
@@ -225,9 +223,6 @@ export function FilteredBotsPage({
                   <td className="py-3 pr-4 text-right tabular-nums">
                     {Number(product.avg_comments_per_review).toFixed(1)}
                   </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.approval_rate).toFixed(0)}%
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -295,12 +290,6 @@ export function FilteredBotsPage({
                 <span className="text-theme-muted/70">Orgs</span>
                 <p className="font-medium tabular-nums">
                   {Number(product.total_orgs).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <span className="text-theme-muted/70">Approval</span>
-                <p className="font-medium tabular-nums">
-                  {Number(product.approval_rate).toFixed(0)}%
                 </p>
               </div>
               <div>

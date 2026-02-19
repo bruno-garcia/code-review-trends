@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getProductComparisons, getAvgCommentsPerPR, getBotReactionLeaderboard, getPrCommentSyncPct } from "@/lib/clickhouse";
+import { getProductComparisons, getAvgCommentsPerPR, getPrCommentSyncPct } from "@/lib/clickhouse";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "./compare-charts";
@@ -7,7 +7,7 @@ import { CompareCharts } from "./compare-charts";
 export const metadata: Metadata = {
   title: "Compare AI Code Review Products",
   description:
-    "Side-by-side comparison of AI code review tools by volume, growth rate, repos, organizations, and approval ratings. Updated weekly.",
+    "Side-by-side comparison of AI code review tools by volume, growth rate, repos, and organizations. Updated weekly.",
   alternates: { canonical: "/compare" },
 };
 
@@ -20,10 +20,9 @@ export default async function ComparePage({
   const range = parseTimeRange(params.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [products, commentsPerPR, reactionLeaderboard, prCommentSyncPct] = await Promise.all([
+  const [products, commentsPerPR, prCommentSyncPct] = await Promise.all([
     getProductComparisons(since),
     getAvgCommentsPerPR(undefined, since),
-    getBotReactionLeaderboard(since),
     getPrCommentSyncPct(),
   ]);
 
@@ -37,7 +36,7 @@ export default async function ComparePage({
         </p>
       </div>
       <PrCommentSyncBanner pct={prCommentSyncPct} />
-      <CompareCharts products={products} commentsPerPR={commentsPerPR} reactionLeaderboard={reactionLeaderboard} />
+      <CompareCharts products={products} commentsPerPR={commentsPerPR} />
     </div>
   );
 }

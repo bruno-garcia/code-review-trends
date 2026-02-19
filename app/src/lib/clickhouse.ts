@@ -114,10 +114,6 @@ export type ProductSummary = {
   avg_comments_per_review: number;
   latest_week_reviews: number;
   growth_pct: number;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
-  approval_rate: number;
   comments_per_repo: number;
   first_seen: string;
 };
@@ -137,10 +133,6 @@ export type BotSummary = {
   avg_comments_per_review: number;
   latest_week_reviews: number;
   growth_pct: number;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
-  approval_rate: number;
   comments_per_repo: number;
   first_seen: string;
 };
@@ -157,10 +149,6 @@ export type ProductComparison = {
   avg_comments_per_review: number;
   comments_per_repo: number;
   reviews_per_org: number;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
-  approval_rate: number;
   growth_pct: number;
   latest_week_reviews: number;
   latest_week_comments: number;
@@ -179,10 +167,6 @@ export type BotComparison = {
   avg_comments_per_review: number;
   comments_per_repo: number;
   reviews_per_org: number;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
-  approval_rate: number;
   growth_pct: number;
   latest_week_reviews: number;
   latest_week_comments: number;
@@ -296,9 +280,6 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
   const sinceCond = since
     ? "week >= toDate({since:String})"
     : "1";
-  const reactionSinceFilter = since
-    ? "WHERE cs.week >= toDate({since:String})"
-    : "";
   return query<ProductSummary>(
     `
     WITH
@@ -338,17 +319,6 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM weekly_product
         GROUP BY product_id
-      ),
-      reaction_agg AS (
-        SELECT
-          b.product_id,
-          sum(cs.thumbs_up) AS thumbs_up,
-          sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart
-        FROM comment_stats_weekly cs
-        JOIN bots b ON cs.bot_id = b.id
-        ${reactionSinceFilter}
-        GROUP BY b.product_id
       )
     SELECT
       p.id,
@@ -371,17 +341,10 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           0),
         1
       ) AS growth_pct,
-      COALESCE(rr.thumbs_up, 0) AS thumbs_up,
-      COALESCE(rr.thumbs_down, 0) AS thumbs_down,
-      COALESCE(rr.heart, 0) AS heart,
-      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-        0), 1) AS approval_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
     FROM products p
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
-    LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY growth_pct DESC, total_reviews DESC
     `,
     since ? { since } : {},
@@ -426,9 +389,6 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
   const sinceCond = since
     ? "week >= toDate({since:String})"
     : "1";
-  const reactionSinceFilter = since
-    ? "WHERE cs.week >= toDate({since:String})"
-    : "";
   return query<ProductComparison>(
     `
     WITH
@@ -470,17 +430,6 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM weekly_product
         GROUP BY product_id
-      ),
-      reaction_agg AS (
-        SELECT
-          b.product_id,
-          sum(cs.thumbs_up) AS thumbs_up,
-          sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart
-        FROM comment_stats_weekly cs
-        JOIN bots b ON cs.bot_id = b.id
-        ${reactionSinceFilter}
-        GROUP BY b.product_id
       )
     SELECT
       p.id,
@@ -494,12 +443,6 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       round(if(ra.max_orgs > 0, ra.total_reviews / ra.max_orgs, 0), 0) AS reviews_per_org,
-      COALESCE(rr.thumbs_up, 0) AS thumbs_up,
-      COALESCE(rr.thumbs_down, 0) AS thumbs_down,
-      COALESCE(rr.heart, 0) AS heart,
-      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-        0), 1) AS approval_rate,
       round(
         if(ra.prev_12w_reviews > 0,
           (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
@@ -512,7 +455,6 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
       COALESCE(ra.weeks_active, 0) AS weeks_active
     FROM products p
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
-    LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
@@ -653,9 +595,6 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
   const sinceCond = since
     ? "week >= toDate({since:String})"
     : "1";
-  const reactionSinceFilter = since
-    ? "WHERE cs.week >= toDate({since:String})"
-    : "";
   return query<BotSummary>(
     `
     WITH
@@ -684,16 +623,6 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           FROM reaction_only_review_counts
         )
         GROUP BY bot_id
-      ),
-      reaction_agg AS (
-        SELECT
-          cs.bot_id,
-          sum(cs.thumbs_up) AS thumbs_up,
-          sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart
-        FROM comment_stats_weekly cs
-        ${reactionSinceFilter}
-        GROUP BY cs.bot_id
       )
     SELECT
       b.id,
@@ -715,17 +644,10 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           0),
         1
       ) AS growth_pct,
-      COALESCE(rr.thumbs_up, 0) AS thumbs_up,
-      COALESCE(rr.thumbs_down, 0) AS thumbs_down,
-      COALESCE(rr.heart, 0) AS heart,
-      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-        0), 1) AS approval_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
     FROM bots AS b
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
-    LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
@@ -736,9 +658,6 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
   const sinceCond = since
     ? "week >= toDate({since:String})"
     : "1";
-  const reactionSinceFilter = since
-    ? "WHERE cs.week >= toDate({since:String})"
-    : "";
   return query<BotComparison>(
     `
     WITH
@@ -769,16 +688,6 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
           FROM reaction_only_review_counts
         )
         GROUP BY bot_id
-      ),
-      reaction_agg AS (
-        SELECT
-          cs.bot_id,
-          sum(cs.thumbs_up) AS thumbs_up,
-          sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart
-        FROM comment_stats_weekly cs
-        ${reactionSinceFilter}
-        GROUP BY cs.bot_id
       )
     SELECT
       b.id,
@@ -791,12 +700,6 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       round(if(ra.max_orgs > 0, ra.total_reviews / ra.max_orgs, 0), 0) AS reviews_per_org,
-      COALESCE(rr.thumbs_up, 0) AS thumbs_up,
-      COALESCE(rr.thumbs_down, 0) AS thumbs_down,
-      COALESCE(rr.heart, 0) AS heart,
-      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-        0), 1) AS approval_rate,
       round(
         if(ra.prev_12w_reviews > 0,
           (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
@@ -809,7 +712,6 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
       COALESCE(ra.weeks_active, 0) AS weeks_active
     FROM bots AS b
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
-    LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
@@ -833,44 +735,6 @@ export async function getTopOrgsByStars(limit?: number): Promise<OrgByStars[]> {
      ORDER BY total_stars DESC
      LIMIT {limit:UInt32}`,
     { limit: limit ?? 50 },
-  );
-}
-
-export type BotReactions = {
-  bot_id: string;
-  bot_name: string;
-  product_id: string;
-  total_thumbs_up: number;
-  total_thumbs_down: number;
-  total_heart: number;
-  total_comments: number;
-  approval_rate: number;
-};
-
-export async function getBotReactionLeaderboard(since?: string): Promise<BotReactions[]> {
-  const sinceFilter = since
-    ? "WHERE cs.week >= toDate({since:String})"
-    : "";
-  return query<BotReactions>(
-    `
-    SELECT
-      cs.bot_id,
-      b.name AS bot_name,
-      b.product_id,
-      sum(cs.thumbs_up) AS total_thumbs_up,
-      sum(cs.thumbs_down) AS total_thumbs_down,
-      sum(cs.heart) AS total_heart,
-      sum(cs.comment_count) AS total_comments,
-      round(if((sum(cs.thumbs_up) + sum(cs.thumbs_down)) > 0,
-        sum(cs.thumbs_up) * 100.0 / (sum(cs.thumbs_up) + sum(cs.thumbs_down)),
-        0), 1) AS approval_rate
-    FROM comment_stats_weekly cs
-    JOIN bots b ON cs.bot_id = b.id
-    ${sinceFilter}
-    GROUP BY cs.bot_id, b.name, b.product_id
-    ORDER BY total_thumbs_up DESC
-    `,
-    since ? { since } : {},
   );
 }
 
@@ -962,9 +826,6 @@ export type OrgSummary = {
   languages: string[];
   total_prs: number;
   total_bot_comments: number;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
 };
 
 export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
@@ -976,11 +837,8 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       count() AS repo_count,
       groupUniqArray(r.primary_language) AS languages,
       COALESCE(any(pr.total_prs), 0) AS total_prs,
-      COALESCE(any(cm.total_bot_comments), 0) AS total_bot_comments,
-      COALESCE(any(cm.thumbs_up), 0) AS thumbs_up,
-      COALESCE(any(cm.thumbs_down), 0) AS thumbs_down,
-      COALESCE(any(cm.heart), 0) AS heart
-    FROM repos r
+      COALESCE(any(cm.total_bot_comments), 0) AS total_bot_comments
+    FROM repos r FINAL
     LEFT JOIN (
       SELECT
         r2.owner,
@@ -993,12 +851,9 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
     LEFT JOIN (
       SELECT
         r3.owner,
-        countIf(c.comment_id > 0) AS total_bot_comments,
-        sumIf(c.thumbs_up, c.comment_id > 0) AS thumbs_up,
-        sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
-        sumIf(c.heart, c.comment_id > 0) AS heart
-      FROM pr_comments c
-      JOIN repos r3 ON c.repo_name = r3.name
+        countIf(c.comment_id > 0) AS total_bot_comments
+      FROM pr_comments c FINAL
+      JOIN repos r3 FINAL ON c.repo_name = r3.name
       WHERE r3.owner = {owner:String} AND r3.fetch_status = 'ok'
       GROUP BY r3.owner
     ) cm ON r.owner = cm.owner
@@ -1282,10 +1137,6 @@ export type DataCollectionStats = {
   // GitHub enrichment — comments
   comments_discovered: number;
   comments_enriched: number;
-  // GitHub enrichment — reaction scans
-  reactions_total: number;
-  reactions_scanned: number;
-  reactions_found: number;
 };
 
 import { DATA_EPOCH } from "./constants";
@@ -1311,21 +1162,15 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       prs_enriched: number;
       comments_discovered: number;
       comments_enriched: number;
-      reactions_total: number;
-      reactions_scanned: number;
-      reactions_found: number;
     }>(`
       SELECT
-        (SELECT count(DISTINCT repo_name) FROM pr_bot_event_counts) AS repos_total,
-        (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
-        (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
-        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS prs_discovered,
-        (SELECT count() FROM pull_requests) AS prs_enriched,
-        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name, bot_id)) AS comments_discovered,
-        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched,
-        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS reactions_total,
-        (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
+        (SELECT uniq(repo_name) FROM pr_bot_events FINAL) AS repos_total,
+        (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
+        (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events FINAL) AS prs_discovered,
+        (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_bot_events FINAL) AS comments_discovered,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments FINAL) AS comments_enriched
     `),
   ]);
 
@@ -1360,9 +1205,6 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     prs_enriched: Number(base?.prs_enriched ?? 0),
     comments_discovered: Number(base?.comments_discovered ?? 0),
     comments_enriched: Number(base?.comments_enriched ?? 0),
-    reactions_total: Number(base?.reactions_total ?? 0),
-    reactions_scanned: Number(base?.reactions_scanned ?? 0),
-    reactions_found: Number(base?.reactions_found ?? 0),
   });
 }
 
