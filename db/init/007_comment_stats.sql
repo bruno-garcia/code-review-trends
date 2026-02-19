@@ -25,6 +25,23 @@ CREATE TABLE IF NOT EXISTS code_review_trends.comment_stats_weekly (
 ) ENGINE = AggregatingMergeTree()
 ORDER BY (bot_id, week);
 
+-- Backfill BEFORE creating the MV to avoid double-counting: if the MV
+-- exists during the backfill, concurrent pr_comments inserts would be
+-- counted by both the MV trigger and the backfill's FINAL scan.
+INSERT INTO code_review_trends.comment_stats_weekly
+SELECT
+    bot_id,
+    toMonday(created_at) AS week,
+    count() AS comment_count,
+    sum(thumbs_up) AS thumbs_up,
+    sum(thumbs_down) AS thumbs_down,
+    sum(heart) AS heart,
+    uniqExactState(repo_name, pr_number) AS pr_count
+FROM code_review_trends.pr_comments FINAL
+WHERE comment_id > 0
+GROUP BY bot_id, week
+SETTINGS max_execution_time = 300;
+
 -- Materialized view: auto-populates on INSERT to pr_comments
 CREATE MATERIALIZED VIEW IF NOT EXISTS code_review_trends.comment_stats_weekly_mv
 TO code_review_trends.comment_stats_weekly
@@ -39,20 +56,3 @@ AS SELECT
 FROM code_review_trends.pr_comments
 WHERE comment_id > 0
 GROUP BY bot_id, week;
-
--- Backfill from existing data (uses FINAL for correctness on first run).
--- SETTINGS override ensures this one-time migration isn't killed by the
--- app's 15s max_execution_time default.
-INSERT INTO code_review_trends.comment_stats_weekly
-SELECT
-    bot_id,
-    toMonday(created_at) AS week,
-    count() AS comment_count,
-    sum(thumbs_up) AS thumbs_up,
-    sum(thumbs_down) AS thumbs_down,
-    sum(heart) AS heart,
-    uniqExactState(repo_name, pr_number) AS pr_count
-FROM code_review_trends.pr_comments FINAL
-WHERE comment_id > 0
-GROUP BY bot_id, week
-SETTINGS max_execution_time = 300;

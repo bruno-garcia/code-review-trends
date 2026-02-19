@@ -341,22 +341,9 @@ const MIGRATION_006: Migration = {
     ) ENGINE = AggregatingMergeTree()
     ORDER BY (bot_id, week)`,
 
-    `CREATE MATERIALIZED VIEW IF NOT EXISTS comment_stats_weekly_mv
-    TO comment_stats_weekly
-    AS SELECT
-      bot_id,
-      toMonday(created_at) AS week,
-      count() AS comment_count,
-      sum(thumbs_up) AS thumbs_up,
-      sum(thumbs_down) AS thumbs_down,
-      sum(heart) AS heart,
-      uniqExactState(repo_name, pr_number) AS pr_count
-    FROM pr_comments
-    WHERE comment_id > 0
-    GROUP BY bot_id, week`,
-
-    // One-time backfill from existing data — FINAL for correctness on first run.
-    // Extended timeout because this scans millions of rows in pr_comments.
+    // Backfill BEFORE creating the MV to avoid double-counting: if the MV
+    // exists during the backfill, concurrent pr_comments inserts would be
+    // counted by both the MV trigger and the backfill's FINAL scan.
     `INSERT INTO comment_stats_weekly
     SELECT
       bot_id,
@@ -370,6 +357,20 @@ const MIGRATION_006: Migration = {
     WHERE comment_id > 0
     GROUP BY bot_id, week
     SETTINGS max_execution_time = 300`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS comment_stats_weekly_mv
+    TO comment_stats_weekly
+    AS SELECT
+      bot_id,
+      toMonday(created_at) AS week,
+      count() AS comment_count,
+      sum(thumbs_up) AS thumbs_up,
+      sum(thumbs_down) AS thumbs_down,
+      sum(heart) AS heart,
+      uniqExactState(repo_name, pr_number) AS pr_count
+    FROM pr_comments
+    WHERE comment_id > 0
+    GROUP BY bot_id, week`,
   ],
 };
 
