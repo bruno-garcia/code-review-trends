@@ -127,43 +127,52 @@ export default async function RootLayout({
               </main>
             </ProductFilterProvider>
           </MigrationGate>
-          <footer className="border-t border-theme-border py-8 text-center text-sm text-theme-muted">
-            {enrichmentIncomplete && (
-              <div className="mb-4 inline-flex items-center gap-2 justify-center" data-testid="data-import-status">
-                <span className="relative flex h-3 w-3" aria-hidden="true">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
-                  <span className="relative inline-flex rounded-full h-full w-full bg-emerald-500" />
-                </span>
-                <span>
-                  <Link
-                    href="/status"
-                    className="text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors"
+          <footer className="border-t border-theme-border py-8 text-sm text-theme-muted">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              {enrichmentIncomplete && (
+                <div className="mb-6 flex items-center gap-2 justify-center" data-testid="data-import-status">
+                  <span className="relative flex h-3 w-3" aria-hidden="true">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
+                    <span className="relative inline-flex rounded-full h-full w-full bg-emerald-500" />
+                  </span>
+                  <span>
+                    <Link
+                      href="/status"
+                      className="text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors"
+                    >
+                      Data import in progress
+                    </Link>
+                    {" "}— some statistics may be incomplete
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <a
+                    href="https://github.com/bruno-garcia/code-review-trends"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-theme-text transition-colors"
                   >
-                    Data import in progress
+                    GitHub
+                  </a>
+                  <span className="text-theme-border">·</span>
+                  <Link
+                    href="/about"
+                    className="hover:text-theme-text transition-colors"
+                  >
+                    Methodology
                   </Link>
-                  {" "}— some statistics may be incomplete
-                </span>
+                  <span className="text-theme-border">·</span>
+                  <Link
+                    href="/about#who"
+                    className="hover:text-theme-text transition-colors"
+                  >
+                    Made by Bruno Garcia
+                  </Link>
+                </div>
+                <VersionStamp />
               </div>
-            )}
-            <p>
-              Data sourced from{" "}
-              <a
-                href="https://www.gharchive.org/"
-                className="underline hover:text-violet-400"
-              >
-                GH Archive
-              </a>{" "}
-              and the{" "}
-              <a
-                href="https://docs.github.com/en/rest"
-                className="underline hover:text-violet-400"
-              >
-                GitHub API
-              </a>
-              .
-            </p>
-            <div className="mt-3">
-              <VersionStamp />
             </div>
           </footer>
         </ThemeProvider>

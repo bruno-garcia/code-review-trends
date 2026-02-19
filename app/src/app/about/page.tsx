@@ -503,6 +503,53 @@ export default async function AboutPage() {
         </ul>
       </section>
 
+      {/* Who's Behind This */}
+      <section className="space-y-4">
+        <SectionHeading id="who" className="text-theme-text">
+          Who&apos;s Behind This
+        </SectionHeading>
+        <p className="text-theme-text-secondary leading-relaxed">
+          I&apos;m{" "}
+          <a href="https://github.com/bruno-garcia" target="_blank" rel="noopener noreferrer" className={linkClass}>Bruno Garcia</a>.
+          I work at{" "}
+          <a href="https://sentry.io/welcome/" target="_blank" rel="noopener noreferrer" className={linkClass}>Sentry</a>{" "}
+          on the code review part of{" "}
+          <a href="https://sentry.io/product/seer/" target="_blank" rel="noopener noreferrer" className={linkClass}>Seer</a>,
+          Sentry&apos;s AI debugging agent. Seer does root cause analysis,
+          code review, and fix generation — using the context Sentry already
+          has about your running application (errors, traces, logs, profiles)
+          to find and fix bugs. The code review piece specifically looks at
+          pull requests and predicts issues before they ship.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          This is a personal project, not a Sentry product. I have an obvious
+          bias — Sentry is one of the tracked bots — so I want to be upfront
+          about that. The data is public, the{" "}
+          <a href="https://github.com/bruno-garcia/code-review-trends" target="_blank" rel="noopener noreferrer" className={linkClass}>code is open source</a>,
+          and every bot gets the same treatment.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          The motivation is simple: I wanted to understand how this space is
+          evolving. Back in 2018 when I joined Sentry, I built{" "}
+          <a href="https://nugettrends.com" target="_blank" rel="noopener noreferrer" className={linkClass}>NuGet Trends</a>{" "}
+          (now{" "}
+          <a href="https://github.com/dotnet/nuget-trends" target="_blank" rel="noopener noreferrer" className={linkClass}>part of the .NET Foundation</a>)
+          to track adoption of the Sentry .NET SDK I was working on.
+          Same idea here —
+          scratch your own itch, make the data available, and maybe it&apos;s
+          useful to others too.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          If you spot a missing bot, have questions about the methodology, or
+          just want to say hi:{" "}
+          <a href="https://github.com/bruno-garcia/code-review-trends/issues" target="_blank" rel="noopener noreferrer" className={linkClass}>open an issue</a>,
+          or find me on{" "}
+          <a href="https://x.com/brungarc" target="_blank" rel="noopener noreferrer" className={linkClass}>X</a>
+          {" / "}
+          <a href="https://bsky.app/profile/brunogarcia.com" target="_blank" rel="noopener noreferrer" className={linkClass}>Bluesky</a>.
+        </p>
+      </section>
+
       {/* Link to Status */}
       <section className="text-center py-4 border-t border-theme-border">
         <Link href="/status" className={linkClass}>

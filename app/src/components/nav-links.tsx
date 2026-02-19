@@ -10,11 +10,6 @@ const navItems = [
   { href: "/compare", label: "Compare" },
   { href: "/about", label: "About" },
   { href: "/status", label: "Status" },
-  {
-    href: "https://github.com/bruno-garcia/code-review-trends",
-    label: "GitHub",
-    isExternal: true,
-  },
 ];
 
 const inactiveClasses =
@@ -25,21 +20,7 @@ export function NavLinks() {
 
   return (
     <>
-      {navItems.map(({ href, label, isExternal }) => {
-        if (isExternal) {
-          return (
-            <a
-              key={href}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${inactiveClasses} whitespace-nowrap`}
-            >
-              {label}
-            </a>
-          );
-        }
-
+      {navItems.map(({ href, label }) => {
         const isActive =
           href === "/" ? pathname === "/" : pathname.startsWith(href);
 
