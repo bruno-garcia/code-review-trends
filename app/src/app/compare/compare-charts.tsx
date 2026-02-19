@@ -297,7 +297,7 @@ export function CompareCharts({
         </div>
         <p className="mt-3 text-xs text-theme-muted/70">
           Click any column header to sort. ★ marks the highest number in each column.
-          Higher doesn&apos;t necessarily mean better.
+          <strong>Higher doesn&apos;t necessarily mean better.</strong>
         </p>
       </section>
 

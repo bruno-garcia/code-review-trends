@@ -12,6 +12,7 @@ import {
 } from "@/components/charts";
 import { SectionHeading } from "@/components/section-heading";
 import { JsonLd } from "@/components/json-ld";
+import Link from "next/link";
 
 export async function generateMetadata(): Promise<Metadata> {
   const products = await getProductSummaries();
@@ -72,7 +73,7 @@ export default async function Home() {
 
       {/* AI Share — unfiltered */}
       <section data-testid="ai-share-section">
-        <SectionHeading id="ai-share">AI Share of Code Reviews</SectionHeading>
+        <SectionHeading id="ai-share">AI Share of Code Review Activity</SectionHeading>
         <p className="text-theme-muted mb-6">
           Percentage of pull request reviews performed by AI bots vs. humans
           over time.
@@ -80,6 +81,10 @@ export default async function Home() {
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <BotShareChart data={totals} />
         </div>
+        <p className="mt-3 text-xs text-theme-muted/70">
+          * "Reviews" includes all PR events (comments, approvals, and commit-triggered responses). Bots typically react to every push, inflating their share relative to humans.{" "}
+          <a href="/about" className="underline hover:text-theme-foreground">See methodology.</a>
+        </p>
       </section>
 
       {/* Total AI Review Volume */}
@@ -102,6 +107,12 @@ export default async function Home() {
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <TopOrgsChart data={topOrgs} />
         </div>
+        <p className="mt-3 text-sm text-theme-muted">
+          Click any row to see the organization&apos;s profile.{" "}
+          <Link href="/orgs" className="underline hover:text-theme-foreground">
+            View all organizations →
+          </Link>
+        </p>
       </section>
 
 
