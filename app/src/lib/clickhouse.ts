@@ -971,7 +971,7 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
   const rows = await query<OrgSummary>(
     `
     SELECT
-      r.owner,
+      r.owner AS owner,
       sum(r.stars) AS total_stars,
       count() AS repo_count,
       groupUniqArray(r.primary_language) AS languages,
@@ -1228,7 +1228,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
   //   - exclusive_pr_count: subset with NO events from any bot (safe to add to total_prs)
   const dataQuery = `
     SELECT
-      r.owner,
+      r.owner AS owner,
       sum(r.stars) AS total_stars,
       count() AS repo_count,
       groupUniqArray(r.primary_language) AS languages,
