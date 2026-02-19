@@ -297,7 +297,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     ? "week >= toDate({since:String})"
     : "1";
   const reactionSinceFilter = since
-    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
+    ? "WHERE cs.week >= toDate({since:String})"
     : "";
   return query<ProductSummary>(
     `
@@ -427,7 +427,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
     ? "week >= toDate({since:String})"
     : "1";
   const reactionSinceFilter = since
-    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
+    ? "WHERE cs.week >= toDate({since:String})"
     : "";
   return query<ProductComparison>(
     `
@@ -654,7 +654,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     ? "week >= toDate({since:String})"
     : "1";
   const reactionSinceFilter = since
-    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
+    ? "WHERE cs.week >= toDate({since:String})"
     : "";
   return query<BotSummary>(
     `
@@ -737,7 +737,7 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
     ? "week >= toDate({since:String})"
     : "1";
   const reactionSinceFilter = since
-    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
+    ? "WHERE cs.week >= toDate({since:String})"
     : "";
   return query<BotComparison>(
     `
@@ -849,7 +849,7 @@ export type BotReactions = {
 
 export async function getBotReactionLeaderboard(since?: string): Promise<BotReactions[]> {
   const sinceFilter = since
-    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
+    ? "WHERE cs.week >= toDate({since:String})"
     : "";
   return query<BotReactions>(
     `
@@ -886,7 +886,7 @@ export type BotCommentsPerPR = {
 export async function getAvgCommentsPerPR(botId?: string, since?: string): Promise<BotCommentsPerPR[]> {
   const conditions: string[] = [];
   if (botId) conditions.push("cs.bot_id = {botId:String}");
-  if (since) conditions.push("cs.week >= toMonday(toDate({since:String}))");
+  if (since) conditions.push("cs.week >= toDate({since:String})");
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   const params: Record<string, string> = {};
   if (botId) params.botId = botId;
