@@ -40,6 +40,7 @@ import {
   syncBots,
   insertReviewActivity,
   insertHumanActivity,
+  optimizeTables,
 } from "./clickhouse.js";
 import {
   createBigQueryClient,
@@ -202,6 +203,9 @@ async function cmdSyncBots() {
     console.log(`✓ Synced ${PRODUCTS.length} products`);
     await syncBots(client, BOTS);
     console.log(`✓ Synced ${BOTS.length} bots`);
+    console.log("Optimizing tables...");
+    await optimizeTables(client, ["products", "bots", "bot_logins"]);
+    console.log("✓ Tables optimized");
   } finally {
     await client.close();
   }
@@ -291,6 +295,9 @@ async function cmdBackfill() {
       endDate,
       resume: !noResume,
     });
+    console.log("Optimizing tables...");
+    await optimizeTables(ch, ["review_activity", "human_review_activity"]);
+    console.log("✓ Tables optimized");
   } finally {
     await ch.close();
   }
@@ -312,6 +319,9 @@ async function cmdSync() {
     console.log(
       `\nSync complete: ${result.botRows} bot rows, ${result.humanRows} human rows`,
     );
+    console.log("Optimizing tables...");
+    await optimizeTables(ch, ["review_activity", "human_review_activity"]);
+    console.log("✓ Tables optimized");
   } finally {
     await ch.close();
   }
@@ -620,6 +630,9 @@ async function cmdDiscover() {
     ).finally(elapsedWrite);
     log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
     countMetric("pipeline.discover.ch_rows", chRows.length);
+    log("Optimizing tables...");
+    await optimizeTables(ch, ["pr_bot_events"]);
+    log("✓ Tables optimized");
     log("Done!");
   } finally {
     await ch.close();
@@ -722,6 +735,15 @@ async function cmdEnrich() {
   log(`Reactions: ${result.reactions.fetched} PRs with bot reactions, ${result.reactions.scanned} scanned, ${result.reactions.skipped} skipped, ${result.reactions.errors} errors`);
   log(`Stale repos refreshed: ${result.reposRefreshed}`);
   log(`Duration: ${Math.ceil(result.duration / 1000)}s`);
+
+  log("\nOptimizing tables...");
+  const ch = createCHClient();
+  try {
+    await optimizeTables(ch, ["repos", "pull_requests", "pr_comments", "pr_bot_reactions", "reaction_scan_progress"]);
+    log("✓ Tables optimized");
+  } finally {
+    await ch.close();
+  }
 }
 
 async function cmdEnrichStatus() {

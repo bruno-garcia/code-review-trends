@@ -430,3 +430,46 @@ export async function insertReactionScanProgress(
     format: "JSONEachRow",
   });
 }
+
+// ── Post-write optimization ─────────────────────────────────────────────
+
+/**
+ * All ReplacingMergeTree tables that the app queries.
+ * After pipeline writes, we OPTIMIZE these so the app never needs FINAL.
+ * Background merges happen naturally, but OPTIMIZE forces it immediately
+ * so the next app read sees fully-deduplicated data.
+ */
+const TABLES_TO_OPTIMIZE = [
+  "products",
+  "bots",
+  "bot_logins",
+  "review_activity",
+  "human_review_activity",
+  "pr_bot_events",
+  "repos",
+  "pull_requests",
+  "pr_comments",
+  "pr_bot_reactions",
+  "reaction_scan_progress",
+] as const;
+
+/**
+ * Force-merge all ReplacingMergeTree tables so reads without FINAL are correct.
+ * Call after pipeline writes. Each OPTIMIZE is independent — one failure
+ * doesn't block the others. Errors are logged but not thrown.
+ */
+export async function optimizeTables(
+  client: ClickHouseClient,
+  tables?: readonly string[],
+): Promise<void> {
+  const toOptimize = tables ?? TABLES_TO_OPTIMIZE;
+  for (const table of toOptimize) {
+    try {
+      await client.command({ query: `OPTIMIZE TABLE ${table} FINAL` });
+    } catch (err) {
+      // Log but don't fail — the table may not exist in dev/CI, or
+      // OPTIMIZE may be already running from another worker.
+      console.warn(`  ⚠ OPTIMIZE TABLE ${table} FINAL failed:`, err instanceof Error ? err.message : err);
+    }
+  }
+}

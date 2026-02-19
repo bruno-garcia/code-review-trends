@@ -32,6 +32,9 @@ export function getClickHouseClient() {
       password: process.env.CLICKHOUSE_PASSWORD ?? "dev",
       database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
       request_timeout: 15_000,
+      clickhouse_settings: {
+        max_execution_time: 15,
+      },
       keep_alive: { enabled: true, idle_socket_ttl: 1500 },
     });
   }
@@ -266,7 +269,7 @@ export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
       sum(ra.review_count) AS total_reviews,
       sum(ra.review_comment_count) AS total_comments,
       sum(ra.pr_comment_count) AS total_pr_comments
-    FROM review_activity ra FINAL
+    FROM review_activity ra
     GROUP BY ra.week
     ORDER BY ra.week
   `);
@@ -275,12 +278,12 @@ export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
 // --- Product queries ---
 
 export async function getProducts(): Promise<Product[]> {
-  return query<Product>("SELECT * FROM products FINAL ORDER BY name", undefined, REFERENCE_CACHE_TTL_MS);
+  return query<Product>("SELECT * FROM products ORDER BY name", undefined, REFERENCE_CACHE_TTL_MS);
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
   const rows = await query<Product>(
-    "SELECT * FROM products FINAL WHERE id = {id:String}",
+    "SELECT * FROM products WHERE id = {id:String}",
     { id },
     REFERENCE_CACHE_TTL_MS,
   );
@@ -294,13 +297,13 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     ? "week >= toDate({since:String})"
     : "1";
   const reactionSinceFilter = since
-    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
     : "";
   return query<ProductSummary>(
     `
     WITH
       ref AS (
-        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity FINAL UNION ALL SELECT week FROM reaction_only_review_counts FINAL)
+        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity UNION ALL SELECT week FROM reaction_only_review_counts)
         WHERE week < toStartOfWeek(now(), 1)
       ),
       weekly_product AS (
@@ -311,13 +314,13 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         FROM (
           SELECT b.product_id, ra.week, ra.review_count, ra.review_comment_count,
             ra.pr_comment_count, ra.repo_count, ra.org_count
-          FROM review_activity ra FINAL
-          JOIN bots b FINAL ON ra.bot_id = b.id
+          FROM review_activity ra
+          JOIN bots b ON ra.bot_id = b.id
           UNION ALL
           SELECT b.product_id, ror.week, ror.reaction_reviews AS review_count,
             0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
-          FROM reaction_only_review_counts ror FINAL
-          JOIN bots b FINAL ON ror.bot_id = b.id
+          FROM reaction_only_review_counts ror
+          JOIN bots b ON ror.bot_id = b.id
         )
         GROUP BY product_id, week
       ),
@@ -339,12 +342,12 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       reaction_agg AS (
         SELECT
           b.product_id,
-          sum(c.thumbs_up) AS thumbs_up,
-          sum(c.thumbs_down) AS thumbs_down,
-          sum(c.heart) AS heart
-        FROM pr_comments c FINAL
-        JOIN bots b FINAL ON c.bot_id = b.id
-        WHERE c.comment_id > 0 ${reactionSinceFilter}
+          sum(cs.thumbs_up) AS thumbs_up,
+          sum(cs.thumbs_down) AS thumbs_down,
+          sum(cs.heart) AS heart
+        FROM comment_stats_weekly cs
+        JOIN bots b ON cs.bot_id = b.id
+        ${reactionSinceFilter}
         GROUP BY b.product_id
       )
     SELECT
@@ -376,7 +379,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         0), 1) AS approval_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
-    FROM products p FINAL
+    FROM products p
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY growth_pct DESC, total_reviews DESC
@@ -408,9 +411,9 @@ export async function getWeeklyActivityByProduct(
         sum(ra.pr_comment_count) AS pr_comment_count,
         sum(ra.repo_count) AS repo_count,
         sum(ra.org_count) AS org_count
-      FROM review_activity ra FINAL
-      JOIN bots b FINAL ON ra.bot_id = b.id
-      JOIN products p FINAL ON b.product_id = p.id
+      FROM review_activity ra
+      JOIN bots b ON ra.bot_id = b.id
+      JOIN products p ON b.product_id = p.id
       ${where}
       GROUP BY ra.week, b.product_id, p.name, p.brand_color
       ORDER BY ra.week ASC, review_count DESC
@@ -424,13 +427,13 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
     ? "week >= toDate({since:String})"
     : "1";
   const reactionSinceFilter = since
-    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
     : "";
   return query<ProductComparison>(
     `
     WITH
       ref AS (
-        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity FINAL UNION ALL SELECT week FROM reaction_only_review_counts FINAL)
+        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity UNION ALL SELECT week FROM reaction_only_review_counts)
         WHERE week < toStartOfWeek(now(), 1)
       ),
       weekly_product AS (
@@ -441,13 +444,13 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         FROM (
           SELECT b.product_id, ra.week, ra.review_count, ra.review_comment_count,
             ra.pr_comment_count, ra.repo_count, ra.org_count
-          FROM review_activity ra FINAL
-          JOIN bots b FINAL ON ra.bot_id = b.id
+          FROM review_activity ra
+          JOIN bots b ON ra.bot_id = b.id
           UNION ALL
           SELECT b.product_id, ror.week, ror.reaction_reviews AS review_count,
             0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
-          FROM reaction_only_review_counts ror FINAL
-          JOIN bots b FINAL ON ror.bot_id = b.id
+          FROM reaction_only_review_counts ror
+          JOIN bots b ON ror.bot_id = b.id
         )
         GROUP BY product_id, week
       ),
@@ -471,12 +474,12 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
       reaction_agg AS (
         SELECT
           b.product_id,
-          sum(c.thumbs_up) AS thumbs_up,
-          sum(c.thumbs_down) AS thumbs_down,
-          sum(c.heart) AS heart
-        FROM pr_comments c FINAL
-        JOIN bots b FINAL ON c.bot_id = b.id
-        WHERE c.comment_id > 0 ${reactionSinceFilter}
+          sum(cs.thumbs_up) AS thumbs_up,
+          sum(cs.thumbs_down) AS thumbs_down,
+          sum(cs.heart) AS heart
+        FROM comment_stats_weekly cs
+        JOIN bots b ON cs.bot_id = b.id
+        ${reactionSinceFilter}
         GROUP BY b.product_id
       )
     SELECT
@@ -507,7 +510,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
       COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
       COALESCE(ra.weeks_active, 0) AS weeks_active
-    FROM products p FINAL
+    FROM products p
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY total_reviews DESC
@@ -532,19 +535,19 @@ export async function getProductBots(productId: string, since?: string): Promise
         COALESCE(sum(ra.pr_comment_count), 0) AS total_pr_comments,
         toString(min(ra.week)) AS first_week,
         toString(max(ra.week)) AS last_week
-      FROM bots b FINAL
+      FROM bots b
       LEFT JOIN (
         SELECT bot_id, min(github_login) AS github_login
-        FROM bot_logins FINAL
+        FROM bot_logins
         GROUP BY bot_id
       ) bl ON b.id = bl.bot_id
       LEFT JOIN (
         SELECT bot_id, week, review_count, review_comment_count, pr_comment_count
-        FROM review_activity FINAL
+        FROM review_activity
         UNION ALL
         SELECT bot_id, week, reaction_reviews AS review_count,
           0 AS review_comment_count, 0 AS pr_comment_count
-        FROM reaction_only_review_counts FINAL
+        FROM reaction_only_review_counts
       ) ra ON b.id = ra.bot_id ${sinceFilter}
       WHERE b.product_id = {productId:String}
       GROUP BY b.id, b.name, bl.github_login, b.brand_color
@@ -561,7 +564,7 @@ async function assembleBots(botRows: { id: string; name: string; product_id: str
   if (botRows.length === 0) return [];
   const botIds = botRows.map((b) => b.id);
   const loginRows = await query<{ bot_id: string; github_login: string }>(
-    "SELECT bot_id, github_login FROM bot_logins FINAL WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
+    "SELECT bot_id, github_login FROM bot_logins WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
     { botIds },
     cacheTtl,
   );
@@ -577,7 +580,7 @@ async function assembleBots(botRows: { id: string; name: string; product_id: str
 
 export async function getBots(): Promise<Bot[]> {
   const rows = await query<{ id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }>(
-    "SELECT * FROM bots FINAL ORDER BY name",
+    "SELECT * FROM bots ORDER BY name",
     undefined,
     REFERENCE_CACHE_TTL_MS,
   );
@@ -586,7 +589,7 @@ export async function getBots(): Promise<Bot[]> {
 
 export async function getBotById(id: string): Promise<Bot | null> {
   const rows = await query<{ id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }>(
-    "SELECT * FROM bots FINAL WHERE id = {id:String}",
+    "SELECT * FROM bots WHERE id = {id:String}",
     { id },
   );
   if (rows.length === 0) return null;
@@ -609,8 +612,8 @@ export async function getWeeklyActivity(
         ra.pr_comment_count,
         ra.repo_count,
         ra.org_count
-      FROM review_activity AS ra FINAL
-      JOIN bots AS b FINAL ON ra.bot_id = b.id
+      FROM review_activity AS ra
+      JOIN bots AS b ON ra.bot_id = b.id
       ${where}
       ORDER BY ra.week ASC, ra.review_count DESC
     `,
@@ -633,10 +636,10 @@ export async function getWeeklyTotals(since?: string): Promise<WeeklyTotals[]> {
       COALESCE(b.bot_pr_comments, 0) AS bot_pr_comments,
       h.pr_comment_count AS human_pr_comments,
       round(if(h.pr_comment_count + COALESCE(b.bot_pr_comments, 0) > 0, COALESCE(b.bot_pr_comments, 0) * 100.0 / (h.pr_comment_count + COALESCE(b.bot_pr_comments, 0)), 0), 2) AS bot_pr_comment_share_pct
-    FROM human_review_activity AS h FINAL
+    FROM human_review_activity AS h
     LEFT JOIN (
       SELECT week, sum(review_count) AS bot_reviews, sum(review_comment_count) AS bot_comments, sum(pr_comment_count) AS bot_pr_comments
-      FROM review_activity FINAL
+      FROM review_activity
       GROUP BY week
     ) b ON h.week = b.week
     ${sinceFilter}
@@ -651,13 +654,13 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     ? "week >= toDate({since:String})"
     : "1";
   const reactionSinceFilter = since
-    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
     : "";
   return query<BotSummary>(
     `
     WITH
       ref AS (
-        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity FINAL UNION ALL SELECT week FROM reaction_only_review_counts FINAL)
+        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity UNION ALL SELECT week FROM reaction_only_review_counts)
         WHERE week < toStartOfWeek(now(), 1)
       ),
       activity_agg AS (
@@ -674,23 +677,23 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM (
           SELECT bot_id, week, review_count, review_comment_count, pr_comment_count, repo_count, org_count
-          FROM review_activity FINAL
+          FROM review_activity
           UNION ALL
           SELECT bot_id, week, reaction_reviews AS review_count,
             0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
-          FROM reaction_only_review_counts FINAL
+          FROM reaction_only_review_counts
         )
         GROUP BY bot_id
       ),
       reaction_agg AS (
         SELECT
-          c.bot_id,
-          sum(c.thumbs_up) AS thumbs_up,
-          sum(c.thumbs_down) AS thumbs_down,
-          sum(c.heart) AS heart
-        FROM pr_comments c FINAL
-        WHERE c.comment_id > 0 ${reactionSinceFilter}
-        GROUP BY c.bot_id
+          cs.bot_id,
+          sum(cs.thumbs_up) AS thumbs_up,
+          sum(cs.thumbs_down) AS thumbs_down,
+          sum(cs.heart) AS heart
+        FROM comment_stats_weekly cs
+        ${reactionSinceFilter}
+        GROUP BY cs.bot_id
       )
     SELECT
       b.id,
@@ -720,7 +723,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
         0), 1) AS approval_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
-    FROM bots AS b FINAL
+    FROM bots AS b
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
@@ -734,13 +737,13 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
     ? "week >= toDate({since:String})"
     : "1";
   const reactionSinceFilter = since
-    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
     : "";
   return query<BotComparison>(
     `
     WITH
       ref AS (
-        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity FINAL UNION ALL SELECT week FROM reaction_only_review_counts FINAL)
+        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity UNION ALL SELECT week FROM reaction_only_review_counts)
         WHERE week < toStartOfWeek(now(), 1)
       ),
       activity_agg AS (
@@ -759,23 +762,23 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
         FROM (
           SELECT bot_id, week, review_count, review_comment_count, pr_comment_count, repo_count, org_count
-          FROM review_activity FINAL
+          FROM review_activity
           UNION ALL
           SELECT bot_id, week, reaction_reviews AS review_count,
             0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
-          FROM reaction_only_review_counts FINAL
+          FROM reaction_only_review_counts
         )
         GROUP BY bot_id
       ),
       reaction_agg AS (
         SELECT
-          c.bot_id,
-          sum(c.thumbs_up) AS thumbs_up,
-          sum(c.thumbs_down) AS thumbs_down,
-          sum(c.heart) AS heart
-        FROM pr_comments c FINAL
-        WHERE c.comment_id > 0 ${reactionSinceFilter}
-        GROUP BY c.bot_id
+          cs.bot_id,
+          sum(cs.thumbs_up) AS thumbs_up,
+          sum(cs.thumbs_down) AS thumbs_down,
+          sum(cs.heart) AS heart
+        FROM comment_stats_weekly cs
+        ${reactionSinceFilter}
+        GROUP BY cs.bot_id
       )
     SELECT
       b.id,
@@ -804,7 +807,7 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
       COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
       COALESCE(ra.weeks_active, 0) AS weeks_active
-    FROM bots AS b FINAL
+    FROM bots AS b
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
@@ -824,7 +827,7 @@ export type OrgByStars = {
 export async function getTopOrgsByStars(limit?: number): Promise<OrgByStars[]> {
   return query<OrgByStars>(
     `SELECT owner, sum(stars) AS total_stars, count() AS repo_count
-     FROM repos FINAL
+     FROM repos
      WHERE fetch_status = 'ok'
      GROUP BY owner
      ORDER BY total_stars DESC
@@ -846,25 +849,25 @@ export type BotReactions = {
 
 export async function getBotReactionLeaderboard(since?: string): Promise<BotReactions[]> {
   const sinceFilter = since
-    ? "AND toDate(c.created_at) >= toDate({since:String})"
+    ? "WHERE cs.week >= toMonday(toDate({since:String}))"
     : "";
   return query<BotReactions>(
     `
     SELECT
-      c.bot_id,
+      cs.bot_id,
       b.name AS bot_name,
       b.product_id,
-      sum(c.thumbs_up) AS total_thumbs_up,
-      sum(c.thumbs_down) AS total_thumbs_down,
-      sum(c.heart) AS total_heart,
-      count() AS total_comments,
-      round(if((sum(c.thumbs_up) + sum(c.thumbs_down)) > 0,
-        sum(c.thumbs_up) * 100.0 / (sum(c.thumbs_up) + sum(c.thumbs_down)),
+      sum(cs.thumbs_up) AS total_thumbs_up,
+      sum(cs.thumbs_down) AS total_thumbs_down,
+      sum(cs.heart) AS total_heart,
+      sum(cs.comment_count) AS total_comments,
+      round(if((sum(cs.thumbs_up) + sum(cs.thumbs_down)) > 0,
+        sum(cs.thumbs_up) * 100.0 / (sum(cs.thumbs_up) + sum(cs.thumbs_down)),
         0), 1) AS approval_rate
-    FROM pr_comments c FINAL
-    JOIN bots b FINAL ON c.bot_id = b.id
-    WHERE c.comment_id > 0 ${sinceFilter}
-    GROUP BY c.bot_id, b.name, b.product_id
+    FROM comment_stats_weekly cs
+    JOIN bots b ON cs.bot_id = b.id
+    ${sinceFilter}
+    GROUP BY cs.bot_id, b.name, b.product_id
     ORDER BY total_thumbs_up DESC
     `,
     since ? { since } : {},
@@ -881,26 +884,26 @@ export type BotCommentsPerPR = {
 };
 
 export async function getAvgCommentsPerPR(botId?: string, since?: string): Promise<BotCommentsPerPR[]> {
-  const conditions = ["c.comment_id > 0"];
-  if (botId) conditions.push("c.bot_id = {botId:String}");
-  if (since) conditions.push("toDate(c.created_at) >= toDate({since:String})");
-  const where = `WHERE ${conditions.join(" AND ")}`;
+  const conditions: string[] = [];
+  if (botId) conditions.push("cs.bot_id = {botId:String}");
+  if (since) conditions.push("cs.week >= toMonday(toDate({since:String}))");
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   const params: Record<string, string> = {};
   if (botId) params.botId = botId;
   if (since) params.since = since;
   return query<BotCommentsPerPR>(
     `SELECT
-      c.bot_id,
+      cs.bot_id,
       b.name AS bot_name,
       b.product_id,
-      round(if(countDistinct(c.repo_name, c.pr_number) > 0,
-        count() / countDistinct(c.repo_name, c.pr_number), 0), 2) AS avg_comments_per_pr,
-      countDistinct(c.repo_name, c.pr_number) AS total_prs,
-      count() AS total_comments
-    FROM pr_comments c FINAL
-    JOIN bots b FINAL ON c.bot_id = b.id
+      round(if(uniqExactMerge(cs.pr_count) > 0,
+        sum(cs.comment_count) / uniqExactMerge(cs.pr_count), 0), 2) AS avg_comments_per_pr,
+      uniqExactMerge(cs.pr_count) AS total_prs,
+      sum(cs.comment_count) AS total_comments
+    FROM comment_stats_weekly cs
+    JOIN bots b ON cs.bot_id = b.id
     ${where}
-    GROUP BY c.bot_id, b.name, b.product_id
+    GROUP BY cs.bot_id, b.name, b.product_id
     ORDER BY avg_comments_per_pr DESC`,
     params,
   );
@@ -930,9 +933,9 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
       r.primary_language AS language,
       countDistinct(e.repo_name, e.pr_number) AS pr_count,
       count() AS comment_count
-    FROM pr_bot_events e FINAL
-    JOIN bots b FINAL ON e.bot_id = b.id
-    JOIN repos r FINAL ON e.repo_name = r.name
+    FROM pr_bot_events e
+    JOIN bots b ON e.bot_id = b.id
+    JOIN repos r ON e.repo_name = r.name
     ${where}
     GROUP BY e.bot_id, b.name, r.primary_language
     ORDER BY pr_count DESC
@@ -970,13 +973,13 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       COALESCE(any(cm.thumbs_up), 0) AS thumbs_up,
       COALESCE(any(cm.thumbs_down), 0) AS thumbs_down,
       COALESCE(any(cm.heart), 0) AS heart
-    FROM repos r FINAL
+    FROM repos r
     LEFT JOIN (
       SELECT
         r2.owner,
         countDistinct(e.repo_name, e.pr_number) AS total_prs
-      FROM pr_bot_events e FINAL
-      JOIN repos r2 FINAL ON e.repo_name = r2.name
+      FROM pr_bot_events e
+      JOIN repos r2 ON e.repo_name = r2.name
       WHERE r2.owner = {owner:String} AND r2.fetch_status = 'ok'
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
@@ -987,8 +990,8 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
         sumIf(c.thumbs_up, c.comment_id > 0) AS thumbs_up,
         sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
         sumIf(c.heart, c.comment_id > 0) AS heart
-      FROM pr_comments c FINAL
-      JOIN repos r3 FINAL ON c.repo_name = r3.name
+      FROM pr_comments c
+      JOIN repos r3 ON c.repo_name = r3.name
       WHERE r3.owner = {owner:String} AND r3.fetch_status = 'ok'
       GROUP BY r3.owner
     ) cm ON r.owner = cm.owner
@@ -1017,17 +1020,17 @@ export async function getOrgRepos(owner: string): Promise<OrgRepo[]> {
       r.primary_language,
       COALESCE(pr.pr_count, 0) AS pr_count,
       COALESCE(cm.bot_comment_count, 0) AS bot_comment_count
-    FROM repos r FINAL
+    FROM repos r
     LEFT JOIN (
       SELECT repo_name, countDistinct(repo_name, pr_number) AS pr_count
-      FROM pr_bot_events FINAL
-      WHERE repo_name IN (SELECT name FROM repos FINAL WHERE owner = {owner:String} AND fetch_status = 'ok')
+      FROM pr_bot_events
+      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
       GROUP BY repo_name
     ) pr ON r.name = pr.repo_name
     LEFT JOIN (
       SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
-      FROM pr_comments FINAL
-      WHERE repo_name IN (SELECT name FROM repos FINAL WHERE owner = {owner:String} AND fetch_status = 'ok')
+      FROM pr_comments
+      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
       GROUP BY repo_name
     ) cm ON r.name = cm.repo_name
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
@@ -1056,10 +1059,10 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
       p.avatar_url,
       countDistinct(e.repo_name, e.pr_number) AS pr_count,
       count() AS event_count
-    FROM pr_bot_events e FINAL
-    JOIN repos r FINAL ON e.repo_name = r.name
-    JOIN bots b FINAL ON e.bot_id = b.id
-    JOIN products p FINAL ON b.product_id = p.id
+    FROM pr_bot_events e
+    JOIN repos r ON e.repo_name = r.name
+    JOIN bots b ON e.bot_id = b.id
+    JOIN products p ON b.product_id = p.id
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
     GROUP BY p.id, p.name, p.brand_color, p.avatar_url
     ORDER BY pr_count DESC
@@ -1111,7 +1114,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
 
   if (languages && languages.length > 0) {
     conditions.push(
-      "r.owner IN (SELECT DISTINCT owner FROM repos FINAL WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))"
+      "r.owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))"
     );
     params.languages = languages;
   }
@@ -1146,7 +1149,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       groupUniqArray(r.primary_language) AS languages,
       COALESCE(any(pr.total_prs), 0) AS total_prs,
       COALESCE(any(pr.product_ids), []) AS product_ids
-    FROM repos r FINAL
+    FROM repos r
     LEFT JOIN (
       SELECT
         r2.owner,
@@ -1157,11 +1160,11 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
           uniqExactMerge(s.pr_count) AS repo_pr_count,
           groupUniqArray(b.product_id) AS repo_product_ids
         FROM pr_bot_event_counts s
-        JOIN bots b FINAL ON s.bot_id = b.id
+        JOIN bots b ON s.bot_id = b.id
         ${productJoinFilter}
         GROUP BY s.repo_name
       ) repo_agg
-      JOIN repos r2 FINAL ON repo_agg.repo_name = r2.name
+      JOIN repos r2 ON repo_agg.repo_name = r2.name
       WHERE r2.fetch_status = 'ok'
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
@@ -1176,7 +1179,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
   const countQuery = `
     SELECT count() AS total FROM (
       SELECT r.owner
-      FROM repos r FINAL
+      FROM repos r
       LEFT JOIN (
         SELECT
           r2.owner,
@@ -1185,11 +1188,11 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
           SELECT s.repo_name,
             uniqExactMerge(s.pr_count) AS repo_pr_count
           FROM pr_bot_event_counts s
-          JOIN bots b FINAL ON s.bot_id = b.id
+          JOIN bots b ON s.bot_id = b.id
           ${productJoinFilter}
           GROUP BY s.repo_name
         ) repo_agg
-        JOIN repos r2 FINAL ON repo_agg.repo_name = r2.name
+        JOIN repos r2 ON repo_agg.repo_name = r2.name
         WHERE r2.fetch_status = 'ok'
         GROUP BY r2.owner
       ) pr ON r.owner = pr.owner
@@ -1218,7 +1221,7 @@ export type OrgFilterOption = {
 export async function getOrgLanguageOptions(): Promise<OrgFilterOption[]> {
   return query<OrgFilterOption>(`
     SELECT primary_language AS value, count(DISTINCT owner) AS count
-    FROM repos FINAL
+    FROM repos
     WHERE fetch_status = 'ok' AND primary_language != ''
     GROUP BY primary_language
     HAVING count >= 10
@@ -1240,11 +1243,11 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
 
   const rows = await query<EnrichmentStats>(`
     SELECT
-      (SELECT count() FROM repos FINAL) AS total_discovered_repos,
-      (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS enriched_repos,
-      (SELECT uniq(repo_name, pr_number) FROM pr_bot_events FINAL) AS total_discovered_prs,
-      (SELECT count() FROM pull_requests FINAL) AS enriched_prs,
-      (SELECT countIf(comment_id > 0) FROM pr_comments FINAL) AS total_comments
+      (SELECT count() FROM repos) AS total_discovered_repos,
+      (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
+      (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS total_discovered_prs,
+      (SELECT count() FROM pull_requests) AS enriched_prs,
+      (SELECT sum(comment_count) FROM comment_stats_weekly) AS total_comments
   `);
   return setCache("enrichmentStats", rows[0] ?? {
     total_discovered_repos: 0,
@@ -1289,7 +1292,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
   const [weekRows, countRows] = await Promise.all([
     query<{ w: string }>(`
       SELECT DISTINCT toString(week) AS w
-      FROM review_activity FINAL
+      FROM review_activity
       WHERE week >= toDate('${DATA_EPOCH}')
       ORDER BY w
     `),
@@ -1306,16 +1309,16 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       reactions_found: number;
     }>(`
       SELECT
-        (SELECT uniq(repo_name) FROM pr_bot_events FINAL) AS repos_total,
-        (SELECT countIf(fetch_status = 'ok') FROM repos FINAL) AS repos_ok,
-        (SELECT countIf(fetch_status = 'not_found') FROM repos FINAL) AS repos_not_found,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events FINAL) AS prs_discovered,
-        (SELECT count() FROM pull_requests FINAL) AS prs_enriched,
-        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_bot_events FINAL) AS comments_discovered,
-        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments FINAL) AS comments_enriched,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_events FINAL) AS reactions_total,
-        (SELECT count() FROM reaction_scan_progress FINAL) AS reactions_scanned,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions FINAL) AS reactions_found
+        (SELECT count(DISTINCT repo_name) FROM pr_bot_event_counts) AS repos_total,
+        (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
+        (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
+        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS prs_discovered,
+        (SELECT count() FROM pull_requests) AS prs_enriched,
+        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name, bot_id)) AS comments_discovered,
+        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM comment_stats_weekly GROUP BY bot_id)) AS comments_enriched,
+        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS reactions_total,
+        (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
+        (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
     `),
   ]);
 
@@ -1330,7 +1333,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
   if (tableExists[0]?.exists) {
     const stateRows = await query<{ last_run: string }>(`
       SELECT toString(max(completed_at)) AS last_run
-      FROM pipeline_state FINAL
+      FROM pipeline_state
       WHERE job_name = 'backfill'
     `);
     if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
@@ -1374,7 +1377,7 @@ export async function getPrCommentSyncPct(): Promise<number | null> {
       count() AS total_weeks
     FROM (
       SELECT week, sum(pr_comment_count) AS pr_comment_count
-      FROM human_review_activity FINAL
+      FROM human_review_activity
       GROUP BY week
     )
   `);
