@@ -210,8 +210,9 @@ export type WeeklyTotalVolume = {
 
 async function query<T>(sql: string, params?: Record<string, unknown>, cacheTtl?: number): Promise<T[]> {
   // Signal that this page needs a live server — skip static prerendering during build.
-  // At runtime, pages are rendered on-demand and ISR caches the result (revalidate=300).
-  // If ClickHouse is unreachable, the exception propagates → error boundary → 500 → not cached.
+  // At runtime, pages are rendered on every request (connection() opts out of ISR).
+  // The in-memory cache above is the only caching layer for query results.
+  // If ClickHouse is unreachable, the exception propagates → error boundary → 500.
   await connection();
 
   const cacheKey = params && Object.keys(params).length > 0

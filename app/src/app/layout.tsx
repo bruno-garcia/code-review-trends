@@ -58,15 +58,21 @@ export default async function RootLayout({
   const schemaStatus = await getSchemaStatus();
 
   // Product summaries are critical — they drive the filter on every page.
-  // If this fails, let it throw → error boundary → 500 → not cached by ISR.
-  // (connection() in query() already prevents static generation during build.)
-  const summaries = await getProductSummaries();
-
+  // If this fails, let it throw → error boundary → 500.
+  // (connection() in query() prevents static prerendering during build.)
+  //
   // Enrichment stats are optional — only used for the "data import in progress"
   // footer banner. The page is fully functional without it.
+  //
+  // Start both in parallel so a slow getEnrichmentStats() doesn't delay summaries.
+  const summariesPromise = getProductSummaries();
+  const enrichmentPromise = getEnrichmentStats();
+
+  const summaries = await summariesPromise;
+
   let enrichmentIncomplete = false;
   try {
-    const enrichment = await getEnrichmentStats();
+    const enrichment = await enrichmentPromise;
     enrichmentIncomplete =
       enrichment.total_discovered_repos > enrichment.enriched_repos ||
       enrichment.total_discovered_prs > enrichment.enriched_prs;
