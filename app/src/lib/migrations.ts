@@ -28,7 +28,7 @@ const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 4;
+export const EXPECTED_SCHEMA_VERSION = 5;
 
 export type SchemaStatus = {
   /**
@@ -282,8 +282,48 @@ const MIGRATION_004: Migration = {
   ],
 };
 
+/**
+ * Migration 5 — reaction_only_review_counts refreshable materialized view.
+ * Matches db/init/006_reaction_only_review_counts.sql.
+ *
+ * Pre-aggregates weekly reaction-only review counts per bot using a REFRESHABLE
+ * MV (every 30 min). Bucketed by ISO week so counts can be UNION'd into the
+ * review_activity pipeline — growth_pct, latest_week, and time-range filters
+ * all work automatically. Replaces the expensive inline NOT EXISTS subquery
+ * (~3s) with an instant table lookup (<200ms).
+ */
+const MIGRATION_005: Migration = {
+  version: 5,
+  name: "reaction_only_review_counts",
+  statements: [
+    // Target table — weekly granularity
+    `CREATE TABLE IF NOT EXISTS reaction_only_review_counts (
+      bot_id String,
+      week Date,
+      reaction_reviews UInt64
+    ) ENGINE = ReplacingMergeTree()
+    ORDER BY (bot_id, week)`,
+
+    // Refreshable materialized view — recomputes every 30 minutes
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS reaction_only_review_counts_mv
+    REFRESH EVERY 30 MINUTE
+    TO reaction_only_review_counts
+    AS SELECT
+      r.bot_id,
+      toStartOfWeek(r.reacted_at, 1) AS week,
+      countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
+    FROM pr_bot_reactions r FINAL
+    WHERE r.reaction_type = 'hooray'
+      AND NOT EXISTS (
+        SELECT 1 FROM pr_bot_events e
+        WHERE e.repo_name = r.repo_name AND e.pr_number = r.pr_number AND e.bot_id = r.bot_id
+      )
+    GROUP BY r.bot_id, toStartOfWeek(r.reacted_at, 1)`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

@@ -110,7 +110,6 @@ export type ProductSummary = {
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
-  total_reaction_reviews: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -134,7 +133,6 @@ export type BotSummary = {
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
-  total_reaction_reviews: number;
   total_repos: number;
   total_orgs: number;
   avg_comments_per_review: number;
@@ -308,17 +306,22 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         WHERE week < toStartOfWeek(now(), 1)
       ),
       weekly_product AS (
-        SELECT
-          b.product_id,
-          ra.week,
-          sum(ra.review_count) AS review_count,
-          sum(ra.review_comment_count) AS review_comment_count,
-          sum(ra.pr_comment_count) AS pr_comment_count,
-          sum(ra.repo_count) AS repo_count,
-          sum(ra.org_count) AS org_count
-        FROM review_activity ra FINAL
-        JOIN bots b FINAL ON ra.bot_id = b.id
-        GROUP BY b.product_id, ra.week
+        SELECT product_id, week, sum(review_count) AS review_count,
+          sum(review_comment_count) AS review_comment_count,
+          sum(pr_comment_count) AS pr_comment_count,
+          max(repo_count) AS repo_count, max(org_count) AS org_count
+        FROM (
+          SELECT b.product_id, ra.week, ra.review_count, ra.review_comment_count,
+            ra.pr_comment_count, ra.repo_count, ra.org_count
+          FROM review_activity ra FINAL
+          JOIN bots b FINAL ON ra.bot_id = b.id
+          UNION ALL
+          SELECT b.product_id, ror.week, ror.reaction_reviews AS review_count,
+            0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
+          FROM reaction_only_review_counts ror FINAL
+          JOIN bots b FINAL ON ror.bot_id = b.id
+        )
+        GROUP BY product_id, week
       ),
       activity_agg AS (
         SELECT
@@ -345,19 +348,6 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         JOIN bots b FINAL ON c.bot_id = b.id
         WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY b.product_id
-      ),
-      reaction_review_agg AS (
-        SELECT
-          b.product_id,
-          countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
-        FROM pr_bot_reactions r FINAL
-        JOIN bots b FINAL ON r.bot_id = b.id
-        WHERE r.reaction_type = 'hooray'
-          AND NOT EXISTS (
-            SELECT 1 FROM pr_bot_events e
-            WHERE e.repo_name = r.repo_name AND e.pr_number = r.pr_number AND e.bot_id = r.bot_id
-          )
-        GROUP BY b.product_id
       )
     SELECT
       p.id,
@@ -370,7 +360,6 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
-      COALESCE(rrv.reaction_reviews, 0) AS total_reaction_reviews,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
@@ -392,7 +381,6 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     FROM products p FINAL
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
-    LEFT JOIN reaction_review_agg rrv ON p.id = rrv.product_id
     ORDER BY growth_pct DESC, total_reviews DESC
     `,
     since ? { since } : {},
@@ -448,17 +436,22 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         WHERE week < toStartOfWeek(now(), 1)
       ),
       weekly_product AS (
-        SELECT
-          b.product_id,
-          ra.week,
-          sum(ra.review_count) AS review_count,
-          sum(ra.review_comment_count) AS review_comment_count,
-          sum(ra.pr_comment_count) AS pr_comment_count,
-          sum(ra.repo_count) AS repo_count,
-          sum(ra.org_count) AS org_count
-        FROM review_activity ra FINAL
-        JOIN bots b FINAL ON ra.bot_id = b.id
-        GROUP BY b.product_id, ra.week
+        SELECT product_id, week, sum(review_count) AS review_count,
+          sum(review_comment_count) AS review_comment_count,
+          sum(pr_comment_count) AS pr_comment_count,
+          max(repo_count) AS repo_count, max(org_count) AS org_count
+        FROM (
+          SELECT b.product_id, ra.week, ra.review_count, ra.review_comment_count,
+            ra.pr_comment_count, ra.repo_count, ra.org_count
+          FROM review_activity ra FINAL
+          JOIN bots b FINAL ON ra.bot_id = b.id
+          UNION ALL
+          SELECT b.product_id, ror.week, ror.reaction_reviews AS review_count,
+            0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
+          FROM reaction_only_review_counts ror FINAL
+          JOIN bots b FINAL ON ror.bot_id = b.id
+        )
+        GROUP BY product_id, week
       ),
       activity_agg AS (
         SELECT
@@ -547,7 +540,14 @@ export async function getProductBots(productId: string, since?: string): Promise
         FROM bot_logins FINAL
         GROUP BY bot_id
       ) bl ON b.id = bl.bot_id
-      LEFT JOIN review_activity ra FINAL ON b.id = ra.bot_id ${sinceFilter}
+      LEFT JOIN (
+        SELECT bot_id, week, review_count, review_comment_count, pr_comment_count
+        FROM review_activity FINAL
+        UNION ALL
+        SELECT bot_id, week, reaction_reviews AS review_count,
+          0 AS review_comment_count, 0 AS pr_comment_count
+        FROM reaction_only_review_counts FINAL
+      ) ra ON b.id = ra.bot_id ${sinceFilter}
       WHERE b.product_id = {productId:String}
       GROUP BY b.id, b.name, bl.github_login, b.brand_color
       HAVING total_reviews > 0
@@ -674,7 +674,14 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
-        FROM review_activity FINAL
+        FROM (
+          SELECT bot_id, week, review_count, review_comment_count, pr_comment_count, repo_count, org_count
+          FROM review_activity FINAL
+          UNION ALL
+          SELECT bot_id, week, reaction_reviews AS review_count,
+            0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
+          FROM reaction_only_review_counts FINAL
+        )
         GROUP BY bot_id
       ),
       reaction_agg AS (
@@ -686,18 +693,6 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
         FROM pr_comments c FINAL
         WHERE c.comment_id > 0 ${reactionSinceFilter}
         GROUP BY c.bot_id
-      ),
-      reaction_review_agg AS (
-        SELECT
-          r.bot_id,
-          countDistinct((r.repo_name, r.pr_number)) AS reaction_reviews
-        FROM pr_bot_reactions r FINAL
-        WHERE r.reaction_type = 'hooray'
-          AND NOT EXISTS (
-            SELECT 1 FROM pr_bot_events e
-            WHERE e.repo_name = r.repo_name AND e.pr_number = r.pr_number AND e.bot_id = r.bot_id
-          )
-        GROUP BY r.bot_id
       )
     SELECT
       b.id,
@@ -709,7 +704,6 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
-      COALESCE(rrv.reaction_reviews, 0) AS total_reaction_reviews,
       COALESCE(ra.max_repos, 0) AS total_repos,
       COALESCE(ra.max_orgs, 0) AS total_orgs,
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
@@ -731,7 +725,6 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     FROM bots AS b FINAL
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
-    LEFT JOIN reaction_review_agg rrv ON b.id = rrv.bot_id
     ORDER BY total_reviews DESC
     `,
     since ? { since } : {},
@@ -766,7 +759,14 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
           sumIf(pr_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_pr_comments,
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
-        FROM review_activity FINAL
+        FROM (
+          SELECT bot_id, week, review_count, review_comment_count, pr_comment_count, repo_count, org_count
+          FROM review_activity FINAL
+          UNION ALL
+          SELECT bot_id, week, reaction_reviews AS review_count,
+            0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
+          FROM reaction_only_review_counts FINAL
+        )
         GROUP BY bot_id
       ),
       reaction_agg AS (
