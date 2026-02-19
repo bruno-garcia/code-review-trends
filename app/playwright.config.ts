@@ -22,9 +22,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: process.env.CI
-      ? (process.env.NEXT_PORT ? `npx next start --port ${process.env.NEXT_PORT}` : "npx next start")
-      : (process.env.NEXT_PORT ? `npx next dev --port ${process.env.NEXT_PORT}` : "npx next dev"),
+    command: `npx next ${process.env.CI ? "start" : "dev"}${process.env.NEXT_PORT ? ` --port ${process.env.NEXT_PORT}` : ""}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
