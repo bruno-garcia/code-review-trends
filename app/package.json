@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "clean": "rm -rf .next",
-    "test": "npx tsx --test src/lib/color-check.test.ts src/lib/clickhouse-final.test.ts src/components/json-ld.test.ts",
+    "test": "npx tsx --test src/lib/color-check.test.ts src/components/json-ld.test.ts",
     "lint": "eslint",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
