@@ -12,7 +12,7 @@ test.describe("Home page", () => {
     await page.goto("/");
     await expect(page.getByTestId("ai-share-section")).toBeVisible();
     await expect(
-      page.getByText("AI Share of Code Review Activity"),
+      page.getByText("AI Share of Code Reviews"),
     ).toBeVisible();
   });
 

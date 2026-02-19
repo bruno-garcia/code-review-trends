@@ -73,7 +73,7 @@ export default async function Home() {
 
       {/* AI Share — unfiltered */}
       <section data-testid="ai-share-section">
-        <SectionHeading id="ai-share">AI Share of Code Review Activity</SectionHeading>
+        <SectionHeading id="ai-share">AI Share of Code Reviews</SectionHeading>
         <p className="text-theme-muted mb-6">
           Percentage of pull request reviews performed by AI bots vs. humans
           over time.
