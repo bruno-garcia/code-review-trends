@@ -17,11 +17,7 @@
 import { getClickHouseClient } from "./clickhouse";
 import type { ClickHouseClient } from "@clickhouse/client";
 import * as Sentry from "@sentry/nextjs";
-import { PHASE_PRODUCTION_BUILD } from "next/constants";
-
-// During `next build`, ClickHouse is unavailable. Return "ok" so the build
-// can generate placeholder pages — ISR replaces them on the first real request.
-const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
+import { connection } from "next/server";
 
 // ---------------------------------------------------------------------------
 // Version & types
@@ -444,11 +440,10 @@ const CACHE_TTL_MS = 60_000; // Re-check every 60 seconds
  * Results are cached for 60s per serverless container.
  */
 export async function getSchemaStatus(): Promise<SchemaStatus> {
-  // During `next build`, ClickHouse is unavailable — skip the check entirely.
-  // Build generates placeholder pages; ISR replaces them on first real request.
-  if (isBuildPhase) {
-    return { status: "ok", dbVersion: EXPECTED_SCHEMA_VERSION, expectedVersion: EXPECTED_SCHEMA_VERSION };
-  }
+  // Signal that this page needs a live server — skip static prerendering during build.
+  // At runtime, the schema check runs on-demand and is cached per container (60s).
+  // If ClickHouse is unreachable, the exception propagates → error boundary → 500 → not cached.
+  await connection();
 
   const now = Date.now();
   if (_cachedStatus && now - _cachedAt < CACHE_TTL_MS) {

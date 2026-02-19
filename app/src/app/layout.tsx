@@ -57,25 +57,33 @@ export default async function RootLayout({
   // Connection failures throw → global-error.tsx (500, not ISR-cached).
   const schemaStatus = await getSchemaStatus();
 
-  // Gracefully handle missing ClickHouse during build or revalidation.
-  // Pages use ISR (revalidate=300) — this handles ClickHouse being temporarily unavailable.
-  let summaries: Awaited<ReturnType<typeof getProductSummaries>> = [];
+  // Product summaries are critical — they drive the filter on every page.
+  // If this fails, let it throw → error boundary → 500.
+  // (connection() in query() prevents static prerendering during build.)
+  //
+  // Enrichment stats are optional — only used for the "data import in progress"
+  // footer banner. The page is fully functional without it.
+  //
+  // Start both in parallel so a slow getEnrichmentStats() doesn't delay summaries.
+  // Attach .catch() to enrichmentPromise eagerly — if summariesPromise rejects first,
+  // the function throws before we await enrichment. Without the eager catch, the
+  // enrichment rejection would be unhandled and crash the Node.js process.
+  const summariesPromise = getProductSummaries();
+  const enrichmentPromise = getEnrichmentStats().catch((err) => {
+    Sentry.captureException(err, {
+      tags: { route: "layout", section: "enrichment-stats" },
+    });
+    return null;
+  });
+
+  const summaries = await summariesPromise;
+
   let enrichmentIncomplete = false;
-  try {
-    const [summariesData, enrichment] = await Promise.all([
-      getProductSummaries(),
-      getEnrichmentStats(),
-    ]);
-    summaries = summariesData;
+  const enrichment = await enrichmentPromise;
+  if (enrichment) {
     enrichmentIncomplete =
       enrichment.total_discovered_repos > enrichment.enriched_repos ||
       enrichment.total_discovered_prs > enrichment.enriched_prs;
-  } catch (err) {
-    // ClickHouse unavailable (e.g. during build) — render with empty filter list.
-    // The page is still functional (nav, content) without the product filter data.
-    Sentry.captureException(err, {
-      tags: { route: "layout", section: "product-summaries" },
-    });
   }
   const defaultProductIds = getDefaultProductIds(summaries);
   const allProducts = summaries.map((s) => ({
