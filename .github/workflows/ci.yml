@@ -39,6 +39,9 @@ jobs:
       - name: Build app
         run: npm run build --workspace=app
 
+      - name: Test app (unit)
+        run: npm run test --workspace=app
+
       - name: Build pipeline
         run: npm run build --workspace=pipeline
 
@@ -88,6 +91,14 @@ jobs:
 
       - name: Validate ClickHouse schema
         run: npm run validate --workspace=pipeline
+        env:
+          CLICKHOUSE_URL: http://localhost:8123
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: dev
+          CLICKHOUSE_DB: code_review_trends
+
+      - name: Run app integration tests
+        run: npm run test:integration --workspace=app
         env:
           CLICKHOUSE_URL: http://localhost:8123
           CLICKHOUSE_USER: default
