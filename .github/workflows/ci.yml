@@ -120,6 +120,13 @@ jobs:
           CLICKHOUSE_DB: code_review_trends
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Optimize ClickHouse tables
+        run: |
+          for table in products bots bot_logins review_activity human_review_activity pr_bot_events repos pull_requests pr_comments pr_bot_reactions reaction_scan_progress; do
+            curl -sf "http://localhost:8123/?user=default&password=dev" \
+              -d "OPTIMIZE TABLE code_review_trends.${table} FINAL" || true
+          done
+
       - name: Run Playwright tests
         run: npm run test:e2e --workspace=app
         env:

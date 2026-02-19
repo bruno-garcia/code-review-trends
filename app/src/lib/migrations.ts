@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 5;
+export const EXPECTED_SCHEMA_VERSION = 6;
 
 export type SchemaStatus = {
   /**
@@ -318,8 +318,64 @@ const MIGRATION_005: Migration = {
   ],
 };
 
+/**
+ * Migration 6 — comment_stats_weekly AggregatingMergeTree.
+ * Matches db/init/007_comment_stats.sql.
+ *
+ * Pre-aggregates pr_comments by (bot_id, week) for fast reaction/comment queries.
+ * Replaces expensive `FROM pr_comments FINAL` full-table scans (~15–120s on
+ * millions of rows) with instant reads from a ~9K row summary table.
+ */
+const MIGRATION_006: Migration = {
+  version: 6,
+  name: "comment_stats_weekly",
+  statements: [
+    `CREATE TABLE IF NOT EXISTS comment_stats_weekly (
+      bot_id String,
+      week Date,
+      comment_count SimpleAggregateFunction(sum, UInt64),
+      thumbs_up SimpleAggregateFunction(sum, UInt64),
+      thumbs_down SimpleAggregateFunction(sum, UInt64),
+      heart SimpleAggregateFunction(sum, UInt64),
+      pr_count AggregateFunction(uniqExact, String, UInt32)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY (bot_id, week)`,
+
+    // Backfill BEFORE creating the MV to avoid double-counting: if the MV
+    // exists during the backfill, concurrent pr_comments inserts would be
+    // counted by both the MV trigger and the backfill's FINAL scan.
+    `INSERT INTO comment_stats_weekly
+    SELECT
+      bot_id,
+      toMonday(created_at) AS week,
+      count() AS comment_count,
+      sum(thumbs_up) AS thumbs_up,
+      sum(thumbs_down) AS thumbs_down,
+      sum(heart) AS heart,
+      uniqExactState(repo_name, pr_number) AS pr_count
+    FROM pr_comments FINAL
+    WHERE comment_id > 0
+    GROUP BY bot_id, week
+    SETTINGS max_execution_time = 300`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS comment_stats_weekly_mv
+    TO comment_stats_weekly
+    AS SELECT
+      bot_id,
+      toMonday(created_at) AS week,
+      count() AS comment_count,
+      sum(thumbs_up) AS thumbs_up,
+      sum(thumbs_down) AS thumbs_down,
+      sum(heart) AS heart,
+      uniqExactState(repo_name, pr_number) AS pr_count
+    FROM pr_comments
+    WHERE comment_id > 0
+    GROUP BY bot_id, week`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables
