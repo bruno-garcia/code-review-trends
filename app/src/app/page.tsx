@@ -82,7 +82,7 @@ export default async function Home() {
           <BotShareChart data={totals} />
         </div>
         <p className="mt-3 text-xs text-theme-muted/70">
-          * "Reviews" includes all PR events (comments, approvals, and commit-triggered responses). Bots typically react to every push, inflating their share relative to humans.{" "}
+          * &ldquo;Reviews&rdquo; includes all PR events (comments, approvals, and commit-triggered responses). Bots typically react to every push, inflating their share relative to humans.{" "}
           <a href="/about" className="underline hover:text-theme-foreground">See methodology.</a>
         </p>
       </section>
