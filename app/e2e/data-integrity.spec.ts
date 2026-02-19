@@ -49,8 +49,7 @@ test.describe("data integrity", () => {
         await page.waitForLoadState("networkidle");
         const bodyText = await page.locator("body").textContent();
         // NaN and Infinity in rendered data indicate divide-by-zero bugs
-        expect(bodyText).not.toContain("NaN%");
-        expect(bodyText).not.toContain("NaN ");
+        expect(bodyText).not.toMatch(/\bNaN\b/);
         expect(bodyText).not.toMatch(/\bInfinity\b/);
       });
     }

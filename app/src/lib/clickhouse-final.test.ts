@@ -26,7 +26,7 @@ function parseTablesWithEngine(sqlFiles: string[]): {
   const nonReplacingTables = new Set<string>();
 
   for (const file of sqlFiles) {
-    const sql = fs.readFileSync(path.join(repoRoot, file), "utf-8");
+    const sql = fs.readFileSync(file, "utf-8");
     // Match CREATE TABLE ... ENGINE = XxxMergeTree
     const re = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:\w+\.)?(\w+)\s*\([\s\S]*?\)\s*ENGINE\s*=\s*(\w+)/gi;
     let m: RegExpExecArray | null;
@@ -43,12 +43,11 @@ function parseTablesWithEngine(sqlFiles: string[]): {
   return { replacingMergeTrees, nonReplacingTables };
 }
 
-const schemaFiles = [
-  "db/init/001_schema.sql",
-  "db/init/003_pr_bot_reactions.sql",
-  "db/init/006_reaction_only_review_counts.sql",
-  "db/init/004_pr_bot_event_counts.sql",
-];
+const schemaDir = path.join(repoRoot, "db/init");
+const schemaFiles = fs.readdirSync(schemaDir)
+  .filter(f => f.endsWith(".sql"))
+  .sort()
+  .map(f => path.join(schemaDir, f));
 
 const { replacingMergeTrees, nonReplacingTables } = parseTablesWithEngine(schemaFiles);
 
@@ -69,12 +68,6 @@ type Violation = {
 
 function findViolations(source: string): Violation[] {
   const violations: Violation[] = [];
-
-  // Tables that don't need FINAL
-  const exempt = new Set([
-    ...nonReplacingTables,
-    "system",  // system.tables etc.
-  ]);
 
   // Match FROM/JOIN followed by a table name, with optional alias, then check for FINAL
   // Pattern: (FROM|JOIN) <table> [<alias>] [FINAL]

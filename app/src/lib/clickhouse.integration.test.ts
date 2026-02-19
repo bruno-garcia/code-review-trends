@@ -144,6 +144,8 @@ describe("clickhouse query integration tests", () => {
       `ALTER TABLE bots DELETE WHERE id LIKE '__test_%'`,
       `ALTER TABLE bot_logins DELETE WHERE bot_id LIKE '__test_%'`,
       `ALTER TABLE review_activity DELETE WHERE bot_id LIKE '__test_%'`,
+      // human_review_activity has no bot_id or test marker — delete by week.
+      // These 2020 dates are safely before the 2023 data epoch.
       `ALTER TABLE human_review_activity DELETE WHERE week IN ('${W1}','${W2}','${W3}','${W4}')`,
       `ALTER TABLE pr_comments DELETE WHERE bot_id LIKE '__test_%'`,
       `ALTER TABLE reaction_only_review_counts DELETE WHERE bot_id LIKE '__test_%'`,
