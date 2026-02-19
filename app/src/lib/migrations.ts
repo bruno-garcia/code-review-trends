@@ -31,8 +31,14 @@ const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 export const EXPECTED_SCHEMA_VERSION = 4;
 
 export type SchemaStatus = {
-  /** "ok" | "app_behind" | "migrating" — connection failures and DDL errors throw instead. */
-  status: "ok" | "app_behind" | "migrating";
+  /**
+   * "ok"        — DB matches expected version.
+   * "app_behind" — DB is ahead of this app deployment.
+   * "db_behind" — DB is behind and auto-migration failed (DDL error). Site still works,
+   *               banner is shown. Connection failures throw instead (→ error boundary).
+   * "migrating" — another instance holds the migration lock. Spinner + auto-refresh.
+   */
+  status: "ok" | "app_behind" | "db_behind" | "migrating";
   dbVersion: number;
   expectedVersion: number;
   error?: string;
@@ -369,7 +375,7 @@ const LOCK_MAX_RETRIES = 15; // 30 seconds total
 
 async function runMigrations(
   client: ClickHouseClient,
-): Promise<{ applied: number; error?: string }> {
+): Promise<{ applied: number; error?: string; isDdlError?: true }> {
   const currentVersion = await getSchemaVersion(client);
   const pending = MIGRATIONS.filter((m) => m.version > currentVersion).sort(
     (a, b) => a.version - b.version,
@@ -400,11 +406,16 @@ async function runMigrations(
     let applied = 0;
     for (const migration of pending) {
       for (const sql of migration.statements) {
-        // Let DDL errors throw — the `finally` block releases the lock,
-        // and the caller (getSchemaStatus) re-throws to produce a 500.
-        // Catching here and returning an error string would produce a cached
-        // HTTP 200 "migrating" status (see Principle #1 in AGENTS.md).
-        await client.command({ query: sql });
+        try {
+          await client.command({ query: sql });
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          return {
+            applied,
+            error: `Migration ${migration.version} (${migration.name}) failed: ${errorMsg}`,
+            isDdlError: true as const,
+          };
+        }
       }
       // Record this migration
       await client.insert({
@@ -471,13 +482,26 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     }
 
     // DB is behind — try to auto-migrate.
-    // DDL failures (permission denied, syntax error) throw — the layout's
-    // global-error.tsx handles them. Do NOT catch-and-return here: that
-    // produces an HTTP 200 that ISR caches, turning a transient failure
-    // into a long-lived outage (see Principle #1 in AGENTS.md).
+    // Connection failures throw (→ error boundary, 500, not cached by ISR).
+    // DDL failures return db_behind (site still works, banner shown, Sentry captures).
     const result = await runMigrations(client);
 
     if (result.error) {
+      if (result.isDdlError) {
+        // DDL failure (syntax error, permission denied) — site still works,
+        // just missing new schema features. Show a banner, capture to Sentry.
+        Sentry.captureException(new Error(result.error), {
+          tags: { component: "schema-migration", reason: "ddl_failure" },
+          extra: { dbVersion, expectedVersion: EXPECTED_SCHEMA_VERSION },
+        });
+        return {
+          status: "db_behind",
+          dbVersion,
+          expectedVersion: EXPECTED_SCHEMA_VERSION,
+          error: result.error,
+        };
+      }
+
       // Lock contention — re-check if someone else finished
       const newVersion = await getSchemaVersion(client);
       if (newVersion >= EXPECTED_SCHEMA_VERSION) {

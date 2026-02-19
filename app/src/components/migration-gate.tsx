@@ -16,8 +16,9 @@ export function MigrationGate({
   status: SchemaStatus;
   children: React.ReactNode;
 }) {
-  // "error" and "db_behind" now throw from getSchemaStatus() (→ global-error.tsx),
-  // so only "migrating" (lock contention during deploy) needs the spinner gate.
+  // "migrating" = lock contention during deploy → show spinner + auto-refresh.
+  // "db_behind" = DDL failed → banner shown by SchemaBanner, content still renders.
+  // Connection failures throw from getSchemaStatus() → global-error.tsx.
   const needsGate = status.status === "migrating";
 
   return needsGate ? <MigrationScreen status={status} /> : <>{children}</>;
