@@ -10,7 +10,8 @@
     "test": "npx tsx --test src/lib/color-check.test.ts src/lib/migrations.test.ts",
     "lint": "eslint",
     "test:e2e": "npx playwright test",
-    "test:e2e:ui": "npx playwright test --ui"
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:integration": "npx tsx --test src/lib/clickhouse.integration.test.ts"
   },
   "dependencies": {
     "@clickhouse/client": "^1.17.0",
