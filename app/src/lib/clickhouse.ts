@@ -1119,6 +1119,41 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
   );
 }
 
+// --- Top repos by product ---
+
+export type TopRepoByProduct = {
+  name: string;
+  owner: string;
+  stars: number;
+  primary_language: string;
+  pr_count: number;
+};
+
+export async function getTopReposByProduct(
+  productId: string,
+  limit: number = 5,
+): Promise<TopRepoByProduct[]> {
+  return query<TopRepoByProduct>(
+    `
+    SELECT
+      r.name,
+      r.owner,
+      r.stars,
+      r.primary_language,
+      uniqExactMerge(s.pr_count) AS pr_count
+    FROM pr_bot_event_counts s
+    JOIN bots b ON s.bot_id = b.id
+    JOIN repos r ON s.repo_name = r.name
+    WHERE b.product_id = {productId:String}
+      AND r.fetch_status = 'ok'
+    GROUP BY r.name, r.owner, r.stars, r.primary_language
+    ORDER BY r.stars DESC
+    LIMIT {limit:UInt32}
+    `,
+    { productId, limit },
+  );
+}
+
 // --- Organization listing queries ---
 
 export type OrgListItem = {

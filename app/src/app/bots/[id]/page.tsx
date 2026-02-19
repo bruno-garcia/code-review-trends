@@ -8,6 +8,8 @@ import {
   getBotsByLanguage,
   getAvgCommentsPerPR,
   getPrCommentSyncPct,
+  getOrgList,
+  getTopReposByProduct,
 } from "@/lib/clickhouse";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import {
@@ -20,6 +22,9 @@ import { ThemedProductHeader } from "@/components/themed-product-header";
 import { SectionHeading } from "@/components/section-heading";
 import { JsonLd } from "@/components/json-ld";
 import { formatNumber } from "@/lib/format";
+
+/** Max top orgs/repos shown on the bot detail page. */
+const TOP_N = 5;
 
 export async function generateMetadata({
   params,
@@ -69,7 +74,7 @@ export default async function ProductPage({
   const range = parseTimeRange(sp.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [product, allSummaries, productBots, activity, languageData, commentsPerPR, prCommentSyncPct] = await Promise.all([
+  const [product, allSummaries, productBots, activity, languageData, commentsPerPR, prCommentSyncPct, topOrgs, topRepos] = await Promise.all([
     getProductById(id),
     getProductSummaries(since),
     getProductBots(id, since),
@@ -77,6 +82,8 @@ export default async function ProductPage({
     getBotsByLanguage(id, since),
     getAvgCommentsPerPR(id, since),
     getPrCommentSyncPct(),
+    getOrgList({ productIds: [id], sort: "stars", limit: TOP_N }),
+    getTopReposByProduct(id, TOP_N),
   ]);
 
   if (!product) {
@@ -282,6 +289,129 @@ export default async function ProductPage({
           <p className="text-theme-muted text-sm">No data</p>
         )}
       </section>
+
+      {/* Top Organizations */}
+      {topOrgs.orgs.length > 0 && (
+        <section data-testid="bot-top-orgs">
+          <SectionHeading id="organizations">Top Organizations</SectionHeading>
+          <p className="text-theme-muted mb-4">
+            Highest-starred GitHub organizations using {product.name}.
+          </p>
+          <div className="space-y-2">
+            {topOrgs.orgs.map((org, i) => {
+              const langs = org.languages.filter(Boolean);
+              return (
+                <Link
+                  key={org.owner}
+                  href={`/orgs/${org.owner}`}
+                  className="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-theme-surface/60 transition-colors group"
+                >
+                  <span className="text-theme-muted text-sm w-6 text-right shrink-0 tabular-nums">
+                    {i + 1}
+                  </span>
+                  <img
+                    src={`https://github.com/${org.owner}.png?size=40`}
+                    alt={org.owner}
+                    width={32}
+                    height={32}
+                    className="rounded-full bg-theme-surface shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-base font-medium text-theme-text group-hover:text-indigo-400 group-hover:underline transition-colors">
+                      {org.owner}
+                    </span>
+                    {langs.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-0.5 items-center">
+                        {langs.slice(0, 4).map((lang) => (
+                          <span
+                            key={lang}
+                            className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60 leading-none"
+                          >
+                            {lang}
+                          </span>
+                        ))}
+                        {langs.length > 4 && (
+                          <span className="text-xs text-theme-muted leading-none">
+                            +{langs.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0 text-sm tabular-nums">
+                    <span className="text-theme-muted" title="GitHub stars">
+                      ⭐ {formatNumber(Number(org.total_stars))}
+                    </span>
+                    <span className="hidden sm:inline text-theme-muted" title="Repos">
+                      {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          {topOrgs.total > TOP_N && (
+            <div className="mt-4">
+              <Link
+                href={`/orgs?product=${id}`}
+                className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                View all {topOrgs.total.toLocaleString()} organizations →
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Top Repos */}
+      {topRepos.length > 0 && (
+        <section data-testid="bot-top-repos">
+          <SectionHeading id="repos">Top Repositories</SectionHeading>
+          <p className="text-theme-muted mb-4">
+            Highest-starred repositories reviewed by {product.name}.
+          </p>
+          <div className="space-y-2">
+            {topRepos.map((repo, i) => (
+              <a
+                key={repo.name}
+                href={`https://github.com/${repo.name}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-theme-surface/60 transition-colors group"
+              >
+                <span className="text-theme-muted text-sm w-6 text-right shrink-0 tabular-nums">
+                  {i + 1}
+                </span>
+                <img
+                  src={`https://github.com/${repo.owner}.png?size=40`}
+                  alt={repo.owner}
+                  width={32}
+                  height={32}
+                  className="rounded-full bg-theme-surface shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <span className="text-base font-medium text-theme-text group-hover:text-indigo-400 group-hover:underline transition-colors truncate block">
+                    {repo.name}
+                  </span>
+                  {repo.primary_language && (
+                    <span className="text-xs text-theme-muted bg-theme-surface-alt px-1.5 py-0.5 rounded border border-theme-border/60 leading-none inline-block mt-0.5">
+                      {repo.primary_language}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 shrink-0 text-sm tabular-nums">
+                  <span className="text-theme-muted" title="GitHub stars">
+                    ⭐ {formatNumber(Number(repo.stars))}
+                  </span>
+                  <span className="hidden sm:inline text-theme-muted" title="PRs reviewed">
+                    {formatNumber(Number(repo.pr_count))} PRs
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Top Languages */}
       {totalReviews > 0 && languageData.length > 0 && (
