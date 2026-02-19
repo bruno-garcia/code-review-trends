@@ -123,7 +123,7 @@ jobs:
       - name: Optimize ClickHouse tables
         if: ${{ env.HAS_GCP == 'true' }}
         run: |
-          for table in review_activity human_review_activity pr_bot_events repos pull_requests pr_comments pr_bot_reactions reaction_scan_progress; do
+          for table in products bots bot_logins review_activity human_review_activity pr_bot_events repos pull_requests pr_comments pr_bot_reactions reaction_scan_progress; do
             curl -sf "http://localhost:8123/?user=default&password=dev" \
               -d "OPTIMIZE TABLE code_review_trends.${table} FINAL" || true
           done
