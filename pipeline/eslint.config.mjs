@@ -7,4 +7,9 @@ export default tseslint.config(
   {
     ignores: ["dist/"],
   },
+  {
+    rules: {
+      "no-empty": ["error", { allowEmptyCatch: false }],
+    },
+  },
 );
