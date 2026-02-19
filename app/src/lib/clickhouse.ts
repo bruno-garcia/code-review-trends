@@ -31,7 +31,7 @@ export function getClickHouseClient() {
       username: process.env.CLICKHOUSE_USER ?? "default",
       password: process.env.CLICKHOUSE_PASSWORD ?? "dev",
       database: process.env.CLICKHOUSE_DB ?? "code_review_trends",
-      request_timeout: 15_000,
+      request_timeout: 310_000,
       clickhouse_settings: {
         max_execution_time: 15,
       },
@@ -893,17 +893,24 @@ export async function getAvgCommentsPerPR(botId?: string, since?: string): Promi
   if (since) params.since = since;
   return query<BotCommentsPerPR>(
     `SELECT
-      cs.bot_id,
-      b.name AS bot_name,
-      b.product_id,
-      round(if(uniqExactMerge(cs.pr_count) > 0,
-        sum(cs.comment_count) / uniqExactMerge(cs.pr_count), 0), 2) AS avg_comments_per_pr,
-      uniqExactMerge(cs.pr_count) AS total_prs,
-      sum(cs.comment_count) AS total_comments
-    FROM comment_stats_weekly cs
-    JOIN bots b ON cs.bot_id = b.id
-    ${where}
-    GROUP BY cs.bot_id, b.name, b.product_id
+      bot_id,
+      bot_name,
+      product_id,
+      round(if(total_prs > 0, total_comments / total_prs, 0), 2) AS avg_comments_per_pr,
+      total_prs,
+      total_comments
+    FROM (
+      SELECT
+        cs.bot_id,
+        b.name AS bot_name,
+        b.product_id,
+        uniqExactMerge(cs.pr_count) AS total_prs,
+        sum(cs.comment_count) AS total_comments
+      FROM comment_stats_weekly cs
+      JOIN bots b ON cs.bot_id = b.id
+      ${where}
+      GROUP BY cs.bot_id, b.name, b.product_id
+    )
     ORDER BY avg_comments_per_pr DESC`,
     params,
   );
@@ -1315,7 +1322,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
         (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS prs_discovered,
         (SELECT count() FROM pull_requests) AS prs_enriched,
         (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name, bot_id)) AS comments_discovered,
-        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM comment_stats_weekly GROUP BY bot_id)) AS comments_enriched,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched,
         (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS reactions_total,
         (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
         (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found

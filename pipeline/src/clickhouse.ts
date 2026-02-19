@@ -453,6 +453,8 @@ const TABLES_TO_OPTIMIZE = [
   "reaction_scan_progress",
 ] as const;
 
+const VALID_TABLES = new Set<string>(TABLES_TO_OPTIMIZE);
+
 /**
  * Force-merge all ReplacingMergeTree tables so reads without FINAL are correct.
  * Call after pipeline writes. Each OPTIMIZE is independent — one failure
@@ -464,8 +466,11 @@ export async function optimizeTables(
 ): Promise<void> {
   const toOptimize = tables ?? TABLES_TO_OPTIMIZE;
   for (const table of toOptimize) {
+    if (!VALID_TABLES.has(table)) {
+      throw new Error(`optimizeTables: invalid table name "${table}"`);
+    }
     try {
-      await client.command({ query: `OPTIMIZE TABLE ${table} FINAL` });
+      await client.command({ query: `OPTIMIZE TABLE \`${table}\` FINAL` });
     } catch (err) {
       // Log but don't fail — the table may not exist in dev/CI, or
       // OPTIMIZE may be already running from another worker.
