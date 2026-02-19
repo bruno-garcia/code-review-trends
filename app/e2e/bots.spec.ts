@@ -11,7 +11,7 @@ test.describe("Bots listing page", () => {
     // Cards should show stat labels
     const firstCard = cards.first();
     await expect(firstCard.getByText("Orgs")).toBeVisible();
-    await expect(firstCard.getByText("Approval")).toBeVisible();
+    await expect(firstCard.getByText("Growth")).toBeVisible();
     await expect(firstCard.getByText("PR Comments")).toBeVisible();
   });
 

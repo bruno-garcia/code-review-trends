@@ -14,7 +14,7 @@ test.describe("Compare page", () => {
     await expect(table.getByText("Total Reviews")).toBeVisible();
     await expect(table.getByText("Organizations")).toBeVisible();
     await expect(table.getByText("PR Comments", { exact: true })).toBeVisible();
-    await expect(table.getByText("Avg C/R")).toBeVisible();
+    await expect(table.getByText("Avg Comments/Review")).toBeVisible();
   });
 
   test("table headers are clickable for sorting", async ({ page }) => {
