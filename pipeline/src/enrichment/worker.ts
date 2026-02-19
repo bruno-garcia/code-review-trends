@@ -98,11 +98,13 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
 
   log(`[worker] Stage completion: ${order.map((s) => `${s} ${Math.round(completion[s] * 100)}%`).join(", ")}`);
 
-  const belowThreshold = order.filter((s) => completion[s] < ROUND_ROBIN_THRESHOLD);
-  if (belowThreshold.length > 0 && belowThreshold.length < order.length) {
-    const skipped = order.filter((s) => completion[s] >= ROUND_ROBIN_THRESHOLD);
-    log(`[worker] Skipping stages above ${Math.round(ROUND_ROBIN_THRESHOLD * 100)}% complete: ${skipped.join(", ")}`);
-    order = belowThreshold;
+  if (!options.priority) {
+    const belowThreshold = order.filter((s) => completion[s] < ROUND_ROBIN_THRESHOLD);
+    if (belowThreshold.length > 0 && belowThreshold.length < order.length) {
+      const skipped = order.filter((s) => completion[s] >= ROUND_ROBIN_THRESHOLD);
+      log(`[worker] Skipping stages above ${Math.round(ROUND_ROBIN_THRESHOLD * 100)}% complete: ${skipped.join(", ")}`);
+      order = belowThreshold;
+    }
   }
 
   let reposResult = { fetched: 0, skipped: 0, errors: 0 };
