@@ -58,7 +58,7 @@ export function createDiskMonitoring(
         {
           displayName: "Disk usage critical",
           conditionThreshold: {
-            filter: pulumi.interpolate`metric.type="logging.googleapis.com/user/${diskMetric.name}"`,
+            filter: pulumi.interpolate`metric.type="logging.googleapis.com/user/${diskMetric.name}" AND resource.type="gce_instance"`,
             comparison: "COMPARISON_GT",
             thresholdValue: 0,
             duration: "0s",
