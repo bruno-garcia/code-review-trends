@@ -1092,7 +1092,8 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
       countDistinct(repo_name, pr_number) AS pr_count,
       sum(is_event) AS event_count
     FROM (
-      SELECT p.id AS product_id, p.name AS product_name, p.brand_color, p.avatar_url,
+      SELECT p.id AS product_id, p.name AS product_name,
+        p.brand_color AS brand_color, p.avatar_url AS avatar_url,
         e.repo_name, e.pr_number, 1 AS is_event
       FROM pr_bot_events e
       JOIN repos r ON e.repo_name = r.name
@@ -1100,7 +1101,8 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
       JOIN products p ON b.product_id = p.id
       WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
       UNION ALL
-      SELECT p.id AS product_id, p.name AS product_name, p.brand_color, p.avatar_url,
+      SELECT p.id AS product_id, p.name AS product_name,
+        p.brand_color AS brand_color, p.avatar_url AS avatar_url,
         rx.repo_name, rx.pr_number, 0 AS is_event
       FROM pr_bot_reactions rx FINAL
       JOIN repos r ON rx.repo_name = r.name
