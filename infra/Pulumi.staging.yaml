@@ -3,7 +3,7 @@ config:
   gcp:zone: us-central1-a
   code-review-trends:environment: staging
   code-review-trends:clickhouseMachineType: e2-highmem-2
-  code-review-trends:clickhouseDiskSizeGb: "20"
+  code-review-trends:clickhouseDiskSizeGb: "40"
   code-review-trends:appMemory: "4Gi"
   code-review-trends:appCpu: "2"
   code-review-trends:appMinInstances: "1"
@@ -28,4 +28,6 @@ config:
     secure: v1:PhsUUN68nA8l9BXC:mWfknc7e+dCZ7KoW0S4QNLJ84EnozFOKnkY+72a35lpwcm/w4J/Y4nYXcRBZXQKARokPvScLSpLV4WXIXRwr8dzCaKQ1IzDCKqb9J0W9lIub7+3ZtduvTEVBYrpKCEqNfVVu3us=
   code-review-trends:sentryDsnAppBackend:
     secure: v1:MKS6H6fY1LXav1fr:LstnaeR3roDbxzvqgdtiPvXw+JEvEwnZzJxAfXnyBk8d96uJb+RzML8VaSkeZ5Kw1NubrquBF8wi3Oz7qS2swfTHB3ewYyoQ1gGKROkmjttIOXbWDSg9b54PQCIGMscotO9nENM=
+  code-review-trends:alertEmail:
+    secure: v1:Bfh6iTwwF69gV629:Q0e96DLmnVNqXfVWqoo+1Wlu7efCfTiDcl0wd6Di0kawySPmNwc8IHID
 encryptionsalt: v1:AWXWIyh26VY=:v1:Sg6zEq4QvISI5kjW:A7aV13N9kenv/uY9U3IQYM+qiSZTYg==

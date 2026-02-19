@@ -151,6 +151,8 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `infra/cloud-run-app.ts` | Cloud Run service for Next.js |
 | `infra/cloud-run-jobs.ts` | Cloud Run Jobs + Cloud Scheduler triggers |
 | `infra/network.ts` | VPC, subnet, router, NAT, static IP |
+| `infra/backups.ts` | Weekly ClickHouse disk snapshots (prod only) |
+| `infra/monitoring.ts` | Disk usage alerting (log-based metric → email) |
 | `infra/firewall.ts` | Firewall rules (SSH, ClickHouse) |
 | `infra/clickhouse.ts` | ClickHouse VM with startup script |
 | `infra/secrets.ts` | Secret Manager + random password generation |

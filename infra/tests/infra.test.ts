@@ -218,6 +218,10 @@ describe("clickhouse VM", () => {
 
     // Database creation
     expect(s).toContain("CREATE DATABASE IF NOT EXISTS code_review_trends");
+
+    // Disk usage watchdog cron
+    expect(s).toContain("disk-check.sh");
+    expect(s).toContain("DISK_HIGH");
   });
 });
 

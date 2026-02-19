@@ -54,6 +54,9 @@ export interface EnvironmentConfig {
 
   // WIF
   githubRepo: string;
+
+  // Monitoring
+  alertEmail: pulumi.Output<string>;
 }
 
 function validateScaling(vals: {
@@ -116,5 +119,6 @@ export function loadConfig(): EnvironmentConfig {
     sentryAuthToken: config.requireSecret("sentryAuthToken"),
     githubToken,
     githubRepo: config.require("githubRepo"),
+    alertEmail: config.requireSecret("alertEmail"),
   };
 }

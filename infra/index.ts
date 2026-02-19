@@ -9,6 +9,8 @@ import { createWorkloadIdentity } from "./workload-identity";
 import { createArtifactRegistry } from "./artifact-registry";
 import { createCloudRunApp } from "./cloud-run-app";
 import { createCloudRunJobs } from "./cloud-run-jobs";
+import { createBackups } from "./backups";
+import { createDiskMonitoring } from "./monitoring";
 
 /**
  * How Cloud Run connects to ClickHouse.
@@ -77,6 +79,14 @@ const cloudRunApp = createCloudRunApp(cfg, serviceAccounts.runtimeSa, secrets, c
 
 // Cloud Run Jobs: pipeline batch jobs
 createCloudRunJobs(cfg, serviceAccounts.runtimeSa, secrets, chAccess);
+
+// Backups: weekly disk snapshots (production only — staging uses manual one-offs)
+if (cfg.environment === "production") {
+  createBackups(cfg, clickhouse.vm);
+}
+
+// Monitoring: disk usage alerting (all environments)
+createDiskMonitoring(cfg, cfg.alertEmail);
 
 // Outputs — used by the app and pipeline
 export const clickhouseExternalIp = network.clickhouseExternalIp.address;
