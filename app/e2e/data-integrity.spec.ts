@@ -7,9 +7,9 @@ test.describe("data integrity", () => {
       const section = page.getByTestId("ai-share-section");
       await expect(section).toBeVisible();
       const text = await section.textContent();
-      expect(text).not.toContain("NaN");
-      expect(text).not.toContain("Infinity");
-      expect(text).not.toContain("undefined");
+      expect(text).not.toMatch(/\bNaN\b/);
+      expect(text).not.toMatch(/\bInfinity\b/);
+      expect(text).not.toMatch(/\bundefined\b/);
     });
 
     test("product filter shows non-zero product count", async ({ page }) => {
@@ -18,8 +18,7 @@ test.describe("data integrity", () => {
       await expect(filter).toBeVisible();
       const text = await filter.textContent();
       // Pattern: "N of M products selected" — M should be > 0
-      expect(text).toMatch(/of \d+/);
-      expect(text).not.toMatch(/of 0 /);
+      expect(text).toMatch(/of [1-9]\d* products/);
     });
 
     test("compare table has data rows", async ({ page }) => {
@@ -36,8 +35,8 @@ test.describe("data integrity", () => {
       const stats = page.getByTestId("bot-stats");
       await expect(stats).toBeVisible();
       const text = await stats.textContent();
-      expect(text).not.toContain("NaN");
-      expect(text).not.toContain("Infinity");
+      expect(text).not.toMatch(/\bNaN\b/);
+      expect(text).not.toMatch(/\bInfinity\b/);
     });
   });
 
