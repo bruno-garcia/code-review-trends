@@ -70,33 +70,35 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 
 ## Principles
 
-1. **Server-first rendering.** Pages are server components that query ClickHouse directly. Only chart components are client-side (`"use client"`). No API routes unless needed by external consumers.
+1. **Let errors crash the page — don't catch-and-render.** Server components must let query errors bubble up to the error boundary (`error.tsx`). Catching an error and rendering it inline produces an HTTP 200 that ISR caches, turning a transient failure into a long-lived outage. **The DB layer (`clickhouse.ts`) must NEVER catch errors** — it must always let them propagate. Only the calling page may catch, and only when: (a) the page is **fully functional** without the failed data (e.g., the about page without an enrichment percentage) — in which case the catch **must** call `Sentry.captureException`, or (b) OG images / sitemaps, which must return *something* and already capture with Sentry. A DB function that catches and returns a fallback value (e.g., `null`, `0`, `[]`) hides connection failures and makes the UI show **wrong information**. **No empty catch blocks, ever.** Every catch must either re-throw or call `Sentry.captureException` with relevant context (tags, route, query name).
 
-2. **ClickHouse for analytics.** All data lives in ClickHouse, optimized for analytical queries. Use `ReplacingMergeTree` for idempotent inserts. Design tables for the queries the UI needs.
+2. **Server-first rendering.** Pages are server components that query ClickHouse directly. Only chart components are client-side (`"use client"`). No API routes unless needed by external consumers.
 
-3. **Pipeline is the only data source.** All data comes from the pipeline (BigQuery + GitHub API). The app should render gracefully with empty tables — no fake/seed data.
+3. **ClickHouse for analytics.** All data lives in ClickHouse, optimized for analytical queries. Use `ReplacingMergeTree` for idempotent inserts. Design tables for the queries the UI needs.
 
-4. **Test with Playwright.** E2e tests in `app/e2e/` validate that pages render with data from ClickHouse. Tests run against real ClickHouse (via Docker in CI, local in dev). Use `data-testid` attributes for stable selectors.
+4. **Pipeline is the only data source.** All data comes from the pipeline (BigQuery + GitHub API). The app should render gracefully with empty tables — no fake/seed data.
 
-5. **CI is the source of truth.** Every PR must pass lint, typecheck, build, and Playwright tests. See `.github/workflows/ci.yml`.
+5. **Test with Playwright.** E2e tests in `app/e2e/` validate that pages render with data from ClickHouse. Tests run against real ClickHouse (via Docker in CI, local in dev). Use `data-testid` attributes for stable selectors.
 
-6. **Keep it simple.** No ORMs, no abstraction layers over ClickHouse. Raw SQL queries in `app/src/lib/clickhouse.ts`. Parameterized queries only (`{param:Type}` syntax) — never interpolate user input into SQL.
+6. **CI is the source of truth.** Every PR must pass lint, typecheck, build, and Playwright tests. See `.github/workflows/ci.yml`.
 
-7. **Dark theme by default.** The UI supports light and dark themes via CSS custom properties and a `ThemeToggle` component. Dark is the default. All chart colors must be legible on both light and dark backgrounds.
+7. **Keep it simple.** No ORMs, no abstraction layers over ClickHouse. Raw SQL queries in `app/src/lib/clickhouse.ts`. Parameterized queries only (`{param:Type}` syntax) — never interpolate user input into SQL.
 
-8. **Pipeline is idempotent.** All pipeline writes use `ReplacingMergeTree`, so re-running for the same time range just overwrites. No need for delete-before-insert patterns. Safe to retry.
+8. **Dark theme by default.** The UI supports light and dark themes via CSS custom properties and a `ThemeToggle` component. Dark is the default. All chart colors must be legible on both light and dark backgrounds.
 
-9. **Bot registry is the source of truth.** The canonical list of tracked bots lives in `pipeline/src/bots.ts`. Use `npm run pipeline -- sync-bots` to push to ClickHouse.
+9. **Pipeline is idempotent.** All pipeline writes use `ReplacingMergeTree`, so re-running for the same time range just overwrites. No need for delete-before-insert patterns. Safe to retry.
 
-10. **Build dev tools, not just features.** Invest in CLI tools (`inspect`, `validate`, `discover-bots`) that make development fast and reduce reliance on CI or prod for feedback.
+10. **Bot registry is the source of truth.** The canonical list of tracked bots lives in `pipeline/src/bots.ts`. Use `npm run pipeline -- sync-bots` to push to ClickHouse.
 
-11. **No fake data.** All data comes from the pipeline (BigQuery + GitHub API). `db/init/` contains schema and bot reference data — applied to all environments. There is no seed data; local dev and CI start with empty tables.
+11. **Build dev tools, not just features.** Invest in CLI tools (`inspect`, `validate`, `discover-bots`) that make development fast and reduce reliance on CI or prod for feedback.
 
-12. **2023-01-01 is the epoch.** AI code review became a meaningful category after this date. All pipeline imports start from 2023-01-01. No data before this date is collected or expected.
+12. **No fake data.** All data comes from the pipeline (BigQuery + GitHub API). `db/init/` contains schema and bot reference data — applied to all environments. There is no seed data; local dev and CI start with empty tables.
 
-13. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
+13. **2023-01-01 is the epoch.** AI code review became a meaningful category after this date. All pipeline imports start from 2023-01-01. No data before this date is collected or expected.
 
-14. **Never edit existing migration files.** Files in `db/init/` that have been committed to `main` are immutable. Schema changes or new reference data must be introduced as new numbered files (e.g., `003_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
+14. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
+
+15. **Never edit existing migration files.** Files in `db/init/` that have been committed to `main` are immutable. Schema changes or new reference data must be introduced as new numbered files (e.g., `003_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
 
 ## Key Files
 
@@ -284,4 +286,4 @@ OG image routes are tested in Playwright (`app/e2e/og-images.spec.ts`) — CI ve
 - **Docker images** — tagged with git SHA, built from repo root context.
 - **Secrets** — stored in GCP Secret Manager, encrypted in Pulumi config. Never in source.
 - **Job schedules** — defined in `pipeline/schedules.json`, the single source of truth.
-- **No empty catch blocks.** Exceptions must either bubble up or be captured with `Sentry.captureException(err)`. When catching, add context relevant to the error using Sentry scopes — tags (e.g., `route`, `productId`) and `contexts` (e.g., the query that failed). A catch block with just a comment like `// ignore` is never acceptable.
+- **No empty catch blocks.** See Principle #1. Every catch must re-throw or call `Sentry.captureException(err)` with context tags.

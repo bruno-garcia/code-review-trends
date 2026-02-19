@@ -1321,9 +1321,15 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     `),
   ]);
 
-  // Last import from pipeline_state (may not exist)
+  // Last import from pipeline_state — table is created by the pipeline (not the
+  // app's migration system), so it may not exist in fresh environments or CI.
+  // Check existence first instead of catching: no error is swallowed.
   let lastImport: string | null = null;
-  try {
+  const tableExists = await query<{ exists: number }>(`
+    SELECT count() AS exists FROM system.tables
+    WHERE database = currentDatabase() AND name = 'pipeline_state'
+  `);
+  if (tableExists[0]?.exists) {
     const stateRows = await query<{ last_run: string }>(`
       SELECT toString(max(completed_at)) AS last_run
       FROM pipeline_state FINAL
@@ -1332,8 +1338,6 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
       lastImport = stateRows[0].last_run;
     }
-  } catch {
-    // pipeline_state table may not exist
   }
 
   const base = countRows[0];
@@ -1363,28 +1367,24 @@ export async function getPrCommentSyncPct(): Promise<number | null> {
   const cached = getCached<number | null>("prCommentSyncPct");
   if (cached !== undefined) return cached;
 
-  try {
-    const rows = await query<{
-      weeks_with_pr_comments: string;
-      total_weeks: string;
-    }>(`
-      SELECT
-        countIf(pr_comment_count > 0) AS weeks_with_pr_comments,
-        count() AS total_weeks
-      FROM (
-        SELECT week, sum(pr_comment_count) AS pr_comment_count
-        FROM human_review_activity FINAL
-        GROUP BY week
-      )
-    `);
-    const row = rows[0];
-    const totalWeeks = Number(row?.total_weeks ?? 0);
-    if (!row || totalWeeks === 0) return setCache("prCommentSyncPct", null);
-    return setCache(
-      "prCommentSyncPct",
-      (Number(row.weeks_with_pr_comments) / totalWeeks) * 100,
-    );
-  } catch {
-    return null;
-  }
+  const rows = await query<{
+    weeks_with_pr_comments: string;
+    total_weeks: string;
+  }>(`
+    SELECT
+      countIf(pr_comment_count > 0) AS weeks_with_pr_comments,
+      count() AS total_weeks
+    FROM (
+      SELECT week, sum(pr_comment_count) AS pr_comment_count
+      FROM human_review_activity FINAL
+      GROUP BY week
+    )
+  `);
+  const row = rows[0];
+  const totalWeeks = Number(row?.total_weeks ?? 0);
+  if (!row || totalWeeks === 0) return setCache("prCommentSyncPct", null);
+  return setCache(
+    "prCommentSyncPct",
+    (Number(row.weeks_with_pr_comments) / totalWeeks) * 100,
+  );
 }

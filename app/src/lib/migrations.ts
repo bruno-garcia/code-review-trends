@@ -17,6 +17,11 @@
 import { getClickHouseClient } from "./clickhouse";
 import type { ClickHouseClient } from "@clickhouse/client";
 import * as Sentry from "@sentry/nextjs";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
+
+// During `next build`, ClickHouse is unavailable. Return "ok" so the build
+// can generate placeholder pages — ISR replaces them on the first real request.
+const isBuildPhase = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
 
 // ---------------------------------------------------------------------------
 // Version & types
@@ -26,12 +31,17 @@ import * as Sentry from "@sentry/nextjs";
 export const EXPECTED_SCHEMA_VERSION = 4;
 
 export type SchemaStatus = {
-  status: "ok" | "app_behind" | "db_behind" | "migrating" | "error";
+  /**
+   * "ok"        — DB matches expected version.
+   * "app_behind" — DB is ahead of this app deployment.
+   * "db_behind" — DB is behind and auto-migration failed (DDL error). Site still works,
+   *               banner is shown. Connection failures throw instead (→ error boundary).
+   * "migrating" — another instance holds the migration lock. Spinner + auto-refresh.
+   */
+  status: "ok" | "app_behind" | "db_behind" | "migrating";
   dbVersion: number;
   expectedVersion: number;
   error?: string;
-  /** Sentry event ID for error/db_behind statuses — link to this for details. */
-  sentryEventId?: string;
 };
 
 type Migration = {
@@ -365,7 +375,7 @@ const LOCK_MAX_RETRIES = 15; // 30 seconds total
 
 async function runMigrations(
   client: ClickHouseClient,
-): Promise<{ applied: number; error?: string }> {
+): Promise<{ applied: number; error?: string; isDdlError?: true }> {
   const currentVersion = await getSchemaVersion(client);
   const pending = MIGRATIONS.filter((m) => m.version > currentVersion).sort(
     (a, b) => a.version - b.version,
@@ -399,15 +409,11 @@ async function runMigrations(
         try {
           await client.command({ query: sql });
         } catch (err) {
-          // Log the failed SQL statement for debugging
           const errorMsg = err instanceof Error ? err.message : String(err);
-          console.error(
-            `[schema-migration] Migration DDL failed:`,
-            err
-          );
           return {
             applied,
             error: `Migration ${migration.version} (${migration.name}) failed: ${errorMsg}`,
+            isDdlError: true as const,
           };
         }
       }
@@ -438,6 +444,12 @@ const CACHE_TTL_MS = 60_000; // Re-check every 60 seconds
  * Results are cached for 60s per serverless container.
  */
 export async function getSchemaStatus(): Promise<SchemaStatus> {
+  // During `next build`, ClickHouse is unavailable — skip the check entirely.
+  // Build generates placeholder pages; ISR replaces them on first real request.
+  if (isBuildPhase) {
+    return { status: "ok", dbVersion: EXPECTED_SCHEMA_VERSION, expectedVersion: EXPECTED_SCHEMA_VERSION };
+  }
+
   const now = Date.now();
   if (_cachedStatus && now - _cachedAt < CACHE_TTL_MS) {
     // If previously OK, trust the cache. Otherwise re-check (might have been fixed).
@@ -469,26 +481,27 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
       return status;
     }
 
-    // DB is behind — try to auto-migrate
-    let result: { applied: number; error?: string };
-    try {
-      result = await runMigrations(client);
-    } catch (migrationErr) {
-      // DDL failure — migration SQL threw (e.g., permission denied, syntax error)
-      console.error("[schema-migration] Migration DDL failed:", migrationErr);
-      const eventId = Sentry.captureException(migrationErr, {
-        tags: { component: "schema-migration", reason: "ddl_failure" },
-        extra: { dbVersion, expectedVersion: EXPECTED_SCHEMA_VERSION },
-      });
-      return {
-        status: "db_behind",
-        dbVersion,
-        expectedVersion: EXPECTED_SCHEMA_VERSION,
-        sentryEventId: eventId,
-      };
-    }
+    // DB is behind — try to auto-migrate.
+    // Connection failures throw (→ error boundary, 500, not cached by ISR).
+    // DDL failures return db_behind (site still works, banner shown, Sentry captures).
+    const result = await runMigrations(client);
 
     if (result.error) {
+      if (result.isDdlError) {
+        // DDL failure (syntax error, permission denied) — site still works,
+        // just missing new schema features. Show a banner, capture to Sentry.
+        Sentry.captureException(new Error(result.error), {
+          tags: { component: "schema-migration", reason: "ddl_failure" },
+          extra: { dbVersion, expectedVersion: EXPECTED_SCHEMA_VERSION },
+        });
+        return {
+          status: "db_behind",
+          dbVersion,
+          expectedVersion: EXPECTED_SCHEMA_VERSION,
+          error: result.error,
+        };
+      }
+
       // Lock contention — re-check if someone else finished
       const newVersion = await getSchemaVersion(client);
       if (newVersion >= EXPECTED_SCHEMA_VERSION) {
@@ -518,18 +531,11 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     _cachedAt = Date.now();
     return status;
   } catch (err) {
-    // ClickHouse unreachable or misconfigured (e.g., empty URL during build)
-    console.error("[schema-migration] Failed:", err);
-    const eventId = Sentry.captureException(err, {
-      tags: { component: "schema-migration", reason: "connection_failure" },
-      extra: { expectedVersion: EXPECTED_SCHEMA_VERSION },
-    });
-    return {
-      status: "error",
-      dbVersion: 0,
-      expectedVersion: EXPECTED_SCHEMA_VERSION,
-      sentryEventId: eventId,
-    };
+    // ClickHouse unreachable or misconfigured — let it throw.
+    // global-error.tsx renders a retry button and captures to Sentry.
+    // Do NOT return a status object here: that produces an HTTP 200 that
+    // ISR caches, turning a transient hiccup into a long-lived outage.
+    throw err;
   }
 }
 

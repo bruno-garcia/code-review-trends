@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { getDataCollectionStats, type DataCollectionStats } from "@/lib/clickhouse";
 import { DataCollectionPanel } from "@/components/data-collection-stats";
 
+// Status page should refresh more often than the default 300s layout revalidate.
+// This is a live monitoring page — stale data (especially cached errors) is confusing.
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "Pipeline Status",
   description:
@@ -10,28 +14,11 @@ export const metadata: Metadata = {
 };
 
 export default async function StatusPage() {
-  let stats: DataCollectionStats;
-  let error: string | null = null;
-  try {
-    stats = await getDataCollectionStats();
-  } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
-    stats = {
-      weeks_with_data: [],
-      last_import: null,
-      repos_total: 0,
-      repos_ok: 0,
-      repos_not_found: 0,
-      repos_pending: 0,
-      prs_discovered: 0,
-      prs_enriched: 0,
-      comments_discovered: 0,
-      comments_enriched: 0,
-      reactions_total: 0,
-      reactions_scanned: 0,
-      reactions_found: 0,
-    };
-  }
+  // Let errors bubble up to the error boundary (error.tsx) instead of catching.
+  // Catching and rendering inline would produce an HTTP 200 that ISR caches —
+  // a transient ClickHouse timeout would then be served stale for minutes.
+  // Throwing gives a 500 which ISR does NOT cache, so the next request retries.
+  const stats = await getDataCollectionStats();
 
   return (
     <div data-testid="status-page" className="mx-auto max-w-4xl space-y-8 py-8">
@@ -43,12 +30,6 @@ export default async function StatusPage() {
           detailed metadata for individual repos, PRs, and comments.
         </p>
       </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400" data-testid="status-error">
-          <strong>Error connecting to database:</strong> {error}
-        </div>
-      )}
 
       <section data-testid="data-collection-section">
         <DataCollectionPanel stats={stats} />

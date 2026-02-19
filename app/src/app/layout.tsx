@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { VersionStamp } from "@/components/version-stamp";
 import { Logo } from "@/components/logo";
 import { NavLinks } from "@/components/nav-links";
@@ -53,8 +54,7 @@ export default async function RootLayout({
 }>) {
   // Check schema version and auto-migrate if needed (before data queries).
   // Cached for 60s per serverless container — effectively free in the normal case.
-  // On error (ClickHouse unreachable), returns status "error" — MigrationGate
-  // will show a waiting screen instead of rendering children.
+  // Connection failures throw → global-error.tsx (500, not ISR-cached).
   const schemaStatus = await getSchemaStatus();
 
   // Gracefully handle missing ClickHouse during build or revalidation.
@@ -70,8 +70,12 @@ export default async function RootLayout({
     enrichmentIncomplete =
       enrichment.total_discovered_repos > enrichment.enriched_repos ||
       enrichment.total_discovered_prs > enrichment.enriched_prs;
-  } catch {
-    // ClickHouse unavailable (e.g. during build) — render with empty filter list
+  } catch (err) {
+    // ClickHouse unavailable (e.g. during build) — render with empty filter list.
+    // The page is still functional (nav, content) without the product filter data.
+    Sentry.captureException(err, {
+      tags: { route: "layout", section: "product-summaries" },
+    });
   }
   const defaultProductIds = getDefaultProductIds(summaries);
   const allProducts = summaries.map((s) => ({
