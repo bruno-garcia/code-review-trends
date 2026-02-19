@@ -83,6 +83,7 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
       sentryAuthToken: "sntrys_test_token",
       githubToken: "ghp_test_token",
       githubRepo: "test-owner/test-repo",
+      alertEmail: "alerts@example.com",
     };
 
     get(key: string): string | undefined {

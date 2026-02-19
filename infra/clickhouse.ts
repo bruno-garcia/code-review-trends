@@ -6,6 +6,7 @@ import {
   CADDY_HTTPS_PORT,
   SUBNET_CIDR,
 } from "./config";
+import { DISK_CHECK_STARTUP_SNIPPET } from "./monitoring";
 
 export interface ClickHouseResult {
   vm: gcp.compute.Instance;
@@ -225,6 +226,8 @@ if [ -z "$ch_ready" ]; then
 fi
 
 clickhouse-client --port 9000 --password "$CH_PASSWORD" -q "CREATE DATABASE IF NOT EXISTS code_review_trends"
+
+${DISK_CHECK_STARTUP_SNIPPET}
 
 echo "Setup complete at $(date)"
 `;
