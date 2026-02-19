@@ -4,18 +4,6 @@ Tracking the adoption of AI code review bots on GitHub.
 
 **https://codereviewtrends.com**
 
-## License
-
-This project is licensed under the **[Functional Source License (FSL-1.1-Apache-2.0)](LICENSE)** — a source-available license, **not** an open-source license.
-
-**What this means:**
-- ✅ You can read, fork, and learn from the code.
-- ✅ You can use it for non-production purposes (testing, development, personal use).
-- ❌ You **cannot** use it in a commercial product or service that competes with Code Review Trends.
-- 📅 On **2028-02-14**, the code automatically converts to the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) (fully open source).
-
-See [LICENSE](LICENSE) for full terms and [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
-
 ## Data & Privacy
 
 Code Review Trends collects and publishes **aggregate statistics** about AI code review bot activity on public GitHub repositories.
@@ -89,3 +77,9 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting and security practice
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute, and [AGENTS.md](AGENTS.md) for architecture details, conventions, and guidelines.
+
+## License
+
+This project is licensed under the **[Functional Source License (FSL-1.1-Apache-2.0)](LICENSE)** — a source-available license, **not** an open-source license.
+
+See [LICENSE](LICENSE) for full terms and [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
