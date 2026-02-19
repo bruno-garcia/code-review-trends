@@ -142,7 +142,13 @@ export function createCloudRunApp(
         ],
       },
     },
-    { parent },
+    {
+      parent,
+      // Cloud Run computes a top-level `scaling` field from template.scaling.
+      // Pulumi sees it as drift and removes it each run; Cloud Run adds it back.
+      // Ignore it to make `pulumi up` idempotent.
+      ignoreChanges: ["scaling"],
+    },
   );
 
   // Allow unauthenticated access (public website)
