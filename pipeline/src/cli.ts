@@ -33,22 +33,20 @@ class CliError extends Error {
   }
 }
 
-import { BOTS, BOT_BY_LOGIN, BOT_LOGINS, PRODUCTS } from "./bots.js";
+import { BOTS, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import {
   createCHClient,
   syncProducts,
   syncBots,
   insertReviewActivity,
   insertHumanActivity,
-  type ReviewActivityRow,
-  type HumanActivityRow,
 } from "./clickhouse.js";
 import {
   createBigQueryClient,
   queryBotReviewActivity,
   queryHumanReviewActivity,
 } from "./bigquery.js";
-import { backfill, syncRecent, monthlyChunks, bigQueryFetcher } from "./sync.js";
+import { backfill, syncRecent, monthlyChunks, bigQueryFetcher, mapBotActivityRows, mapHumanActivityRows } from "./sync.js";
 
 const COMMANDS: Record<string, () => Promise<void>> = {
   "sync-bots": cmdSyncBots,
@@ -241,25 +239,8 @@ async function cmdFetchBigQuery() {
     const botRows = await queryBotReviewActivity(bq, startDate, endDate, logins).finally(elapsed);
     console.log(`  Got ${botRows.length} bot activity rows`);
 
-    // Map BigQuery results to ClickHouse rows
-    const activityRows: ReviewActivityRow[] = botRows
-      .map((row) => {
-        const bot = BOT_BY_LOGIN.get(row.actor_login);
-        if (!bot) {
-          console.warn(`  Unknown bot login: ${row.actor_login}`);
-          return null;
-        }
-        return {
-          week: row.week,
-          bot_id: bot.id,
-          review_count: Number(row.review_count),
-          review_comment_count: Number(row.review_comment_count),
-          pr_comment_count: Number(row.pr_comment_count),
-          repo_count: Number(row.repo_count),
-          org_count: Number(row.org_count),
-        };
-      })
-      .filter((r): r is ReviewActivityRow => r !== null);
+    // Map BigQuery results to ClickHouse rows (aggregates multiple logins per bot_id)
+    const activityRows = mapBotActivityRows(botRows, (msg) => console.warn(msg));
 
     // Fetch human activity
     console.log("Querying human review activity...");
@@ -267,13 +248,7 @@ async function cmdFetchBigQuery() {
     const humanRows = await queryHumanReviewActivity(bq, startDate, endDate, logins).finally(elapsed);
     console.log(`  Got ${humanRows.length} human activity rows`);
 
-    const humanActivityRows: HumanActivityRow[] = humanRows.map((row) => ({
-      week: row.week,
-      review_count: Number(row.review_count),
-      review_comment_count: Number(row.review_comment_count),
-      pr_comment_count: Number(row.pr_comment_count),
-      repo_count: Number(row.repo_count),
-    }));
+    const humanActivityRows = mapHumanActivityRows(humanRows);
 
     // Write to ClickHouse
     console.log("Writing to ClickHouse...");

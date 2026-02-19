@@ -46,12 +46,20 @@ export const PIPELINE_VERSION = 2;
 
 // ── Row mappers (shared with smoke tests) ───────────────────────────────
 
-/** Map BigQuery bot activity rows to ClickHouse ReviewActivityRow format. */
+/**
+ * Map BigQuery bot activity rows to ClickHouse ReviewActivityRow format.
+ *
+ * When multiple GitHub logins map to the same bot_id (e.g. Copilot uses both
+ * `copilot-pull-request-reviewer[bot]` and `Copilot`), their counts are
+ * aggregated into a single row per (week, bot_id). Without this, only one
+ * login's data survives ReplacingMergeTree deduplication.
+ */
 export function mapBotActivityRows(
   rows: WeeklyBotReviewRow[],
   log?: (msg: string) => void,
 ): ReviewActivityRow[] {
-  return rows
+  // Phase 1: map BigQuery rows to bot_ids
+  const mapped = rows
     .map((row) => {
       const bot = BOT_BY_LOGIN.get(row.actor_login);
       if (!bot) {
@@ -69,6 +77,26 @@ export function mapBotActivityRows(
       };
     })
     .filter((r): r is ReviewActivityRow => r !== null);
+
+  // Phase 2: aggregate rows sharing the same (week, bot_id).
+  // review/comment counts are summed; repo_count and org_count are summed
+  // (slight overcount when logins overlap, but accurate for review volume).
+  const aggregated = new Map<string, ReviewActivityRow>();
+  for (const row of mapped) {
+    const key = `${row.week}\0${row.bot_id}`;
+    const existing = aggregated.get(key);
+    if (existing) {
+      existing.review_count += row.review_count;
+      existing.review_comment_count += row.review_comment_count;
+      existing.pr_comment_count += row.pr_comment_count;
+      existing.repo_count += row.repo_count;
+      existing.org_count += row.org_count;
+    } else {
+      aggregated.set(key, { ...row });
+    }
+  }
+
+  return [...aggregated.values()];
 }
 
 /** Map BigQuery human activity rows to ClickHouse HumanActivityRow format. */

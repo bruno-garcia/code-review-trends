@@ -112,7 +112,8 @@ export async function enrichComments(
         for (const { repo_name, pr_number, bot_id } of batch) {
           const bot = BOT_BY_ID.get(bot_id);
           if (!bot) { unknownBot++; continue; }
-          batchInputs.push({ repo_name, pr_number, bot_id, bot_login: bot.github_login });
+          const botLogins = new Set([bot.github_login, ...(bot.additional_logins ?? [])]);
+          batchInputs.push({ repo_name, pr_number, bot_id, bot_login: bot.github_login, bot_logins: botLogins });
         }
 
         try {
@@ -167,7 +168,7 @@ export async function enrichComments(
             if (!owner || !repo) continue;
             const bot = BOT_BY_ID.get(bot_id);
             if (!bot) { unknownBot++; continue; }
-            const loginSet = new Set([bot.github_login]);
+            const loginSet = new Set([bot.github_login, ...(bot.additional_logins ?? [])]);
 
             await rateLimiter.waitIfNeeded();
             try {

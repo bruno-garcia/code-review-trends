@@ -30,7 +30,14 @@ export type CommentBatchInput = {
   repo_name: string;
   pr_number: number;
   bot_id: string;
+  /** Primary GitHub login (used for identification/logging). */
   bot_login: string;
+  /**
+   * All GitHub logins for this bot (primary + additional_logins).
+   * Used when filtering comments — a bot may post under different accounts
+   * (e.g. Copilot uses both `copilot-pull-request-reviewer[bot]` and `Copilot`).
+   */
+  bot_logins: ReadonlySet<string>;
 };
 
 export type CommentBatchResult = {
@@ -199,7 +206,7 @@ function parseResults(
       for (const thread of prData.reviewThreads.nodes) {
         const comment = thread.comments.nodes[0];
         if (!comment) continue;
-        if (comment.author?.login !== input.bot_login) continue;
+        if (!comment.author?.login || !input.bot_logins.has(comment.author.login)) continue;
 
         const reactions: Record<string, number> = {};
         for (const rg of comment.reactionGroups ?? []) {
