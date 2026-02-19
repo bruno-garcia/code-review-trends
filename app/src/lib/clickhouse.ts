@@ -1225,15 +1225,26 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       GROUP BY r2.owner
     ) pr ON r.owner = pr.owner
     LEFT JOIN (
+      -- Two-level aggregation: per-repo first (max deduplicates across bots),
+      -- then per-owner. Prevents double-counting when multiple bots react on
+      -- the same exclusive PR (a PR with no events from any bot).
       SELECT r2.owner,
-        sum(rrc.exclusive_pr_count) AS exclusive_reaction_prs,
-        sum(rrc.pr_count) AS reaction_activity,
-        groupUniqArray(b.product_id) AS reaction_product_ids
-      FROM reaction_only_repo_counts rrc
-      JOIN repos r2 ON rrc.repo_name = r2.name
-      JOIN bots b ON rrc.bot_id = b.id
+        sum(repo_agg.repo_exclusive) AS exclusive_reaction_prs,
+        sum(repo_agg.repo_activity) AS reaction_activity,
+        arrayDistinct(arrayFlatten(groupArray(repo_agg.repo_product_ids))) AS reaction_product_ids
+      FROM (
+        SELECT rrc.repo_name,
+          max(rrc.exclusive_pr_count) AS repo_exclusive,
+          sum(rrc.pr_count) AS repo_activity,
+          groupUniqArray(b.product_id) AS repo_product_ids
+        FROM reaction_only_repo_counts rrc
+        JOIN bots b ON rrc.bot_id = b.id
+        WHERE 1=1
+          ${reactionProductFilter}
+        GROUP BY rrc.repo_name
+      ) repo_agg
+      JOIN repos r2 ON repo_agg.repo_name = r2.name
       WHERE r2.fetch_status = 'ok'
-        ${reactionProductFilter}
       GROUP BY r2.owner
     ) rr ON r.owner = rr.owner
     WHERE ${whereClause}
@@ -1266,12 +1277,18 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       ) pr ON r.owner = pr.owner
       LEFT JOIN (
         SELECT r2.owner,
-          sum(rrc.pr_count) AS reaction_activity
-        FROM reaction_only_repo_counts rrc
-        JOIN repos r2 ON rrc.repo_name = r2.name
-        JOIN bots b ON rrc.bot_id = b.id
+          sum(repo_agg.repo_activity) AS reaction_activity
+        FROM (
+          SELECT rrc.repo_name,
+            sum(rrc.pr_count) AS repo_activity
+          FROM reaction_only_repo_counts rrc
+          JOIN bots b ON rrc.bot_id = b.id
+          WHERE 1=1
+            ${reactionProductFilter}
+          GROUP BY rrc.repo_name
+        ) repo_agg
+        JOIN repos r2 ON repo_agg.repo_name = r2.name
         WHERE r2.fetch_status = 'ok'
-          ${reactionProductFilter}
         GROUP BY r2.owner
       ) rr ON r.owner = rr.owner
       WHERE ${whereClause}

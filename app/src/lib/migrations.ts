@@ -376,7 +376,9 @@ const MIGRATION_006: Migration = {
 
 /**
  * Migration 7 — reaction_only_repo_counts refreshable materialized view.
- * Matches db/init/008_reaction_only_repo_counts.sql.
+ * Based on db/init/008_reaction_only_repo_counts.sql, plus an INSERT backfill
+ * for immediate population (not present in init SQL since the refreshable MV
+ * handles it there).
  *
  * Pre-aggregates reaction-only reviews per (repo_name, bot_id) with two counts:
  *   - pr_count: PRs where this bot reacted but has no event (per-bot NOT EXISTS)
