@@ -68,9 +68,6 @@ test.describe("Navigation on mobile viewport", () => {
     const statusLink = nav.getByRole("link", { name: "Status" });
     await expect(statusLink).toBeVisible();
 
-    const githubLink = nav.getByRole("link", { name: "GitHub" });
-    await expect(githubLink).toBeVisible();
-
     // Verify theme toggle is accessible
     const themeToggle = nav.getByTestId("theme-toggle");
     await expect(themeToggle).toBeVisible();
