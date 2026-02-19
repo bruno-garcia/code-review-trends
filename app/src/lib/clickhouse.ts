@@ -302,7 +302,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     `
     WITH
       ref AS (
-        SELECT max(week) AS ref_week FROM review_activity FINAL
+        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity FINAL UNION ALL SELECT week FROM reaction_only_review_counts FINAL)
         WHERE week < toStartOfWeek(now(), 1)
       ),
       weekly_product AS (
@@ -432,7 +432,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
     `
     WITH
       ref AS (
-        SELECT max(week) AS ref_week FROM review_activity FINAL
+        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity FINAL UNION ALL SELECT week FROM reaction_only_review_counts FINAL)
         WHERE week < toStartOfWeek(now(), 1)
       ),
       weekly_product AS (
@@ -659,7 +659,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     `
     WITH
       ref AS (
-        SELECT max(week) AS ref_week FROM review_activity FINAL
+        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity FINAL UNION ALL SELECT week FROM reaction_only_review_counts FINAL)
         WHERE week < toStartOfWeek(now(), 1)
       ),
       activity_agg AS (
@@ -742,7 +742,7 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
     `
     WITH
       ref AS (
-        SELECT max(week) AS ref_week FROM review_activity FINAL
+        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity FINAL UNION ALL SELECT week FROM reaction_only_review_counts FINAL)
         WHERE week < toStartOfWeek(now(), 1)
       ),
       activity_agg AS (
@@ -753,7 +753,7 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
           sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
           maxIf(repo_count, ${sinceCond}) AS max_repos,
           maxIf(org_count, ${sinceCond}) AS max_orgs,
-          countIf(${sinceCond}) AS weeks_active,
+          countIf(DISTINCT week, ${sinceCond}) AS weeks_active,
           sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
           sumIf(review_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_comments,
           sumIf(pr_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_pr_comments,
