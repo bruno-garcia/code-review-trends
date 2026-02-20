@@ -641,7 +641,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <span className="text-sm text-theme-muted tabular-nums shrink-0 whitespace-nowrap text-right">
+                <span className="text-sm text-theme-muted tabular-nums shrink-0 whitespace-nowrap text-right w-20">
                   ⭐ {formatNumber(stars)}
                 </span>
                 <span className="hidden sm:inline text-sm text-theme-muted/70 tabular-nums shrink-0 w-20 text-right">
