@@ -916,6 +916,48 @@ export async function getAvgCommentsPerPR(botId?: string, since?: string): Promi
   );
 }
 
+// --- PR Characteristics (from enriched pull_requests table) ---
+
+export type PrCharacteristics = {
+  sampled_prs: number;
+  avg_additions: number;
+  avg_deletions: number;
+  avg_changed_files: number;
+  merge_rate: number;
+  avg_hours_to_merge: number;
+};
+
+export async function getPrCharacteristics(
+  productId: string,
+  since?: string,
+): Promise<PrCharacteristics | null> {
+  const conditions = ["b.product_id = {productId:String}"];
+  if (since) conditions.push("p.created_at >= toDate({since:String})");
+  const where = conditions.join(" AND ");
+  const params: Record<string, string> = { productId };
+  if (since) params.since = since;
+
+  const rows = await query<PrCharacteristics>(
+    `SELECT
+      count() AS sampled_prs,
+      round(avg(p.additions), 0) AS avg_additions,
+      round(avg(p.deletions), 0) AS avg_deletions,
+      round(avg(p.changed_files), 1) AS avg_changed_files,
+      round(countIf(p.state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+      round(avg(if(p.state = 'merged' AND p.merged_at IS NOT NULL,
+        dateDiff('hour', p.created_at, p.merged_at), NULL)), 1) AS avg_hours_to_merge
+    FROM pr_bot_events e
+    JOIN bots b ON e.bot_id = b.id
+    JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
+    WHERE ${where}`,
+    params,
+  );
+
+  const row = rows[0];
+  if (!row || row.sampled_prs === 0) return null;
+  return row;
+}
+
 export type BotByLanguage = {
   bot_id: string;
   bot_name: string;
