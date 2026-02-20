@@ -3,7 +3,7 @@ import { getProductSummaries, getWeeklyActivityByProduct, getPrCommentSyncPct } 
 import { FilteredBotsPage } from "@/components/filtered-bots-page";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
-import Link from "next/link";
+import { CompareLink } from "@/components/compare-link";
 
 export async function generateMetadata(): Promise<Metadata> {
   const summaries = await getProductSummaries();
@@ -39,12 +39,9 @@ export default async function BotsPage({
             Profiles and statistics for each AI code review product we track.
           </p>
         </div>
-        <Link
-          href="/compare"
-          className="text-sm bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg transition-colors"
-        >
+        <CompareLink className="text-sm bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg transition-colors">
           Compare All →
-        </Link>
+        </CompareLink>
       </div>
       <PrCommentSyncBanner pct={prCommentSyncPct} />
       <FilteredBotsPage activity={activity} summaries={summaries} />

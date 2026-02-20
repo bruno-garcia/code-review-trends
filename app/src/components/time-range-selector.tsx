@@ -3,17 +3,20 @@
 import { Suspense, useCallback, useTransition } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { TIME_RANGE_OPTIONS, parseTimeRange, type TimeRangeKey } from "@/lib/time-range";
+import { useProductFilter } from "@/lib/product-filter";
 
 function TimeRangeSelectorInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
+  const { setRange: setCtxRange } = useProductFilter();
 
   const current = parseTimeRange(searchParams.get("range"));
 
   const setRange = useCallback(
     (key: TimeRangeKey) => {
+      setCtxRange(key); // Persist in context for cross-page navigation
       const params = new URLSearchParams(searchParams.toString());
       if (key === "all") {
         params.delete("range");
@@ -29,7 +32,7 @@ function TimeRangeSelectorInner() {
         router.push(url, { scroll: false });
       });
     },
-    [searchParams, pathname, router],
+    [searchParams, pathname, router, setCtxRange],
   );
 
   return (

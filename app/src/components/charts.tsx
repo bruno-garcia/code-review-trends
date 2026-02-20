@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
+import { useUrlState } from "@/lib/use-url-state";
 import {
   AreaChart,
   Area,
@@ -124,7 +125,7 @@ type BotShareData = {
 };
 
 export function BotShareChart({ data }: { data: BotShareData[] }) {
-  const [metric, setMetric] = useState("reviews");
+  const [metric, setMetric] = useUrlState("ai_share", "reviews");
   const c = useChartColors();
 
   const metricConfig: Record<string, { dataKey: keyof BotShareData; label: string }> = {
@@ -132,7 +133,7 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
     comments: { dataKey: "bot_comment_share_pct", label: "Review Comments" },
   };
 
-  const { dataKey, label } = metricConfig[metric];
+  const { dataKey, label } = metricConfig[metric] ?? metricConfig.reviews;
 
   return (
     <div>
@@ -193,7 +194,7 @@ type TotalVolumeData = {
 };
 
 export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
-  const [metric, setMetric] = useState("reviews");
+  const [metric, setMetric] = useUrlState("volume", "reviews");
   const c = useChartColors();
 
   const metricConfig: Record<string, { dataKey: keyof TotalVolumeData; label: string; color: string }> = {
@@ -201,7 +202,7 @@ export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
     comments: { dataKey: "total_comments", label: "Review Comments", color: "#22d3ee" },
   };
 
-  const { dataKey, label, color } = metricConfig[metric];
+  const { dataKey, label, color } = metricConfig[metric] ?? metricConfig.reviews;
 
   return (
     <div data-testid="total-volume-chart">
@@ -322,7 +323,7 @@ type SingleBotData = {
 };
 
 export function SingleBotChart({ data }: { data: SingleBotData[] }) {
-  const [metric, setMetric] = useState("reviews");
+  const [metric, setMetric] = useUrlState("activity", "reviews");
   const c = useChartColors();
 
   const lines: Record<string, { keys: string[]; colors: string[]; names: string[] }> = {
@@ -338,7 +339,7 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
     },
   };
 
-  const current = lines[metric];
+  const current = lines[metric] ?? lines.reviews;
 
   return (
     <div>

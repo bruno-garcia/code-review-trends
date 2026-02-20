@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import type { ProductComparison, BotCommentsPerPR, BotReactions } from "@/lib/clickhouse";
+import { useUrlState } from "@/lib/use-url-state";
 import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor } from "@/lib/theme-overrides";
-import { useProductFilter } from "@/lib/product-filter";
+import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
 import { SectionHeading } from "@/components/section-heading";
 import Link from "next/link";
 
@@ -139,6 +140,7 @@ export function CompareCharts({
 }) {
   const { selectedProductIds } = useProductFilter();
   const { resolved } = useTheme();
+  const buildUrl = useFilterUrl();
   const products = allProducts.filter((p) => selectedProductIds.includes(p.id));
   const commentsPerPR = allCommentsPerPR.filter((c) =>
     selectedProductIds.includes(c.product_id),
@@ -147,8 +149,18 @@ export function CompareCharts({
     selectedProductIds.includes(r.product_id),
   );
 
-  const [sortKey, setSortKey] = useState<SortKey>("growth_pct");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Table sort state (synced to URL for sharing)
+  const [rawSortKey, setRawSortKey] = useUrlState("sort", "growth_pct");
+  const [rawSortDir, setRawSortDir] = useUrlState("dir", "desc");
+
+  const validSortKeys = useMemo(
+    () => new Set(METRICS.map((m) => m.key)),
+    [],
+  );
+  const sortKey: SortKey = validSortKeys.has(rawSortKey as SortKey)
+    ? (rawSortKey as SortKey)
+    : "growth_pct";
+  const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
   const sorted = [...products].sort((a, b) => {
     const av = Number(a[sortKey]);
@@ -158,10 +170,10 @@ export function CompareCharts({
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+      setRawSortDir(sortDir === "desc" ? "asc" : "desc");
     } else {
-      setSortKey(key);
-      setSortDir("desc");
+      setRawSortKey(key);
+      setRawSortDir("desc");
     }
   }
 
@@ -255,7 +267,7 @@ export function CompareCharts({
                 >
                   <td className="py-3 pr-4 sticky left-0 bg-theme-bg z-10 min-w-[10rem] whitespace-nowrap">
                     <Link
-                      href={`/bots/${product.id}`}
+                      href={buildUrl(`/bots/${product.id}`)}
                       className="font-medium hover:opacity-80 transition-colors"
                       style={{
                         color:

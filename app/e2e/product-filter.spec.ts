@@ -1,12 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-const STORAGE_KEY = "crt:selected-products";
-
-// Clear localStorage before each test to avoid state leaking
-test.beforeEach(async ({ page }) => {
-  await page.goto("/");
-  await page.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);
-});
+// No localStorage to clear — products are now persisted via URL params only.
 
 /** Expand the filter picker */
 async function expandPicker(page: Page) {
