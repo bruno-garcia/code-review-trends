@@ -70,7 +70,7 @@ test.describe("Theme toggle", () => {
     await page.waitForTimeout(100);
 
     // Navigate to another page via client-side navigation
-    await page.getByRole("link", { name: "Products" }).click();
+    await page.getByRole("link", { name: "Products", exact: true }).click();
     await page.waitForURL("**/products");
 
     const htmlClass = await page.evaluate(() => document.documentElement.className);

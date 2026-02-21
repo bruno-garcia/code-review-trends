@@ -60,7 +60,7 @@ test.describe("Product detail page", () => {
   });
 
   test("rank shows info tooltip with link to about rankings", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     const rank = page.getByTestId("bot-rank");
     await expect(rank).toBeVisible();
     await expect(rank).toContainText("Rank:");
@@ -133,7 +133,7 @@ test.describe("Product detail page", () => {
   });
 
   test("shows PR characteristics section when data exists", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     // Wait for data to load — bot-stats always renders, so it signals page is ready.
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     // Section is conditionally rendered: visible when enriched PR data exists (staging/CI),
@@ -154,7 +154,7 @@ test.describe("Product detail page", () => {
   });
 
   test("shows top organizations section when data exists", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     // Section is conditionally rendered: visible when org data exists.
     const section = page.getByTestId("bot-top-orgs");
@@ -169,7 +169,7 @@ test.describe("Product detail page", () => {
   });
 
   test("shows top repositories section when data exists", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     // Section is conditionally rendered: visible when enriched repo data exists.
     const section = page.getByTestId("bot-top-repos");
@@ -186,7 +186,7 @@ test.describe("Product detail page", () => {
   test("bot detail page has no NaN or Infinity in any section", async ({
     page,
   }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     // Wait for page data to load by asserting a known section is visible
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     const bodyText = await page.locator("main").textContent();

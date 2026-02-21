@@ -48,7 +48,7 @@ test.describe("Product filter", () => {
     const bar = page.getByTestId("product-filter-bar");
     const allText = await bar.innerText();
     const allMatch = allText.match(/(\d+) of (\d+) products/);
-    const totalCount = parseInt(allMatch![2], 10);
+    const selectedCount = parseInt(allMatch![1], 10);
 
     // Deselect the first product
     const picker = page.getByTestId("product-filter-picker");
@@ -57,11 +57,11 @@ test.describe("Product filter", () => {
     const productId = testId!.replace("filter-product-", "");
     await firstButton.click();
 
-    await expect(bar.getByText(new RegExp(`${totalCount - 1} of \\d+ products selected`))).toBeVisible();
+    await expect(bar.getByText(new RegExp(`${selectedCount - 1} of \\d+ products selected`))).toBeVisible();
 
     // Re-select it
     await page.getByTestId(`filter-product-${productId}`).click();
-    await expect(bar.getByText(new RegExp(`${totalCount} of \\d+ products selected`))).toBeVisible();
+    await expect(bar.getByText(new RegExp(`${selectedCount} of \\d+ products selected`))).toBeVisible();
   });
 
   test("select all / deselect all", async ({ page }) => {
@@ -113,7 +113,7 @@ test.describe("Product filter", () => {
     await expect(page.getByTestId("compare-table").locator("tbody tr")).toHaveCount(3);
 
     // Navigate back to products
-    await page.getByRole("link", { name: "Products" }).click();
+    await page.getByRole("link", { name: "Products", exact: true }).click();
     await expect(
       page.getByTestId("bots-grid").locator("[data-testid^='bot-card-']"),
     ).toHaveCount(3);

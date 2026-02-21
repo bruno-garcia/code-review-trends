@@ -11,7 +11,7 @@ test.describe("Navigation active state", () => {
 
   test("Products link is active on products page", async ({ page }) => {
     await page.goto("/products");
-    const productsLink = page.getByRole("link", { name: "Products" });
+    const productsLink = page.getByRole("link", { name: "Products", exact: true });
     await expect(productsLink).toHaveAttribute("aria-current", "page");
     await expect(productsLink).toHaveClass(/font-medium/);
 
@@ -22,7 +22,7 @@ test.describe("Navigation active state", () => {
 
   test("Products link stays active on product detail sub-page", async ({ page }) => {
     await page.goto("/products/coderabbitai");
-    const productsLink = page.getByRole("link", { name: "Products" });
+    const productsLink = page.getByRole("link", { name: "Products", exact: true });
     await expect(productsLink).toHaveAttribute("aria-current", "page");
     await expect(productsLink).toHaveClass(/font-medium/);
   });
@@ -36,7 +36,7 @@ test.describe("Navigation active state", () => {
 
   test("inactive links do not have aria-current", async ({ page }) => {
     await page.goto("/");
-    const productsLink = page.getByRole("link", { name: "Products" });
+    const productsLink = page.getByRole("link", { name: "Products", exact: true });
     await expect(productsLink).not.toHaveAttribute("aria-current", "page");
     const compareLink = page.getByRole("link", { name: "Compare" });
     await expect(compareLink).not.toHaveAttribute("aria-current", "page");
@@ -56,7 +56,7 @@ test.describe("Navigation on mobile viewport", () => {
     const overviewLink = nav.getByRole("link", { name: "Overview" });
     await expect(overviewLink).toBeVisible();
 
-    const productsLink = nav.getByRole("link", { name: "Products" });
+    const productsLink = nav.getByRole("link", { name: "Products", exact: true });
     await expect(productsLink).toBeVisible();
 
     const compareLink = nav.getByRole("link", { name: "Compare" });
@@ -104,7 +104,7 @@ test.describe("Navigation on mobile viewport", () => {
     const nav = page.locator("nav");
 
     // Click on Products link
-    const productsLink = nav.getByRole("link", { name: "Products" });
+    const productsLink = nav.getByRole("link", { name: "Products", exact: true });
     await productsLink.click();
     await expect(page).toHaveURL("/products");
 
