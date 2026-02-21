@@ -13,10 +13,10 @@ import Link from "next/link";
 
 type CompareRow = ProductComparison & {
   sampled_prs: number;
-  avg_additions: number;
-  avg_deletions: number;
-  avg_changed_files: number;
-  merge_rate_pr: number;
+  avg_additions: number | null;
+  avg_deletions: number | null;
+  avg_changed_files: number | null;
+  merge_rate_pr: number | null;
   avg_hours_to_merge: number | null;
 };
 
@@ -140,25 +140,25 @@ const METRICS: {
     key: "avg_additions",
     label: "Avg Additions",
     description: "Average lines added per PR",
-    format: (v) => `+${Number(v).toLocaleString()}`,
+    format: (v) => v == null ? "—" : `+${Number(v).toLocaleString()}`,
   },
   {
     key: "avg_deletions",
     label: "Avg Deletions",
     description: "Average lines deleted per PR",
-    format: (v) => `−${Number(v).toLocaleString()}`,
+    format: (v) => v == null ? "—" : `−${Number(v).toLocaleString()}`,
   },
   {
     key: "avg_changed_files",
     label: "Avg Files",
     description: "Average files changed per PR",
-    format: (v) => Number(v).toLocaleString(),
+    format: (v) => v == null ? "—" : Number(v).toLocaleString(),
   },
   {
     key: "merge_rate_pr",
     label: "Merge Rate",
     description: "Percentage of reviewed PRs that were merged",
-    format: (v) => `${Number(v).toFixed(1)}%`,
+    format: (v) => v == null ? "—" : `${Number(v).toFixed(1)}%`,
   },
   {
     key: "avg_hours_to_merge",
@@ -206,10 +206,10 @@ export function CompareCharts({
           return {
             ...p,
             sampled_prs: pc?.sampled_prs ?? 0,
-            avg_additions: pc?.avg_additions ?? 0,
-            avg_deletions: pc?.avg_deletions ?? 0,
-            avg_changed_files: pc?.avg_changed_files ?? 0,
-            merge_rate_pr: pc?.merge_rate ?? 0,
+            avg_additions: pc?.avg_additions ?? null,
+            avg_deletions: pc?.avg_deletions ?? null,
+            avg_changed_files: pc?.avg_changed_files ?? null,
+            merge_rate_pr: pc?.merge_rate ?? null,
             avg_hours_to_merge: pc?.avg_hours_to_merge ?? null,
           };
         }),
