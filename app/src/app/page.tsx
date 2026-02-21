@@ -87,6 +87,17 @@ export default async function Home() {
         </p>
       </section>
 
+      {/* Total AI Review Volume */}
+      <section data-testid="total-volume-section">
+        <SectionHeading id="volume">Total AI Review Volume</SectionHeading>
+        <p className="text-theme-muted mb-6">
+          Weekly volume of AI-generated code reviews and review comments across all bots.
+        </p>
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+          <TotalVolumeChart data={totalVolume} />
+        </div>
+      </section>
+
       {/* Top Products by Growth */}
       {products.length > 0 && (
         <section data-testid="top-products-section">
@@ -129,22 +140,11 @@ export default async function Home() {
           </div>
           <p className="mt-4 text-sm text-theme-muted">
             <Link href="/products" className="underline hover:text-theme-text">
-              See all {products.length} products →
+              Explore all products →
             </Link>
           </p>
         </section>
       )}
-
-      {/* Total AI Review Volume */}
-      <section data-testid="total-volume-section">
-        <SectionHeading id="volume">Total AI Review Volume</SectionHeading>
-        <p className="text-theme-muted mb-6">
-          Weekly volume of AI-generated code reviews and review comments across all bots.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <TotalVolumeChart data={totalVolume} />
-        </div>
-      </section>
 
       {/* Top Organizations — unfiltered */}
       <section data-testid="top-orgs-section">

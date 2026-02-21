@@ -67,15 +67,23 @@ export function FilteredProductsPage({
       {/* Review Volume by Product */}
       <section data-testid="volume-section">
         <SectionHeading id="review-volume">Review Volume by Product</SectionHeading>
-        <p className="text-theme-muted mb-6">
-          Weekly review count for each AI code review product.
-          {filteredSummaries.length < summaries.length && (
-            <span className="text-theme-text-secondary font-medium">
-              {" "}
-              Showing {filteredSummaries.length} of {summaries.length} products.
-            </span>
-          )}
-        </p>
+        <div className="flex items-baseline justify-between mb-6">
+          <p className="text-theme-muted">
+            Weekly review count for each AI code review product.
+            {filteredSummaries.length < summaries.length && (
+              <span className="text-theme-text-secondary font-medium">
+                {" "}
+                Showing {filteredSummaries.length} of {summaries.length} products.
+              </span>
+            )}
+          </p>
+          <Link
+            href={buildUrl("/compare")}
+            className="text-sm text-violet-400 hover:text-violet-300 transition-colors whitespace-nowrap ml-4"
+          >
+            Compare side by side →
+          </Link>
+        </div>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border relative z-10">
           <ReviewVolumeChart
             data={pivoted}
@@ -83,19 +91,6 @@ export function FilteredProductsPage({
             colors={colorMap}
           />
         </div>
-      </section>
-
-      {/* Compare CTA */}
-      <section className="bg-theme-surface rounded-xl p-6 border border-theme-border text-center">
-        <p className="text-theme-muted mb-3">
-          Want to compare products side by side?
-        </p>
-        <Link
-          href={buildUrl("/compare")}
-          className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-lg transition-colors font-medium"
-        >
-          Compare all products →
-        </Link>
       </section>
 
       {/* Bot Cards Grid */}
