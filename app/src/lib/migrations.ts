@@ -455,8 +455,8 @@ const MIGRATION_008: Migration = {
   version: 8,
   name: "comment_stats_reacted_count",
   statements: [
-    // Drop MV so no concurrent inserts during migration
-    `DROP VIEW IF EXISTS comment_stats_weekly_mv`,
+    // Drop MV so it doesn't interfere with the full backfill
+    `DROP TABLE IF EXISTS comment_stats_weekly_mv`,
 
     // Add the new column
     `ALTER TABLE comment_stats_weekly

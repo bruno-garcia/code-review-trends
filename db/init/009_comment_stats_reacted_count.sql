@@ -7,8 +7,10 @@
 -- Requires drop + recreate of the MV and a full re-backfill since the new column
 -- can't be derived from the existing aggregated data.
 
--- 1. Drop the MV first so no concurrent inserts during migration
-DROP VIEW IF EXISTS code_review_trends.comment_stats_weekly_mv;
+-- 1. Drop the MV so it doesn't interfere with the full backfill.
+--    Note: this does NOT stop inserts into pr_comments; run this while ingestion
+--    is paused or perform a post-migration catch-up for rows inserted in the window.
+DROP TABLE IF EXISTS code_review_trends.comment_stats_weekly_mv;
 
 -- 2. Add the new column
 ALTER TABLE code_review_trends.comment_stats_weekly

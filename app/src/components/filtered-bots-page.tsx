@@ -81,16 +81,21 @@ export function FilteredBotsPage({
     [summaries, selectedSet],
   );
 
-  // Sort summaries — push sentinel -1 (N/A) to the end regardless of direction
+  // Sort summaries — push sentinel -1 (N/A) to the end, but only for columns
+  // that use -1 as a sentinel. Other columns (e.g. growth_pct) have legitimate negatives.
   const sortedSummaries = useMemo(() => {
+    const sentinelKeys: Set<LeaderboardSortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
+    const usesSentinel = sentinelKeys.has(sortKey);
     return [...filteredSummaries].sort((a, b) => {
       const av = Number(a[sortKey]);
       const bv = Number(b[sortKey]);
-      const aNA = av < 0;
-      const bNA = bv < 0;
-      if (aNA && bNA) return 0;
-      if (aNA) return 1;
-      if (bNA) return -1;
+      if (usesSentinel) {
+        const aNA = av < 0;
+        const bNA = bv < 0;
+        if (aNA && bNA) return 0;
+        if (aNA) return 1;
+        if (bNA) return -1;
+      }
       return sortDir === "desc" ? bv - av : av - bv;
     });
   }, [filteredSummaries, sortKey, sortDir]);

@@ -241,20 +241,26 @@ export function CompareCharts({
     : "growth_pct";
   const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
+  // Columns that use -1 as a sentinel for N/A — push to end.
+  // Other columns (e.g. growth_pct) have legitimate negative values.
+  const sentinelKeys: Set<SortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
+
   const sorted = [...products].sort((a, b) => {
     const aRaw = a[sortKey];
     const bRaw = b[sortKey];
-    // Push nulls and sentinel -1 (N/A) to the end regardless of sort direction
+    // Push nulls to the end regardless of sort direction
     if (aRaw == null && bRaw == null) return 0;
     if (aRaw == null) return 1;
     if (bRaw == null) return -1;
     const av = Number(aRaw);
     const bv = Number(bRaw);
-    const aNA = av < 0;
-    const bNA = bv < 0;
-    if (aNA && bNA) return 0;
-    if (aNA) return 1;
-    if (bNA) return -1;
+    if (sentinelKeys.has(sortKey)) {
+      const aNA = av < 0;
+      const bNA = bv < 0;
+      if (aNA && bNA) return 0;
+      if (aNA) return 1;
+      if (bNA) return -1;
+    }
     return sortDir === "desc" ? bv - av : av - bv;
   });
 
