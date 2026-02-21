@@ -441,10 +441,8 @@ export function CompareCharts({
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-theme-muted/70">
-          Click any column header to sort. ★ marks the highest number in each column.{" "}
-          <strong>Higher doesn&apos;t necessarily mean better.</strong>{" "}
-          <Link href="/about" className="text-violet-400/70 hover:text-violet-400 underline underline-offset-2">Methodology</Link>.{" "}
+        <p className="mt-3 text-sm text-theme-muted/70">
+          Click any column header to sort. ★ marks the highest number in each column. <strong>Higher doesn&apos;t necessarily mean better.</strong> <Link href="/about" className="text-violet-400/70 hover:text-violet-400 underline underline-offset-2">Methodology</Link>.{" "}
           {isExpanded && (
             <span className="text-theme-muted/50">Press Escape or click ✕ to collapse.</span>
           )}
