@@ -14,10 +14,13 @@
  * Uses hardcoded repos + PR numbers with known bot activity so results
  * are deterministic and reproducible across runs.
  *
- * Requires: GITHUB_TOKEN env var.
- * Skipped automatically if GITHUB_TOKEN is not available.
+ * Requires: GITHUB_TOKEN env var. Fails immediately if missing to prevent
+ * false confidence from silently-skipped tests. Set SKIP_GITHUB_TESTS=1
+ * to explicitly opt out (e.g. in environments without API access).
  *
- * Run: GITHUB_TOKEN=... npx tsx --test src/enrichment/graphql-resilience.integration.test.ts
+ * Run:
+ *   GITHUB_TOKEN=... npm run test:integration --workspace=pipeline
+ *   SKIP_GITHUB_TESTS=1 npm run test:integration --workspace=pipeline  # explicit skip
  */
 
 import { describe, it, before } from "node:test";
@@ -30,7 +33,15 @@ import { fetchPRsBatch } from "./graphql-pull-requests.js";
 import { fetchCommentsBatch, type CommentBatchInput } from "./graphql-comments.js";
 import { graphqlWithRetry } from "./graphql-retry.js";
 
-const skip = !process.env.GITHUB_TOKEN;
+const explicitSkip = process.env.SKIP_GITHUB_TESTS === "1";
+if (!process.env.GITHUB_TOKEN && !explicitSkip) {
+  console.error(
+    "Error: GITHUB_TOKEN is required for integration tests.\n" +
+    "  Set GITHUB_TOKEN env var, or set SKIP_GITHUB_TESTS=1 to explicitly opt out.",
+  );
+  process.exit(1);
+}
+const skip = explicitSkip;
 
 // ── Known stable test targets ──────────────────────────────────────────
 // These are merged PRs with verified bot review thread comments.
@@ -63,7 +74,7 @@ const NONEXISTENT_REPO = "this-org-does-not-exist-xyz/fake-repo-abc";
 /** A PR number that definitely doesn't exist in a real repo. */
 const NONEXISTENT_PR_NUMBER = 999999999;
 
-describe("GraphQL API resilience (live GitHub)", { skip: skip ? "No GITHUB_TOKEN" : false }, () => {
+describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKIP_GITHUB_TESTS=1" : false }, () => {
   let octokit: Octokit;
   let rateLimiter: RateLimiter;
 

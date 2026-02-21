@@ -13,8 +13,9 @@
     "discover-bots": "tsx src/tools/discover-bots.ts",
     "status": "tsx src/tools/status.ts",
     "warmup": "tsx src/warmup.ts",
-    "test": "node --import tsx --test src/**/*.test.ts --test-skip-pattern=smoke",
-    "test:smoke": "node --import tsx --test src/smoke.test.ts"
+    "test": "node --import tsx --test --test-skip-pattern=smoke $(find src -name '*.test.ts' ! -name '*.integration.test.ts' ! -name 'smoke.test.ts')",
+    "test:smoke": "node --import tsx --test src/smoke.test.ts",
+    "test:integration": "node --import tsx --test src/enrichment/graphql-resilience.integration.test.ts"
   },
   "dependencies": {
     "@clickhouse/client": "^1.17.0",
