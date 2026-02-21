@@ -645,7 +645,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
                   ⭐ {formatNumber(stars)}
                 </span>
                 <span className="hidden sm:inline text-sm text-theme-muted/70 tabular-nums shrink-0 text-right whitespace-nowrap min-w-[5rem]">
-                  {org.repo_count} {org.repo_count === 1 ? "repo" : "repos"}
+                  {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
                 </span>
               </div>
             </Link>
