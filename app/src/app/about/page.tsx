@@ -397,10 +397,6 @@ export default async function AboutPage() {
             </li>
           </ul>
         </div>
-        <p className="text-theme-muted text-sm italic">
-          The enrichment pipeline progress is visible on the{" "}
-          <Link href="/status" className={linkClass}>/status</Link> page.
-        </p>
         {prEnrichmentPct !== null && prEnrichmentPct <= 95 && (
           <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400" data-testid="pr-enrichment-warning">
             <strong>Note:</strong> PR metadata has not yet been fully
@@ -488,11 +484,6 @@ export default async function AboutPage() {
             </li>
           </ul>
         </div>
-        <p className="text-theme-muted text-sm italic">
-          Previously labeled &ldquo;Approval Rate,&rdquo; this metric was
-          renamed to 👍 Rate to more accurately describe what it measures —
-          emoji reaction sentiment, not a formal approval or quality signal.
-        </p>
       </section>
 
       {/* What's NOT Tracked */}
