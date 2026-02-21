@@ -1700,7 +1700,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
   let productJoinFilter = "";
   if (productIds && productIds.length > 0) {
     productJoinFilter = "AND b.product_id IN ({productIds:Array(String)})";
-    havingConditions.push("COALESCE(sum(s.event_count), 0) > 0");
+    havingConditions.push("COALESCE(uniqExactMerge(s.pr_count), 0) > 0");
     params.productIds = productIds;
   }
 
@@ -1721,7 +1721,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
       r.stars AS stars,
       r.primary_language AS primary_language,
       COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
-      COALESCE(sum(s.event_count), 0) AS bot_comment_count,
+      0 AS bot_comment_count,
       groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
     FROM repos r
     LEFT JOIN pr_bot_event_counts s ON r.name = s.repo_name
@@ -1791,7 +1791,7 @@ export async function getRepoDetail(repoName: string): Promise<RepoDetail | null
       SELECT
         s.repo_name,
         uniqExactMerge(s.pr_count) AS total_prs,
-        sum(s.event_count) AS bot_comment_count
+        0 AS bot_comment_count
       FROM pr_bot_event_counts s
       WHERE s.repo_name = {repoName:String}
       GROUP BY s.repo_name
@@ -1824,7 +1824,7 @@ export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> 
       p.avatar_url AS avatar_url,
       p.brand_color AS brand_color,
       uniqExactMerge(s.pr_count) AS pr_count,
-      sum(s.event_count) AS event_count
+      0 AS event_count
     FROM pr_bot_event_counts s
     JOIN bots b ON s.bot_id = b.id
     JOIN products p ON b.product_id = p.id
