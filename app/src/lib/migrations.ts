@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 7;
+export const EXPECTED_SCHEMA_VERSION = 8;
 
 export type SchemaStatus = {
   /**
@@ -442,8 +442,64 @@ const MIGRATION_007: Migration = {
   ],
 };
 
+/**
+ * Migration 8 — add reacted_comment_count to comment_stats_weekly.
+ * Matches db/init/009_comment_stats_reacted_count.sql.
+ *
+ * Tracks how many comments received at least one 👍 or 👎 reaction, enabling
+ * "reaction rate" = reacted_comment_count / comment_count. Requires drop+recreate
+ * of the MV and a full re-backfill since the column can't be derived from
+ * existing aggregated data.
+ */
+const MIGRATION_008: Migration = {
+  version: 8,
+  name: "comment_stats_reacted_count",
+  statements: [
+    // Drop MV so it doesn't interfere with the full backfill
+    `DROP TABLE IF EXISTS comment_stats_weekly_mv`,
+
+    // Add the new column
+    `ALTER TABLE comment_stats_weekly
+      ADD COLUMN IF NOT EXISTS reacted_comment_count SimpleAggregateFunction(sum, UInt64)`,
+
+    // Truncate and re-backfill with the new column
+    `TRUNCATE TABLE comment_stats_weekly`,
+
+    `INSERT INTO comment_stats_weekly
+    SELECT
+      bot_id,
+      toMonday(created_at) AS week,
+      count() AS comment_count,
+      sum(pr_comments.thumbs_up) AS thumbs_up,
+      sum(pr_comments.thumbs_down) AS thumbs_down,
+      sum(pr_comments.heart) AS heart,
+      uniqExactState(repo_name, pr_number) AS pr_count,
+      countIf(pr_comments.thumbs_up + pr_comments.thumbs_down > 0) AS reacted_comment_count
+    FROM pr_comments FINAL
+    WHERE comment_id > 0
+    GROUP BY bot_id, week
+    SETTINGS max_execution_time = 300`,
+
+    // Recreate MV with the new column
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS comment_stats_weekly_mv
+    TO comment_stats_weekly
+    AS SELECT
+      bot_id,
+      toMonday(created_at) AS week,
+      count() AS comment_count,
+      sum(pr_comments.thumbs_up) AS thumbs_up,
+      sum(pr_comments.thumbs_down) AS thumbs_down,
+      sum(pr_comments.heart) AS heart,
+      uniqExactState(repo_name, pr_number) AS pr_count,
+      countIf(pr_comments.thumbs_up + pr_comments.thumbs_down > 0) AS reacted_comment_count
+    FROM pr_comments
+    WHERE comment_id > 0
+    GROUP BY bot_id, week`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

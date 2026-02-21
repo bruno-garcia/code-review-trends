@@ -109,8 +109,9 @@ describe("clickhouse query integration tests", () => {
       format: "JSONEachRow",
     });
 
-    // pr_comments for reaction data (approval_rate test)
-    // Bot A1: 80 thumbs_up, 20 thumbs_down → approval_rate = 80%
+    // pr_comments for reaction data (thumbs_up_rate test)
+    // Bot A1: 80 thumbs_up, 20 thumbs_down → thumbs_up_rate = 80% (100 total reactions ≥ 30 threshold)
+    // Also: 1 comment has reactions out of 1 total → reaction_rate = 100%
     await ch.insert({
       table: "pr_comments",
       values: [
@@ -396,8 +397,8 @@ describe("clickhouse query integration tests", () => {
   });
 
   describe("getBotSummaries", () => {
-    it("approval_rate = thumbs_up / (thumbs_up + thumbs_down) * 100", async () => {
-      const rows = await q<{ id: string; approval_rate: string; thumbs_up: string; thumbs_down: string }>(ch, `
+    it("thumbs_up_rate = thumbs_up / (thumbs_up + thumbs_down) * 100 when ≥ 30 reactions", async () => {
+      const rows = await q<{ id: string; thumbs_up_rate: string; thumbs_up: string; thumbs_down: string }>(ch, `
         WITH reaction_agg AS (
           SELECT
             c.bot_id,
@@ -411,9 +412,9 @@ describe("clickhouse query integration tests", () => {
           b.id,
           COALESCE(rr.thumbs_up, 0) AS thumbs_up,
           COALESCE(rr.thumbs_down, 0) AS thumbs_down,
-          round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-            COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-            0), 1) AS approval_rate
+          if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) >= 30,
+            round(COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)), 1),
+            -1) AS thumbs_up_rate
         FROM bots b FINAL
         LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
         WHERE b.id = '${BOT_A1}'
@@ -425,8 +426,18 @@ describe("clickhouse query integration tests", () => {
       // Total: thumbs_up=90, thumbs_down=23
       assert.equal(Number(rows[0].thumbs_up), 90);
       assert.equal(Number(rows[0].thumbs_down), 23);
-      // approval_rate = 90 / (90+23) * 100 = 79.6%
-      assert.equal(Number(rows[0].approval_rate), 79.6, "approval_rate should be 90/(90+23)*100");
+      // thumbs_up_rate = 90 / (90+23) * 100 = 79.6% (113 total ≥ 30 threshold)
+      assert.equal(Number(rows[0].thumbs_up_rate), 79.6, "thumbs_up_rate should be 90/(90+23)*100");
+    });
+
+    it("thumbs_up_rate = -1 when fewer than 30 reactions", async () => {
+      const rows = await q<{ thumbs_up_rate: string }>(ch, `
+        SELECT
+          if((10 + 5) >= 30,
+            round(10 * 100.0 / (10 + 5), 1),
+            -1) AS thumbs_up_rate
+      `);
+      assert.equal(Number(rows[0].thumbs_up_rate), -1, "thumbs_up_rate should be -1 (N/A) when < 30 reactions");
     });
   });
 

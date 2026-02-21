@@ -466,7 +466,8 @@ type BotReactionLeaderboardData = {
   total_thumbs_down: number;
   total_heart: number;
   total_comments: number;
-  approval_rate: number;
+  thumbs_up_rate: number;
+  reaction_rate: number;
 };
 
 export function BotReactionLeaderboardChart({

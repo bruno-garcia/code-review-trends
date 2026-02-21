@@ -59,8 +59,8 @@ export default async function OrgPage({
   const thumbsDown = Number(summary.thumbs_down);
   const heart = Number(summary.heart);
   const totalReactions = thumbsUp + thumbsDown + heart;
-  const approvalRate =
-    thumbsUp + thumbsDown > 0
+  const thumbsUpRate =
+    thumbsUp + thumbsDown >= 30
       ? ((thumbsUp / (thumbsUp + thumbsDown)) * 100).toFixed(1)
       : null;
 
@@ -112,8 +112,8 @@ export default async function OrgPage({
           <StatCard label="👍 Thumbs Up" value={formatNumber(thumbsUp)} />
           <StatCard label="👎 Thumbs Down" value={formatNumber(thumbsDown)} />
           <StatCard label="❤️ Hearts" value={formatNumber(heart)} />
-          {approvalRate && (
-            <StatCard label="Approval Rate" value={`${approvalRate}%`} />
+          {thumbsUpRate && (
+            <StatCard label="👍 Rate" value={`${thumbsUpRate}%`} />
           )}
         </div>
       )}

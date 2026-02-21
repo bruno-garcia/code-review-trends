@@ -22,7 +22,8 @@ type LeaderboardSortKey =
   | "total_repos"
   | "total_orgs"
   | "avg_comments_per_review"
-  | "approval_rate"
+  | "thumbs_up_rate"
+  | "reaction_rate"
   | "growth_pct";
 
 const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: string }[] = [
@@ -33,7 +34,8 @@ const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: stri
   { key: "total_repos", label: "Repos", title: "Sort by max repos active in a single week" },
   { key: "total_orgs", label: "Orgs", title: "Sort by max organizations active in a single week" },
   { key: "avg_comments_per_review", label: "Avg C/R", title: "Sort by average comments per review" },
-  { key: "approval_rate", label: "Approval", title: "Sort by approval rate" },
+  { key: "thumbs_up_rate", label: "👍 Rate", title: "Sort by thumbs-up rate — % of 👍 vs 👎 reactions on bot comments (≥30 reactions required)" },
+  { key: "reaction_rate", label: "Rxn Rate", title: "Sort by reaction rate — % of bot comments that received any 👍 or 👎" },
 ];
 
 export function FilteredBotsPage({
@@ -79,11 +81,21 @@ export function FilteredBotsPage({
     [summaries, selectedSet],
   );
 
-  // Sort summaries
+  // Sort summaries — push sentinel -1 (N/A) to the end, but only for columns
+  // that use -1 as a sentinel. Other columns (e.g. growth_pct) have legitimate negatives.
   const sortedSummaries = useMemo(() => {
+    const sentinelKeys: Set<LeaderboardSortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
+    const usesSentinel = sentinelKeys.has(sortKey);
     return [...filteredSummaries].sort((a, b) => {
       const av = Number(a[sortKey]);
       const bv = Number(b[sortKey]);
+      if (usesSentinel) {
+        const aNA = av < 0;
+        const bNA = bv < 0;
+        if (aNA && bNA) return 0;
+        if (aNA) return 1;
+        if (bNA) return -1;
+      }
       return sortDir === "desc" ? bv - av : av - bv;
     });
   }, [filteredSummaries, sortKey, sortDir]);
@@ -237,7 +249,10 @@ export function FilteredBotsPage({
                     {Number(product.avg_comments_per_review).toFixed(1)}
                   </td>
                   <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.approval_rate).toFixed(0)}%
+                    {Number(product.thumbs_up_rate) >= 0 ? `${Number(product.thumbs_up_rate).toFixed(0)}%` : "—"}
+                  </td>
+                  <td className="py-3 pr-4 text-right tabular-nums">
+                    {Number(product.reaction_rate) >= 0 ? `${Number(product.reaction_rate).toFixed(1)}%` : "—"}
                   </td>
                 </tr>
               ))}
@@ -309,9 +324,9 @@ export function FilteredBotsPage({
                 </p>
               </div>
               <div>
-                <span className="text-theme-muted/70">Approval</span>
+                <span className="text-theme-muted/70">👍 Rate</span>
                 <p className="font-medium tabular-nums">
-                  {Number(product.approval_rate).toFixed(0)}%
+                  {Number(product.thumbs_up_rate) >= 0 ? `${Number(product.thumbs_up_rate).toFixed(0)}%` : "—"}
                 </p>
               </div>
               <div>

@@ -83,10 +83,16 @@ const METRICS: {
     format: (v) => Number(v).toLocaleString(),
   },
   {
-    key: "approval_rate",
-    label: "Approval Rate",
-    description: "👍 / (👍 + 👎) — how often reviews are approved",
-    format: (v) => `${Number(v).toFixed(1)}%`,
+    key: "thumbs_up_rate",
+    label: "👍 Rate",
+    description: "👍 / (👍 + 👎) on bot comments — requires ≥30 reactions, otherwise N/A",
+    format: (v) => Number(v) >= 0 ? `${Number(v).toFixed(1)}%` : "—",
+  },
+  {
+    key: "reaction_rate",
+    label: "Reaction Rate",
+    description: "% of bot comments that received any 👍 or 👎 reaction",
+    format: (v) => Number(v) >= 0 ? `${Number(v).toFixed(1)}%` : "—",
   },
   {
     key: "thumbs_up",
@@ -235,6 +241,10 @@ export function CompareCharts({
     : "growth_pct";
   const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
+  // Columns that use -1 as a sentinel for N/A — push to end.
+  // Other columns (e.g. growth_pct) have legitimate negative values.
+  const sentinelKeys: Set<SortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
+
   const sorted = [...products].sort((a, b) => {
     const aRaw = a[sortKey];
     const bRaw = b[sortKey];
@@ -244,6 +254,13 @@ export function CompareCharts({
     if (bRaw == null) return -1;
     const av = Number(aRaw);
     const bv = Number(bRaw);
+    if (sentinelKeys.has(sortKey)) {
+      const aNA = av < 0;
+      const bNA = bv < 0;
+      if (aNA && bNA) return 0;
+      if (aNA) return 1;
+      if (bNA) return -1;
+    }
     return sortDir === "desc" ? bv - av : av - bv;
   });
 
@@ -268,7 +285,6 @@ export function CompareCharts({
     { key: "total_pr_comments" as SortKey, label: "PR Comments" },
     { key: "total_repos" as SortKey, label: "Repos" },
     { key: "total_orgs" as SortKey, label: "Orgs" },
-    { key: "approval_rate" as SortKey, label: "Approval" },
     { key: "latest_week_reviews" as SortKey, label: "Recent Activity" },
   ];
 
@@ -403,7 +419,8 @@ export function CompareCharts({
             { key: "total_repos" as SortKey, label: "Active Repos" },
             { key: "total_orgs" as SortKey, label: "Organizations" },
             { key: "avg_comments_per_review" as SortKey, label: "Avg Comments/Review" },
-            { key: "approval_rate" as SortKey, label: "Approval Rate %" },
+            { key: "thumbs_up_rate" as SortKey, label: "👍 Rate %" },
+            { key: "reaction_rate" as SortKey, label: "Reaction Rate %" },
             { key: "comments_per_repo" as SortKey, label: "Comments per Repo" },
           ].map(({ key, label }) => {
             const chartData = [...products]
@@ -425,8 +442,9 @@ export function CompareCharts({
                 </h3>
                 <div className="space-y-2">
                   {chartData.map((item) => {
+                    const isNA = item.value < 0;
                     const max = chartData[0].value;
-                    const pct = max > 0 ? (item.value / max) * 100 : 0;
+                    const pct = !isNA && max > 0 ? (item.value / max) * 100 : 0;
                     return (
                       <div key={item.name} className="flex items-center gap-3">
                         <span className="text-xs text-theme-muted w-28 text-right truncate">
@@ -436,7 +454,7 @@ export function CompareCharts({
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
-                              width: `${Math.max(pct, 2)}%`,
+                              width: isNA ? "0%" : `${Math.max(pct, 2)}%`,
                               backgroundColor: item.fill,
                             }}
                           />

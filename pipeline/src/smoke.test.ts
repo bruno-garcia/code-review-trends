@@ -838,7 +838,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
 
       it("app queries return non-zero values after enrichment", async () => {
         // Query getProductSummaries-style aggregation to verify reactions are captured
-        const summaries = await query<{ total_reviews: string; approval_rate: string }>(
+        const summaries = await query<{ total_reviews: string; thumbs_up_rate: string }>(
           ch,
           `WITH
             reaction_agg AS (
@@ -854,9 +854,9 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
             )
           SELECT
             count() as total_reviews,
-            round(if((sum(thumbs_up) + sum(thumbs_down)) > 0,
-              sum(thumbs_up) * 100.0 / (sum(thumbs_up) + sum(thumbs_down)),
-              0), 1) AS approval_rate
+            if((sum(thumbs_up) + sum(thumbs_down)) >= 30,
+              round(sum(thumbs_up) * 100.0 / (sum(thumbs_up) + sum(thumbs_down)), 1),
+              -1) AS thumbs_up_rate
           FROM reaction_agg`,
           { repo: testRepoName },
         );

@@ -55,7 +55,7 @@ export default async function AboutPage() {
           the GitHub REST API via a separate{" "}
           <Link href="/status" className={linkClass}>enrichment pipeline</Link>.
           This data powers per-product detail pages, language breakdowns, and
-          approval rates, but does <em>not</em> feed into the AI Share
+          reaction sentiment (👍 Rate), but does <em>not</em> feed into the AI Share
           calculation.
         </p>
         <p className="text-theme-muted text-sm italic">
@@ -411,6 +411,88 @@ export default async function AboutPage() {
             </Link>
           </div>
         )}
+      </section>
+
+      {/* 👍 Rate & Reaction Data */}
+      <section className="space-y-4">
+        <SectionHeading id="thumbs-up-rate" className="text-theme-text">
+          👍 Rate &amp; Reaction Data
+        </SectionHeading>
+        <p className="text-theme-text-secondary leading-relaxed">
+          When humans read a bot&apos;s inline review comment on GitHub, they
+          can react with emoji — including 👍 and 👎. We track these reactions
+          and compute two metrics:
+        </p>
+        <div className="space-y-4">
+          <div className="overflow-x-auto rounded-lg border border-theme-border bg-theme-surface px-6 py-4 space-y-3">
+            <div>
+              <code className="text-sm text-theme-text">
+                👍 Rate = thumbs_up / (thumbs_up + thumbs_down) × 100
+              </code>
+              <p className="mt-1 text-sm text-theme-text-secondary">
+                Of all 👍 and 👎 reactions on a bot&apos;s comments, what
+                percentage are 👍? Higher means people who react tend to
+                agree with the bot&apos;s suggestions.
+              </p>
+            </div>
+            <div>
+              <code className="text-sm text-theme-text">
+                Reaction Rate = comments_with_reactions / total_comments × 100
+              </code>
+              <p className="mt-1 text-sm text-theme-text-secondary">
+                What percentage of a bot&apos;s comments received any 👍 or 👎
+                reaction at all? This gives context to the 👍 Rate — a 95%
+                👍 Rate means something very different if 0.5% vs. 10% of
+                comments get reactions.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <h3 className="text-lg font-medium text-theme-text">Important caveats</h3>
+          <ul className="list-disc space-y-2 pl-6 text-theme-text-secondary">
+            <li>
+              <strong className="text-theme-text">Most comments get zero reactions.</strong>{" "}
+              The Reaction Rate shows what percentage actually do. Without it,
+              the 👍 Rate is uninterpretable — a bot could show 100% 👍 Rate
+              based on just a handful of reactions across thousands of comments.
+            </li>
+            <li>
+              <strong className="text-theme-text">Minimum threshold.</strong>{" "}
+              Bots with fewer than 30 total 👍+👎 reactions show &ldquo;—&rdquo;
+              instead of a percentage. Below this threshold the sample is too
+              small to be meaningful.
+            </li>
+            <li>
+              <strong className="text-theme-text">Selection bias.</strong>{" "}
+              People who take the time to react are not representative of all
+              readers. Happy users might 👍; annoyed users might just ignore the
+              comment. Or vice versa. The signal is noisy.
+            </li>
+            <li>
+              <strong className="text-theme-text">Not a quality metric.</strong>{" "}
+              A 👍 could mean &ldquo;good catch, I&apos;ll fix it&rdquo; or
+              just &ldquo;thanks for reviewing.&rdquo; A 👎 could mean
+              &ldquo;bad suggestion&rdquo; or &ldquo;I disagree with the
+              approach.&rdquo; Neither tells you whether the code was actually
+              changed.
+            </li>
+            <li>
+              <strong className="text-theme-text">No fix rate.</strong>{" "}
+              We don&apos;t track whether a bot&apos;s suggestion was addressed
+              by a subsequent commit. That would require analyzing commit diffs
+              relative to comment content — a much harder problem we don&apos;t
+              attempt. The 👍 Rate measures <em>reaction sentiment</em>, not
+              whether suggestions are acted on.
+            </li>
+          </ul>
+        </div>
+        <p className="text-theme-muted text-sm italic">
+          Previously labeled &ldquo;Approval Rate,&rdquo; this metric was
+          renamed to 👍 Rate to more accurately describe what it measures —
+          emoji reaction sentiment, not a formal approval or quality signal.
+        </p>
       </section>
 
       {/* What's NOT Tracked */}
