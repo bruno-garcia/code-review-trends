@@ -25,8 +25,8 @@ export function createOctokitAgent(): https.Agent {
     // Allow multiple concurrent requests (batching may need several sockets)
     maxSockets: 50,
     maxFreeSockets: 10,
-    // Timeout idle sockets after 65s (slightly longer than GitHub's ~60s timeout)
-    // to force creation of fresh connections rather than reusing potentially-stale ones
-    timeout: 65_000,
+    // Timeout idle sockets after 55s (slightly shorter than GitHub's ~60s timeout)
+    // to proactively destroy stale sockets before GitHub's load balancers close them
+    timeout: 55_000,
   });
 }
