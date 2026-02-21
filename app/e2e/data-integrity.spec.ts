@@ -13,7 +13,7 @@ test.describe("data integrity", () => {
     });
 
     test("product filter shows non-zero product count", async ({ page }) => {
-      await page.goto("/bots");
+      await page.goto("/products");
       const filter = page.getByTestId("product-filter-bar");
       await expect(filter).toBeVisible();
       const text = await filter.textContent();
@@ -31,7 +31,7 @@ test.describe("data integrity", () => {
     });
 
     test("bot detail shows non-zero stats", async ({ page }) => {
-      await page.goto("/bots/coderabbit");
+      await page.goto("/products/coderabbit");
       const stats = page.getByTestId("bot-stats");
       await expect(stats).toBeVisible();
       const text = await stats.textContent();
@@ -41,7 +41,7 @@ test.describe("data integrity", () => {
   });
 
   test.describe("no NaN/Infinity/undefined in rendered pages", () => {
-    const pages = ["/", "/bots", "/compare", "/about", "/status"];
+    const pages = ["/", "/products", "/compare", "/about", "/status"];
     for (const path of pages) {
       test(`${path} has no NaN or Infinity in content`, async ({ page }) => {
         await page.goto(path);

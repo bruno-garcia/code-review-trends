@@ -9,22 +9,22 @@ test.describe("Navigation active state", () => {
     await expect(overviewLink).toHaveClass(/text-nav-link-active/);
   });
 
-  test("Bots link is active on bots page", async ({ page }) => {
-    await page.goto("/bots");
-    const botsLink = page.getByRole("link", { name: "Bots" });
-    await expect(botsLink).toHaveAttribute("aria-current", "page");
-    await expect(botsLink).toHaveClass(/font-medium/);
+  test("Products link is active on products page", async ({ page }) => {
+    await page.goto("/products");
+    const productsLink = page.getByRole("link", { name: "Products" });
+    await expect(productsLink).toHaveAttribute("aria-current", "page");
+    await expect(productsLink).toHaveClass(/font-medium/);
 
     // Overview should not be active
     const overviewLink = page.getByRole("link", { name: "Overview" });
     await expect(overviewLink).not.toHaveAttribute("aria-current", "page");
   });
 
-  test("Bots link stays active on bot detail sub-page", async ({ page }) => {
-    await page.goto("/bots/coderabbitai");
-    const botsLink = page.getByRole("link", { name: "Bots" });
-    await expect(botsLink).toHaveAttribute("aria-current", "page");
-    await expect(botsLink).toHaveClass(/font-medium/);
+  test("Products link stays active on product detail sub-page", async ({ page }) => {
+    await page.goto("/products/coderabbitai");
+    const productsLink = page.getByRole("link", { name: "Products" });
+    await expect(productsLink).toHaveAttribute("aria-current", "page");
+    await expect(productsLink).toHaveClass(/font-medium/);
   });
 
   test("Compare link is active on compare page", async ({ page }) => {
@@ -36,8 +36,8 @@ test.describe("Navigation active state", () => {
 
   test("inactive links do not have aria-current", async ({ page }) => {
     await page.goto("/");
-    const botsLink = page.getByRole("link", { name: "Bots" });
-    await expect(botsLink).not.toHaveAttribute("aria-current", "page");
+    const productsLink = page.getByRole("link", { name: "Products" });
+    await expect(productsLink).not.toHaveAttribute("aria-current", "page");
     const compareLink = page.getByRole("link", { name: "Compare" });
     await expect(compareLink).not.toHaveAttribute("aria-current", "page");
   });
@@ -56,8 +56,8 @@ test.describe("Navigation on mobile viewport", () => {
     const overviewLink = nav.getByRole("link", { name: "Overview" });
     await expect(overviewLink).toBeVisible();
 
-    const botsLink = nav.getByRole("link", { name: "Bots" });
-    await expect(botsLink).toBeVisible();
+    const productsLink = nav.getByRole("link", { name: "Products" });
+    await expect(productsLink).toBeVisible();
 
     const compareLink = nav.getByRole("link", { name: "Compare" });
     await expect(compareLink).toBeVisible();
@@ -103,10 +103,10 @@ test.describe("Navigation on mobile viewport", () => {
     // Get the nav element to scope queries
     const nav = page.locator("nav");
 
-    // Click on Bots link
-    const botsLink = nav.getByRole("link", { name: "Bots" });
-    await botsLink.click();
-    await expect(page).toHaveURL("/bots");
+    // Click on Products link
+    const productsLink = nav.getByRole("link", { name: "Products" });
+    await productsLink.click();
+    await expect(page).toHaveURL("/products");
 
     // Click on Compare link
     const compareLink = nav.getByRole("link", { name: "Compare" });

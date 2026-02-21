@@ -18,7 +18,7 @@ test.describe("Product filter", () => {
   });
 
   test("default filter shows top 10 on bots page", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     const bar = page.getByTestId("product-filter-bar");
     await expect(bar).toBeVisible();
     await expect(bar.getByText(/10 of \d+ products selected/)).toBeVisible();
@@ -28,7 +28,7 @@ test.describe("Product filter", () => {
   });
 
   test("filter bar expand/collapse", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
 
     // Initially collapsed
     await expect(page.getByLabel("Expand filter")).toBeVisible();
@@ -45,7 +45,7 @@ test.describe("Product filter", () => {
   });
 
   test("toggle product in picker updates leaderboard", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expandPicker(page);
 
     // Get the first product button in the picker and toggle it off
@@ -66,7 +66,7 @@ test.describe("Product filter", () => {
   });
 
   test("select all / deselect all", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expandPicker(page);
     const bar = page.getByTestId("product-filter-bar");
 
@@ -83,7 +83,7 @@ test.describe("Product filter", () => {
   });
 
   test("reset to top 10", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expandPicker(page);
 
     // Change from default
@@ -97,7 +97,7 @@ test.describe("Product filter", () => {
   });
 
   test("persistence across navigation", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expandPicker(page);
 
     // Deselect all → 0 products, then add 3 → 3
@@ -118,14 +118,14 @@ test.describe("Product filter", () => {
     await expect(page.getByTestId("compare-table").locator("tbody tr")).toHaveCount(3);
 
     // Navigate back to bots
-    await page.getByRole("link", { name: "Bots" }).click();
+    await page.getByRole("link", { name: "Products" }).click();
     await expect(
       page.getByTestId("bots-grid").locator("[data-testid^='bot-card-']"),
     ).toHaveCount(3);
   });
 
   test("persistence across reload", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expandPicker(page);
 
     await page.getByTestId("filter-deselect-all").click();
@@ -141,7 +141,7 @@ test.describe("Product filter", () => {
   });
 
   test("URL override with ?products=", async ({ page }) => {
-    await page.goto("/bots?products=coderabbit,copilot");
+    await page.goto("/products?products=coderabbit,copilot");
     await expect(
       page.getByTestId("product-filter-bar").getByText(/2 of \d+ products selected/),
     ).toBeVisible();
@@ -156,7 +156,7 @@ test.describe("Product filter", () => {
   });
 
   test("bots page respects filter", async ({ page }) => {
-    await page.goto("/bots?products=coderabbit,copilot,sourcery,bito,sentry");
+    await page.goto("/products?products=coderabbit,copilot,sourcery,bito,sentry");
     await expect(
       page.getByTestId("bots-grid").locator("[data-testid^='bot-card-']"),
     ).toHaveCount(5);
@@ -173,13 +173,13 @@ test.describe("Product filter", () => {
 
   test("bot detail page unaffected by filter", async ({ page }) => {
     // Set filter to exclude coderabbit via URL on bots page
-    await page.goto("/bots?products=copilot");
+    await page.goto("/products?products=copilot");
     await expect(
       page.getByTestId("product-filter-bar").getByText(/1 of \d+ products selected/),
     ).toBeVisible();
 
     // Navigate directly to coderabbit detail — should still work
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-name")).toHaveText("CodeRabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
   });
