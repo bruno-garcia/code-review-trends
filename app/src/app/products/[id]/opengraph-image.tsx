@@ -44,7 +44,7 @@ export default async function Image({
     }
   } catch (err) {
     Sentry.captureException(err, {
-      tags: { route: "bots/[id]/opengraph-image", productId: id },
+      tags: { route: "products/[id]/opengraph-image", productId: id },
     });
   }
 
