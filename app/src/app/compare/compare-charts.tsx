@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { ProductComparison, BotCommentsPerPR, BotReactions } from "@/lib/clickhouse";
+import type { ProductComparison, BotCommentsPerPR, BotReactions, ProductPrCharacteristics } from "@/lib/clickhouse";
 import { useUrlState } from "@/lib/use-url-state";
 import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
@@ -10,7 +10,25 @@ import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
 import { SectionHeading } from "@/components/section-heading";
 import Link from "next/link";
 
-type SortKey = keyof ProductComparison;
+type CompareRow = ProductComparison & {
+  sampled_prs: number;
+  avg_additions: number;
+  avg_deletions: number;
+  avg_changed_files: number;
+  merge_rate_pr: number;
+  avg_hours_to_merge: number | null;
+};
+
+type SortKey = keyof CompareRow;
+
+function formatHours(hours: number | null): string {
+  if (hours == null || isNaN(hours)) return "—";
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 48) return `${Math.round(hours)}h`;
+  const days = hours / 24;
+  if (days < 14) return `${Math.round(days)}d`;
+  return `${Math.round(days / 7)}w`;
+}
 
 const METRICS: {
   key: SortKey;
@@ -120,10 +138,46 @@ const METRICS: {
     description: "Number of weeks with data",
     format: (v) => Number(v).toLocaleString(),
   },
+  {
+    key: "sampled_prs",
+    label: "Sampled PRs",
+    description: "Enriched PRs with metadata from GitHub API",
+    format: (v) => Number(v).toLocaleString(),
+  },
+  {
+    key: "avg_additions",
+    label: "Avg Additions",
+    description: "Average lines added per PR",
+    format: (v) => `+${Number(v).toLocaleString()}`,
+  },
+  {
+    key: "avg_deletions",
+    label: "Avg Deletions",
+    description: "Average lines deleted per PR",
+    format: (v) => `−${Number(v).toLocaleString()}`,
+  },
+  {
+    key: "avg_changed_files",
+    label: "Avg Files",
+    description: "Average files changed per PR",
+    format: (v) => Number(v).toLocaleString(),
+  },
+  {
+    key: "merge_rate_pr",
+    label: "Merge Rate",
+    description: "Percentage of reviewed PRs that were merged",
+    format: (v) => `${Number(v).toFixed(1)}%`,
+  },
+  {
+    key: "avg_hours_to_merge",
+    label: "Time to Merge",
+    description: "Average time from PR creation to merge",
+    format: (v) => formatHours(v),
+  },
 ];
 
-function normalize(products: ProductComparison[], key: SortKey): number[] {
-  const values = products.map((p) => Number(p[key]));
+function normalize(products: CompareRow[], key: SortKey): number[] {
+  const values = products.map((p) => Number(p[key] ?? 0));
   const max = Math.max(...values);
   if (max === 0) return values.map(() => 0);
   return values.map((v) => Math.round((v / max) * 100));
@@ -133,15 +187,42 @@ export function CompareCharts({
   products: allProducts,
   commentsPerPR: allCommentsPerPR,
   reactionLeaderboard: allReactionLeaderboard,
+  prCharacteristics,
 }: {
   products: ProductComparison[];
   commentsPerPR: BotCommentsPerPR[];
   reactionLeaderboard: BotReactions[];
+  prCharacteristics: ProductPrCharacteristics[];
 }) {
   const { selectedProductIds } = useProductFilter();
   const { resolved } = useTheme();
   const buildUrl = useFilterUrl();
-  const products = allProducts.filter((p) => selectedProductIds.includes(p.id));
+
+  // Merge PR characteristics into product rows
+  const prCharsMap = useMemo(() => {
+    const m = new Map<string, ProductPrCharacteristics>();
+    for (const pc of prCharacteristics) m.set(pc.product_id, pc);
+    return m;
+  }, [prCharacteristics]);
+
+  const products: CompareRow[] = useMemo(
+    () =>
+      allProducts
+        .filter((p) => selectedProductIds.includes(p.id))
+        .map((p) => {
+          const pc = prCharsMap.get(p.id);
+          return {
+            ...p,
+            sampled_prs: pc?.sampled_prs ?? 0,
+            avg_additions: pc?.avg_additions ?? 0,
+            avg_deletions: pc?.avg_deletions ?? 0,
+            avg_changed_files: pc?.avg_changed_files ?? 0,
+            merge_rate_pr: pc?.merge_rate ?? 0,
+            avg_hours_to_merge: pc?.avg_hours_to_merge ?? null,
+          };
+        }),
+    [allProducts, selectedProductIds, prCharsMap],
+  );
   const commentsPerPR = allCommentsPerPR.filter((c) =>
     selectedProductIds.includes(c.product_id),
   );
@@ -163,8 +244,8 @@ export function CompareCharts({
   const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
   const sorted = [...products].sort((a, b) => {
-    const av = Number(a[sortKey]);
-    const bv = Number(b[sortKey]);
+    const av = Number(a[sortKey] ?? 0);
+    const bv = Number(b[sortKey] ?? 0);
     return sortDir === "desc" ? bv - av : av - bv;
   });
 
@@ -279,8 +360,8 @@ export function CompareCharts({
                     </Link>
                   </td>
                   {METRICS.map((m) => {
-                    const val = Number(product[m.key]);
-                    const allVals = sorted.map((p) => Number(p[m.key]));
+                    const val = Number(product[m.key] ?? 0);
+                    const allVals = sorted.map((p) => Number(p[m.key] ?? 0));
                     const max = Math.max(...allVals);
                     const isTop = max > 0 && val === max;
                     const isGrowth = m.key === "growth_pct";
