@@ -44,7 +44,7 @@ const ProductFilterContext = createContext<ProductFilterContextValue | null>(
  * /orgs is excluded — OrgProductSync handles it via router.push
  * (needed to trigger server re-renders for ClickHouse queries).
  */
-const PRODUCT_SYNC_PAGES = ["/bots", "/compare"];
+const PRODUCT_SYNC_PAGES = ["/products", "/compare"];
 
 // --- Provider ---
 

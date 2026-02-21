@@ -38,7 +38,7 @@ const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: stri
   { key: "reaction_rate", label: "Rxn Rate", title: "Sort by reaction rate — % of bot comments that received any 👍 or 👎" },
 ];
 
-export function FilteredBotsPage({
+export function FilteredProductsPage({
   activity,
   summaries,
 }: {
@@ -196,7 +196,7 @@ export function FilteredBotsPage({
                 >
                   <td className="py-3 pr-4">
                     <Link
-                      href={buildUrl(`/bots/${product.id}`)}
+                      href={buildUrl(`/products/${product.id}`)}
                       className="font-medium hover:opacity-80 flex items-center gap-2"
                     >
                       {product.avatar_url && (
@@ -273,7 +273,7 @@ export function FilteredBotsPage({
         {filteredSummaries.map((product) => (
           <Link
             key={product.id}
-            href={buildUrl(`/bots/${product.id}`)}
+            href={buildUrl(`/products/${product.id}`)}
             className="block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors"
             data-testid={`bot-card-${product.id}`}
           >

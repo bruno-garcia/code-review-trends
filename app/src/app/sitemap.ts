@@ -15,7 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages
   entries.push(
     { url: BASE_URL, changeFrequency: "weekly", priority: 1.0 },
-    { url: `${BASE_URL}/bots`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${BASE_URL}/products`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${BASE_URL}/compare`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${BASE_URL}/orgs`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/about`, changeFrequency: "monthly", priority: 0.6 },
@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const products = await getProductSummaries();
     for (const product of products) {
       entries.push({
-        url: `${BASE_URL}/bots/${product.id}`,
+        url: `${BASE_URL}/products/${product.id}`,
         changeFrequency: "weekly",
         priority: 0.8,
       });

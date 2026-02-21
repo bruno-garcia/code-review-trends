@@ -61,7 +61,7 @@ export function ProductFilterBar() {
   const isSelectionEmpty = selectedProducts.length === 0;
 
   // Only show filter on pages that use it
-  if (pathname !== "/bots" && pathname !== "/compare" && pathname !== "/orgs") {
+  if (pathname !== "/products" && pathname !== "/compare" && pathname !== "/orgs") {
     return null;
   }
 

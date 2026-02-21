@@ -181,7 +181,7 @@ export default async function Image({
         </div>
 
         {/* Footer */}
-        <OgFooter url={`codereviewtrends.com/bots/${id}`} />
+        <OgFooter url={`codereviewtrends.com/products/${id}`} />
       </div>
     ),
     { ...size },

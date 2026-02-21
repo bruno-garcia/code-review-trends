@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getProductSummaries, getWeeklyActivityByProduct, getPrCommentSyncPct } from "@/lib/clickhouse";
-import { FilteredBotsPage } from "@/components/filtered-bots-page";
+import { FilteredProductsPage } from "@/components/filtered-products-page";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import { CompareLink } from "@/components/compare-link";
@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "AI Code Review Products",
     description: `Profiles, stats, and weekly trends for ${count} AI code review products on GitHub. Compare CodeRabbit, Copilot, Sentry, Cursor, and more.`,
-    alternates: { canonical: "/bots" },
+    alternates: { canonical: "/products" },
   };
 }
 
@@ -44,7 +44,7 @@ export default async function BotsPage({
         </CompareLink>
       </div>
       <PrCommentSyncBanner pct={prCommentSyncPct} />
-      <FilteredBotsPage activity={activity} summaries={summaries} />
+      <FilteredProductsPage activity={activity} summaries={summaries} />
     </div>
   );
 }

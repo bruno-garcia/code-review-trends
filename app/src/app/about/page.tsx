@@ -130,7 +130,7 @@ export default async function AboutPage() {
               To avoid double-counting, a reaction review is only counted if
               the bot has no other activity on that PR (no review event, no
               comments). This captures bots like{" "}
-              <Link href="/bots/sentry" className={linkClass}>Sentry</Link>{" "}
+              <Link href="/products/sentry" className={linkClass}>Sentry</Link>{" "}
               that add 🎉 when they
               review a PR and find no issues — a deliberate low-noise approach
               that avoids leaving a formal review or comment.
@@ -203,7 +203,7 @@ export default async function AboutPage() {
           <p className="text-theme-text-secondary leading-relaxed">
             Some tracked bots use regular user accounts without the{" "}
             <code className={codeClass}>[bot]</code> suffix — for example,{" "}
-            <Link href="/bots/copilot" className={linkClass}>GitHub Copilot</Link>{" "}
+            <Link href="/products/copilot" className={linkClass}>GitHub Copilot</Link>{" "}
             operates as both{" "}
             <code className={codeClass}>copilot-pull-request-reviewer[bot]</code>{" "}
             and the regular account{" "}
@@ -271,18 +271,18 @@ export default async function AboutPage() {
         <ul className="list-disc space-y-2 pl-6 text-theme-text-secondary">
           <li>
             Some bots (like{" "}
-            <Link href="/bots/copilot" className={linkClass}>GitHub Copilot</Link>)
+            <Link href="/products/copilot" className={linkClass}>GitHub Copilot</Link>)
             use the formal review API almost exclusively — they show up strongly
             in Reviews and Review Comments but produce few or no PR Comments.
           </li>
           <li>
-            <Link href="/bots/coderabbit" className={linkClass}>CodeRabbit</Link>{" "}
+            <Link href="/products/coderabbit" className={linkClass}>CodeRabbit</Link>{" "}
             posts walkthrough summaries as top-level PR comments
             alongside inline review comments, so it generates significant
             activity across all three event types.
           </li>
           <li>
-            <Link href="/bots/sentry" className={linkClass}>Sentry</Link> posts
+            <Link href="/products/sentry" className={linkClass}>Sentry</Link> posts
             inline comments pointing out bugs on specific lines (Review
             Comments), but when it reviews a PR and finds nothing, it signals
             this with a 🎉 emoji reaction and a CI status check — neither of
@@ -578,15 +578,15 @@ export default async function AboutPage() {
         </p>
         <ul className="list-disc space-y-2 pl-6 text-theme-text-secondary">
           <li>
-            <Link href="/bots/qodo" className={linkClass}><strong>Qodo</strong></Link>: codium-pr-agent[bot],
+            <Link href="/products/qodo" className={linkClass}><strong>Qodo</strong></Link>: codium-pr-agent[bot],
             qodo-merge[bot], qodo-merge-pro[bot]
           </li>
           <li>
-            <Link href="/bots/sentry" className={linkClass}><strong>Sentry</strong></Link>: sentry[bot],
+            <Link href="/products/sentry" className={linkClass}><strong>Sentry</strong></Link>: sentry[bot],
             seer-by-sentry[bot], codecov-ai[bot]
           </li>
           <li>
-            <Link href="/bots/linearb" className={linkClass}><strong>LinearB</strong></Link>: gitstream-cm[bot],
+            <Link href="/products/linearb" className={linkClass}><strong>LinearB</strong></Link>: gitstream-cm[bot],
             linearb[bot]
           </li>
         </ul>

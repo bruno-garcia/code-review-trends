@@ -51,11 +51,11 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `/bots/${id}` },
+    alternates: { canonical: `/products/${id}` },
     openGraph: {
       title,
       description,
-      url: `/bots/${id}`,
+      url: `/products/${id}`,
     },
     twitter: {
       title,
@@ -142,7 +142,7 @@ export default async function ProductPage({
       />
       <div>
         <Link
-          href="/bots"
+          href="/products"
           className="text-sm text-theme-muted hover:text-theme-text transition-colors"
         >
           ← Back to all products

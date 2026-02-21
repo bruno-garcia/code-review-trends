@@ -129,7 +129,7 @@ export default async function OrgPage({
             {products.map((p) => (
               <Link
                 key={p.product_id}
-                href={`/bots/${p.product_id}`}
+                href={`/products/${p.product_id}`}
                 className="bg-theme-surface rounded-xl p-5 border border-theme-border hover:border-theme-border-hover transition-colors group"
               >
                 <div className="flex items-center gap-3 mb-3">
