@@ -442,8 +442,9 @@ export function CompareCharts({
                 </h3>
                 <div className="space-y-2">
                   {chartData.map((item) => {
+                    const isNA = item.value < 0;
                     const max = chartData[0].value;
-                    const pct = max > 0 ? (item.value / max) * 100 : 0;
+                    const pct = !isNA && max > 0 ? (item.value / max) * 100 : 0;
                     return (
                       <div key={item.name} className="flex items-center gap-3">
                         <span className="text-xs text-theme-muted w-28 text-right truncate">
@@ -453,7 +454,7 @@ export function CompareCharts({
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
-                              width: `${Math.max(pct, 2)}%`,
+                              width: isNA ? "0%" : `${Math.max(pct, 2)}%`,
                               backgroundColor: item.fill,
                             }}
                           />
