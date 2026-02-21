@@ -61,17 +61,17 @@ export function ProductFilterBar() {
   const isSelectionEmpty = selectedProducts.length === 0;
 
   // Only show filter on pages that use it
-  if (pathname !== "/products" && pathname !== "/compare" && pathname !== "/orgs") {
+  if (pathname !== "/products" && pathname !== "/compare" && pathname !== "/repos" && pathname !== "/orgs") {
     return null;
   }
 
-  // On /orgs, product changes trigger a server navigation (via OrgProductSync).
-  // Fire the progress bar immediately on user interaction rather than waiting
-  // for the useEffect in OrgProductSync to dispatch after the render cycle.
-  const isOrgs = pathname === "/orgs";
+  // On /orgs and /repos, product changes trigger a server navigation (via
+  // OrgProductSync / RepoProductSync). Fire the progress bar immediately on
+  // user interaction rather than waiting for the useEffect to dispatch.
+  const isServerSyncPage = pathname === "/orgs" || pathname === "/repos";
 
   function signalNavigation() {
-    if (isOrgs) {
+    if (isServerSyncPage) {
       document.dispatchEvent(new CustomEvent("navigation-start"));
     }
   }
