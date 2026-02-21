@@ -666,6 +666,34 @@ type CommentsPerPRData = {
   total_comments: number;
 };
 
+function TwoLineAxisTick({ x, y, payload, fill }: { x: number; y: number; payload: { value: string }; fill: string }) {
+  const name = payload.value;
+  // Split at the middle-most space to balance lines
+  const mid = Math.floor(name.length / 2);
+  let bestIdx = -1;
+  for (let i = 0; i < name.length; i++) {
+    if (name[i] === " " && (bestIdx === -1 || Math.abs(i - mid) < Math.abs(bestIdx - mid))) {
+      bestIdx = i;
+    }
+  }
+  if (bestIdx === -1) {
+    // Single word — render normally
+    return (
+      <text x={x} y={y + 12} textAnchor="middle" fill={fill} fontSize={11}>
+        {name}
+      </text>
+    );
+  }
+  const line1 = name.slice(0, bestIdx);
+  const line2 = name.slice(bestIdx + 1);
+  return (
+    <text x={x} y={y + 8} textAnchor="middle" fill={fill} fontSize={11}>
+      <tspan x={x} dy="0">{line1}</tspan>
+      <tspan x={x} dy="14">{line2}</tspan>
+    </text>
+  );
+}
+
 export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
   const c = useChartColors();
 
@@ -675,10 +703,16 @@ export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
 
   return (
     <div data-testid="comments-per-pr-chart">
-      <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={data}>
+      <ResponsiveContainer width="100%" height={380}>
+        <BarChart data={data} margin={{ bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} />
-          <XAxis dataKey="bot_name" stroke={c.barAxis} tick={{ fontSize: 12 }} />
+          <XAxis
+            dataKey="bot_name"
+            stroke={c.barAxis}
+            interval={0}
+            tick={(props: Record<string, unknown>) => <TwoLineAxisTick x={props.x as number} y={props.y as number} payload={props.payload as { value: string }} fill={c.barAxis} />}
+            height={50}
+          />
           <YAxis stroke={c.barAxis} tick={{ fontSize: 12 }} />
           <Tooltip
             cursor={false}
