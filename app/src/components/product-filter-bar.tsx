@@ -114,10 +114,9 @@ export function ProductFilterBar() {
           aria-expanded={expanded}
         >
           <div className="flex items-center gap-3">
-            {/* Left: content rows */}
+            {/* Left: content rows — flex-wrap gives mobile a second row for time range */}
             <div className="flex-1 min-w-0">
-              {/* Row 1: product count + (desktop: time range & pills) */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2">
                 <span className="text-sm whitespace-nowrap shrink-0 text-theme-muted">
                   <span className={`font-semibold tabular-nums ${isSelectionEmpty ? "text-red-400" : "text-violet-400"}`}>{selectedProducts.length}</span>
                   {" of "}
@@ -131,8 +130,8 @@ export function ProductFilterBar() {
                   </span>
                 )}
 
-                {/* Desktop: time range inline */}
-                <div className="hidden sm:block border-l border-theme-border pl-3 ml-1" onClick={(e) => e.stopPropagation()}>
+                {/* Single instance — w-full on mobile forces to row 2, inline on desktop */}
+                <div className="w-full sm:w-auto sm:border-l sm:border-theme-border sm:pl-3 sm:ml-1" onClick={(e) => e.stopPropagation()}>
                   <TimeRangeSelector />
                 </div>
 
@@ -168,11 +167,6 @@ export function ProductFilterBar() {
                     </span>
                   )}
                 </div>
-              </div>
-
-              {/* Row 2: mobile-only time range */}
-              <div className="sm:hidden mt-2" onClick={(e) => e.stopPropagation()}>
-                <TimeRangeSelector />
               </div>
             </div>
 
