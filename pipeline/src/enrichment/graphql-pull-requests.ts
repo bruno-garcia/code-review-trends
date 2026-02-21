@@ -159,7 +159,7 @@ type GraphQLPRData = {
   }>;
 } | null;
 
-function buildResults(
+export function buildResults(
   byRepo: Map<string, PRBatchInput[]>,
   repoIndex: Map<string, number>,
   data: Record<string, unknown>,

@@ -143,7 +143,7 @@ type GraphQLRepoData = {
   isArchived: boolean;
 } | null;
 
-function buildResults(
+export function buildResults(
   repoNames: string[],
   data: Record<string, unknown>,
 ): GraphQLRepoResult[] {

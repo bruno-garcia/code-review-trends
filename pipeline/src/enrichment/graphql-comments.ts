@@ -174,7 +174,7 @@ export async function fetchCommentsBatch(
   }
 }
 
-function parseResults(
+export function parseResults(
   byRepo: Map<string, CommentBatchInput[]>,
   repoIndex: Map<string, number>,
   data: Record<string, unknown>,
