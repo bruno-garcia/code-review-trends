@@ -1820,6 +1820,12 @@ export async function getRepoDetail(repoName: string): Promise<RepoDetail | null
 }
 
 export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> {
+  // Pre-aggregate pr_bot_event_counts per bot_id before joining to the
+  // event subquery.  pr_bot_event_counts is an AggregatingMergeTree — it
+  // may hold multiple unmerged rows per (repo_name, bot_id) between
+  // background merges.  Joining those unmerged rows directly to the scalar
+  // e.event_count would fan-out and inflate the SUM.  The subquery
+  // finalises the merge first, giving exactly one row per bot_id.
   return query<RepoProduct>(
     `
     SELECT
@@ -1827,18 +1833,22 @@ export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> 
       p.name AS product_name,
       p.avatar_url AS avatar_url,
       p.brand_color AS brand_color,
-      uniqExactMerge(s.pr_count) AS pr_count,
+      SUM(s_agg.pr_count) AS pr_count,
       SUM(COALESCE(e.event_count, 0)) AS event_count
-    FROM pr_bot_event_counts s
-    JOIN bots b ON s.bot_id = b.id
+    FROM (
+      SELECT bot_id, uniqExactMerge(pr_count) AS pr_count
+      FROM pr_bot_event_counts
+      WHERE repo_name = {repoName:String}
+      GROUP BY bot_id
+    ) s_agg
+    JOIN bots b ON s_agg.bot_id = b.id
     JOIN products p ON b.product_id = p.id
     LEFT JOIN (
       SELECT bot_id, count() AS event_count
       FROM pr_bot_events
       WHERE repo_name = {repoName:String}
       GROUP BY bot_id
-    ) e ON s.bot_id = e.bot_id
-    WHERE s.repo_name = {repoName:String}
+    ) e ON s_agg.bot_id = e.bot_id
     GROUP BY p.id, p.name, p.avatar_url, p.brand_color
     ORDER BY pr_count DESC
     `,
