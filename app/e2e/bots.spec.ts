@@ -126,7 +126,7 @@ test.describe("Bot detail page", () => {
     const historySection = page.getByTestId("bot-history-section");
     // Section only appears with activity data — skip in empty-DB environments
     if (!(await historySection.isVisible().catch(() => false))) {
-      test.skip();
+      test.skip(true, "Bot history section not visible, likely due to empty activity data.");
       return;
     }
     // Each bot row should show the github_login beneath the brand name

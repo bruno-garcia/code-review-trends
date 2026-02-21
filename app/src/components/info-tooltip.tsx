@@ -4,16 +4,15 @@
  * Keyboard accessible via tabIndex on the wrapper.
  *
  * Pass `text` for plain-text tooltips, or `content` for rich JSX (e.g. links).
+ * Exactly one of `text` or `content` must be provided.
  */
-export function InfoTooltip({
-  text,
-  content,
-  children,
-}: {
-  text?: string;
-  content?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+export function InfoTooltip(
+  props: { children: React.ReactNode } & (
+    | { text: string; content?: never }
+    | { content: React.ReactNode; text?: never }
+  ),
+) {
+  const { children, text, content } = props;
   const tooltip = content ?? text;
   return (
     <span className="relative group/tip inline-flex items-center outline-none" tabIndex={0}>
