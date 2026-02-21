@@ -11,9 +11,9 @@ test.describe("Compare page", () => {
     await page.goto("/compare");
     const table = page.getByTestId("compare-table");
     await expect(table).toBeVisible();
-    await expect(table.getByText("Total Reviews")).toBeVisible();
-    await expect(table.getByText("Organizations")).toBeVisible();
-    await expect(table.getByText("PR Comments", { exact: true })).toBeVisible();
+    await expect(table.getByText("Reviews", { exact: true })).toBeVisible();
+    await expect(table.getByText("Orgs", { exact: true })).toBeVisible();
+    await expect(table.getByText("PR Cmts", { exact: true })).toBeVisible();
     await expect(table.getByText("👍 Rate")).toBeVisible();
   });
 
@@ -21,8 +21,8 @@ test.describe("Compare page", () => {
     await page.goto("/compare");
     const table = page.getByTestId("compare-table");
     await expect(table).toBeVisible();
-    // Click "Organizations" header to sort
-    const orgHeader = table.getByRole('columnheader', { name: 'Organizations' });
+    // Click "Orgs" header to sort
+    const orgHeader = table.getByRole('columnheader', { name: 'Orgs' });
     await expect(orgHeader).toBeVisible();
     await orgHeader.getByRole('button').click();
     await expect(orgHeader.getByText('↓')).toBeVisible();
