@@ -76,7 +76,7 @@ export default async function ProductPage({
   const range = parseTimeRange(sp.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [product, allSummaries, productBots, activity, languageData, commentsPerPR, prCommentSyncPct, topOrgs, topRepos, prChars] = await Promise.all([
+  const [product, allSummaries, productBots, activity, languageData, commentsPerPR, prCommentSyncPct, topOrgs, topReposResult, prChars] = await Promise.all([
     getProductById(id),
     getProductSummaries(since),
     getProductBots(id, since),
@@ -93,6 +93,8 @@ export default async function ProductPage({
     notFound();
   }
 
+  const topRepos = topReposResult.repos;
+  const totalRepoCount = topReposResult.total;
   const summary = allSummaries.find((s) => s.id === id);
 
   // Aggregate activity into chart data
@@ -394,7 +396,7 @@ export default async function ProductPage({
           {topOrgs.total > TOP_N && (
             <div className="mt-4">
               <Link
-                href={`/orgs?product=${id}`}
+                href={`/orgs?products=${id}`}
                 className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
               >
                 View all {topOrgs.total.toLocaleString()} organizations →
@@ -449,6 +451,16 @@ export default async function ProductPage({
               </Link>
             ))}
           </div>
+          {totalRepoCount > TOP_N && (
+            <div className="mt-4">
+              <Link
+                href={`/repos?products=${id}`}
+                className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                View all {totalRepoCount.toLocaleString()} repositories →
+              </Link>
+            </div>
+          )}
         </section>
       )}
 
