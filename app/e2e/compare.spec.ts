@@ -58,4 +58,54 @@ test.describe("Compare page", () => {
     await page.getByRole("link", { name: "Compare" }).click();
     await expect(page.getByTestId("compare-table")).toBeVisible();
   });
+
+  test("expand button hides other sections and shows close button", async ({ page }) => {
+    await page.goto("/compare");
+    // Verify sections are visible before expanding
+    await expect(page.getByTestId("radar-section")).toBeVisible();
+    await expect(page.getByTestId("compare-table-section")).toBeVisible();
+
+    // Click expand
+    await page.getByTestId("expand-table-btn").click();
+
+    // Radar and bar charts should be hidden
+    await expect(page.getByTestId("radar-section")).toBeHidden();
+    await expect(page.getByTestId("bar-charts-section")).toBeHidden();
+
+    // Close button should appear, expand button should not
+    await expect(page.getByTestId("collapse-table-x")).toBeVisible();
+    await expect(page.getByTestId("expand-table-btn")).toBeHidden();
+
+    // Table still visible
+    await expect(page.getByTestId("compare-table")).toBeVisible();
+  });
+
+  test("close button restores all sections", async ({ page }) => {
+    await page.goto("/compare?expanded=1");
+    await expect(page.getByTestId("compare-table")).toBeVisible();
+    await expect(page.getByTestId("radar-section")).toBeHidden();
+
+    // Click close
+    await page.getByTestId("collapse-table-x").click();
+
+    // All sections restored
+    await expect(page.getByTestId("radar-section")).toBeVisible();
+    await expect(page.getByTestId("bar-charts-section")).toBeVisible();
+    await expect(page.getByTestId("expand-table-btn")).toBeVisible();
+  });
+
+  test("expanded state is shareable via URL", async ({ page }) => {
+    await page.goto("/compare?expanded=1");
+    await expect(page.getByTestId("compare-table")).toBeVisible();
+    await expect(page.getByTestId("radar-section")).toBeHidden();
+    await expect(page.getByTestId("collapse-table-x")).toBeVisible();
+  });
+
+  test("table footer shows methodology link", async ({ page }) => {
+    await page.goto("/compare");
+    const section = page.getByTestId("compare-table-section");
+    const link = section.getByRole("link", { name: "Methodology" });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", "/about");
+  });
 });

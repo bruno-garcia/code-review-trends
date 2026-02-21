@@ -168,6 +168,16 @@ test.describe("Product detail page", () => {
     }
   });
 
+  test("'View all organizations' link includes product name and filters", async ({ page }) => {
+    await page.goto("/products/coderabbit");
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
+    const section = page.getByTestId("bot-top-orgs");
+    if (await section.count() === 0) return; // skip if no orgs
+    const link = section.getByRole("link", { name: /View all .* organizations using CodeRabbit/ });
+    if (await link.count() === 0) return; // skip if total <= TOP_N
+    await expect(link).toHaveAttribute("href", /\/orgs\?products=coderabbit/);
+  });
+
   test("shows top repositories section when data exists", async ({ page }) => {
     await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
@@ -181,6 +191,16 @@ test.describe("Product detail page", () => {
       expect(rowCount).toBeGreaterThan(0);
       expect(rowCount).toBeLessThanOrEqual(5);
     }
+  });
+
+  test("'View all repositories' link includes product name and filters", async ({ page }) => {
+    await page.goto("/products/coderabbit");
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
+    const section = page.getByTestId("bot-top-repos");
+    if (await section.count() === 0) return; // skip if no repos
+    const link = section.getByRole("link", { name: /View all .* repositories using CodeRabbit/ });
+    if (await link.count() === 0) return; // skip if total <= TOP_N
+    await expect(link).toHaveAttribute("href", /\/repos\?products=coderabbit/);
   });
 
   test("bot detail page has no NaN or Infinity in any section", async ({
