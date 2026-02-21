@@ -20,5 +20,15 @@ test.describe("About page", () => {
     await expect(page.getByRole("heading", { name: /What Counts as a/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: /AI Share/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Products vs. Bots" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /PR Profile/ })).toBeVisible();
+  });
+
+  test("PR Profile section explains methodology", async ({ page }) => {
+    await page.goto("/about");
+    // Key caveats are present
+    await expect(page.getByText("Sample, not census.")).toBeVisible();
+    await expect(page.getByText("Correlation, not causation.")).toBeVisible();
+    // Links to compare table and status page
+    await expect(page.getByRole("link", { name: /comparison table/ })).toBeVisible();
   });
 });
