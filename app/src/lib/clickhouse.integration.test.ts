@@ -150,11 +150,84 @@ describe("clickhouse query integration tests", () => {
       format: "JSONEachRow",
     });
 
+    // --- Additional test data for org queries with reactions ---
+
+    // pr_bot_reactions: bot_b1 reacted to PRs in __test_org repos.
+    // PR 10 in repo-alpha: only a reaction (no event) → reaction-only PR
+    // PR 1 in repo-alpha: has both event (bot_a1) and reaction (bot_b1) → NOT reaction-only for bot_b1
+    await ch.insert({
+      table: "pr_bot_reactions",
+      values: [
+        { repo_name: "__test_org/repo-alpha", pr_number: 10, bot_id: BOT_B1, reaction_type: "hooray", reacted_at: "2020-01-08 12:00:00", reaction_id: 990001 },
+        { repo_name: "__test_org/repo-alpha", pr_number: 11, bot_id: BOT_B1, reaction_type: "hooray", reacted_at: "2020-01-08 13:00:00", reaction_id: 990002 },
+        { repo_name: "__test_org/repo-beta", pr_number: 20, bot_id: BOT_B1, reaction_type: "hooray", reacted_at: "2020-01-09 10:00:00", reaction_id: 990003 },
+        // This reaction IS reaction-only for bot_b1 (bot_b1 has no event on PR 1).
+        // However, it is NOT *exclusive* because bot_a1 has events on PR 1,
+        // so it won't appear in exclusive_pr_count (used by getOrgSummary/getOrgRepos).
+        // It WILL appear in getOrgProducts (per-bot NOT EXISTS check).
+        { repo_name: "__test_org/repo-alpha", pr_number: 1, bot_id: BOT_B1, reaction_type: "hooray", reacted_at: "2020-01-07 14:00:00", reaction_id: 990004 },
+      ],
+      format: "JSONEachRow",
+    });
+
+    // reaction_only_repo_counts: manually insert what the MV would compute.
+    // The MV is REFRESH EVERY 30 MINUTE so it won't auto-populate in tests.
+    // bot_b1 in repo-alpha: 2 reaction-only PRs (10, 11), both exclusive (no bot events on those PRs)
+    // bot_b1 in repo-beta: 1 reaction-only PR (20), exclusive
+    // bot_b1 reaction on PR 1 in repo-alpha: NOT counted because bot_a1 has events there
+    await ch.insert({
+      table: "reaction_only_repo_counts",
+      values: [
+        { repo_name: "__test_org/repo-alpha", bot_id: BOT_B1, pr_count: 2, exclusive_pr_count: 2 },
+        { repo_name: "__test_org/repo-beta", bot_id: BOT_B1, pr_count: 1, exclusive_pr_count: 1 },
+      ],
+      format: "JSONEachRow",
+    });
+
+    // pull_requests: for getPrCharacteristics tests
+    // PRs reviewed by bot_a1 (product_a): PR 1, 2 in repo-alpha, PR 3 in repo-beta
+    await ch.insert({
+      table: "pull_requests",
+      values: [
+        {
+          repo_name: "__test_org/repo-alpha", pr_number: 1, title: "feat: add feature",
+          author: "dev1", state: "merged",
+          created_at: "2020-01-06 10:00:00", merged_at: "2020-01-06 14:00:00",
+          additions: 100, deletions: 20, changed_files: 5,
+        },
+        {
+          repo_name: "__test_org/repo-alpha", pr_number: 2, title: "fix: bug fix",
+          author: "dev2", state: "merged",
+          created_at: "2020-01-07 08:00:00", merged_at: "2020-01-07 20:00:00",
+          additions: 50, deletions: 10, changed_files: 3,
+        },
+        {
+          repo_name: "__test_org/repo-beta", pr_number: 3, title: "chore: update deps",
+          author: "dev1", state: "closed",
+          created_at: "2020-01-14 09:00:00",
+          additions: 200, deletions: 100, changed_files: 8,
+        },
+      ],
+      format: "JSONEachRow",
+    });
+
+    // pr_comments in __test_org repos (for org summary comment counts)
+    await ch.insert({
+      table: "pr_comments",
+      values: [
+        { repo_name: "__test_org/repo-alpha", pr_number: 1, comment_id: 900010, bot_id: BOT_A1, body_length: 200, created_at: "2020-01-07 11:00:00", thumbs_up: 5, thumbs_down: 1, heart: 2 },
+        { repo_name: "__test_org/repo-alpha", pr_number: 2, comment_id: 900011, bot_id: BOT_A1, body_length: 150, created_at: "2020-01-07 12:00:00", thumbs_up: 3, thumbs_down: 0, heart: 1 },
+        { repo_name: "__test_org/repo-beta", pr_number: 3, comment_id: 900012, bot_id: BOT_A1, body_length: 100, created_at: "2020-01-14 10:00:00", thumbs_up: 2, thumbs_down: 2, heart: 0 },
+      ],
+      format: "JSONEachRow",
+    });
+
     // OPTIMIZE all tables
     for (const table of [
       "products", "bots", "bot_logins", "review_activity",
       "human_review_activity", "pr_comments", "reaction_only_review_counts",
       "repos", "pr_bot_events", "pr_bot_event_counts",
+      "pr_bot_reactions", "reaction_only_repo_counts", "pull_requests",
     ]) {
       await ch.command({ query: `OPTIMIZE TABLE ${table} FINAL` });
     }
@@ -171,10 +244,14 @@ describe("clickhouse query integration tests", () => {
       // These 2020 dates are safely before the 2023 data epoch.
       `ALTER TABLE human_review_activity DELETE WHERE week IN ('${W1}','${W2}','${W3}','${W4}')`,
       `ALTER TABLE pr_comments DELETE WHERE bot_id LIKE '__test_%'`,
+      `ALTER TABLE pr_comments DELETE WHERE repo_name LIKE '__test_%'`,
       `ALTER TABLE reaction_only_review_counts DELETE WHERE bot_id LIKE '__test_%'`,
       `ALTER TABLE repos DELETE WHERE name LIKE '__test_%'`,
       `ALTER TABLE pr_bot_events DELETE WHERE repo_name LIKE '__test_%'`,
       `ALTER TABLE pr_bot_event_counts DELETE WHERE repo_name LIKE '__test_%'`,
+      `ALTER TABLE pr_bot_reactions DELETE WHERE repo_name LIKE '__test_%'`,
+      `ALTER TABLE reaction_only_repo_counts DELETE WHERE repo_name LIKE '__test_%'`,
+      `ALTER TABLE pull_requests DELETE WHERE repo_name LIKE '__test_%'`,
     ];
     for (const sql of deletes) {
       await ch.command({ query: sql });
@@ -343,9 +420,13 @@ describe("clickhouse query integration tests", () => {
       `);
 
       assert.equal(rows.length, 1);
-      assert.equal(Number(rows[0].thumbs_up), 80);
-      assert.equal(Number(rows[0].thumbs_down), 20);
-      assert.equal(Number(rows[0].approval_rate), 80, "approval_rate should be 80% (80/(80+20)*100)");
+      // Original comment: thumbs_up=80, thumbs_down=20
+      // Org comments: thumbs_up=5+3+2=10, thumbs_down=1+0+2=3
+      // Total: thumbs_up=90, thumbs_down=23
+      assert.equal(Number(rows[0].thumbs_up), 90);
+      assert.equal(Number(rows[0].thumbs_down), 23);
+      // approval_rate = 90 / (90+23) * 100 = 79.6%
+      assert.equal(Number(rows[0].approval_rate), 79.6, "approval_rate should be 90/(90+23)*100");
     });
   });
 
@@ -494,6 +575,431 @@ describe("clickhouse query integration tests", () => {
       assert.equal(first.name, "__test_org/repo-alpha");
       assert.equal(Number(first.stars), 5000);
       assert.equal(first.primary_language, "TypeScript");
+    });
+  });
+
+  // ─── Org queries with reaction-only reviews ────────────────────────────
+
+  describe("getOrgSummary — includes reaction-only PRs", () => {
+    it("total_prs = event PRs + exclusive reaction-only PRs", async () => {
+      // Mirrors the query from getOrgSummary in clickhouse.ts.
+      // __test_org has:
+      //   - 3 event PRs from bot_a1 (PR 1, 2 in repo-alpha, PR 3 in repo-beta)
+      //   - 3 exclusive reaction-only PRs from bot_b1 (PR 10, 11 in repo-alpha, PR 20 in repo-beta)
+      //   - 1 non-exclusive reaction (PR 1 already has event) → not counted
+      // total_prs = 3 + 3 = 6
+      const rows = await q<{
+        owner: string; total_stars: string; repo_count: string;
+        total_prs: string; total_bot_comments: string;
+        thumbs_up: string; thumbs_down: string; heart: string;
+      }>(ch, `
+        SELECT
+          r.owner AS owner,
+          sum(r.stars) AS total_stars,
+          count() AS repo_count,
+          groupUniqArray(r.primary_language) AS languages,
+          COALESCE(any(ev.event_prs), 0) + COALESCE(any(rr.exclusive_reaction_prs), 0) AS total_prs,
+          COALESCE(any(cm.total_bot_comments), 0) AS total_bot_comments,
+          COALESCE(any(cm.thumbs_up), 0) AS thumbs_up,
+          COALESCE(any(cm.thumbs_down), 0) AS thumbs_down,
+          COALESCE(any(cm.heart), 0) AS heart
+        FROM repos r
+        LEFT JOIN (
+          SELECT r2.owner,
+            countDistinct(e.repo_name, e.pr_number) AS event_prs
+          FROM pr_bot_events e
+          JOIN repos r2 ON e.repo_name = r2.name
+          WHERE r2.owner = '__test_org' AND r2.fetch_status = 'ok'
+          GROUP BY r2.owner
+        ) ev ON r.owner = ev.owner
+        LEFT JOIN (
+          SELECT r2.owner,
+            sum(repo_exclusive) AS exclusive_reaction_prs
+          FROM (
+            SELECT rrc.repo_name,
+              max(rrc.exclusive_pr_count) AS repo_exclusive
+            FROM reaction_only_repo_counts rrc
+            WHERE rrc.repo_name IN (SELECT name FROM repos WHERE owner = '__test_org' AND fetch_status = 'ok')
+            GROUP BY rrc.repo_name
+          ) repo_agg
+          JOIN repos r2 ON repo_agg.repo_name = r2.name
+          GROUP BY r2.owner
+        ) rr ON r.owner = rr.owner
+        LEFT JOIN (
+          SELECT
+            r3.owner,
+            countIf(c.comment_id > 0) AS total_bot_comments,
+            sumIf(c.thumbs_up, c.comment_id > 0) AS thumbs_up,
+            sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
+            sumIf(c.heart, c.comment_id > 0) AS heart
+          FROM pr_comments c
+          JOIN repos r3 ON c.repo_name = r3.name
+          WHERE r3.owner = '__test_org' AND r3.fetch_status = 'ok'
+          GROUP BY r3.owner
+        ) cm ON r.owner = cm.owner
+        WHERE r.fetch_status = 'ok' AND r.owner = '__test_org'
+        GROUP BY r.owner
+      `);
+
+      assert.equal(rows.length, 1, "Should return exactly one org");
+      const org = rows[0];
+      assert.equal(org.owner, "__test_org");
+      assert.equal(Number(org.total_stars), 8000, "5000 + 3000 stars");
+      assert.equal(Number(org.repo_count), 2);
+
+      // 3 event PRs + 3 exclusive reaction-only PRs = 6
+      assert.equal(Number(org.total_prs), 6, "event PRs (3) + exclusive reaction PRs (3)");
+
+      // 3 bot comments from pr_comments inserts (in __test_org repos)
+      assert.equal(Number(org.total_bot_comments), 3);
+      assert.equal(Number(org.thumbs_up), 10, "5 + 3 + 2 = 10");
+      assert.equal(Number(org.thumbs_down), 3, "1 + 0 + 2 = 3");
+      assert.equal(Number(org.heart), 3, "2 + 1 + 0 = 3");
+    });
+  });
+
+  describe("getOrgRepos — includes reaction-only PRs per repo", () => {
+    it("pr_count = event PRs + exclusive reaction-only PRs per repo", async () => {
+      // Mirrors getOrgRepos query from clickhouse.ts.
+      const rows = await q<{
+        name: string; stars: string; primary_language: string;
+        pr_count: string; bot_comment_count: string;
+      }>(ch, `
+        SELECT
+          r.name AS name,
+          r.stars AS stars,
+          r.primary_language AS primary_language,
+          COALESCE(ev.event_prs, 0) + COALESCE(rr.exclusive_reaction_prs, 0) AS pr_count,
+          COALESCE(cm.bot_comment_count, 0) AS bot_comment_count
+        FROM repos r
+        LEFT JOIN (
+          SELECT repo_name, countDistinct(pr_number) AS event_prs
+          FROM pr_bot_events
+          WHERE repo_name IN (SELECT name FROM repos WHERE owner = '__test_org' AND fetch_status = 'ok')
+          GROUP BY repo_name
+        ) ev ON r.name = ev.repo_name
+        LEFT JOIN (
+          SELECT repo_name,
+            max(exclusive_pr_count) AS exclusive_reaction_prs
+          FROM reaction_only_repo_counts
+          WHERE repo_name IN (SELECT name FROM repos WHERE owner = '__test_org' AND fetch_status = 'ok')
+          GROUP BY repo_name
+        ) rr ON r.name = rr.repo_name
+        LEFT JOIN (
+          SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
+          FROM pr_comments
+          WHERE repo_name IN (SELECT name FROM repos WHERE owner = '__test_org' AND fetch_status = 'ok')
+          GROUP BY repo_name
+        ) cm ON r.name = cm.repo_name
+        WHERE r.fetch_status = 'ok' AND r.owner = '__test_org'
+        ORDER BY r.stars DESC
+      `);
+
+      assert.equal(rows.length, 2);
+
+      // repo-alpha: 2 event PRs (1, 2) + 2 exclusive reaction PRs (10, 11) = 4
+      const alpha = rows.find(r => r.name === "__test_org/repo-alpha")!;
+      assert.ok(alpha, "repo-alpha should exist");
+      assert.equal(Number(alpha.pr_count), 4, "repo-alpha: 2 event + 2 reaction-only = 4");
+      assert.equal(Number(alpha.bot_comment_count), 2, "repo-alpha: 2 comments");
+
+      // repo-beta: 1 event PR (3) + 1 exclusive reaction PR (20) = 2
+      const beta = rows.find(r => r.name === "__test_org/repo-beta")!;
+      assert.ok(beta, "repo-beta should exist");
+      assert.equal(Number(beta.pr_count), 2, "repo-beta: 1 event + 1 reaction-only = 2");
+      assert.equal(Number(beta.bot_comment_count), 1, "repo-beta: 1 comment");
+    });
+  });
+
+  describe("getOrgProducts — includes reaction-only products", () => {
+    it("shows both event-based and reaction-only products with correct PR counts", async () => {
+      // Mirrors getOrgProducts from clickhouse.ts.
+      // Product A (bot_a1): 3 event PRs
+      // Product B (bot_b1): 3 reaction-only PRs + 1 reaction on existing event PR (PR 1)
+      // The reaction on PR 1 should be excluded by NOT EXISTS (bot_b1 has no event on PR 1,
+      // but bot_a1 does — however the NOT EXISTS checks per-bot, so bot_b1's reaction on PR 1
+      // IS reaction-only for bot_b1 since bot_b1 has no event on PR 1)
+      const rows = await q<{
+        product_id: string; product_name: string; pr_count: string; event_count: string;
+      }>(ch, `
+        SELECT
+          product_id,
+          any(product_name) AS product_name,
+          any(brand_color) AS brand_color,
+          any(avatar_url) AS avatar_url,
+          countDistinct(repo_name, pr_number) AS pr_count,
+          sum(is_event) AS event_count
+        FROM (
+          SELECT p.id AS product_id, p.name AS product_name,
+            p.brand_color AS brand_color, p.avatar_url AS avatar_url,
+            e.repo_name AS repo_name, e.pr_number AS pr_number, 1 AS is_event
+          FROM pr_bot_events e
+          JOIN repos r ON e.repo_name = r.name
+          JOIN bots b ON e.bot_id = b.id
+          JOIN products p ON b.product_id = p.id
+          WHERE r.fetch_status = 'ok' AND r.owner = '__test_org'
+          UNION ALL
+          SELECT p.id AS product_id, p.name AS product_name,
+            p.brand_color AS brand_color, p.avatar_url AS avatar_url,
+            rx.repo_name AS repo_name, rx.pr_number AS pr_number, 0 AS is_event
+          FROM pr_bot_reactions rx FINAL
+          JOIN repos r ON rx.repo_name = r.name
+          JOIN bots b ON rx.bot_id = b.id
+          JOIN products p ON b.product_id = p.id
+          WHERE rx.reaction_type = 'hooray'
+            AND r.fetch_status = 'ok' AND r.owner = '__test_org'
+            AND NOT EXISTS (
+              SELECT 1 FROM pr_bot_events e
+              WHERE e.repo_name = rx.repo_name AND e.pr_number = rx.pr_number AND e.bot_id = rx.bot_id
+            )
+        )
+        GROUP BY product_id
+        ORDER BY pr_count DESC
+      `);
+
+      // Both products should appear
+      assert.ok(rows.length >= 2, `Expected at least 2 products, got ${rows.length}`);
+
+      const prodA = rows.find(r => r.product_id === PRODUCT_A)!;
+      assert.ok(prodA, "Product A should appear (has events)");
+      assert.equal(Number(prodA.pr_count), 3, "Product A: 3 distinct event PRs");
+      assert.equal(Number(prodA.event_count), 3, "Product A: 3 events");
+
+      const prodB = rows.find(r => r.product_id === PRODUCT_B)!;
+      assert.ok(prodB, "Product B should appear (reaction-only)");
+      // bot_b1 has reactions on PR 10, 11, 20 (reaction-only) + PR 1 (also reaction-only for bot_b1)
+      assert.equal(Number(prodB.pr_count), 4, "Product B: 4 reaction-only PRs (10, 11, 20, 1)");
+      assert.equal(Number(prodB.event_count), 0, "Product B: 0 events (all reaction-only)");
+    });
+  });
+
+  describe("getOrgList — with product filter and reactions", () => {
+    it("returns org with correct totals when filtered by product", async () => {
+      // Mirrors the getOrgList query filtered by product.
+      // When filtered by PRODUCT_A, only event-based PRs should count.
+      const rows = await q<{
+        owner: string; total_stars: string; repo_count: string;
+        total_prs: string; product_ids: string[];
+      }>(ch, `
+        SELECT
+          r.owner AS owner,
+          sum(r.stars) AS total_stars,
+          count() AS repo_count,
+          groupUniqArray(r.primary_language) AS languages,
+          COALESCE(any(pr.total_prs), 0) + COALESCE(any(rr.exclusive_reaction_prs), 0) AS total_prs,
+          arrayDistinct(arrayConcat(
+            COALESCE(any(pr.product_ids), []),
+            COALESCE(any(rr.reaction_product_ids), [])
+          )) AS product_ids
+        FROM repos r
+        LEFT JOIN (
+          SELECT
+            r2.owner,
+            sum(repo_pr_count) AS total_prs,
+            arrayDistinct(arrayFlatten(groupArray(repo_product_ids))) AS product_ids
+          FROM (
+            SELECT s.repo_name,
+              uniqExactMerge(s.pr_count) AS repo_pr_count,
+              groupUniqArray(b.product_id) AS repo_product_ids
+            FROM pr_bot_event_counts s
+            JOIN bots b ON s.bot_id = b.id
+            WHERE b.product_id IN ('${PRODUCT_A}')
+            GROUP BY s.repo_name
+          ) repo_agg
+          JOIN repos r2 ON repo_agg.repo_name = r2.name
+          WHERE r2.fetch_status = 'ok'
+          GROUP BY r2.owner
+        ) pr ON r.owner = pr.owner
+        LEFT JOIN (
+          SELECT r2.owner,
+            sum(repo_agg.repo_exclusive) AS exclusive_reaction_prs,
+            sum(repo_agg.repo_activity) AS reaction_activity,
+            arrayDistinct(arrayFlatten(groupArray(repo_agg.repo_product_ids))) AS reaction_product_ids
+          FROM (
+            SELECT rrc.repo_name,
+              max(rrc.exclusive_pr_count) AS repo_exclusive,
+              sum(rrc.pr_count) AS repo_activity,
+              groupUniqArray(b.product_id) AS repo_product_ids
+            FROM reaction_only_repo_counts rrc
+            JOIN bots b ON rrc.bot_id = b.id
+            WHERE 1=1
+              AND b.product_id IN ('${PRODUCT_A}')
+            GROUP BY rrc.repo_name
+          ) repo_agg
+          JOIN repos r2 ON repo_agg.repo_name = r2.name
+          WHERE r2.fetch_status = 'ok'
+          GROUP BY r2.owner
+        ) rr ON r.owner = rr.owner
+        WHERE r.fetch_status = 'ok' AND r.owner = '__test_org'
+        GROUP BY r.owner
+        HAVING (COALESCE(any(pr.total_prs), 0) > 0 OR COALESCE(any(rr.reaction_activity), 0) > 0)
+      `);
+
+      assert.equal(rows.length, 1, "Should return __test_org");
+      const org = rows[0];
+      // PRODUCT_A has only events (3 PRs), no reactions in reaction_only_repo_counts
+      assert.equal(Number(org.total_prs), 3, "Filtered by product A: only 3 event PRs");
+      assert.ok(org.product_ids.includes(PRODUCT_A), "product_ids should include product A");
+    });
+
+    it("search filter works with ILIKE", async () => {
+      // Use exact test org name — real repos exist with patterns like "*test-org*"
+      const rows = await q<{ owner: string }>(ch, `
+        SELECT r.owner AS owner,
+          sum(r.stars) AS total_stars,
+          count() AS repo_count
+        FROM repos r
+        WHERE r.fetch_status = 'ok' AND r.owner ILIKE '__test\\_org'
+        GROUP BY r.owner
+      `);
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].owner, "__test_org");
+    });
+  });
+
+  // ─── getPrCharacteristics ─────────────────────────────────────────────
+
+  describe("getPrCharacteristics", () => {
+    it("returns correct averages for PRs reviewed by a product", async () => {
+      // Product A (bot_a1) reviewed PRs 1, 2, 3.
+      // PR 1: additions=100, deletions=20, changed_files=5, merged (4h to merge)
+      // PR 2: additions=50,  deletions=10, changed_files=3, merged (12h to merge)
+      // PR 3: additions=200, deletions=100, changed_files=8, closed (not merged)
+      const rows = await q<{
+        sampled_prs: string; avg_additions: string; avg_deletions: string;
+        avg_changed_files: string; merge_rate: string; avg_hours_to_merge: string;
+      }>(ch, `
+        SELECT
+          count() AS sampled_prs,
+          round(avg(p.additions), 0) AS avg_additions,
+          round(avg(p.deletions), 0) AS avg_deletions,
+          round(avg(p.changed_files), 1) AS avg_changed_files,
+          round(countIf(p.state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+          round(avg(if(p.state = 'merged' AND p.merged_at IS NOT NULL,
+            dateDiff('hour', p.created_at, p.merged_at), NULL)), 1) AS avg_hours_to_merge
+        FROM (
+          SELECT DISTINCT e.repo_name, e.pr_number
+          FROM pr_bot_events e
+          JOIN bots b ON e.bot_id = b.id
+          WHERE b.product_id = '${PRODUCT_A}'
+        ) AS de
+        JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number
+      `);
+
+      assert.equal(rows.length, 1);
+      const r = rows[0];
+      assert.equal(Number(r.sampled_prs), 3, "3 PRs reviewed by product A");
+
+      // avg additions: (100 + 50 + 200) / 3 = 116.67 → rounds to 117
+      assert.equal(Number(r.avg_additions), 117);
+
+      // avg deletions: (20 + 10 + 100) / 3 = 43.33 → rounds to 43
+      assert.equal(Number(r.avg_deletions), 43);
+
+      // avg changed_files: (5 + 3 + 8) / 3 = 5.333 → rounds to 5.3
+      assert.equal(Number(r.avg_changed_files), 5.3);
+
+      // merge_rate: 2 merged out of 3 = 66.7%
+      assert.equal(Number(r.merge_rate), 66.7);
+
+      // avg_hours_to_merge: only merged PRs → (4 + 12) / 2 = 8.0
+      assert.equal(Number(r.avg_hours_to_merge), 8);
+    });
+
+    it("returns zero sampled_prs for product with no pull_requests data", async () => {
+      // Product B bots have no entries in pull_requests table
+      const rows = await q<{ sampled_prs: string }>(ch, `
+        SELECT count() AS sampled_prs
+        FROM (
+          SELECT DISTINCT e.repo_name, e.pr_number
+          FROM pr_bot_events e
+          JOIN bots b ON e.bot_id = b.id
+          WHERE b.product_id = '${PRODUCT_B}'
+        ) AS de
+        JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number
+      `);
+
+      assert.equal(rows.length, 1);
+      assert.equal(Number(rows[0].sampled_prs), 0, "Product B has no PR events → 0 sampled PRs");
+    });
+  });
+
+  // ─── getTopReposByProduct — correctness ───────────────────────────────
+
+  describe("getTopReposByProduct — correctness", () => {
+    it("returns repos ordered by stars with correct PR counts", async () => {
+      const rows = await q<{
+        name: string; owner: string; stars: string;
+        primary_language: string; pr_count: string;
+      }>(ch, `
+        SELECT
+          r.name AS name,
+          r.owner AS owner,
+          r.stars AS stars,
+          r.primary_language AS primary_language,
+          uniqExactMerge(s.pr_count) AS pr_count
+        FROM pr_bot_event_counts s
+        JOIN bots b ON s.bot_id = b.id
+        JOIN repos r ON s.repo_name = r.name
+        WHERE b.product_id = '${PRODUCT_A}'
+          AND r.fetch_status = 'ok'
+        GROUP BY r.name, r.owner, r.stars, r.primary_language
+        ORDER BY r.stars DESC
+        LIMIT 5
+      `);
+
+      assert.equal(rows.length, 2, "Two repos have events for product A");
+
+      // First: repo-alpha (5000 stars) with 2 PRs
+      assert.equal(rows[0].name, "__test_org/repo-alpha");
+      assert.equal(Number(rows[0].stars), 5000);
+      assert.equal(Number(rows[0].pr_count), 2, "repo-alpha has PR 1 and PR 2");
+      assert.equal(rows[0].primary_language, "TypeScript");
+
+      // Second: repo-beta (3000 stars) with 1 PR
+      assert.equal(rows[1].name, "__test_org/repo-beta");
+      assert.equal(Number(rows[1].stars), 3000);
+      assert.equal(Number(rows[1].pr_count), 1, "repo-beta has PR 3");
+      assert.equal(rows[1].primary_language, "Python");
+    });
+
+    it("respects LIMIT parameter", async () => {
+      const rows = await q<{ name: string }>(ch, `
+        SELECT
+          r.name AS name,
+          r.owner AS owner,
+          r.stars AS stars,
+          r.primary_language AS primary_language,
+          uniqExactMerge(s.pr_count) AS pr_count
+        FROM pr_bot_event_counts s
+        JOIN bots b ON s.bot_id = b.id
+        JOIN repos r ON s.repo_name = r.name
+        WHERE b.product_id = '${PRODUCT_A}'
+          AND r.fetch_status = 'ok'
+        GROUP BY r.name, r.owner, r.stars, r.primary_language
+        ORDER BY r.stars DESC
+        LIMIT 1
+      `);
+
+      assert.equal(rows.length, 1, "Should respect LIMIT 1");
+      assert.equal(rows[0].name, "__test_org/repo-alpha");
+    });
+
+    it("returns empty for product with no events", async () => {
+      const rows = await q<{ name: string }>(ch, `
+        SELECT
+          r.name AS name,
+          uniqExactMerge(s.pr_count) AS pr_count
+        FROM pr_bot_event_counts s
+        JOIN bots b ON s.bot_id = b.id
+        JOIN repos r ON s.repo_name = r.name
+        WHERE b.product_id = 'nonexistent_product'
+          AND r.fetch_status = 'ok'
+        GROUP BY r.name
+        LIMIT 5
+      `);
+
+      assert.equal(rows.length, 0, "No repos for nonexistent product");
     });
   });
 });
