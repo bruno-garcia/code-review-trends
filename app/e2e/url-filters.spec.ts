@@ -322,13 +322,13 @@ test.describe("Table sort in URL", () => {
     await page.goto("/compare");
     const table = page.getByTestId("compare-table");
 
-    // Click "Total Reviews" column header
-    await table.getByRole("button", { name: "Total Reviews" }).click();
+    // Click "Reviews" column header
+    await table.getByRole("button", { name: "Reviews" }).click();
     await page.waitForTimeout(200);
     expect(page.url()).toContain("sort=total_reviews");
 
     // Click again to flip direction
-    await table.getByRole("button", { name: "Total Reviews" }).click();
+    await table.getByRole("button", { name: "Reviews" }).click();
     await page.waitForTimeout(200);
     expect(page.url()).toContain("dir=asc");
   });
@@ -337,8 +337,8 @@ test.describe("Table sort in URL", () => {
     await page.goto("/compare?sort=total_reviews&dir=asc");
     const table = page.getByTestId("compare-table");
 
-    // The "Total Reviews" header should show the sort indicator
-    const header = table.getByRole("button", { name: /Total Reviews/ });
+    // The "Reviews" header should show the sort indicator
+    const header = table.getByRole("button", { name: /^Reviews/ });
     await expect(header).toContainText("↑");
   });
 
@@ -366,7 +366,7 @@ test.describe("Hash anchors", () => {
 
     const table = page.getByTestId("compare-table");
     await table
-      .getByRole("button", { name: "Total Reviews" })
+      .getByRole("button", { name: "Reviews" })
       .click();
 
     await page.waitForTimeout(200);
@@ -402,10 +402,10 @@ test.describe("Full shareable URL", () => {
       "true",
     );
 
-    // Sort: Total Reviews ascending
+    // Sort: Reviews ascending
     const header = page
       .getByTestId("compare-table")
-      .getByRole("button", { name: /Total Reviews/ });
+      .getByRole("button", { name: /^Reviews/ });
     await expect(header).toContainText("↑");
   });
 

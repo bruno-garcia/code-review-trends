@@ -1236,26 +1236,43 @@ export type TopRepoByProduct = {
 export async function getTopReposByProduct(
   productId: string,
   limit: number = 5,
-): Promise<TopRepoByProduct[]> {
-  return query<TopRepoByProduct>(
-    `
-    SELECT
-      r.name AS name,
-      r.owner AS owner,
-      r.stars AS stars,
-      r.primary_language AS primary_language,
-      uniqExactMerge(s.pr_count) AS pr_count
-    FROM pr_bot_event_counts s
-    JOIN bots b ON s.bot_id = b.id
-    JOIN repos r ON s.repo_name = r.name
-    WHERE b.product_id = {productId:String}
-      AND r.fetch_status = 'ok'
-    GROUP BY r.name, r.owner, r.stars, r.primary_language
-    ORDER BY r.stars DESC
-    LIMIT {limit:UInt32}
-    `,
-    { productId, limit },
-  );
+): Promise<{ repos: TopRepoByProduct[]; total: number }> {
+  const [repos, countRows] = await Promise.all([
+    query<TopRepoByProduct>(
+      `
+      SELECT
+        r.name AS name,
+        r.owner AS owner,
+        r.stars AS stars,
+        r.primary_language AS primary_language,
+        uniqExactMerge(s.pr_count) AS pr_count
+      FROM pr_bot_event_counts s
+      JOIN bots b ON s.bot_id = b.id
+      JOIN repos r ON s.repo_name = r.name
+      WHERE b.product_id = {productId:String}
+        AND r.fetch_status = 'ok'
+      GROUP BY r.name, r.owner, r.stars, r.primary_language
+      ORDER BY r.stars DESC
+      LIMIT {limit:UInt32}
+      `,
+      { productId, limit },
+    ),
+    query<{ cnt: number }>(
+      `
+      SELECT count() AS cnt FROM (
+        SELECT r.name
+        FROM pr_bot_event_counts s
+        JOIN bots b ON s.bot_id = b.id
+        JOIN repos r ON s.repo_name = r.name
+        WHERE b.product_id = {productId:String}
+          AND r.fetch_status = 'ok'
+        GROUP BY r.name
+      )
+      `,
+      { productId },
+    ),
+  ]);
+  return { repos, total: Number(countRows[0]?.cnt ?? 0) };
 }
 
 // --- Organization listing queries ---
