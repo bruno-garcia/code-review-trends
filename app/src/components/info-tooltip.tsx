@@ -2,14 +2,19 @@
  * Reusable tooltip with ⓘ icon.
  * Pure CSS (group-hover + group-focus-within), no JS needed.
  * Keyboard accessible via tabIndex on the wrapper.
+ *
+ * Pass `text` for plain-text tooltips, or `content` for rich JSX (e.g. links).
  */
 export function InfoTooltip({
   text,
+  content,
   children,
 }: {
-  text: string;
+  text?: string;
+  content?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const tooltip = content ?? text;
   return (
     <span className="relative group/tip inline-flex items-center outline-none" tabIndex={0}>
       {children}
@@ -20,7 +25,7 @@ export function InfoTooltip({
         role="tooltip"
         className="invisible group-hover/tip:visible group-focus-within/tip:visible absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-xs leading-relaxed text-theme-text bg-theme-surface-alt border border-theme-border rounded-lg shadow-lg w-72 whitespace-normal"
       >
-        {text}
+        {tooltip}
       </span>
     </span>
   );
