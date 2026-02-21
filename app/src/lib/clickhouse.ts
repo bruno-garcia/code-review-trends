@@ -1136,7 +1136,7 @@ export async function getTopReposByProduct(
   return query<TopRepoByProduct>(
     `
     SELECT
-      r.name,
+      r.name AS name,
       r.owner,
       r.stars,
       r.primary_language,
