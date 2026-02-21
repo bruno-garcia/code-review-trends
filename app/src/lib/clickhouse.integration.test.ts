@@ -128,10 +128,33 @@ describe("clickhouse query integration tests", () => {
       format: "JSONEachRow",
     });
 
+    // repos: two repos in __test_org, with different star counts
+    await ch.insert({
+      table: "repos",
+      values: [
+        { name: "__test_org/repo-alpha", owner: "__test_org", stars: 5000, primary_language: "TypeScript", fork: false, archived: false, fetch_status: "ok" },
+        { name: "__test_org/repo-beta", owner: "__test_org", stars: 3000, primary_language: "Python", fork: false, archived: false, fetch_status: "ok" },
+      ],
+      format: "JSONEachRow",
+    });
+
+    // pr_bot_events: bot_a1 reviewed PRs in both repos
+    // This populates the pr_bot_event_counts materialized view automatically.
+    await ch.insert({
+      table: "pr_bot_events",
+      values: [
+        { repo_name: "__test_org/repo-alpha", pr_number: 1, bot_id: BOT_A1, actor_login: "test-bot-a1", event_type: "review", event_week: W1 },
+        { repo_name: "__test_org/repo-alpha", pr_number: 2, bot_id: BOT_A1, actor_login: "test-bot-a1", event_type: "review", event_week: W1 },
+        { repo_name: "__test_org/repo-beta", pr_number: 3, bot_id: BOT_A1, actor_login: "test-bot-a1", event_type: "review", event_week: W2 },
+      ],
+      format: "JSONEachRow",
+    });
+
     // OPTIMIZE all tables
     for (const table of [
       "products", "bots", "bot_logins", "review_activity",
       "human_review_activity", "pr_comments", "reaction_only_review_counts",
+      "repos", "pr_bot_events", "pr_bot_event_counts",
     ]) {
       await ch.command({ query: `OPTIMIZE TABLE ${table} FINAL` });
     }
@@ -149,6 +172,9 @@ describe("clickhouse query integration tests", () => {
       `ALTER TABLE human_review_activity DELETE WHERE week IN ('${W1}','${W2}','${W3}','${W4}')`,
       `ALTER TABLE pr_comments DELETE WHERE bot_id LIKE '__test_%'`,
       `ALTER TABLE reaction_only_review_counts DELETE WHERE bot_id LIKE '__test_%'`,
+      `ALTER TABLE repos DELETE WHERE name LIKE '__test_%'`,
+      `ALTER TABLE pr_bot_events DELETE WHERE repo_name LIKE '__test_%'`,
+      `ALTER TABLE pr_bot_event_counts DELETE WHERE repo_name LIKE '__test_%'`,
     ];
     for (const sql of deletes) {
       await ch.command({ query: sql });
@@ -360,6 +386,114 @@ describe("clickhouse query integration tests", () => {
       assert.equal(Number(w2.bot_reviews), 550);
       assert.equal(Number(w2.human_reviews), 1200);
       assert.equal(Number(w2.bot_share_pct), 31.43);
+    });
+  });
+
+  // Regression: ClickHouse disambiguates column names when JOINed tables share
+  // a column name. Without explicit AS aliases, "SELECT r.name" returns the JSON
+  // key "r.name" instead of "name" when repos is joined with bots (both have a
+  // "name" column). This caused links to render as https://github.com/undefined.
+  describe("getTopReposByProduct — column alias regression", () => {
+    it("returns 'name' and 'owner' keys (not 'r.name', 'r.owner')", async () => {
+      // This is the exact query from getTopReposByProduct in clickhouse.ts.
+      // The JOIN repos+bots creates column ambiguity on "name".
+      const rows = await q<Record<string, unknown>>(ch, `
+        SELECT
+          r.name AS name,
+          r.owner AS owner,
+          r.stars AS stars,
+          r.primary_language AS primary_language,
+          uniqExactMerge(s.pr_count) AS pr_count
+        FROM pr_bot_event_counts s
+        JOIN bots b ON s.bot_id = b.id
+        JOIN repos r ON s.repo_name = r.name
+        WHERE b.product_id = '${PRODUCT_A}'
+          AND r.fetch_status = 'ok'
+        GROUP BY r.name, r.owner, r.stars, r.primary_language
+        ORDER BY r.stars DESC
+      `);
+
+      assert.ok(rows.length > 0, "Should return repos for test product");
+
+      // Verify JSON keys are correct (the actual regression)
+      const first = rows[0];
+      assert.ok("name" in first, "Result should have 'name' key");
+      assert.ok("owner" in first, "Result should have 'owner' key");
+      assert.ok("stars" in first, "Result should have 'stars' key");
+      assert.ok("primary_language" in first, "Result should have 'primary_language' key");
+      assert.ok("pr_count" in first, "Result should have 'pr_count' key");
+      assert.ok(!("r.name" in first), "Should NOT have 'r.name' key — missing AS alias");
+      assert.ok(!("r.owner" in first), "Should NOT have 'r.owner' key — missing AS alias");
+
+      // Verify actual values
+      assert.equal(first.name, "__test_org/repo-alpha", "First repo should be repo-alpha (5000 stars)");
+      assert.equal(first.owner, "__test_org");
+      assert.equal(Number(first.stars), 5000);
+      assert.equal(first.primary_language, "TypeScript");
+      assert.equal(Number(first.pr_count), 2, "repo-alpha has 2 distinct PRs");
+
+      // Second repo
+      assert.equal(rows.length, 2);
+      assert.equal(rows[1].name, "__test_org/repo-beta");
+      assert.equal(Number(rows[1].pr_count), 1, "repo-beta has 1 PR");
+    });
+
+    it("without AS aliases, ClickHouse returns prefixed keys for ambiguous columns", async () => {
+      // Proves the bug: when repos and bots are JOINed, both have "name",
+      // so ClickHouse disambiguates by prefixing with the table alias.
+      // This test documents the ClickHouse behavior that caused the bug.
+      const rows = await q<Record<string, unknown>>(ch, `
+        SELECT
+          r.name,
+          r.owner
+        FROM pr_bot_event_counts s
+        JOIN bots b ON s.bot_id = b.id
+        JOIN repos r ON s.repo_name = r.name
+        WHERE b.product_id = '${PRODUCT_A}'
+          AND r.fetch_status = 'ok'
+        GROUP BY r.name, r.owner
+        LIMIT 1
+      `);
+
+      assert.ok(rows.length > 0, "Should return at least one row");
+      const keys = Object.keys(rows[0]);
+      // "name" is ambiguous (repos.name vs bots.name), so ClickHouse returns "r.name".
+      // "owner" is unambiguous (only repos has it), so ClickHouse returns "owner".
+      assert.ok(
+        keys.includes("r.name"),
+        `Expected 'r.name' in keys when AS alias is missing (got: ${keys.join(", ")})`,
+      );
+      assert.ok(
+        keys.includes("owner"),
+        `Unambiguous column 'owner' should not be prefixed (got: ${keys.join(", ")})`,
+      );
+    });
+  });
+
+  describe("getOrgRepos — column alias consistency", () => {
+    it("returns 'name', 'stars', 'primary_language' keys", async () => {
+      // This is the core SELECT from getOrgRepos in clickhouse.ts.
+      const rows = await q<Record<string, unknown>>(ch, `
+        SELECT
+          r.name AS name,
+          r.stars AS stars,
+          r.primary_language AS primary_language
+        FROM repos r
+        WHERE r.fetch_status = 'ok' AND r.owner = '__test_org'
+        ORDER BY r.stars DESC
+      `);
+
+      assert.ok(rows.length === 2, `Expected 2 repos, got ${rows.length}`);
+
+      const first = rows[0];
+      assert.ok("name" in first, "Result should have 'name' key");
+      assert.ok("stars" in first, "Result should have 'stars' key");
+      assert.ok("primary_language" in first, "Result should have 'primary_language' key");
+      assert.ok(!("r.name" in first), "Should NOT have 'r.name' key");
+
+      assert.equal(first.name, "__test_org/repo-alpha");
+      assert.equal(Number(first.stars), 5000);
+      assert.equal(first.primary_language, "TypeScript");
     });
   });
 });

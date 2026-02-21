@@ -1036,9 +1036,9 @@ export async function getOrgRepos(owner: string): Promise<OrgRepo[]> {
   return query<OrgRepo>(
     `
     SELECT
-      r.name,
-      r.stars,
-      r.primary_language,
+      r.name AS name,
+      r.stars AS stars,
+      r.primary_language AS primary_language,
       COALESCE(ev.event_prs, 0) + COALESCE(rr.exclusive_reaction_prs, 0) AS pr_count,
       COALESCE(cm.bot_comment_count, 0) AS bot_comment_count
     FROM repos r
@@ -1137,9 +1137,9 @@ export async function getTopReposByProduct(
     `
     SELECT
       r.name AS name,
-      r.owner,
-      r.stars,
-      r.primary_language,
+      r.owner AS owner,
+      r.stars AS stars,
+      r.primary_language AS primary_language,
       uniqExactMerge(s.pr_count) AS pr_count
     FROM pr_bot_event_counts s
     JOIN bots b ON s.bot_id = b.id
