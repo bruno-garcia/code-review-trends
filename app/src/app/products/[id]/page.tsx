@@ -24,6 +24,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { JsonLd } from "@/components/json-ld";
 import { formatNumber, formatHours } from "@/lib/format";
 import { InfoTooltip } from "@/components/info-tooltip";
+import { ProductScopedLink } from "@/components/product-scoped-link";
 
 /** Max top orgs/repos shown on the bot detail page. */
 const TOP_N = 5;
@@ -395,12 +396,13 @@ export default async function ProductPage({
           </div>
           {topOrgs.total > TOP_N && (
             <div className="mt-4">
-              <Link
+              <ProductScopedLink
+                productId={id}
                 href={`/orgs?products=${id}`}
                 className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
               >
-                View all {topOrgs.total.toLocaleString()} organizations →
-              </Link>
+                View all {topOrgs.total.toLocaleString()} organizations using {product.name} →
+              </ProductScopedLink>
             </div>
           )}
         </section>
@@ -453,12 +455,13 @@ export default async function ProductPage({
           </div>
           {totalRepoCount > TOP_N && (
             <div className="mt-4">
-              <Link
+              <ProductScopedLink
+                productId={id}
                 href={`/repos?products=${id}`}
                 className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
               >
-                View all {totalRepoCount.toLocaleString()} repositories →
-              </Link>
+                View all {totalRepoCount.toLocaleString()} repositories using {product.name} →
+              </ProductScopedLink>
             </div>
           )}
         </section>
