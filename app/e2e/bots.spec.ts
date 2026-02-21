@@ -88,9 +88,10 @@ test.describe("Bot detail page", () => {
     await expect(page.getByTestId("toggle-repos")).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("shows comments per PR section", async ({ page }) => {
+  test("shows comments per PR in stats", async ({ page }) => {
     await page.goto("/bots/coderabbit");
-    await expect(page.getByTestId("bot-comments-per-pr")).toBeVisible();
+    const stats = page.getByTestId("bot-stats");
+    await expect(stats.getByText("Comments/PR")).toBeVisible();
   });
 
   test("renders multi-bot product page without errors", async ({ page }) => {
