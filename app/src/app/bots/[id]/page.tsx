@@ -202,7 +202,7 @@ export default async function ProductPage({
           <StatCard label="Active Repos" value={totalRepos.toLocaleString()} />
           <StatCard label="Organizations" value={totalOrgs.toLocaleString()} />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             label="Avg Comments/Review"
             value={avgCommentsPerReview.toFixed(1)}
@@ -210,6 +210,10 @@ export default async function ProductPage({
           <StatCard
             label="Comments/Repo"
             value={commentsPerRepo.toLocaleString()}
+          />
+          <StatCard
+            label="Comments/PR"
+            value={commentsPerPR.length > 0 ? Number(commentsPerPR[0].avg_comments_per_pr).toFixed(2) : "—"}
           />
           <StatCard
             label="Growth (12w)"
@@ -272,25 +276,6 @@ export default async function ProductPage({
         </section>
       )}
 
-
-      {/* Comments per PR */}
-      <section data-testid="bot-comments-per-pr">
-        <SectionHeading id="comments-per-pr">Comments per PR</SectionHeading>
-        {commentsPerPR.length > 0 ? (
-          <div className="bg-theme-surface rounded-xl p-5 border border-theme-border inline-block">
-            <p className="text-sm text-theme-muted">Avg Comments / PR</p>
-            <p className="text-3xl font-bold tabular-nums">
-              {Number(commentsPerPR[0].avg_comments_per_pr).toFixed(2)}
-            </p>
-            <p className="text-xs text-theme-muted/70 mt-1">
-              {Number(commentsPerPR[0].total_comments).toLocaleString()} comments across{" "}
-              {Number(commentsPerPR[0].total_prs).toLocaleString()} PRs
-            </p>
-          </div>
-        ) : (
-          <p className="text-theme-muted text-sm">No data</p>
-        )}
-      </section>
 
       {/* PR Characteristics */}
       {prChars && (
