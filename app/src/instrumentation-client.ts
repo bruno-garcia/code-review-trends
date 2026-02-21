@@ -38,70 +38,26 @@ Sentry.init({
   // Release tracking — matches the commit SHA from next.config.ts
   release: process.env.NEXT_PUBLIC_COMMIT_SHA,
 
-  // Filter out errors from browser extensions (not our code)
+  // Filter out errors from browser extensions (not our code).
+  // `ignoreErrors` drops events whose error message matches these patterns.
   ignoreErrors: [
-    // Browser extension errors (1Password, Dashlane, etc.)
+    // WebExtension API errors (1Password, Dashlane, etc.)
     /runtime\.sendMessage/i,
-    /Invalid call to runtime\.sendMessage/i,
-    // Extension-specific error messages
+    // 1Password-specific messages
     /get-frame-manager-configuration/i,
     /shell-plugins-site-config/i,
-    // Common extension patterns
-    /chrome-extension/i,
-    /moz-extension/i,
-    /safari-extension/i,
   ],
 
-  // Additional filtering for extension errors
-  beforeSend(event, hint) {
-    // Filter out errors from browser extension scripts
-    const error = hint.originalException;
-    
-    if (error && typeof error === 'object') {
-      const errorMessage = error.toString();
-      
-      // Check for browser extension error patterns
-      if (
-        errorMessage.includes('runtime.sendMessage') ||
-        errorMessage.includes('get-frame-manager-configuration') ||
-        errorMessage.includes('shell-plugins-site-config')
-      ) {
-        return null; // Don't send to Sentry
-      }
-    }
-
-    // Check breadcrumbs for extension-related errors
-    if (event.breadcrumbs) {
-      const hasExtensionBreadcrumb = event.breadcrumbs.some((breadcrumb) => {
-        const message = breadcrumb.message || '';
-        return (
-          message.includes('get-frame-manager-configuration') ||
-          message.includes('shell-plugins-site-config')
-        );
-      });
-
-      if (hasExtensionBreadcrumb) {
-        return null; // Don't send to Sentry
-      }
-    }
-
-    // Check exception messages
-    if (event.exception?.values) {
-      const hasExtensionError = event.exception.values.some((exception) => {
-        const value = exception.value || '';
-        return (
-          value.includes('runtime.sendMessage') ||
-          value.includes('Tab not found')
-        );
-      });
-
-      if (hasExtensionError) {
-        return null; // Don't send to Sentry
-      }
-    }
-
-    return event;
-  },
+  // Drop errors whose top stack frame originates from an extension script.
+  // Unlike breadcrumb-based filtering, this only looks at where the error
+  // was thrown — a legitimate site error won't be dropped just because the
+  // user has an extension installed.
+  denyUrls: [
+    /^chrome-extension:\/\//,
+    /^moz-extension:\/\//,
+    /^safari-extension:\/\//,
+    /^safari-web-extension:\/\//,
+  ],
 });
 
 // Required by @sentry/nextjs to instrument client-side navigations
