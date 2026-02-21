@@ -103,7 +103,8 @@ export default async function Home() {
         <section data-testid="top-products-section">
           <SectionHeading id="top-products">Top Products by Growth</SectionHeading>
           <p className="text-theme-muted mb-6">
-            AI code review products ranked by review growth rate (last 12 weeks vs. previous 12).
+            AI code review products ranked by review growth rate.{" "}
+            <Link href="/about#rankings" className="underline hover:text-theme-text">Methodology.</Link>
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {products.slice(0, 10).map((product, i) => {

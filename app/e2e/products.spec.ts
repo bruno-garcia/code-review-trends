@@ -15,12 +15,12 @@ test.describe("Products listing page", () => {
     await expect(firstCard.getByText("PR Comments")).toBeVisible();
   });
 
-  test("has compare button linking to compare page", async ({ page }) => {
+  test("has compare link to compare page", async ({ page }) => {
     await page.goto("/products");
-    const btn = page.getByText("Compare All →");
-    await expect(btn).toBeVisible();
-    await btn.click();
-    await page.waitForURL("/compare");
+    const link = page.getByText("Compare side by side →");
+    await expect(link).toBeVisible();
+    await link.click();
+    await page.waitForURL(/\/compare/);
     await expect(page.getByTestId("compare-table")).toBeVisible({ timeout: 15_000 });
   });
 
@@ -42,7 +42,7 @@ test.describe("Products listing page", () => {
 
   test("links to compare page for full comparison", async ({ page }) => {
     await page.goto("/products");
-    const link = page.getByText("Compare All →");
+    const link = page.getByText("Compare side by side →");
     await expect(link).toBeVisible();
   });
 });

@@ -44,19 +44,24 @@ test.describe("Products in URL", () => {
     expect(url.searchParams.has("products")).toBe(false);
   });
 
-  test("resetting to top 10 removes ?products= from URL", async ({
+  test("selecting top 10 writes ?products= to URL", async ({
     page,
   }) => {
-    await page.goto("/products?products=coderabbit,copilot");
-    await expect(page).toHaveURL(/products=/);
+    await page.goto("/products");
+    // Default is all products — no ?products= in URL
+    const urlBefore = new URL(page.url());
+    expect(urlBefore.searchParams.has("products")).toBe(false);
 
     await expandPicker(page);
     await page.getByTestId("filter-reset").click();
 
-    // Wait for URL sync
+    // Wait for URL sync — top 10 is not the default, so ?products= appears
     await page.waitForTimeout(300);
     const url = new URL(page.url());
-    expect(url.searchParams.has("products")).toBe(false);
+    expect(url.searchParams.has("products")).toBe(true);
+    // Should have exactly 10 product IDs
+    const ids = url.searchParams.get("products")!.split(",");
+    expect(ids.length).toBe(10);
   });
 });
 
