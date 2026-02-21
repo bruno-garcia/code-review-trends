@@ -337,24 +337,25 @@ export function CompareCharts({
             </a>
           </h2>
           <div className="flex-1" />
-          <button
-            type="button"
-            data-testid="expand-table-btn"
-            onClick={() => setExpanded(isExpanded ? "" : "1")}
-            title={isExpanded ? "Collapse table" : "Expand table to full width"}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-theme-surface border border-theme-border hover:bg-theme-border transition-colors text-theme-muted hover:text-theme-text text-base leading-none"
-          >
-            {isExpanded ? "⤡" : "⤢"}
-          </button>
-          {isExpanded && (
+          {isExpanded ? (
             <button
               type="button"
               data-testid="collapse-table-x"
               onClick={() => setExpanded("")}
-              title="Close expanded view"
+              title="Close expanded view (Escape)"
               className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-theme-surface border border-theme-border hover:bg-theme-border transition-colors text-theme-muted hover:text-theme-text text-base leading-none"
             >
               ✕
+            </button>
+          ) : (
+            <button
+              type="button"
+              data-testid="expand-table-btn"
+              onClick={() => setExpanded("1")}
+              title="Expand table to full width"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-theme-surface border border-theme-border hover:bg-theme-border transition-colors text-theme-muted hover:text-theme-text text-base leading-none"
+            >
+              ⤢
             </button>
           )}
         </div>
