@@ -87,6 +87,54 @@ export default async function Home() {
         </p>
       </section>
 
+      {/* Top Products by Growth */}
+      {products.length > 0 && (
+        <section data-testid="top-products-section">
+          <SectionHeading id="top-products">Top Products by Growth</SectionHeading>
+          <p className="text-theme-muted mb-6">
+            AI code review products ranked by review growth rate (last 12 weeks vs. previous 12).
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {products.slice(0, 10).map((product, i) => {
+              const growth = Number(product.growth_pct);
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${product.id}`}
+                  className="flex items-center gap-3 bg-theme-surface rounded-xl p-4 border border-theme-border hover:border-violet-500/50 transition-colors group"
+                >
+                  <span className="text-theme-muted text-sm w-5 text-right shrink-0 tabular-nums">
+                    {i + 1}
+                  </span>
+                  {product.avatar_url && (
+                    <img
+                      src={product.avatar_url}
+                      alt={product.name}
+                      width={28}
+                      height={28}
+                      className="rounded-full bg-theme-surface-alt border border-theme-border shrink-0"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-medium text-theme-text group-hover:text-violet-400 transition-colors truncate block">
+                      {product.name}
+                    </span>
+                    <span className={`text-xs tabular-nums ${growth >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-sm text-theme-muted">
+            <Link href="/products" className="underline hover:text-theme-text">
+              See all {products.length} products →
+            </Link>
+          </p>
+        </section>
+      )}
+
       {/* Total AI Review Volume */}
       <section data-testid="total-volume-section">
         <SectionHeading id="volume">Total AI Review Volume</SectionHeading>
