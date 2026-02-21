@@ -70,6 +70,10 @@ export function ProductFilterBar() {
   // user interaction rather than waiting for the useEffect to dispatch.
   const isServerSyncPage = pathname === "/orgs" || pathname === "/repos";
 
+  // Time range only works on pages that query weekly activity data.
+  // /repos and /orgs use all-time aggregated data with no time dimension.
+  const showTimeRange = pathname === "/products" || pathname === "/compare";
+
   function signalNavigation() {
     if (isServerSyncPage) {
       document.dispatchEvent(new CustomEvent("navigation-start"));
@@ -137,10 +141,12 @@ export function ProductFilterBar() {
                   </span>
                 )}
 
-                {/* Single instance — w-full on mobile forces to row 2, inline on desktop */}
-                <div className="w-full sm:w-auto sm:border-l sm:border-theme-border sm:pl-3 sm:ml-1" onClick={(e) => e.stopPropagation()}>
-                  <TimeRangeSelector />
-                </div>
+                {/* Time range — only on pages with weekly data */}
+                {showTimeRange && (
+                  <div className="w-full sm:w-auto sm:border-l sm:border-theme-border sm:pl-3 sm:ml-1" onClick={(e) => e.stopPropagation()}>
+                    <TimeRangeSelector />
+                  </div>
+                )}
 
                 <div className="flex-1 hidden sm:flex flex-wrap items-center gap-1.5">
                   {selectedProducts.map((p) => {
