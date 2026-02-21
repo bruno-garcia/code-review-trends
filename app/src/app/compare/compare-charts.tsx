@@ -323,7 +323,6 @@ export function CompareCharts({
   const tableSection = (
       <section
         data-testid="compare-table-section"
-        id="detailed"
         className={isExpanded ? "mx-[calc(-50vw+50%)] w-screen px-4 sm:px-6 lg:px-8" : undefined}
       >
         {/* Heading row with expand/collapse + X buttons */}
