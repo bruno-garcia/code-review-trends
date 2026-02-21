@@ -679,7 +679,7 @@ function TwoLineAxisTick({ x, y, payload, fill }: { x: number; y: number; payloa
   if (bestIdx === -1) {
     // Single word — render normally
     return (
-      <text x={x} y={y + 12} textAnchor="middle" fill={fill} fontSize={11}>
+      <text x={x} y={y + 8} textAnchor="middle" fill={fill} fontSize={11}>
         {name}
       </text>
     );
