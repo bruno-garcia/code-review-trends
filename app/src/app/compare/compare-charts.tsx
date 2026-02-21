@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { ProductComparison, BotCommentsPerPR, BotReactions, ProductPrCharacteristics } from "@/lib/clickhouse";
+import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
 import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
@@ -21,20 +22,11 @@ type CompareRow = ProductComparison & {
 
 type SortKey = keyof CompareRow;
 
-function formatHours(hours: number | null): string {
-  if (hours == null || isNaN(hours)) return "—";
-  if (hours < 1) return `${Math.round(hours * 60)}m`;
-  if (hours < 48) return `${Math.round(hours)}h`;
-  const days = hours / 24;
-  if (days < 14) return `${Math.round(days)}d`;
-  return `${Math.round(days / 7)}w`;
-}
-
 const METRICS: {
   key: SortKey;
   label: string;
   description: string;
-  format: (v: number) => string;
+  format: (v: number | null) => string;
 }[] = [
   {
     key: "growth_pct",
@@ -244,8 +236,14 @@ export function CompareCharts({
   const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
   const sorted = [...products].sort((a, b) => {
-    const av = Number(a[sortKey] ?? 0);
-    const bv = Number(b[sortKey] ?? 0);
+    const aRaw = a[sortKey];
+    const bRaw = b[sortKey];
+    // Push nulls to the end regardless of sort direction
+    if (aRaw == null && bRaw == null) return 0;
+    if (aRaw == null) return 1;
+    if (bRaw == null) return -1;
+    const av = Number(aRaw);
+    const bv = Number(bRaw);
     return sortDir === "desc" ? bv - av : av - bv;
   });
 
@@ -360,10 +358,11 @@ export function CompareCharts({
                     </Link>
                   </td>
                   {METRICS.map((m) => {
-                    const val = Number(product[m.key] ?? 0);
+                    const raw = product[m.key] as number | null;
+                    const val = Number(raw ?? 0);
                     const allVals = sorted.map((p) => Number(p[m.key] ?? 0));
                     const max = Math.max(...allVals);
-                    const isTop = max > 0 && val === max;
+                    const isTop = raw != null && max > 0 && val === max;
                     const isGrowth = m.key === "growth_pct";
                     return (
                       <td
@@ -374,7 +373,7 @@ export function CompareCharts({
                           isGrowth && val < 0 ? "text-red-400" : ""
                         }`}
                       >
-                        {m.format(val)}
+                        {m.format(raw)}
                         {isTop && !isGrowth && (
                           <span className="ml-1 text-xs text-violet-400">
                             ★

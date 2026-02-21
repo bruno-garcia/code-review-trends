@@ -22,7 +22,7 @@ import Link from "next/link";
 import { ThemedProductHeader } from "@/components/themed-product-header";
 import { SectionHeading } from "@/components/section-heading";
 import { JsonLd } from "@/components/json-ld";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, formatHours } from "@/lib/format";
 
 /** Max top orgs/repos shown on the bot detail page. */
 const TOP_N = 5;
@@ -479,15 +479,6 @@ function GitHubLogin({ login }: { login: string }) {
     );
   }
   return <code className="text-theme-text/80">{login}</code>;
-}
-
-function formatHours(hours: number | null): string {
-  if (hours == null || isNaN(hours)) return "—";
-  if (hours < 1) return `${Math.round(hours * 60)}m`;
-  if (hours < 48) return `${Math.round(hours)}h`;
-  const days = hours / 24;
-  if (days < 14) return `${Math.round(days)}d`;
-  return `${Math.round(days / 7)}w`;
 }
 
 function StatCard({
