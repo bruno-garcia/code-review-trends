@@ -41,8 +41,9 @@ import { log as sentryLog, countMetric } from "./sentry.js";
  * History:
  *   1 — initial version (PullRequestReviewEvent + PullRequestReviewCommentEvent)
  *   2 — added IssueCommentEvent tracking (pr_comment_count)
+ *   3 — fixed week-boundary bug: monthlyChunks now extends to full ISO weeks
  */
-export const PIPELINE_VERSION = 2;
+export const PIPELINE_VERSION = 3;
 
 // ── Row mappers (shared with smoke tests) ───────────────────────────────
 
@@ -283,12 +284,45 @@ async function markChunkCompleted(
   });
 }
 
+// ── Week alignment helpers ──────────────────────────────────────────────
+
+/** Get the Monday on or before a date (ISO week start). */
+function toMondayDate(d: Date): Date {
+  const result = new Date(d);
+  const day = result.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  result.setUTCDate(result.getUTCDate() + diff);
+  return result;
+}
+
+/** Get the Sunday on or after a date (ISO week end). */
+function toSundayDate(d: Date): Date {
+  const result = new Date(d);
+  const day = result.getUTCDay();
+  if (day !== 0) {
+    result.setUTCDate(result.getUTCDate() + (7 - day));
+  }
+  return result;
+}
+
 // ── Chunking ────────────────────────────────────────────────────────────
 
 /**
- * Split a date range into monthly chunks.
- * Each chunk covers the 1st to the last day of a month,
- * except the first/last which may be partial.
+ * Split a date range into monthly chunks, aligned to ISO week boundaries.
+ *
+ * Each chunk's start is extended back to the preceding Monday and its end
+ * is extended forward to the following Sunday. This ensures that weeks
+ * spanning month boundaries are fully contained in at least one chunk.
+ *
+ * Adjacent chunks overlap by up to 6 days. BigQuery's WEEK(MONDAY)
+ * aggregation returns identical full-week totals from either chunk, so
+ * ReplacingMergeTree deduplication in ClickHouse is safe.
+ *
+ * Without this alignment, boundary weeks get split across two chunks.
+ * Each chunk returns only its partial slice of the week. After
+ * ReplacingMergeTree deduplication, the last-inserted partial row
+ * survives — losing most of the week's data and creating a saw-tooth
+ * pattern in the charts.
  */
 export function monthlyChunks(startDate: string, endDate: string): SyncChunk[] {
   const chunks: SyncChunk[] = [];
@@ -302,9 +336,11 @@ export function monthlyChunks(startDate: string, endDate: string): SyncChunk[] {
     );
     const chunkEnd = monthEnd < end ? monthEnd : end;
 
+    // Extend to full ISO week boundaries (Monday–Sunday) so that weeks
+    // spanning month boundaries are fully contained in at least one chunk.
     chunks.push({
-      startDate: fmtDate(cursor),
-      endDate: fmtDate(chunkEnd),
+      startDate: fmtDate(toMondayDate(cursor)),
+      endDate: fmtDate(toSundayDate(chunkEnd)),
     });
 
     // Move cursor to 1st of next month
