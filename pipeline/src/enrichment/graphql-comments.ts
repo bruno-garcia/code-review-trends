@@ -130,18 +130,51 @@ export async function fetchCommentsBatch(
 
   const queryStr = `query { ${repoFragments.join("\n")} }`;
 
-  try {
-    const response = await octokit.request("POST /graphql", { query: queryStr });
-    rateLimiter.update(response.headers as Record<string, string>);
-    const data = response.data.data as Record<string, unknown> | undefined;
-    if (!data) {
-      const gqlErrors = (response.data as { errors?: Array<{ message?: string }> }).errors;
-      const count = gqlErrors?.length ?? 0;
-      const messages = gqlErrors?.map((e) => e.message).filter(Boolean).join(" | ") ?? "";
-      log(`[graphql-comments] Errors-only GraphQL response: ${count} errors${messages ? ` - ${messages}` : ""}`);
-      return inputs.map((input) => ({ input, comments: [], hasMore: false, error: "partial_error" }));
+  // Retry logic for transient network errors (ECONNRESET, ETIMEDOUT, etc.)
+  const MAX_RETRIES = 3;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await octokit.request("POST /graphql", { query: queryStr });
+      rateLimiter.update(response.headers as Record<string, string>);
+      const data = response.data.data as Record<string, unknown> | undefined;
+      if (!data) {
+        const gqlErrors = (response.data as { errors?: Array<{ message?: string }> }).errors;
+        const count = gqlErrors?.length ?? 0;
+        const messages = gqlErrors?.map((e) => e.message).filter(Boolean).join(" | ") ?? "";
+        log(`[graphql-comments] Errors-only GraphQL response: ${count} errors${messages ? ` - ${messages}` : ""}`);
+        return inputs.map((input) => ({ input, comments: [], hasMore: false, error: "partial_error" }));
+      }
+      return parseResults(byRepo, repoIndex, data);
+    } catch (err: unknown) {
+      lastError = err;
+      
+      // Check if this is a transient network error that should be retried
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const isTransientNetworkError = 
+        errMsg.includes("ECONNRESET") ||
+        errMsg.includes("ETIMEDOUT") ||
+        errMsg.includes("ECONNREFUSED") ||
+        errMsg.includes("EPIPE") ||
+        errMsg.includes("socket hang up");
+      
+      if (isTransientNetworkError && attempt < MAX_RETRIES - 1) {
+        const backoffMs = Math.min(1000 * 2 ** attempt, 5000);
+        log(`[graphql-comments] Transient network error (${errMsg.split('\n')[0]}), retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        continue;
+      }
+      
+      // Not a transient error, or we've exhausted retries - fall through to original error handling
+      break;
     }
-    return parseResults(byRepo, repoIndex, data);
+  }
+
+  // Original error handling for non-retryable errors or exhausted retries
+  const err = lastError;
+  try {
+    throw err;
   } catch (err: unknown) {
     const gqlErr = err as {
       response?: {
