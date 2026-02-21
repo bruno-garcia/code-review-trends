@@ -176,7 +176,7 @@ test.describe("Product detail page", () => {
     const count = await section.count();
     if (count > 0) {
       await expect(section.getByText("Top Repositories")).toBeVisible();
-      const rows = section.locator("a[href^='https://github.com/']");
+      const rows = section.locator("a[href^='/repos/']");
       const rowCount = await rows.count();
       expect(rowCount).toBeGreaterThan(0);
       expect(rowCount).toBeLessThanOrEqual(5);

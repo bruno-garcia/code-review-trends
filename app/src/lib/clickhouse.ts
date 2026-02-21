@@ -1636,7 +1636,7 @@ export type RepoListItem = {
 export type RepoListFilters = {
   languages?: string[];
   productIds?: string[];
-  sort?: "stars" | "prs" | "comments";
+  sort?: "stars" | "prs";
   search?: string;
   limit?: number;
   offset?: number;
@@ -1704,7 +1704,6 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
 
   const orderBy =
     sort === "prs" ? "total_prs DESC, stars DESC" :
-    sort === "comments" ? "bot_comment_count DESC, stars DESC" :
     "stars DESC";
 
   const whereClause = conditions.join(" AND ");

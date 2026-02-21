@@ -204,8 +204,8 @@ function parseArray(val: string | string[] | undefined): string[] {
   return val.split(",").filter(Boolean);
 }
 
-function parseSortParam(val: string | string[] | undefined): "stars" | "prs" | "comments" {
+function parseSortParam(val: string | string[] | undefined): "stars" | "prs" {
   const s = String(val ?? "stars");
-  if (s === "prs" || s === "comments") return s;
+  if (s === "prs") return s;
   return "stars";
 }

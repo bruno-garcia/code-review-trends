@@ -45,11 +45,11 @@ export default async function RepoPage({ params }: Params) {
   let languages: Awaited<ReturnType<typeof getRepoLanguages>> = [];
   try {
     languages = await getRepoLanguages(repoName);
-  } catch {
+  } catch (err) {
     // Table missing or query failed — page is fully functional without it.
     const Sentry = await import("@sentry/nextjs");
-    Sentry.captureException(new Error(`getRepoLanguages failed for ${repoName}`), {
-      tags: { route: "repos/[owner]/[name]", query: "getRepoLanguages" },
+    Sentry.captureException(err, {
+      tags: { route: "repos/[owner]/[name]", query: "getRepoLanguages", repo: repoName },
     });
   }
 

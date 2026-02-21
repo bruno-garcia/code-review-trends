@@ -57,7 +57,7 @@ test.describe("Repos listing page", () => {
   });
 
   test("sort options work without errors", async ({ page }) => {
-    for (const sort of ["stars", "prs", "comments"]) {
+    for (const sort of ["stars", "prs"]) {
       const response = await page.goto(`/repos?sort=${sort}`);
       expect(response?.status()).toBe(200);
     }

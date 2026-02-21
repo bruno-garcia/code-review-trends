@@ -8,7 +8,6 @@ type LanguageOption = { value: string; count: number };
 const SORT_OPTIONS = [
   { key: "stars", label: "⭐ Stars", tip: "Sort by GitHub stars" },
   { key: "prs", label: "Reviewed PRs", tip: "Sort by pull requests reviewed by AI bots" },
-  { key: "comments", label: "Bot Comments", tip: "Sort by total bot comments" },
 ] as const;
 
 export function RepoFilters({
