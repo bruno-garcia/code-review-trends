@@ -81,11 +81,16 @@ export function FilteredBotsPage({
     [summaries, selectedSet],
   );
 
-  // Sort summaries
+  // Sort summaries — push sentinel -1 (N/A) to the end regardless of direction
   const sortedSummaries = useMemo(() => {
     return [...filteredSummaries].sort((a, b) => {
       const av = Number(a[sortKey]);
       const bv = Number(b[sortKey]);
+      const aNA = av < 0;
+      const bNA = bv < 0;
+      if (aNA && bNA) return 0;
+      if (aNA) return 1;
+      if (bNA) return -1;
       return sortDir === "desc" ? bv - av : av - bv;
     });
   }, [filteredSummaries, sortKey, sortDir]);

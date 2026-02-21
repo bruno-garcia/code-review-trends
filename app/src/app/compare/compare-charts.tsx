@@ -244,12 +244,17 @@ export function CompareCharts({
   const sorted = [...products].sort((a, b) => {
     const aRaw = a[sortKey];
     const bRaw = b[sortKey];
-    // Push nulls to the end regardless of sort direction
+    // Push nulls and sentinel -1 (N/A) to the end regardless of sort direction
     if (aRaw == null && bRaw == null) return 0;
     if (aRaw == null) return 1;
     if (bRaw == null) return -1;
     const av = Number(aRaw);
     const bv = Number(bRaw);
+    const aNA = av < 0;
+    const bNA = bv < 0;
+    if (aNA && bNA) return 0;
+    if (aNA) return 1;
+    if (bNA) return -1;
     return sortDir === "desc" ? bv - av : av - bv;
   });
 
