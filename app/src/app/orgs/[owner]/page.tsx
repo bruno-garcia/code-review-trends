@@ -69,10 +69,10 @@ export default async function OrgPage({
       {/* Header */}
       <div>
         <Link
-          href="/"
+          href="/orgs"
           className="text-sm text-theme-muted hover:text-theme-text transition-colors"
         >
-          ← Back to overview
+          ← Back to organizations
         </Link>
         <div className="mt-4 flex items-center gap-4">
           <img
@@ -212,13 +212,20 @@ export default async function OrgPage({
                     className="border-b border-theme-border/50"
                   >
                     <td className="py-3 pr-4">
+                      <Link
+                        href={`/repos/${owner}/${shortName}`}
+                        className="font-medium text-indigo-400 hover:text-indigo-300 hover:underline"
+                      >
+                        {shortName}
+                      </Link>
                       <a
                         href={`https://github.com/${repo.name}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-indigo-400 hover:text-indigo-300 hover:underline"
+                        className="text-theme-muted hover:text-theme-text ml-1.5"
+                        title="View on GitHub"
                       >
-                        {shortName}
+                        ↗
                       </a>
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
