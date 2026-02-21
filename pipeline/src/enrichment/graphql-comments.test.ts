@@ -369,6 +369,91 @@ describe("graphql-comments parseResults", () => {
     assert.equal(c.rocket, 8);
   });
 
+  it("matches bot login without [bot] suffix (GraphQL strips it)", () => {
+    // GitHub GraphQL API returns Bot authors WITHOUT the "[bot]" suffix
+    // (e.g. "coderabbitai" not "coderabbitai[bot]"). The filter must handle this.
+    const inputs = [
+      makeInput({
+        repo_name: "owner/repo",
+        pr_number: 1,
+        bot_logins: new Set(["coderabbitai[bot]"]),
+      }),
+    ];
+    const byRepo = makeByRepo(inputs);
+    const repoIndex = makeRepoIndex(byRepo);
+
+    const data = {
+      repo0: {
+        pr0: {
+          reviewThreads: {
+            nodes: [
+              {
+                comments: {
+                  nodes: [
+                    {
+                      databaseId: 666,
+                      author: { login: "coderabbitai" }, // GraphQL strips [bot]
+                      bodyText: "Review comment",
+                      createdAt: "2024-01-01T10:00:00Z",
+                      reactionGroups: [],
+                    },
+                  ],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false },
+          },
+        },
+      },
+    };
+
+    const results = parseResults(byRepo, repoIndex, data);
+    assert.equal(results[0].comments.length, 1, "Should match login without [bot] suffix");
+    assert.equal(results[0].comments[0].comment_id, "666");
+  });
+
+  it("still matches exact login (no suffix stripping needed)", () => {
+    // When bot_logins contains the exact login (e.g. "Copilot"), it should match directly.
+    const inputs = [
+      makeInput({
+        repo_name: "owner/repo",
+        pr_number: 1,
+        bot_logins: new Set(["Copilot"]),
+      }),
+    ];
+    const byRepo = makeByRepo(inputs);
+    const repoIndex = makeRepoIndex(byRepo);
+
+    const data = {
+      repo0: {
+        pr0: {
+          reviewThreads: {
+            nodes: [
+              {
+                comments: {
+                  nodes: [
+                    {
+                      databaseId: 777,
+                      author: { login: "Copilot" },
+                      bodyText: "Looks good",
+                      createdAt: "2024-01-01T10:00:00Z",
+                      reactionGroups: [],
+                    },
+                  ],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false },
+          },
+        },
+      },
+    };
+
+    const results = parseResults(byRepo, repoIndex, data);
+    assert.equal(results[0].comments.length, 1, "Should match exact login");
+    assert.equal(results[0].comments[0].comment_id, "777");
+  });
+
   it("handles empty thread nodes (no first comment)", () => {
     const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 1 })];
     const byRepo = makeByRepo(inputs);

@@ -12,6 +12,7 @@ import type { Octokit } from "@octokit/rest";
 import { log } from "../sentry.js";
 import type { RateLimiter } from "./rate-limiter.js";
 import type { RepoRow } from "../clickhouse.js";
+import { graphqlWithRetry } from "./graphql-retry.js";
 
 export const GRAPHQL_REPO_BATCH_SIZE = 30;
 
@@ -50,13 +51,9 @@ export async function fetchReposBatch(
   const queryStr = `query { ${fragments.join("\n")} }`;
 
   try {
-    const response = await octokit.request("POST /graphql", {
-      query: queryStr,
-    });
-
-    rateLimiter.update(response.headers as Record<string, string>);
-
-    const data = response.data.data as Record<string, unknown> | undefined;
+    const response = await graphqlWithRetry(octokit, queryStr, "graphql-repos");
+    rateLimiter.update(response.headers);
+    const data = response.data.data;
     if (!data) {
       throw new Error("GraphQL response contained no data field");
     }

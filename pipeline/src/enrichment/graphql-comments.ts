@@ -12,6 +12,7 @@ import type { Octokit } from "@octokit/rest";
 import { log } from "../sentry.js";
 import type { RateLimiter } from "./rate-limiter.js";
 import type { PrCommentRow } from "../clickhouse.js";
+import { graphqlWithRetry } from "./graphql-retry.js";
 
 export const GRAPHQL_COMMENT_BATCH_SIZE = 20;
 
@@ -131,11 +132,11 @@ export async function fetchCommentsBatch(
   const queryStr = `query { ${repoFragments.join("\n")} }`;
 
   try {
-    const response = await octokit.request("POST /graphql", { query: queryStr });
-    rateLimiter.update(response.headers as Record<string, string>);
-    const data = response.data.data as Record<string, unknown> | undefined;
+    const response = await graphqlWithRetry(octokit, queryStr, "graphql-comments");
+    rateLimiter.update(response.headers);
+    const data = response.data.data;
     if (!data) {
-      const gqlErrors = (response.data as { errors?: Array<{ message?: string }> }).errors;
+      const gqlErrors = response.data.errors;
       const count = gqlErrors?.length ?? 0;
       const messages = gqlErrors?.map((e) => e.message).filter(Boolean).join(" | ") ?? "";
       log(`[graphql-comments] Errors-only GraphQL response: ${count} errors${messages ? ` - ${messages}` : ""}`);
@@ -206,7 +207,11 @@ export function parseResults(
       for (const thread of prData.reviewThreads.nodes) {
         const comment = thread.comments.nodes[0];
         if (!comment) continue;
-        if (!comment.author?.login || !input.bot_logins.has(comment.author.login)) continue;
+        // GitHub GraphQL returns Bot authors WITHOUT the "[bot]" suffix
+        // (e.g. "coderabbitai" not "coderabbitai[bot]"), so check both forms.
+        const login = comment.author?.login;
+        if (!login) continue;
+        if (!input.bot_logins.has(login) && !input.bot_logins.has(`${login}[bot]`)) continue;
 
         const reactions: Record<string, number> = {};
         for (const rg of comment.reactionGroups ?? []) {

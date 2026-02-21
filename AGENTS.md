@@ -57,16 +57,31 @@ npm run pipeline -- fetch-bigquery --env development --dry-run  # preview withou
 npm run pipeline -- help                              # show all commands (no --env needed)
 ```
 
-### Pipeline smoke tests
+### Pipeline tests
+
+The pipeline has three test tiers, each with different requirements:
 
 ```bash
+# Unit tests — no external services needed, fast (~15s)
+npm test --workspace=pipeline
+
+# Integration tests — hits real GitHub API, no ClickHouse needed (~10s)
+# Fails loudly if GITHUB_TOKEN is missing (prevents silent skips).
+GITHUB_TOKEN=... npm run test:integration --workspace=pipeline
+SKIP_GITHUB_TESTS=1 npm run test:integration --workspace=pipeline  # explicit opt-out
+
 # Smoke tests — hits real BigQuery + GitHub API → ClickHouse (~30s)
 # Validates the full pipeline: BQ queries return non-zero values,
 # GitHub API responses map correctly, app queries work on real data.
 GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
-
-# Runs in CI on every PR (inside the e2e job in .github/workflows/ci.yml, gated on secret availability)
 ```
+
+**File naming conventions:**
+- `*.test.ts` — unit tests (included in `npm test`)
+- `*.integration.test.ts` — integration tests (excluded from `npm test`, require `GITHUB_TOKEN`)
+- `smoke.test.ts` — smoke tests (excluded from `npm test`, require GCP + `GITHUB_TOKEN` + ClickHouse)
+
+Integration and smoke tests run in CI gated on secret availability (see `.github/workflows/ci.yml`).
 
 ## Principles
 
@@ -99,6 +114,8 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 14. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
 
 15. **Never edit existing migration files.** Files in `db/init/` that have been committed to `main` are immutable. Schema changes or new reference data must be introduced as new numbered files (e.g., `003_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
+
+16. **Beware sentinel rows masking bugs.** The enrichment pipeline inserts sentinel rows (`comment_id=0`) to mark "enriched, nothing found." If a code bug silently discards all results (e.g., a login filter that never matches), the sentinel makes the combo look "done" and it's never reprocessed. When adding sentinel/marker patterns, ensure the "nothing found" path is covered by integration tests that verify real data against known-good targets. Silent success with empty data is worse than a crash — it produces wrong information that looks correct.
 
 ## Key Files
 
@@ -141,6 +158,9 @@ GITHUB_TOKEN=... npm run test:smoke --workspace=pipeline
 | `pipeline/src/bigquery.ts` | GH Archive queries |
 | `pipeline/src/github.ts` | GitHub API client |
 | `pipeline/src/enrichment/` | GraphQL batching enrichment (repos, PRs, comments, reactions) |
+| `pipeline/src/enrichment/graphql-retry.ts` | Shared retry wrapper for all GraphQL requests (transient error handling) |
+| `pipeline/src/enrichment/octokit-agent.ts` | Custom HTTPS agent for Octokit (keep-alive, connection management) |
+| `pipeline/src/enrichment/graphql-resilience.integration.test.ts` | Integration tests hitting real GitHub API with known bot-reviewed PRs |
 | `pipeline/src/warmup.ts` | Cache warmup (called during deploy) |
 | `pipeline/src/cli.ts` | Pipeline CLI entry point |
 | `pipeline/src/smoke.test.ts` | Smoke tests — BigQuery + GitHub API → ClickHouse → app queries |
@@ -289,3 +309,5 @@ OG image routes are tested in Playwright (`app/e2e/og-images.spec.ts`) — CI ve
 - **Secrets** — stored in GCP Secret Manager, encrypted in Pulumi config. Never in source.
 - **Job schedules** — defined in `pipeline/schedules.json`, the single source of truth.
 - **No empty catch blocks.** See Principle #1. Every catch must re-throw or call `Sentry.captureException(err)` with context tags.
+- **GitHub GraphQL strips `[bot]` from logins.** The GraphQL API returns Bot authors as `coderabbitai`, not `coderabbitai[bot]`. The REST API returns the full `[bot]` suffix. Any code matching bot logins against GraphQL responses must check both forms. See `graphql-comments.ts` `parseResults` for the pattern.
+- **All GraphQL requests use `graphqlWithRetry`.** GitHub's load balancers reset idle connections after ~60s, causing `ECONNRESET` during rate-limit waits. The shared retry wrapper in `pipeline/src/enrichment/graphql-retry.ts` handles this with exponential backoff. Never call `octokit.request("POST /graphql")` directly — always use `graphqlWithRetry`.

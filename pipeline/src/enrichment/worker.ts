@@ -14,6 +14,7 @@ import { enrichPullRequests } from "./pull-requests.js";
 import { enrichComments } from "./comments.js";
 import { enrichReactions } from "./reactions.js";
 import type { WorkerConfig } from "./partitioner.js";
+import { createOctokitAgent } from "./octokit-agent.js";
 
 const ROUND_ROBIN_THRESHOLD = 0.70;
 
@@ -39,7 +40,14 @@ export type EnrichmentResult = {
 export async function runEnrichment(options: EnrichmentOptions): Promise<EnrichmentResult> {
   const start = Date.now();
 
-  const octokit = new Octokit({ auth: options.githubToken });
+  const octokit = new Octokit({
+    auth: options.githubToken,
+    request: {
+      agent: createOctokitAgent(),
+      // Request timeout: 30s to prevent hanging on stale connections
+      timeout: 30_000,
+    },
+  });
   const ch = createCHClient();
   const rateLimiter = new RateLimiter(100, options.exitOnRateLimit ?? false);
   const workerId = options.workerId ?? 0;
