@@ -17,15 +17,11 @@ test.describe("Product filter", () => {
     await expect(page.getByTestId("product-filter-bar")).not.toBeVisible();
   });
 
-  test("default filter shows all products", async ({ page }) => {
+  test("default filter shows top 10", async ({ page }) => {
     await page.goto("/products");
     const bar = page.getByTestId("product-filter-bar");
     await expect(bar).toBeVisible();
-    // Default is all products selected
-    const text = await bar.innerText();
-    const match = text.match(/(\d+) of (\d+) products/);
-    expect(match).toBeTruthy();
-    expect(match![1]).toBe(match![2]); // all selected
+    await expect(bar.getByText(/10 of \d+ products selected/)).toBeVisible();
   });
 
   test("filter bar expand/collapse", async ({ page }) => {
