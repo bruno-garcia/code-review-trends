@@ -154,7 +154,7 @@ export default async function OrgsPage({
                   <span className="text-theme-muted w-20 text-right" title="GitHub stars across all repos">
                     ⭐ {formatNumber(Number(org.total_stars))}
                   </span>
-                  <span className="hidden md:inline text-theme-muted w-16 text-right" title="Repos with AI-reviewed PRs">
+                  <span className="hidden md:inline text-theme-muted text-right whitespace-nowrap" title="Repos with AI-reviewed PRs">
                     {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
                   </span>
                   {Number(org.total_prs) > 0 && (
