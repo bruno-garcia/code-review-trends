@@ -366,7 +366,7 @@ export function CompareCharts({
           >
             <thead className="text-theme-muted border-b border-theme-border">
               <tr>
-                <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10 min-w-[10rem] whitespace-nowrap">
+                <th className="pb-3 pr-4 sticky left-0 bg-theme-bg z-10 min-w-[10rem] whitespace-nowrap" title="AI code review product name">
                   Product
                 </th>
                 {METRICS.map((m) => (
@@ -420,6 +420,7 @@ export function CompareCharts({
                     return (
                       <td
                         key={m.key}
+                        title={m.description}
                         className={`py-3 px-3 text-right tabular-nums whitespace-nowrap ${
                           isTop ? "text-theme-text font-semibold" : "text-theme-text/80"
                         } ${isGrowth && val > 0 ? "text-emerald-400" : ""} ${
