@@ -23,6 +23,7 @@ import { ThemedProductHeader } from "@/components/themed-product-header";
 import { SectionHeading } from "@/components/section-heading";
 import { JsonLd } from "@/components/json-ld";
 import { formatNumber, formatHours } from "@/lib/format";
+import { InfoTooltip } from "@/components/info-tooltip";
 
 /** Max top orgs/repos shown on the bot detail page. */
 const TOP_N = 5;
@@ -185,9 +186,22 @@ export default async function ProductPage({
               ))}
             </span>
           )}
-          <span className="text-sm text-theme-muted/70">
-            Rank: <span className="text-theme-text font-medium">#{growthRank}</span>{" "}
-            of {allSummaries.length}
+          <span className="text-sm text-theme-muted/70" data-testid="bot-rank">
+            <InfoTooltip
+              content={
+                <>
+                  Ranked by 12-week review growth rate.{" "}
+                  <Link href="/about#rankings" className="text-blue-400 hover:underline">
+                    Learn more →
+                  </Link>
+                </>
+              }
+            >
+              <span>
+                Rank: <span className="text-theme-text font-medium">#{growthRank}</span>{" "}
+                of {allSummaries.length}
+              </span>
+            </InfoTooltip>
           </span>
         </div>
       </div>
@@ -257,7 +271,9 @@ export default async function ProductPage({
                     key={bot.id}
                     className="border-b border-theme-border/50"
                   >
-                    <td className="py-3 pr-4 font-medium">{bot.name}</td>
+                    <td className="py-3 pr-4 font-medium" data-testid={`bot-history-login-${bot.id}`}>
+                      {bot.github_login || bot.id}
+                    </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
                       {Number(bot.total_reviews).toLocaleString()}
                     </td>

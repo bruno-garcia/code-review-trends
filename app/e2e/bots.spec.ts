@@ -79,6 +79,23 @@ test.describe("Bot detail page", () => {
     await expect(stats.getByText("Comments/Repo")).toBeVisible();
   });
 
+  test("rank shows info tooltip with link to about rankings", async ({ page }) => {
+    await page.goto("/bots/coderabbit");
+    const rank = page.getByTestId("bot-rank");
+    await expect(rank).toBeVisible();
+    await expect(rank).toContainText("Rank:");
+    // ⓘ icon is present
+    await expect(rank.getByText("ⓘ")).toBeVisible();
+    // Hover to reveal tooltip
+    await rank.getByText("ⓘ").hover();
+    const tooltip = rank.getByRole("tooltip");
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText("12-week review growth");
+    // Tooltip contains link to about#rankings
+    const link = tooltip.getByRole("link", { name: "Learn more →" });
+    await expect(link).toHaveAttribute("href", "/about#rankings");
+  });
+
   test("shows activity chart with toggle", async ({ page }) => {
     await page.goto("/bots/coderabbit");
     await expect(page.getByTestId("bot-activity-chart")).toBeVisible();
@@ -102,6 +119,24 @@ test.describe("Bot detail page", () => {
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     // Bot history section only appears when there are multiple bots with activity data
     // In CI/local dev with empty tables, this section won't be visible
+  });
+
+  test("bot history shows raw bot login names", async ({ page }) => {
+    await page.goto("/bots/sentry");
+    const historySection = page.getByTestId("bot-history-section");
+    // Section only appears with activity data — skip in empty-DB environments
+    if (!(await historySection.isVisible().catch(() => false))) {
+      test.skip(true, "Bot history section not visible, likely due to empty activity data.");
+      return;
+    }
+    // Each bot row should show the raw bot login or bot id
+    const loginCells = historySection.locator("[data-testid^='bot-history-login-']");
+    const count = await loginCells.count();
+    expect(count).toBeGreaterThan(0);
+    // Verify known Sentry bot identifiers are present
+    const allText = await historySection.textContent();
+    expect(allText).toContain("sentry");
+    expect(allText).toContain("seer-by-sentry");
   });
 
   test("returns 404 for unknown bot", async ({ page }) => {
