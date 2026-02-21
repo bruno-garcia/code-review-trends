@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { ProductComparison, BotCommentsPerPR, BotReactions, ProductPrCharacteristics } from "@/lib/clickhouse";
 import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
@@ -232,6 +232,20 @@ export function CompareCharts({
   const [rawSortKey, setRawSortKey] = useUrlState("sort", "growth_pct");
   const [rawSortDir, setRawSortDir] = useUrlState("dir", "desc");
 
+  // Expanded mode — full-width table, other sections hidden
+  const [expanded, setExpanded] = useUrlState("expanded", "");
+  const isExpanded = expanded === "1";
+
+  // Escape key closes expanded mode
+  useEffect(() => {
+    if (!isExpanded) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setExpanded("");
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isExpanded, setExpanded]);
+
   const validSortKeys = useMemo(
     () => new Set(METRICS.map((m) => m.key)),
     [],
@@ -306,22 +320,47 @@ export function CompareCharts({
     nameColorMap[p.name] = getThemedBrandColor(p.id, p.brand_color || COLORS[i % COLORS.length], resolved);
   }
 
-  return (
-    <div className="space-y-10">
-      {/* Radar chart */}
-      <section data-testid="radar-section" id="radar">
-        <SectionHeading id="radar">Radar Overview</SectionHeading>
-        <p className="text-theme-muted mb-4 text-sm">
-          Each dimension normalized to 0–100 relative to the top product.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <BotRadarChart data={radarData} bots={productNames} colors={nameColorMap} />
+  const tableSection = (
+      <section
+        data-testid="compare-table-section"
+        id="detailed"
+        className={isExpanded ? "mx-[calc(-50vw+50%)] w-screen px-4 sm:px-6 lg:px-8" : undefined}
+      >
+        {/* Heading row with expand/collapse + X buttons */}
+        <div className="flex items-center gap-3 mb-4">
+          <h2
+            id="detailed"
+            className="text-2xl font-semibold scroll-mt-40 group"
+          >
+            <a href="#detailed" className="hover:text-violet-400 transition-colors">
+              Detailed Comparison
+              <span className="ml-2 opacity-0 group-hover:opacity-50 transition-opacity text-theme-muted text-lg">#</span>
+            </a>
+          </h2>
+          <button
+            type="button"
+            data-testid="expand-table-btn"
+            onClick={() => setExpanded(isExpanded ? "" : "1")}
+            title={isExpanded ? "Collapse table" : "Expand table to full width"}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-theme-surface border border-theme-border hover:bg-theme-border transition-colors text-theme-muted hover:text-theme-text text-base leading-none"
+          >
+            {isExpanded ? "⤡" : "⤢"}
+          </button>
+          {isExpanded && (
+            <>
+              <div className="flex-1" />
+              <button
+                type="button"
+                data-testid="collapse-table-x"
+                onClick={() => setExpanded("")}
+                title="Close expanded view"
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-theme-surface border border-theme-border hover:bg-theme-border transition-colors text-theme-muted hover:text-theme-text text-base leading-none"
+              >
+                ✕
+              </button>
+            </>
+          )}
         </div>
-      </section>
-
-      {/* Big comparison table */}
-      <section data-testid="compare-table-section" id="detailed">
-        <SectionHeading id="detailed">Detailed Comparison</SectionHeading>
         <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%_-_10rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
           <table
             className="w-full text-left text-sm"
@@ -405,11 +444,34 @@ export function CompareCharts({
         </div>
         <p className="mt-3 text-xs text-theme-muted/70">
           Click any column header to sort. ★ marks the highest number in each column.
-          <strong>Higher doesn&apos;t necessarily mean better.</strong>
+          <strong>Higher doesn&apos;t necessarily mean better.</strong>{" "}
+          {isExpanded && (
+            <span className="text-theme-muted/50">Press Escape or click ✕ to collapse.</span>
+          )}
         </p>
       </section>
+  );
 
-      {/* Bar chart breakdowns */}
+  return (
+    <div className="space-y-10">
+      {/* Radar chart — hidden when table is expanded */}
+      {!isExpanded && (
+      <section data-testid="radar-section" id="radar">
+        <SectionHeading id="radar">Radar Overview</SectionHeading>
+        <p className="text-theme-muted mb-4 text-sm">
+          Each dimension normalized to 0–100 relative to the top product.
+        </p>
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+          <BotRadarChart data={radarData} bots={productNames} colors={nameColorMap} />
+        </div>
+      </section>
+      )}
+
+      {/* Big comparison table — always visible */}
+      {tableSection}
+
+      {/* Bar chart breakdowns, comments/PR, sentiment — hidden when table is expanded */}
+      {!isExpanded && (<>
       <section data-testid="bar-charts-section" id="breakdowns">
         <SectionHeading id="breakdowns">Visual Breakdowns</SectionHeading>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -494,6 +556,7 @@ export function CompareCharts({
           <BotReactionLeaderboardChart data={filteredReactions} />
         </div>
       </section>
+      </>)}
     </div>
   );
 }
