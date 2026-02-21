@@ -35,11 +35,23 @@ export default async function RepoPage({ params }: Params) {
   const { owner, name } = await params;
   const repoName = `${owner}/${name}`;
 
-  const [detail, products, languages] = await Promise.all([
+  const [detail, products] = await Promise.all([
     getRepoDetail(repoName),
     getRepoProducts(repoName),
-    getRepoLanguages(repoName),
   ]);
+
+  // repo_languages table may not exist in all environments — fetch
+  // separately so a missing table doesn't crash the entire page.
+  let languages: Awaited<ReturnType<typeof getRepoLanguages>> = [];
+  try {
+    languages = await getRepoLanguages(repoName);
+  } catch {
+    // Table missing or query failed — page is fully functional without it.
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.captureException(new Error(`getRepoLanguages failed for ${repoName}`), {
+      tags: { route: "repos/[owner]/[name]", query: "getRepoLanguages" },
+    });
+  }
 
   if (!detail) notFound();
 
