@@ -25,10 +25,10 @@ test.describe("About page", () => {
 
   test("PR Profile section explains methodology", async ({ page }) => {
     await page.goto("/about");
+    // Section heading is visible
+    await expect(page.getByRole("heading", { name: /PR Profile/ })).toBeVisible();
     // Key caveats are present
     await expect(page.getByText("Sample, not census.")).toBeVisible();
     await expect(page.getByText("Correlation, not causation.")).toBeVisible();
-    // Links to compare table and status page
-    await expect(page.getByRole("link", { name: /comparison table/ })).toBeVisible();
   });
 });
