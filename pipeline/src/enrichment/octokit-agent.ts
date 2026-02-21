@@ -28,7 +28,5 @@ export function createOctokitAgent(): https.Agent {
     // Timeout idle sockets after 65s (slightly longer than GitHub's ~60s timeout)
     // to force creation of fresh connections rather than reusing potentially-stale ones
     timeout: 65_000,
-    // Free sockets (in pool) should also timeout
-    freeSocketTimeout: 65_000,
   });
 }
