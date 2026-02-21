@@ -112,6 +112,7 @@ export default async function ProductPage({
   const totalOrgs = Number(summary?.total_orgs ?? 0);
   const avgCommentsPerReview = Number(summary?.avg_comments_per_review ?? 0);
   const commentsPerRepo = Number(summary?.comments_per_repo ?? 0);
+  const avgCommentsPerPR = commentsPerPR.length > 0 ? Number(commentsPerPR[0].avg_comments_per_pr) : null;
   const growthPct = Number(summary?.growth_pct ?? 0);
 
   // Rank among all products (by growth rate — see /about#rankings).
@@ -213,7 +214,7 @@ export default async function ProductPage({
           />
           <StatCard
             label="Comments/PR"
-            value={commentsPerPR.length > 0 ? Number(commentsPerPR[0].avg_comments_per_pr).toFixed(2) : "—"}
+            value={avgCommentsPerPR !== null ? avgCommentsPerPR.toFixed(2) : "—"}
           />
           <StatCard
             label="Growth (12w)"
