@@ -10,6 +10,7 @@ import {
   getPrCommentSyncPct,
   getOrgList,
   getTopReposByProduct,
+  getPrCharacteristics,
 } from "@/lib/clickhouse";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import {
@@ -74,7 +75,7 @@ export default async function ProductPage({
   const range = parseTimeRange(sp.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [product, allSummaries, productBots, activity, languageData, commentsPerPR, prCommentSyncPct, topOrgs, topRepos] = await Promise.all([
+  const [product, allSummaries, productBots, activity, languageData, commentsPerPR, prCommentSyncPct, topOrgs, topRepos, prChars] = await Promise.all([
     getProductById(id),
     getProductSummaries(since),
     getProductBots(id, since),
@@ -84,6 +85,7 @@ export default async function ProductPage({
     getPrCommentSyncPct(),
     getOrgList({ productIds: [id], sort: "stars", limit: TOP_N }),
     getTopReposByProduct(id, TOP_N),
+    getPrCharacteristics(id, since),
   ]);
 
   if (!product) {
@@ -290,6 +292,43 @@ export default async function ProductPage({
         )}
       </section>
 
+      {/* PR Characteristics */}
+      {prChars && (
+        <section data-testid="bot-pr-characteristics">
+          <SectionHeading id="pr-characteristics">
+            Typical PR Profile
+          </SectionHeading>
+          <p className="text-theme-muted mb-4">
+            Characteristics of pull requests reviewed by {product.name}, based
+            on {Number(prChars.sampled_prs).toLocaleString()} sampled PRs.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <StatCard
+              label="Avg Additions"
+              value={`+${Number(prChars.avg_additions).toLocaleString()}`}
+              color="text-emerald-400"
+            />
+            <StatCard
+              label="Avg Deletions"
+              value={`−${Number(prChars.avg_deletions).toLocaleString()}`}
+              color="text-red-400"
+            />
+            <StatCard
+              label="Avg Files Changed"
+              value={Number(prChars.avg_changed_files).toLocaleString()}
+            />
+            <StatCard
+              label="Merge Rate"
+              value={`${prChars.merge_rate}%`}
+            />
+            <StatCard
+              label="Avg Time to Merge"
+              value={formatHours(prChars.avg_hours_to_merge)}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Top Organizations */}
       {topOrgs.orgs.length > 0 && (
         <section data-testid="bot-top-orgs">
@@ -454,6 +493,15 @@ function GitHubLogin({ login }: { login: string }) {
     );
   }
   return <code className="text-theme-text/80">{login}</code>;
+}
+
+function formatHours(hours: number | null): string {
+  if (hours == null || isNaN(hours)) return "—";
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 48) return `${Math.round(hours)}h`;
+  const days = hours / 24;
+  if (days < 14) return `${Math.round(days)}d`;
+  return `${Math.round(days / 7)}w`;
 }
 
 function StatCard({
