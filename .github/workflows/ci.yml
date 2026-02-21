@@ -172,7 +172,6 @@ jobs:
           credentials_json: ${{ secrets.GCP_BQ_SA_KEY }}
 
       - name: Run pipeline integration tests (GitHub API)
-        if: ${{ secrets.GITHUB_TOKEN != '' }}
         run: npm run test:integration --workspace=pipeline
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
