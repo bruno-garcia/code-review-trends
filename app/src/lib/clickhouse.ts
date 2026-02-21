@@ -1620,3 +1620,250 @@ export async function getPrCommentSyncPct(): Promise<number | null> {
     (Number(row.weeks_with_pr_comments) / totalWeeks) * 100,
   );
 }
+
+// --- Repository listing and detail queries ---
+
+export type RepoListItem = {
+  name: string;
+  owner: string;
+  stars: number;
+  primary_language: string;
+  total_prs: number;
+  bot_comment_count: number;
+  product_ids: string[];
+};
+
+export type RepoListFilters = {
+  languages?: string[];
+  productIds?: string[];
+  sort?: "stars" | "prs";
+  search?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type RepoListResult = {
+  repos: RepoListItem[];
+  total: number;
+};
+
+export type RepoDetail = {
+  name: string;
+  owner: string;
+  stars: number;
+  primary_language: string;
+  fork: boolean;
+  archived: boolean;
+  total_prs: number;
+  bot_comment_count: number;
+  merge_rate: number | null;
+  avg_hours_to_merge: number | null;
+  avg_additions: number | null;
+  avg_deletions: number | null;
+  avg_changed_files: number | null;
+};
+
+export type RepoProduct = {
+  product_id: string;
+  product_name: string;
+  avatar_url: string;
+  brand_color: string;
+  pr_count: number;
+  event_count: number;
+};
+
+export type RepoLanguage = {
+  language: string;
+  bytes: number;
+};
+
+export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoListResult> {
+  const { languages, productIds, sort = "stars", search, limit = 50, offset = 0 } = filters;
+
+  const conditions: string[] = ["r.fetch_status = 'ok'"];
+  const havingConditions: string[] = [];
+  const params: Record<string, unknown> = {
+    limit,
+    offset,
+  };
+
+  if (search) {
+    conditions.push("r.name ILIKE {search:String}");
+    params.search = `%${search}%`;
+  }
+
+  if (languages && languages.length > 0) {
+    conditions.push("r.primary_language IN ({languages:Array(String)})");
+    params.languages = languages;
+  }
+
+  const hasProductFilter = productIds && productIds.length > 0;
+  if (hasProductFilter) {
+    params.productIds = productIds;
+  }
+
+  const orderBy =
+    sort === "prs" ? "total_prs DESC, stars DESC" :
+    "stars DESC";
+
+  const whereClause = conditions.join(" AND ");
+  const havingClause = havingConditions.length > 0
+    ? `HAVING ${havingConditions.join(" AND ")}`
+    : "";
+
+  // When filtering by product, use INNER JOINs so only repos reviewed by
+  // the selected products appear. Without a product filter, use LEFT JOINs
+  // so all repos show up (even those with no bot activity yet).
+  const eventJoin = hasProductFilter ? "JOIN" : "LEFT JOIN";
+  const botJoin = hasProductFilter ? "JOIN" : "LEFT JOIN";
+  const botCondition = hasProductFilter ? "AND b.product_id IN ({productIds:Array(String)})" : "";
+
+  const dataQuery = `
+    SELECT
+      r.name AS name,
+      r.owner AS owner,
+      r.stars AS stars,
+      r.primary_language AS primary_language,
+      COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
+      0 AS bot_comment_count,
+      groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
+    FROM repos r
+    ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
+    ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
+    WHERE ${whereClause}
+    GROUP BY r.name, r.owner, r.stars, r.primary_language
+    ${havingClause}
+    ORDER BY ${orderBy}
+    LIMIT {limit:UInt32}
+    OFFSET {offset:UInt32}
+  `;
+
+  const countQuery = `
+    SELECT count() AS total FROM (
+      SELECT r.name
+      FROM repos r
+      ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
+      ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
+      WHERE ${whereClause}
+      GROUP BY r.name
+      ${havingClause}
+    )
+  `;
+
+  const [repos, countRows] = await Promise.all([
+    query<RepoListItem>(dataQuery, params),
+    query<{ total: number }>(countQuery, params),
+  ]);
+
+  return {
+    repos,
+    total: countRows[0]?.total ?? 0,
+  };
+}
+
+export async function getRepoLanguageOptions(): Promise<OrgFilterOption[]> {
+  return query<OrgFilterOption>(`
+    SELECT
+      primary_language AS value,
+      count() AS count
+    FROM repos
+    WHERE fetch_status = 'ok' AND primary_language != ''
+    GROUP BY primary_language
+    ORDER BY count DESC
+  `);
+}
+
+export async function getRepoDetail(repoName: string): Promise<RepoDetail | null> {
+  const rows = await query<RepoDetail>(
+    `
+    SELECT
+      r.name AS name,
+      r.owner AS owner,
+      r.stars AS stars,
+      r.primary_language AS primary_language,
+      r.fork AS fork,
+      r.archived AS archived,
+      COALESCE(ev.total_prs, 0) AS total_prs,
+      COALESCE(ev.bot_comment_count, 0) AS bot_comment_count,
+      pr_stats.merge_rate AS merge_rate,
+      pr_stats.avg_hours_to_merge AS avg_hours_to_merge,
+      pr_stats.avg_additions AS avg_additions,
+      pr_stats.avg_deletions AS avg_deletions,
+      pr_stats.avg_changed_files AS avg_changed_files
+    FROM repos r
+    LEFT JOIN (
+      SELECT
+        s.repo_name,
+        uniqExactMerge(s.pr_count) AS total_prs,
+        0 AS bot_comment_count
+      FROM pr_bot_event_counts s
+      WHERE s.repo_name = {repoName:String}
+      GROUP BY s.repo_name
+    ) ev ON r.name = ev.repo_name
+    LEFT JOIN (
+      SELECT
+        p.repo_name,
+        round(countIf(p.merged_at IS NOT NULL) * 100.0 / count(), 1) AS merge_rate,
+        round(avg(if(p.merged_at IS NOT NULL, dateDiff('second', p.created_at, p.merged_at) / 3600, NULL)), 1) AS avg_hours_to_merge,
+        round(avg(p.additions), 0) AS avg_additions,
+        round(avg(p.deletions), 0) AS avg_deletions,
+        round(avg(p.changed_files), 1) AS avg_changed_files
+      FROM pull_requests p
+      WHERE p.repo_name = {repoName:String}
+      GROUP BY p.repo_name
+    ) pr_stats ON r.name = pr_stats.repo_name
+    WHERE r.fetch_status = 'ok' AND r.name = {repoName:String}
+    `,
+    { repoName },
+  );
+  return rows.length === 0 ? null : rows[0];
+}
+
+export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> {
+  // Pre-aggregate pr_bot_event_counts per bot_id before joining to the
+  // event subquery.  pr_bot_event_counts is an AggregatingMergeTree — it
+  // may hold multiple unmerged rows per (repo_name, bot_id) between
+  // background merges.  Joining those unmerged rows directly to the scalar
+  // e.event_count would fan-out and inflate the SUM.  The subquery
+  // finalises the merge first, giving exactly one row per bot_id.
+  return query<RepoProduct>(
+    `
+    SELECT
+      p.id AS product_id,
+      p.name AS product_name,
+      p.avatar_url AS avatar_url,
+      p.brand_color AS brand_color,
+      SUM(s_agg.pr_count) AS pr_count,
+      SUM(COALESCE(e.event_count, 0)) AS event_count
+    FROM (
+      SELECT bot_id, uniqExactMerge(pr_count) AS pr_count
+      FROM pr_bot_event_counts
+      WHERE repo_name = {repoName:String}
+      GROUP BY bot_id
+    ) s_agg
+    JOIN bots b ON s_agg.bot_id = b.id
+    JOIN products p ON b.product_id = p.id
+    LEFT JOIN (
+      SELECT bot_id, count() AS event_count
+      FROM pr_bot_events
+      WHERE repo_name = {repoName:String}
+      GROUP BY bot_id
+    ) e ON s_agg.bot_id = e.bot_id
+    GROUP BY p.id, p.name, p.avatar_url, p.brand_color
+    ORDER BY pr_count DESC
+    `,
+    { repoName },
+  );
+}
+
+export async function getRepoLanguages(repoName: string): Promise<RepoLanguage[]> {
+  return query<RepoLanguage>(
+    `
+    SELECT language, bytes
+    FROM repo_languages
+    WHERE repo_name = {repoName:String}
+    ORDER BY bytes DESC
+    `,
+    { repoName },
+  );
+}

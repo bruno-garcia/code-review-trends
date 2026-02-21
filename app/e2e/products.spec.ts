@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Bots listing page", () => {
-  test("shows grid of bot cards", async ({ page }) => {
-    await page.goto("/bots");
+test.describe("Products listing page", () => {
+  test("shows grid of product cards", async ({ page }) => {
+    await page.goto("/products");
     const grid = page.getByTestId("bots-grid");
     await expect(grid).toBeVisible();
     const cards = grid.locator("[data-testid^='bot-card-']");
@@ -15,61 +15,41 @@ test.describe("Bots listing page", () => {
     await expect(firstCard.getByText("PR Comments")).toBeVisible();
   });
 
-  test("has compare button linking to compare page", async ({ page }) => {
-    await page.goto("/bots");
-    const btn = page.getByText("Compare All →");
-    await expect(btn).toBeVisible();
-    await btn.click();
-    await page.waitForURL("/compare");
+  test("has compare link to compare page", async ({ page }) => {
+    await page.goto("/products");
+    const link = page.getByText("Compare side by side →");
+    await expect(link).toBeVisible();
+    await link.click();
+    await page.waitForURL(/\/compare/);
     await expect(page.getByTestId("compare-table")).toBeVisible({ timeout: 15_000 });
   });
 
-  test("bot card links to detail page", async ({ page }) => {
-    await page.goto("/bots");
+  test("product card links to detail page", async ({ page }) => {
+    await page.goto("/products");
     const firstCard = page
       .getByTestId("bots-grid")
       .locator("[data-testid^='bot-card-']")
       .first();
     await firstCard.click();
-    await page.waitForURL(/\/bots\/.+/);
+    await page.waitForURL(/\/products\/.+/);
     await expect(page.getByTestId("bot-name")).toBeVisible({ timeout: 15_000 });
   });
 
   test("shows review volume chart", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expect(page.getByTestId("volume-section")).toBeVisible();
   });
 
-  test("shows leaderboard table", async ({ page }) => {
-    await page.goto("/bots");
-    const table = page.getByTestId("leaderboard-table");
-    await expect(table).toBeVisible();
-  });
-
-  test("leaderboard table headers are clickable for sorting", async ({ page }) => {
-    await page.goto("/bots");
-    const table = page.getByTestId("leaderboard-table");
-    await expect(table).toBeVisible();
-    // Click "Repos" header to sort
-    const reposHeader = table.getByRole("columnheader", { name: "Repos" });
-    await expect(reposHeader).toBeVisible();
-    await reposHeader.getByRole("button").click();
-    await expect(reposHeader.getByText("↓")).toBeVisible();
-    // Click again to reverse
-    await reposHeader.getByRole("button").click();
-    await expect(reposHeader.getByText("↑")).toBeVisible();
-  });
-
   test("links to compare page for full comparison", async ({ page }) => {
-    await page.goto("/bots");
-    const link = page.getByText("Compare All →");
+    await page.goto("/products");
+    const link = page.getByText("Compare side by side →");
     await expect(link).toBeVisible();
   });
 });
 
-test.describe("Bot detail page", () => {
-  test("shows bot stats", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+test.describe("Product detail page", () => {
+  test("shows product stats", async ({ page }) => {
+    await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-name")).toHaveText("CodeRabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     const stats = page.getByTestId("bot-stats");
@@ -80,7 +60,7 @@ test.describe("Bot detail page", () => {
   });
 
   test("rank shows info tooltip with link to about rankings", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     const rank = page.getByTestId("bot-rank");
     await expect(rank).toBeVisible();
     await expect(rank).toContainText("Rank:");
@@ -97,7 +77,7 @@ test.describe("Bot detail page", () => {
   });
 
   test("shows activity chart with toggle", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-activity-chart")).toBeVisible();
     const toggle = page.getByTestId("bot-activity-toggle");
     await expect(toggle).toBeVisible();
@@ -106,14 +86,14 @@ test.describe("Bot detail page", () => {
   });
 
   test("shows comments per PR in stats", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     const stats = page.getByTestId("bot-stats");
     await expect(stats.getByText("Comments/PR")).toBeVisible();
   });
 
   test("renders multi-bot product page without errors", async ({ page }) => {
-    // Regression: /bots/sentry crashed when a bot had no github_login
-    const response = await page.goto("/bots/sentry");
+    // Regression: /products/sentry crashed when a bot had no github_login
+    const response = await page.goto("/products/sentry");
     expect(response?.status()).toBe(200);
     await expect(page.getByTestId("bot-name")).toHaveText("Sentry");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
@@ -122,7 +102,7 @@ test.describe("Bot detail page", () => {
   });
 
   test("bot history shows raw bot login names", async ({ page }) => {
-    await page.goto("/bots/sentry");
+    await page.goto("/products/sentry");
     const historySection = page.getByTestId("bot-history-section");
     // Section only appears with activity data — skip in empty-DB environments
     if (!(await historySection.isVisible().catch(() => false))) {
@@ -139,13 +119,13 @@ test.describe("Bot detail page", () => {
     expect(allText).toContain("seer-by-sentry");
   });
 
-  test("returns 404 for unknown bot", async ({ page }) => {
-    const response = await page.goto("/bots/nonexistent");
+  test("returns 404 for unknown product", async ({ page }) => {
+    const response = await page.goto("/products/nonexistent");
     expect(response?.status()).toBe(404);
   });
 
-  test("has back link to bots page", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+  test("has back link to products page", async ({ page }) => {
+    await page.goto("/products/coderabbit");
     const backLink = page.getByText("← Back to all products");
     await expect(backLink).toBeVisible();
     await backLink.click();
@@ -153,7 +133,7 @@ test.describe("Bot detail page", () => {
   });
 
   test("shows PR characteristics section when data exists", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     // Wait for data to load — bot-stats always renders, so it signals page is ready.
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     // Section is conditionally rendered: visible when enriched PR data exists (staging/CI),
@@ -174,7 +154,7 @@ test.describe("Bot detail page", () => {
   });
 
   test("shows top organizations section when data exists", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     // Section is conditionally rendered: visible when org data exists.
     const section = page.getByTestId("bot-top-orgs");
@@ -189,14 +169,14 @@ test.describe("Bot detail page", () => {
   });
 
   test("shows top repositories section when data exists", async ({ page }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     // Section is conditionally rendered: visible when enriched repo data exists.
     const section = page.getByTestId("bot-top-repos");
     const count = await section.count();
     if (count > 0) {
       await expect(section.getByText("Top Repositories")).toBeVisible();
-      const rows = section.locator("a[href^='https://github.com/']");
+      const rows = section.locator("a[href^='/repos/']");
       const rowCount = await rows.count();
       expect(rowCount).toBeGreaterThan(0);
       expect(rowCount).toBeLessThanOrEqual(5);
@@ -206,7 +186,7 @@ test.describe("Bot detail page", () => {
   test("bot detail page has no NaN or Infinity in any section", async ({
     page,
   }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     // Wait for page data to load by asserting a known section is visible
     await expect(page.getByTestId("bot-stats")).toBeVisible();
     const bodyText = await page.locator("main").textContent();

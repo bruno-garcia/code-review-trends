@@ -20,7 +20,7 @@ test.describe("OG Images", () => {
 
   test("per-product OG image returns valid PNG", async ({ request }) => {
     // Use a product that always exists in the bots table (seeded by 002_bot_data.sql)
-    const res = await request.get("/bots/coderabbit/opengraph-image");
+    const res = await request.get("/products/coderabbit/opengraph-image");
     expect(res.status()).toBe(200);
     expect(res.headers()["content-type"]).toBe("image/png");
     const body = await res.body();
@@ -53,7 +53,7 @@ test.describe("OG meta tags", () => {
   test("bot page has dynamic og:title with product name", async ({
     page,
   }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     // generateMetadata queries ClickHouse — verify the og:title includes the product name
     const ogTitle = page.locator('meta[property="og:title"]');
     await expect(ogTitle).toHaveAttribute("content", /CodeRabbit/);
@@ -70,7 +70,7 @@ test.describe("SEO files", () => {
     // In CI/dev, just verify it's valid XML.
     if (process.env.SITE_URL === "https://codereviewtrends.com") {
       expect(body).toContain("codereviewtrends.com");
-      expect(body).toContain("/bots");
+      expect(body).toContain("/products");
       expect(body).toContain("/compare");
       expect(body).toContain("/orgs");
       expect(body).toContain("/about");

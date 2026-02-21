@@ -50,7 +50,7 @@ test.describe("Compare page", () => {
     await page.goto("/compare");
     const botLink = page.getByTestId("compare-table").locator("tbody a").first();
     const href = await botLink.getAttribute("href");
-    expect(href).toMatch(/^\/bots\//);
+    expect(href).toMatch(/^\/products\//);
   });
 
   test("is reachable from nav", async ({ page }) => {

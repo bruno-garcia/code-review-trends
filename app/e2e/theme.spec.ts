@@ -70,8 +70,8 @@ test.describe("Theme toggle", () => {
     await page.waitForTimeout(100);
 
     // Navigate to another page via client-side navigation
-    await page.getByRole("link", { name: "Bots" }).click();
-    await page.waitForURL("**/bots");
+    await page.getByRole("link", { name: "Products", exact: true }).click();
+    await page.waitForURL("**/products");
 
     const htmlClass = await page.evaluate(() => document.documentElement.className);
     expect(htmlClass).toContain("dark");
@@ -84,7 +84,7 @@ test.describe("Theme toggle", () => {
     await page.waitForTimeout(100);
 
     // Full page reload
-    await page.goto("/bots");
+    await page.goto("/products");
     await page.waitForTimeout(200);
 
     const htmlClass = await page.evaluate(() => document.documentElement.className);

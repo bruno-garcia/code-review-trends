@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import * as Sentry from "@sentry/nextjs";
-import { getProductSummaries, getOrgList } from "@/lib/clickhouse";
+import { getProductSummaries, getOrgList, getRepoList } from "@/lib/clickhouse";
 
 const SITE_URL = process.env.SITE_URL;
 const isProduction = SITE_URL === "https://codereviewtrends.com";
@@ -15,9 +15,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages
   entries.push(
     { url: BASE_URL, changeFrequency: "weekly", priority: 1.0 },
-    { url: `${BASE_URL}/bots`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${BASE_URL}/products`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${BASE_URL}/compare`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${BASE_URL}/orgs`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE_URL}/repos`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/about`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/status`, changeFrequency: "daily", priority: 0.4 },
   );
@@ -27,7 +28,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const products = await getProductSummaries();
     for (const product of products) {
       entries.push({
-        url: `${BASE_URL}/bots/${product.id}`,
+        url: `${BASE_URL}/products/${product.id}`,
         changeFrequency: "weekly",
         priority: 0.8,
       });
@@ -51,6 +52,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch (err) {
     Sentry.captureException(err, {
       tags: { route: "sitemap", section: "orgs" },
+    });
+  }
+
+  // Top repository pages (limit to 500 by stars)
+  try {
+    const repoResult = await getRepoList({ sort: "stars", limit: 500, offset: 0 });
+    for (const repo of repoResult.repos) {
+      entries.push({
+        url: `${BASE_URL}/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name.split('/')[1])}`,
+        changeFrequency: "weekly",
+        priority: 0.5,
+      });
+    }
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { route: "sitemap", section: "repos" },
     });
   }
 

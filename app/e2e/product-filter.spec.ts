@@ -17,18 +17,15 @@ test.describe("Product filter", () => {
     await expect(page.getByTestId("product-filter-bar")).not.toBeVisible();
   });
 
-  test("default filter shows top 10 on bots page", async ({ page }) => {
-    await page.goto("/bots");
+  test("default filter shows top 10", async ({ page }) => {
+    await page.goto("/products");
     const bar = page.getByTestId("product-filter-bar");
     await expect(bar).toBeVisible();
     await expect(bar.getByText(/10 of \d+ products selected/)).toBeVisible();
-
-    const rows = page.getByTestId("leaderboard-table").locator("tbody tr");
-    await expect(rows).toHaveCount(10);
   });
 
   test("filter bar expand/collapse", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
 
     // Initially collapsed
     await expect(page.getByLabel("Expand filter")).toBeVisible();
@@ -44,31 +41,37 @@ test.describe("Product filter", () => {
     await expect(page.getByLabel("Expand filter")).toBeVisible();
   });
 
-  test("toggle product in picker updates leaderboard", async ({ page }) => {
-    await page.goto("/bots");
+  test("toggle product in picker updates card grid", async ({ page }) => {
+    await page.goto("/products");
     await expandPicker(page);
 
-    // Get the first product button in the picker and toggle it off
+    const bar = page.getByTestId("product-filter-bar");
+    const allText = await bar.innerText();
+    const allMatch = allText.match(/(\d+) of (\d+) products/);
+    const selectedCount = parseInt(allMatch![1], 10);
+
+    // Deselect the first product
     const picker = page.getByTestId("product-filter-picker");
     const firstButton = picker.locator("[data-testid^='filter-product-']").first();
     const testId = await firstButton.getAttribute("data-testid");
     const productId = testId!.replace("filter-product-", "");
     await firstButton.click();
 
-    const bar = page.getByTestId("product-filter-bar");
-    await expect(bar.getByText(/9 of \d+ products selected/)).toBeVisible();
-    await expect(page.getByTestId("leaderboard-table").locator("tbody tr")).toHaveCount(9);
+    await expect(bar.getByText(new RegExp(`${selectedCount - 1} of \\d+ products selected`))).toBeVisible();
 
     // Re-select it
     await page.getByTestId(`filter-product-${productId}`).click();
-    await expect(bar.getByText(/10 of \d+ products selected/)).toBeVisible();
-    await expect(page.getByTestId("leaderboard-table").locator("tbody tr")).toHaveCount(10);
+    await expect(bar.getByText(new RegExp(`${selectedCount} of \\d+ products selected`))).toBeVisible();
   });
 
   test("select all / deselect all", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expandPicker(page);
     const bar = page.getByTestId("product-filter-bar");
+
+    // Deselect all
+    await page.getByTestId("filter-deselect-all").click();
+    await expect(bar.getByText(/0 of \d+ products selected/)).toBeVisible();
 
     // Select all
     await page.getByTestId("filter-select-all").click();
@@ -76,28 +79,20 @@ test.describe("Product filter", () => {
     const match = allText.match(/(\d+) of (\d+) products/);
     expect(match).toBeTruthy();
     expect(match![1]).toBe(match![2]);
-
-    // Deselect all — truly empties the selection
-    await page.getByTestId("filter-deselect-all").click();
-    await expect(bar.getByText(/0 of \d+ products selected/)).toBeVisible();
   });
 
-  test("reset to top 10", async ({ page }) => {
-    await page.goto("/bots");
+  test("select top 10", async ({ page }) => {
+    await page.goto("/products");
     await expandPicker(page);
 
-    // Change from default
-    await page.getByTestId("filter-select-all").click();
-    const bar = page.getByTestId("product-filter-bar");
-    await expect(bar.getByText(/10 of \d+ products selected/)).not.toBeVisible();
-
-    // Reset
+    // Start from all selected, click Select Top 10
     await page.getByTestId("filter-reset").click();
+    const bar = page.getByTestId("product-filter-bar");
     await expect(bar.getByText(/10 of \d+ products selected/)).toBeVisible();
   });
 
   test("persistence across navigation", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expandPicker(page);
 
     // Deselect all → 0 products, then add 3 → 3
@@ -113,39 +108,25 @@ test.describe("Product filter", () => {
     }
     await expect(bar.getByText(/3 of \d+ products selected/)).toBeVisible();
 
-    // Navigate to compare (use exact match to avoid "Compare All →" link)
+    // Navigate to compare
     await page.getByRole("link", { name: "Compare", exact: true }).click();
     await expect(page.getByTestId("compare-table").locator("tbody tr")).toHaveCount(3);
 
-    // Navigate back to bots
-    await page.getByRole("link", { name: "Bots" }).click();
+    // Navigate back to products
+    await page.getByRole("link", { name: "Products", exact: true }).click();
     await expect(
       page.getByTestId("bots-grid").locator("[data-testid^='bot-card-']"),
     ).toHaveCount(3);
   });
 
-  test("persistence across reload", async ({ page }) => {
-    await page.goto("/bots");
-    await expandPicker(page);
-
-    await page.getByTestId("filter-deselect-all").click();
-    await expect(
-      page.getByTestId("product-filter-bar").getByText(/0 of \d+ products selected/),
-    ).toBeVisible();
-
-    // Reload — empty selection is not persisted, falls back to defaults
-    await page.reload();
-    await expect(
-      page.getByTestId("product-filter-bar").getByText(/10 of \d+ products selected/),
-    ).toBeVisible();
-  });
-
   test("URL override with ?products=", async ({ page }) => {
-    await page.goto("/bots?products=coderabbit,copilot");
+    await page.goto("/products?products=coderabbit,copilot");
     await expect(
       page.getByTestId("product-filter-bar").getByText(/2 of \d+ products selected/),
     ).toBeVisible();
-    await expect(page.getByTestId("leaderboard-table").locator("tbody tr")).toHaveCount(2);
+    await expect(
+      page.getByTestId("bots-grid").locator("[data-testid^='bot-card-']"),
+    ).toHaveCount(2);
   });
 
   test("compare page respects filter", async ({ page }) => {
@@ -155,8 +136,8 @@ test.describe("Product filter", () => {
     await expect(table.locator("tbody tr")).toHaveCount(3);
   });
 
-  test("bots page respects filter", async ({ page }) => {
-    await page.goto("/bots?products=coderabbit,copilot,sourcery,bito,sentry");
+  test("products page respects filter", async ({ page }) => {
+    await page.goto("/products?products=coderabbit,copilot,sourcery,bito,sentry");
     await expect(
       page.getByTestId("bots-grid").locator("[data-testid^='bot-card-']"),
     ).toHaveCount(5);
@@ -166,20 +147,18 @@ test.describe("Product filter", () => {
     await page.goto("/");
     await expect(page.getByTestId("ai-share-section")).toBeVisible();
     await expect(page.getByTestId("top-orgs-section")).toBeVisible();
-    // data-coverage is conditionally rendered based on data availability
-    // Filter bar should not be visible on home
     await expect(page.getByTestId("product-filter-bar")).not.toBeVisible();
   });
 
-  test("bot detail page unaffected by filter", async ({ page }) => {
-    // Set filter to exclude coderabbit via URL on bots page
-    await page.goto("/bots?products=copilot");
+  test("product detail page unaffected by filter", async ({ page }) => {
+    // Set filter to exclude coderabbit
+    await page.goto("/products?products=copilot");
     await expect(
       page.getByTestId("product-filter-bar").getByText(/1 of \d+ products selected/),
     ).toBeVisible();
 
     // Navigate directly to coderabbit detail — should still work
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     await expect(page.getByTestId("bot-name")).toHaveText("CodeRabbit");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
   });

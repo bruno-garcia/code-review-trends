@@ -51,11 +51,11 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `/bots/${id}` },
+    alternates: { canonical: `/products/${id}` },
     openGraph: {
       title,
       description,
-      url: `/bots/${id}`,
+      url: `/products/${id}`,
     },
     twitter: {
       title,
@@ -142,7 +142,7 @@ export default async function ProductPage({
       />
       <div>
         <Link
-          href="/bots"
+          href="/products"
           className="text-sm text-theme-muted hover:text-theme-text transition-colors"
         >
           ← Back to all products
@@ -413,11 +413,9 @@ export default async function ProductPage({
           </p>
           <div className="space-y-2">
             {topRepos.map((repo, i) => (
-              <a
+              <Link
                 key={repo.name}
-                href={`https://github.com/${repo.name}`}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`/repos/${repo.name}`}
                 className="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-theme-surface/60 transition-colors group"
               >
                 <span className="text-theme-muted text-sm w-6 text-right shrink-0 tabular-nums">
@@ -448,7 +446,7 @@ export default async function ProductPage({
                     {formatNumber(Number(repo.pr_count))} PRs
                   </span>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         </section>

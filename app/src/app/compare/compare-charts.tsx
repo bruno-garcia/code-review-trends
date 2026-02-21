@@ -362,7 +362,7 @@ export function CompareCharts({
                 >
                   <td className="py-3 pr-4 sticky left-0 bg-theme-bg z-10 min-w-[10rem] whitespace-nowrap">
                     <Link
-                      href={buildUrl(`/bots/${product.id}`)}
+                      href={buildUrl(`/products/${product.id}`)}
                       className="font-medium hover:opacity-80 transition-colors"
                       style={{
                         color:

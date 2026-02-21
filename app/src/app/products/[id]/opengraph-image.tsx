@@ -44,7 +44,7 @@ export default async function Image({
     }
   } catch (err) {
     Sentry.captureException(err, {
-      tags: { route: "bots/[id]/opengraph-image", productId: id },
+      tags: { route: "products/[id]/opengraph-image", productId: id },
     });
   }
 
@@ -181,7 +181,7 @@ export default async function Image({
         </div>
 
         {/* Footer */}
-        <OgFooter url={`codereviewtrends.com/bots/${id}`} />
+        <OgFooter url={`codereviewtrends.com/products/${id}`} />
       </div>
     ),
     { ...size },

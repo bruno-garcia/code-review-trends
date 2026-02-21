@@ -20,10 +20,10 @@ async function expandPicker(page: Page) {
 // ---------------------------------------------------------------------------
 
 test.describe("Products in URL", () => {
-  test("selecting products on /bots writes ?products= to URL", async ({
+  test("selecting products on /products writes ?products= to URL", async ({
     page,
   }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await expandPicker(page);
 
     // Deselect all, then select one specific product
@@ -39,7 +39,7 @@ test.describe("Products in URL", () => {
   test("default selection keeps URL clean (no ?products=)", async ({
     page,
   }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     const url = new URL(page.url());
     expect(url.searchParams.has("products")).toBe(false);
   });
@@ -47,13 +47,13 @@ test.describe("Products in URL", () => {
   test("resetting to top 10 removes ?products= from URL", async ({
     page,
   }) => {
-    await page.goto("/bots?products=coderabbit,copilot");
+    await page.goto("/products?products=coderabbit,copilot");
     await expect(page).toHaveURL(/products=/);
 
     await expandPicker(page);
     await page.getByTestId("filter-reset").click();
 
-    // Wait for URL sync
+    // Wait for URL sync — top 10 is the default, so ?products= is removed
     await page.waitForTimeout(300);
     const url = new URL(page.url());
     expect(url.searchParams.has("products")).toBe(false);
@@ -66,13 +66,13 @@ test.describe("Products in URL", () => {
 
 test.describe("Time range in URL", () => {
   test("changing time range updates URL", async ({ page }) => {
-    await page.goto("/bots");
+    await page.goto("/products");
     await page.getByTestId("time-range-6m").click();
     await expect(page).toHaveURL(/range=6m/);
   });
 
   test("selecting All Time removes ?range= from URL", async ({ page }) => {
-    await page.goto("/bots?range=6m");
+    await page.goto("/products?range=6m");
     await page.getByTestId("time-range-all").click();
     await page.waitForURL((url) => !url.search.includes("range="));
     const url = new URL(page.url());
@@ -80,7 +80,7 @@ test.describe("Time range in URL", () => {
   });
 
   test("time range is restored from URL on load", async ({ page }) => {
-    await page.goto("/bots?range=3m");
+    await page.goto("/products?range=3m");
     await expect(page.getByTestId("time-range-3m")).toHaveAttribute(
       "aria-checked",
       "true",
@@ -97,8 +97,8 @@ test.describe("Time range in URL", () => {
 // ---------------------------------------------------------------------------
 
 test.describe("Cross-page filter stickiness", () => {
-  test("Bots → Compare preserves products + range", async ({ page }) => {
-    await page.goto("/bots?products=coderabbit,copilot&range=6m");
+  test("Products → Compare preserves products + range", async ({ page }) => {
+    await page.goto("/products?products=coderabbit,copilot&range=6m");
     await expect(
       page.getByTestId("product-filter-bar").getByText(/2 of \d+ products/),
     ).toBeVisible();
@@ -136,13 +136,13 @@ test.describe("Cross-page filter stickiness", () => {
     ).toBeVisible();
   });
 
-  test("Orgs → Bots preserves products + range", async ({ page }) => {
+  test("Orgs → Products preserves products + range", async ({ page }) => {
     await page.goto("/orgs?products=coderabbit,copilot&range=6m");
 
     const nav = page.locator("nav");
-    await nav.getByRole("link", { name: "Bots", exact: true }).click();
+    await nav.getByRole("link", { name: "Products", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/bots/);
+    await expect(page).toHaveURL(/\/products/);
     await expect(page).toHaveURL(/products=coderabbit%2Ccopilot|products=coderabbit,copilot/);
     await expect(page).toHaveURL(/range=6m/);
 
@@ -154,8 +154,8 @@ test.describe("Cross-page filter stickiness", () => {
   test("full journey: bots → compare → status → bots keeps selection", async ({
     page,
   }) => {
-    // Start on Bots with custom selection
-    await page.goto("/bots?products=coderabbit,copilot,sentry&range=3m");
+    // Start on Products with custom selection
+    await page.goto("/products?products=coderabbit,copilot,sentry&range=3m");
     await expect(
       page.getByTestId("product-filter-bar").getByText(/3 of \d+ products/),
     ).toBeVisible();
@@ -173,18 +173,15 @@ test.describe("Cross-page filter stickiness", () => {
     await nav.getByRole("link", { name: "Status", exact: true }).click();
     await expect(page).toHaveURL("/status");
 
-    // → Back to Bots — selection should survive the detour through Status
-    await nav.getByRole("link", { name: "Bots", exact: true }).click();
-    await expect(page).toHaveURL(/\/bots/);
+    // → Back to Products — selection should survive the detour through Status
+    await nav.getByRole("link", { name: "Products", exact: true }).click();
+    await expect(page).toHaveURL(/\/products/);
     await expect(page).toHaveURL(/products=/);
     await expect(page).toHaveURL(/range=3m/);
 
     await expect(
       page.getByTestId("product-filter-bar").getByText(/3 of \d+ products/),
     ).toBeVisible();
-    await expect(
-      page.getByTestId("leaderboard-table").locator("tbody tr"),
-    ).toHaveCount(3);
   });
 
   test("full journey: orgs → overview → compare keeps selection", async ({
@@ -212,7 +209,7 @@ test.describe("Cross-page filter stickiness", () => {
   });
 
   test("non-filter pages get clean URLs", async ({ page }) => {
-    await page.goto("/bots?products=coderabbit,copilot&range=6m");
+    await page.goto("/products?products=coderabbit,copilot&range=6m");
 
     const nav = page.locator("nav");
 
@@ -297,7 +294,7 @@ test.describe("Chart toggles in URL", () => {
   test("bot detail activity toggle writes ?activity= to URL", async ({
     page,
   }) => {
-    await page.goto("/bots/coderabbit");
+    await page.goto("/products/coderabbit");
     const section = page.getByTestId("bot-activity-chart");
     await section.getByTestId("toggle-repos").click();
 
@@ -345,23 +342,7 @@ test.describe("Table sort in URL", () => {
     await expect(header).toContainText("↑");
   });
 
-  test("bots leaderboard sort writes to URL", async ({ page }) => {
-    await page.goto("/bots");
-    const table = page.getByTestId("leaderboard-table");
 
-    await table.getByRole("button", { name: "Reviews" }).click();
-    await page.waitForTimeout(200);
-    expect(page.url()).toContain("sort=total_reviews");
-  });
-
-  test("bots leaderboard sort restores from URL on load", async ({
-    page,
-  }) => {
-    await page.goto("/bots?sort=total_reviews&dir=asc");
-    const table = page.getByTestId("leaderboard-table");
-    const header = table.getByRole("button", { name: /Reviews/ });
-    await expect(header).toContainText("↑");
-  });
 });
 
 // ---------------------------------------------------------------------------

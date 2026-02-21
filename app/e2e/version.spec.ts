@@ -11,7 +11,7 @@ test.describe("Version stamp", () => {
   });
 
   test("version stamp is present on all pages", async ({ page }) => {
-    for (const path of ["/", "/bots", "/compare"]) {
+    for (const path of ["/", "/products", "/compare"]) {
       await page.goto(path);
       await expect(page.getByTestId("version-stamp")).toBeVisible();
     }

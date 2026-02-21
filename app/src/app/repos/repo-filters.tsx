@@ -6,12 +6,11 @@ import { useCallback, useRef, useTransition } from "react";
 type LanguageOption = { value: string; count: number };
 
 const SORT_OPTIONS = [
-  { key: "stars", label: "⭐ Stars", tip: "Sort by total GitHub stars" },
-  { key: "repos", label: "Repos", tip: "Sort by repos with reviewed PRs" },
+  { key: "stars", label: "⭐ Stars", tip: "Sort by GitHub stars" },
   { key: "prs", label: "Reviewed PRs", tip: "Sort by pull requests reviewed by AI bots" },
 ] as const;
 
-export function OrgFilters({
+export function RepoFilters({
   languageOptions,
   selectedLanguages,
   sort,
@@ -49,7 +48,7 @@ export function OrgFilters({
         }
       }
       const qs = params.toString();
-      const newPath = `/orgs${qs ? `?${qs}` : ""}`;
+      const newPath = `/repos${qs ? `?${qs}` : ""}`;
       document.dispatchEvent(
         new CustomEvent("navigation-start", { detail: { href: newPath } }),
       );
@@ -71,13 +70,13 @@ export function OrgFilters({
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   return (
-    <div data-testid="org-filters" className={`transition-opacity duration-200 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
+    <div data-testid="repo-filters" className={`transition-opacity duration-200 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
       <div className="flex items-center gap-3 flex-wrap">
         {/* Search */}
         <div className="relative">
           <input
             type="text"
-            placeholder="Search orgs…"
+            placeholder="Search repos…"
             defaultValue={search}
             onChange={(e) => {
               const val = e.target.value.trim();
@@ -87,7 +86,7 @@ export function OrgFilters({
               }, 300);
             }}
             className="pl-8 pr-3 py-1.5 text-sm rounded-md bg-theme-surface border border-theme-border text-theme-text placeholder:text-theme-muted/60 focus:outline-none focus:border-violet-500 w-44 sm:w-56"
-            data-testid="org-search"
+            data-testid="repo-search"
           />
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-theme-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -114,7 +113,7 @@ export function OrgFilters({
           ))}
         </div>
 
-        {/* Language dropdown */}
+        {/* Language pills */}
         {selectedLanguages.length > 0 && (
           <div className="flex items-center gap-1.5">
             {selectedLanguages.map((lang) => (
@@ -143,7 +142,7 @@ export function OrgFilters({
         )}
       </div>
 
-      {/* Language chips (compact, always visible) */}
+      {/* Language chips */}
       <div className="mt-3 flex flex-wrap gap-1.5" data-testid="language-filters">
         {languageOptions.slice(0, 20).map((opt) => {
           const active = selectedLanguages.includes(opt.value);
@@ -157,7 +156,7 @@ export function OrgFilters({
                   ? "bg-violet-600 text-white"
                   : "bg-theme-surface border border-theme-border text-theme-muted hover:text-theme-text hover:border-theme-border-hover"
               }`}
-              title={`${Number(opt.count).toLocaleString()} organizations using ${opt.value}`}
+              title={`${Number(opt.count).toLocaleString()} repositories using ${opt.value}`}
             >
               {opt.value}
             </button>

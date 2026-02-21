@@ -61,17 +61,21 @@ export function ProductFilterBar() {
   const isSelectionEmpty = selectedProducts.length === 0;
 
   // Only show filter on pages that use it
-  if (pathname !== "/bots" && pathname !== "/compare" && pathname !== "/orgs") {
+  if (pathname !== "/products" && pathname !== "/compare" && pathname !== "/repos" && pathname !== "/orgs") {
     return null;
   }
 
-  // On /orgs, product changes trigger a server navigation (via OrgProductSync).
-  // Fire the progress bar immediately on user interaction rather than waiting
-  // for the useEffect in OrgProductSync to dispatch after the render cycle.
-  const isOrgs = pathname === "/orgs";
+  // On /orgs and /repos, product changes trigger a server navigation (via
+  // OrgProductSync / RepoProductSync). Fire the progress bar immediately on
+  // user interaction rather than waiting for the useEffect to dispatch.
+  const isServerSyncPage = pathname === "/orgs" || pathname === "/repos";
+
+  // Time range only works on pages that query weekly activity data.
+  // /repos and /orgs use all-time aggregated data with no time dimension.
+  const showTimeRange = pathname === "/products" || pathname === "/compare";
 
   function signalNavigation() {
-    if (isOrgs) {
+    if (isServerSyncPage) {
       document.dispatchEvent(new CustomEvent("navigation-start"));
     }
   }
@@ -97,11 +101,12 @@ export function ProductFilterBar() {
     setSelectedProductIds([]);
   }
 
-  function resetToTop10() {
-    if (selectedProductIds.length === defaultProductIds.length &&
-        defaultProductIds.every((id) => selectedSet.has(id))) return;
+  function selectTop10() {
+    const top10 = allProducts.slice(0, 10).map((p) => p.id);
+    if (selectedProductIds.length === top10.length &&
+        top10.every((id) => selectedSet.has(id))) return;
     signalNavigation();
-    setSelectedProductIds(defaultProductIds);
+    setSelectedProductIds(top10);
   }
 
   // Mobile nav is ~85px tall (py-3 + logo row + gap-y-2 + nav links row).
@@ -136,10 +141,12 @@ export function ProductFilterBar() {
                   </span>
                 )}
 
-                {/* Single instance — w-full on mobile forces to row 2, inline on desktop */}
-                <div className="w-full sm:w-auto sm:border-l sm:border-theme-border sm:pl-3 sm:ml-1" onClick={(e) => e.stopPropagation()}>
-                  <TimeRangeSelector />
-                </div>
+                {/* Time range — only on pages with weekly data */}
+                {showTimeRange && (
+                  <div className="w-full sm:w-auto sm:border-l sm:border-theme-border sm:pl-3 sm:ml-1" onClick={(e) => e.stopPropagation()}>
+                    <TimeRangeSelector />
+                  </div>
+                )}
 
                 <div className="flex-1 hidden sm:flex flex-wrap items-center gap-1.5">
                   {selectedProducts.map((p) => {
@@ -216,10 +223,10 @@ export function ProductFilterBar() {
               <button
                 type="button"
                 data-testid="filter-reset"
-                onClick={resetToTop10}
+                onClick={selectTop10}
                 className="text-xs px-2.5 py-1 rounded bg-theme-surface-alt text-theme-text-secondary hover:bg-theme-border transition-colors"
               >
-                Reset to Top 10
+                Select Top 10
               </button>
             </div>
 
