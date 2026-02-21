@@ -924,16 +924,13 @@ export type PrCharacteristics = {
   avg_deletions: number;
   avg_changed_files: number;
   merge_rate: number;
-  avg_hours_to_merge: number;
+  avg_hours_to_merge: number | null;
 };
 
 export async function getPrCharacteristics(
   productId: string,
   since?: string,
 ): Promise<PrCharacteristics | null> {
-  const conditions = ["b.product_id = {productId:String}"];
-  if (since) conditions.push("p.created_at >= toDate({since:String})");
-  const where = conditions.join(" AND ");
   const params: Record<string, string> = { productId };
   if (since) params.since = since;
 
@@ -946,10 +943,14 @@ export async function getPrCharacteristics(
       round(countIf(p.state = 'merged') * 100.0 / count(), 1) AS merge_rate,
       round(avg(if(p.state = 'merged' AND p.merged_at IS NOT NULL,
         dateDiff('hour', p.created_at, p.merged_at), NULL)), 1) AS avg_hours_to_merge
-    FROM pr_bot_events e
-    JOIN bots b ON e.bot_id = b.id
-    JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
-    WHERE ${where}`,
+    FROM (
+      SELECT DISTINCT e.repo_name, e.pr_number
+      FROM pr_bot_events e
+      JOIN bots b ON e.bot_id = b.id
+      WHERE b.product_id = {productId:String}
+      ${since ? "AND e.event_week >= toDate({since:String})" : ""}
+    ) AS de
+    JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number`,
     params,
   );
 

@@ -495,7 +495,8 @@ function GitHubLogin({ login }: { login: string }) {
   return <code className="text-theme-text/80">{login}</code>;
 }
 
-function formatHours(hours: number): string {
+function formatHours(hours: number | null): string {
+  if (hours == null || isNaN(hours)) return "—";
   if (hours < 1) return `${Math.round(hours * 60)}m`;
   if (hours < 48) return `${Math.round(hours)}h`;
   const days = hours / 24;
