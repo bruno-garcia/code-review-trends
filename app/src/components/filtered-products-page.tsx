@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
-import { useUrlState } from "@/lib/use-url-state";
 import {
   ReviewVolumeChart,
 } from "@/components/charts";
@@ -14,29 +13,6 @@ import type {
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 import { SectionHeading } from "@/components/section-heading";
-
-type LeaderboardSortKey =
-  | "total_reviews"
-  | "total_comments"
-  | "total_pr_comments"
-  | "total_repos"
-  | "total_orgs"
-  | "avg_comments_per_review"
-  | "thumbs_up_rate"
-  | "reaction_rate"
-  | "growth_pct";
-
-const LEADERBOARD_COLUMNS: { key: LeaderboardSortKey; label: string; title: string }[] = [
-  { key: "growth_pct", label: "Growth", title: "Sort by review growth rate" },
-  { key: "total_reviews", label: "Reviews", title: "Sort by total PR reviews submitted" },
-  { key: "total_comments", label: "Review Comments", title: "Sort by total review comments posted" },
-  { key: "total_pr_comments", label: "PR Comments", title: "Sort by total PR comments" },
-  { key: "total_repos", label: "Repos", title: "Sort by max repos active in a single week" },
-  { key: "total_orgs", label: "Orgs", title: "Sort by max organizations active in a single week" },
-  { key: "avg_comments_per_review", label: "Avg C/R", title: "Sort by average comments per review" },
-  { key: "thumbs_up_rate", label: "👍 Rate", title: "Sort by thumbs-up rate — % of 👍 vs 👎 reactions on bot comments (≥30 reactions required)" },
-  { key: "reaction_rate", label: "Rxn Rate", title: "Sort by reaction rate — % of bot comments that received any 👍 or 👎" },
-];
 
 export function FilteredProductsPage({
   activity,
@@ -53,52 +29,11 @@ export function FilteredProductsPage({
     [selectedProductIds],
   );
 
-  // Leaderboard sort state (synced to URL for sharing)
-  const [rawSortKey, setRawSortKey] = useUrlState("sort", "growth_pct");
-  const [rawSortDir, setRawSortDir] = useUrlState("dir", "desc");
-
-  const validSortKeys = useMemo(
-    () => new Set(LEADERBOARD_COLUMNS.map((c) => c.key)),
-    [],
-  );
-  const sortKey: LeaderboardSortKey = validSortKeys.has(rawSortKey as LeaderboardSortKey)
-    ? (rawSortKey as LeaderboardSortKey)
-    : "growth_pct";
-  const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
-
-  function handleSort(key: LeaderboardSortKey) {
-    if (key === sortKey) {
-      setRawSortDir(sortDir === "desc" ? "asc" : "desc");
-    } else {
-      setRawSortKey(key);
-      setRawSortDir("desc");
-    }
-  }
-
   // Filter summaries
   const filteredSummaries = useMemo(
     () => summaries.filter((s) => selectedSet.has(s.id)),
     [summaries, selectedSet],
   );
-
-  // Sort summaries — push sentinel -1 (N/A) to the end, but only for columns
-  // that use -1 as a sentinel. Other columns (e.g. growth_pct) have legitimate negatives.
-  const sortedSummaries = useMemo(() => {
-    const sentinelKeys: Set<LeaderboardSortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
-    const usesSentinel = sentinelKeys.has(sortKey);
-    return [...filteredSummaries].sort((a, b) => {
-      const av = Number(a[sortKey]);
-      const bv = Number(b[sortKey]);
-      if (usesSentinel) {
-        const aNA = av < 0;
-        const bNA = bv < 0;
-        if (aNA && bNA) return 0;
-        if (aNA) return 1;
-        if (bNA) return -1;
-      }
-      return sortDir === "desc" ? bv - av : av - bv;
-    });
-  }, [filteredSummaries, sortKey, sortDir]);
 
   // Build color map from activity
   const colorMap = useMemo(() => {
@@ -150,116 +85,17 @@ export function FilteredProductsPage({
         </div>
       </section>
 
-      {/* Product Leaderboard */}
-      <section data-testid="leaderboard-section">
-        <div className="flex items-center justify-between mb-4">
-          <SectionHeading id="leaderboard">Leaderboard</SectionHeading>
-          <Link
-            href={buildUrl("/compare")}
-            className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
-          >
-            Full comparison →
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          {filteredSummaries.length === 0 ? (
-            <p className="text-theme-muted text-sm">No products match the current filter.</p>
-          ) : (
-          <table className="w-full text-left" data-testid="leaderboard-table">
-            <thead className="text-theme-muted border-b border-theme-border text-sm">
-              <tr>
-                <th className="pb-3 pr-4">Product</th>
-                {LEADERBOARD_COLUMNS.map(({ key, label, title }) => (
-                  <th key={key} className="pb-3 pr-4 text-right">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 cursor-pointer hover:text-theme-text transition-colors"
-                      onClick={() => handleSort(key)}
-                      title={title}
-                    >
-                      {label}
-                      {sortKey === key && (
-                        <span className="text-violet-400">
-                          {sortDir === "desc" ? "↓" : "↑"}
-                        </span>
-                      )}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {sortedSummaries.map((product) => (
-                <tr
-                  key={product.id}
-                  className="border-b border-theme-border/50 hover:bg-theme-surface/50"
-                >
-                  <td className="py-3 pr-4">
-                    <Link
-                      href={buildUrl(`/products/${product.id}`)}
-                      className="font-medium hover:opacity-80 flex items-center gap-2"
-                    >
-                      {product.avatar_url && (
-                        <img
-                          src={product.avatar_url}
-                          alt={product.name}
-                          width={20}
-                          height={20}
-                          className="rounded-full bg-theme-surface-alt border border-theme-border"
-                          style={getAvatarStyle(product.id, resolved)}
-                        />
-                      )}
-                      <span
-                        style={{
-                          color: getThemedBrandColor(product.id, product.brand_color || "#818cf8", resolved),
-                        }}
-                      >
-                        {product.name}
-                      </span>
-                    </Link>
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    <span
-                      className={
-                        Number(product.growth_pct) >= 0
-                          ? "text-emerald-400"
-                          : "text-red-400"
-                      }
-                    >
-                      {Number(product.growth_pct) >= 0 ? "+" : ""}
-                      {Number(product.growth_pct).toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.total_reviews).toLocaleString()}
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.total_comments).toLocaleString()}
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.total_pr_comments).toLocaleString()}
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.total_repos).toLocaleString()}
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.total_orgs).toLocaleString()}
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.avg_comments_per_review).toFixed(1)}
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.thumbs_up_rate) >= 0 ? `${Number(product.thumbs_up_rate).toFixed(0)}%` : "—"}
-                  </td>
-                  <td className="py-3 pr-4 text-right tabular-nums">
-                    {Number(product.reaction_rate) >= 0 ? `${Number(product.reaction_rate).toFixed(1)}%` : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          )}
-        </div>
+      {/* Compare CTA */}
+      <section className="bg-theme-surface rounded-xl p-6 border border-theme-border text-center">
+        <p className="text-theme-muted mb-3">
+          Want to compare products side by side?
+        </p>
+        <Link
+          href={buildUrl("/compare")}
+          className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-lg transition-colors font-medium"
+        >
+          Compare all products →
+        </Link>
       </section>
 
       {/* Bot Cards Grid */}
@@ -324,9 +160,9 @@ export function FilteredProductsPage({
                 </p>
               </div>
               <div>
-                <span className="text-theme-muted/70">👍 Rate</span>
+                <span className="text-theme-muted/70">Approval</span>
                 <p className="font-medium tabular-nums">
-                  {Number(product.thumbs_up_rate) >= 0 ? `${Number(product.thumbs_up_rate).toFixed(0)}%` : "—"}
+                  {Number(product.approval_rate).toFixed(0)}%
                 </p>
               </div>
               <div>
