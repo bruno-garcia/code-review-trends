@@ -37,6 +37,27 @@ Sentry.init({
 
   // Release tracking — matches the commit SHA from next.config.ts
   release: process.env.NEXT_PUBLIC_COMMIT_SHA,
+
+  // Filter out errors from browser extensions (not our code).
+  // `ignoreErrors` drops events whose error message matches these patterns.
+  ignoreErrors: [
+    // WebExtension API errors (1Password, Dashlane, etc.)
+    /runtime\.sendMessage/i,
+    // 1Password-specific messages
+    /get-frame-manager-configuration/i,
+    /shell-plugins-site-config/i,
+  ],
+
+  // Drop errors whose top stack frame originates from an extension script.
+  // Unlike breadcrumb-based filtering, this only looks at where the error
+  // was thrown — a legitimate site error won't be dropped just because the
+  // user has an extension installed.
+  denyUrls: [
+    /^chrome-extension:\/\//,
+    /^moz-extension:\/\//,
+    /^safari-extension:\/\//,
+    /^safari-web-extension:\/\//,
+  ],
 });
 
 // Required by @sentry/nextjs to instrument client-side navigations
