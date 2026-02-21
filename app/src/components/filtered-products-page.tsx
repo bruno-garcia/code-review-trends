@@ -155,9 +155,9 @@ export function FilteredProductsPage({
                 </p>
               </div>
               <div>
-                <span className="text-theme-muted/70">Approval</span>
+                <span className="text-theme-muted/70">👍 Rate</span>
                 <p className="font-medium tabular-nums">
-                  {Number(product.approval_rate).toFixed(0)}%
+                  {Number(product.thumbs_up_rate) >= 0 ? `${Number(product.thumbs_up_rate).toFixed(0)}%` : "—"}
                 </p>
               </div>
               <div>
