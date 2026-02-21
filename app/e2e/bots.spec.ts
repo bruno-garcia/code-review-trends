@@ -119,10 +119,13 @@ test.describe("Bot detail page", () => {
 
   test("shows PR characteristics section when data exists", async ({ page }) => {
     await page.goto("/bots/coderabbit");
-    // The PR characteristics section is conditionally rendered when enriched PR data exists.
-    // On staging/prod this should be visible; on empty local dev it won't be.
+    // Wait for data to load — bot-stats always renders, so it signals page is ready.
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
+    // Section is conditionally rendered: visible when enriched PR data exists (staging/CI),
+    // absent when pull_requests table is empty (bare local dev).
     const section = page.getByTestId("bot-pr-characteristics");
-    if (await section.isVisible()) {
+    const count = await section.count();
+    if (count > 0) {
       await expect(section.getByText("Typical PR Profile")).toBeVisible();
       await expect(section.getByText("Avg Additions")).toBeVisible();
       await expect(section.getByText("Avg Deletions")).toBeVisible();
@@ -137,27 +140,31 @@ test.describe("Bot detail page", () => {
 
   test("shows top organizations section when data exists", async ({ page }) => {
     await page.goto("/bots/coderabbit");
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
+    // Section is conditionally rendered: visible when org data exists.
     const section = page.getByTestId("bot-top-orgs");
-    if (await section.isVisible()) {
+    const count = await section.count();
+    if (count > 0) {
       await expect(section.getByText("Top Organizations")).toBeVisible();
-      // Should have at least one org row with a star count
       const rows = section.locator("a[href^='/orgs/']");
-      const count = await rows.count();
-      expect(count).toBeGreaterThan(0);
-      expect(count).toBeLessThanOrEqual(5);
+      const rowCount = await rows.count();
+      expect(rowCount).toBeGreaterThan(0);
+      expect(rowCount).toBeLessThanOrEqual(5);
     }
   });
 
   test("shows top repositories section when data exists", async ({ page }) => {
     await page.goto("/bots/coderabbit");
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
+    // Section is conditionally rendered: visible when enriched repo data exists.
     const section = page.getByTestId("bot-top-repos");
-    if (await section.isVisible()) {
+    const count = await section.count();
+    if (count > 0) {
       await expect(section.getByText("Top Repositories")).toBeVisible();
-      // Repo links go to GitHub
       const rows = section.locator("a[href^='https://github.com/']");
-      const count = await rows.count();
-      expect(count).toBeGreaterThan(0);
-      expect(count).toBeLessThanOrEqual(5);
+      const rowCount = await rows.count();
+      expect(rowCount).toBeGreaterThan(0);
+      expect(rowCount).toBeLessThanOrEqual(5);
     }
   });
 
@@ -165,7 +172,8 @@ test.describe("Bot detail page", () => {
     page,
   }) => {
     await page.goto("/bots/coderabbit");
-    await page.waitForLoadState("networkidle");
+    // Wait for page data to load by asserting a known section is visible
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
     const bodyText = await page.locator("main").textContent();
     expect(bodyText).not.toMatch(/\bNaN\b/);
     expect(bodyText).not.toMatch(/\bInfinity\b/);

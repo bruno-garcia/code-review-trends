@@ -161,7 +161,10 @@ describe("clickhouse query integration tests", () => {
         { repo_name: "__test_org/repo-alpha", pr_number: 10, bot_id: BOT_B1, reaction_type: "hooray", reacted_at: "2020-01-08 12:00:00", reaction_id: 990001 },
         { repo_name: "__test_org/repo-alpha", pr_number: 11, bot_id: BOT_B1, reaction_type: "hooray", reacted_at: "2020-01-08 13:00:00", reaction_id: 990002 },
         { repo_name: "__test_org/repo-beta", pr_number: 20, bot_id: BOT_B1, reaction_type: "hooray", reacted_at: "2020-01-09 10:00:00", reaction_id: 990003 },
-        // This reaction on PR 1 should NOT count as reaction-only because bot_a1 has an event on PR 1
+        // This reaction IS reaction-only for bot_b1 (bot_b1 has no event on PR 1).
+        // However, it is NOT *exclusive* because bot_a1 has events on PR 1,
+        // so it won't appear in exclusive_pr_count (used by getOrgSummary/getOrgRepos).
+        // It WILL appear in getOrgProducts (per-bot NOT EXISTS check).
         { repo_name: "__test_org/repo-alpha", pr_number: 1, bot_id: BOT_B1, reaction_type: "hooray", reacted_at: "2020-01-07 14:00:00", reaction_id: 990004 },
       ],
       format: "JSONEachRow",

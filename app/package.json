@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "clean": "rm -rf .next",
-    "test": "npx tsx --test src/lib/color-check.test.ts src/components/json-ld.test.ts && npx vitest run --reporter=verbose src/lib/format.test.ts src/lib/time-range.test.ts src/lib/theme-overrides.test.ts",
+    "test": "npm run test:unit:tsx && npm run test:unit:vitest",
+    "test:unit:tsx": "npx tsx --test src/lib/color-check.test.ts src/components/json-ld.test.ts",
+    "test:unit:vitest": "vitest run --reporter=verbose src/lib/format.test.ts src/lib/time-range.test.ts src/lib/theme-overrides.test.ts",
     "lint": "eslint",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
@@ -31,6 +33,7 @@
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.0"
   }
 }
