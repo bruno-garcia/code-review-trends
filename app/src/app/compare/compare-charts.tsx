@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import type { ProductComparison, BotCommentsPerPR, BotReactions } from "@/lib/clickhouse";
+import type { ProductComparison, BotCommentsPerPR, BotReactions, ProductPrCharacteristics } from "@/lib/clickhouse";
+import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
 import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
@@ -10,13 +11,22 @@ import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
 import { SectionHeading } from "@/components/section-heading";
 import Link from "next/link";
 
-type SortKey = keyof ProductComparison;
+type CompareRow = ProductComparison & {
+  sampled_prs: number;
+  avg_additions: number | null;
+  avg_deletions: number | null;
+  avg_changed_files: number | null;
+  merge_rate_pr: number | null;
+  avg_hours_to_merge: number | null;
+};
+
+type SortKey = keyof CompareRow;
 
 const METRICS: {
   key: SortKey;
   label: string;
   description: string;
-  format: (v: number) => string;
+  format: (v: number | null) => string;
 }[] = [
   {
     key: "growth_pct",
@@ -120,10 +130,46 @@ const METRICS: {
     description: "Number of weeks with data",
     format: (v) => Number(v).toLocaleString(),
   },
+  {
+    key: "sampled_prs",
+    label: "Sampled PRs",
+    description: "Enriched PRs with metadata from GitHub API",
+    format: (v) => Number(v).toLocaleString(),
+  },
+  {
+    key: "avg_additions",
+    label: "Avg Additions",
+    description: "Average lines added per PR",
+    format: (v) => v == null ? "—" : `+${Number(v).toLocaleString()}`,
+  },
+  {
+    key: "avg_deletions",
+    label: "Avg Deletions",
+    description: "Average lines deleted per PR",
+    format: (v) => v == null ? "—" : `−${Number(v).toLocaleString()}`,
+  },
+  {
+    key: "avg_changed_files",
+    label: "Avg Files",
+    description: "Average files changed per PR",
+    format: (v) => v == null ? "—" : Number(v).toLocaleString(),
+  },
+  {
+    key: "merge_rate_pr",
+    label: "Merge Rate",
+    description: "Percentage of reviewed PRs that were merged",
+    format: (v) => v == null ? "—" : `${Number(v).toFixed(1)}%`,
+  },
+  {
+    key: "avg_hours_to_merge",
+    label: "Time to Merge",
+    description: "Average time from PR creation to merge",
+    format: (v) => formatHours(v),
+  },
 ];
 
-function normalize(products: ProductComparison[], key: SortKey): number[] {
-  const values = products.map((p) => Number(p[key]));
+function normalize(products: CompareRow[], key: SortKey): number[] {
+  const values = products.map((p) => Number(p[key] ?? 0));
   const max = Math.max(...values);
   if (max === 0) return values.map(() => 0);
   return values.map((v) => Math.round((v / max) * 100));
@@ -133,15 +179,42 @@ export function CompareCharts({
   products: allProducts,
   commentsPerPR: allCommentsPerPR,
   reactionLeaderboard: allReactionLeaderboard,
+  prCharacteristics,
 }: {
   products: ProductComparison[];
   commentsPerPR: BotCommentsPerPR[];
   reactionLeaderboard: BotReactions[];
+  prCharacteristics: ProductPrCharacteristics[];
 }) {
   const { selectedProductIds } = useProductFilter();
   const { resolved } = useTheme();
   const buildUrl = useFilterUrl();
-  const products = allProducts.filter((p) => selectedProductIds.includes(p.id));
+
+  // Merge PR characteristics into product rows
+  const prCharsMap = useMemo(() => {
+    const m = new Map<string, ProductPrCharacteristics>();
+    for (const pc of prCharacteristics) m.set(pc.product_id, pc);
+    return m;
+  }, [prCharacteristics]);
+
+  const products: CompareRow[] = useMemo(
+    () =>
+      allProducts
+        .filter((p) => selectedProductIds.includes(p.id))
+        .map((p) => {
+          const pc = prCharsMap.get(p.id);
+          return {
+            ...p,
+            sampled_prs: pc?.sampled_prs ?? 0,
+            avg_additions: pc?.avg_additions ?? null,
+            avg_deletions: pc?.avg_deletions ?? null,
+            avg_changed_files: pc?.avg_changed_files ?? null,
+            merge_rate_pr: pc?.merge_rate ?? null,
+            avg_hours_to_merge: pc?.avg_hours_to_merge ?? null,
+          };
+        }),
+    [allProducts, selectedProductIds, prCharsMap],
+  );
   const commentsPerPR = allCommentsPerPR.filter((c) =>
     selectedProductIds.includes(c.product_id),
   );
@@ -163,8 +236,14 @@ export function CompareCharts({
   const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
   const sorted = [...products].sort((a, b) => {
-    const av = Number(a[sortKey]);
-    const bv = Number(b[sortKey]);
+    const aRaw = a[sortKey];
+    const bRaw = b[sortKey];
+    // Push nulls to the end regardless of sort direction
+    if (aRaw == null && bRaw == null) return 0;
+    if (aRaw == null) return 1;
+    if (bRaw == null) return -1;
+    const av = Number(aRaw);
+    const bv = Number(bRaw);
     return sortDir === "desc" ? bv - av : av - bv;
   });
 
@@ -279,10 +358,11 @@ export function CompareCharts({
                     </Link>
                   </td>
                   {METRICS.map((m) => {
-                    const val = Number(product[m.key]);
-                    const allVals = sorted.map((p) => Number(p[m.key]));
+                    const raw = product[m.key] as number | null;
+                    const val = Number(raw ?? 0);
+                    const allVals = sorted.map((p) => Number(p[m.key] ?? 0));
                     const max = Math.max(...allVals);
-                    const isTop = max > 0 && val === max;
+                    const isTop = raw != null && max > 0 && val === max;
                     const isGrowth = m.key === "growth_pct";
                     return (
                       <td
@@ -293,7 +373,7 @@ export function CompareCharts({
                           isGrowth && val < 0 ? "text-red-400" : ""
                         }`}
                       >
-                        {m.format(val)}
+                        {m.format(raw)}
                         {isTop && !isGrowth && (
                           <span className="ml-1 text-xs text-violet-400">
                             ★

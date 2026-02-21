@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getProductComparisons, getAvgCommentsPerPR, getBotReactionLeaderboard, getPrCommentSyncPct } from "@/lib/clickhouse";
+import { getProductComparisons, getAvgCommentsPerPR, getBotReactionLeaderboard, getPrCommentSyncPct, getAllPrCharacteristics } from "@/lib/clickhouse";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "./compare-charts";
@@ -20,11 +20,12 @@ export default async function ComparePage({
   const range = parseTimeRange(params.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [products, commentsPerPR, reactionLeaderboard, prCommentSyncPct] = await Promise.all([
+  const [products, commentsPerPR, reactionLeaderboard, prCommentSyncPct, prCharacteristics] = await Promise.all([
     getProductComparisons(since),
     getAvgCommentsPerPR(undefined, since),
     getBotReactionLeaderboard(since),
     getPrCommentSyncPct(),
+    getAllPrCharacteristics(since),
   ]);
 
   return (
@@ -37,7 +38,7 @@ export default async function ComparePage({
         </p>
       </div>
       <PrCommentSyncBanner pct={prCommentSyncPct} />
-      <CompareCharts products={products} commentsPerPR={commentsPerPR} reactionLeaderboard={reactionLeaderboard} />
+      <CompareCharts products={products} commentsPerPR={commentsPerPR} reactionLeaderboard={reactionLeaderboard} prCharacteristics={prCharacteristics} />
     </div>
   );
 }

@@ -959,6 +959,39 @@ export async function getPrCharacteristics(
   return row;
 }
 
+export type ProductPrCharacteristics = PrCharacteristics & {
+  product_id: string;
+};
+
+export async function getAllPrCharacteristics(
+  since?: string,
+): Promise<ProductPrCharacteristics[]> {
+  const params: Record<string, string> = {};
+  if (since) params.since = since;
+
+  return query<ProductPrCharacteristics>(
+    `SELECT
+      de.product_id,
+      count() AS sampled_prs,
+      round(avg(p.additions), 0) AS avg_additions,
+      round(avg(p.deletions), 0) AS avg_deletions,
+      round(avg(p.changed_files), 1) AS avg_changed_files,
+      round(countIf(p.state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+      round(avg(if(p.state = 'merged' AND p.merged_at IS NOT NULL,
+        dateDiff('hour', p.created_at, p.merged_at), NULL)), 1) AS avg_hours_to_merge
+    FROM (
+      SELECT DISTINCT e.repo_name, e.pr_number, b.product_id
+      FROM pr_bot_events e
+      JOIN bots b ON e.bot_id = b.id
+      ${since ? "WHERE e.event_week >= toDate({since:String})" : ""}
+    ) AS de
+    JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number
+    GROUP BY de.product_id
+    HAVING sampled_prs >= 10`,
+    params,
+  );
+}
+
 export type BotByLanguage = {
   bot_id: string;
   bot_name: string;

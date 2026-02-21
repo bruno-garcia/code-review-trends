@@ -17,11 +17,15 @@ const codeClass =
 
 
 export default async function AboutPage() {
-  let enrichmentPct: number | null = null;
+  let reactionEnrichmentPct: number | null = null;
+  let prEnrichmentPct: number | null = null;
   try {
     const stats = await getDataCollectionStats();
     if (stats.reactions_total > 0) {
-      enrichmentPct = (stats.reactions_scanned / stats.reactions_total) * 100;
+      reactionEnrichmentPct = (stats.reactions_scanned / stats.reactions_total) * 100;
+    }
+    if (stats.prs_discovered > 0) {
+      prEnrichmentPct = (stats.prs_enriched / stats.prs_discovered) * 100;
     }
   } catch (err) {
     Sentry.captureException(err, {
@@ -137,10 +141,10 @@ export default async function AboutPage() {
               <Link href="/status" className={linkClass}>/status</Link>{" "}
               page for current progress.
             </p>
-            {enrichmentPct !== null && enrichmentPct < 90 && (
+            {reactionEnrichmentPct !== null && reactionEnrichmentPct <= 95 && (
               <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400" data-testid="enrichment-warning">
                 <strong>Note:</strong> Reaction scan data has not yet been fully
-                collected ({enrichmentPct.toFixed(1)}% complete). Reaction
+                collected ({reactionEnrichmentPct.toFixed(1)}% complete). Reaction
                 review counts may be incomplete.{" "}
                 <Link href="/status" className="text-red-300 hover:text-red-200 underline">
                   View status →
@@ -336,6 +340,77 @@ export default async function AboutPage() {
           also uses growth rate, so newly emerging tools appear by default
           alongside established ones.
         </p>
+      </section>
+
+      {/* PR Profile & Merge Characteristics */}
+      <section className="space-y-4">
+        <SectionHeading id="pr-profile" className="text-theme-text">
+          PR Profile &amp; Merge Characteristics
+        </SectionHeading>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Each product&apos;s detail page and the{" "}
+          <Link href="/compare#detailed" className={linkClass}>comparison table</Link>{" "}
+          show characteristics of pull requests the bot has reviewed: average
+          size (additions, deletions, files changed), merge rate, and time to
+          merge.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          This data comes from a <strong className="text-theme-text">separate
+          enrichment step</strong> — the pipeline fetches PR metadata from the
+          GitHub REST API for PRs discovered via GH Archive. It is not derived
+          from GH Archive events directly.
+        </p>
+        <div className="space-y-3">
+          <h3 className="text-lg font-medium text-theme-text">Important caveats</h3>
+          <ul className="list-disc space-y-2 pl-6 text-theme-text-secondary">
+            <li>
+              <strong className="text-theme-text">Sample, not census.</strong>{" "}
+              Not all discovered PRs have been enriched yet. The sample size is
+              shown alongside each stat (&ldquo;based on X sampled PRs&rdquo;).
+              Coverage varies by product — high-volume products may have tens of
+              thousands of samples, while newer or smaller products may have
+              only a few hundred.
+            </li>
+            <li>
+              <strong className="text-theme-text">Correlation, not causation.</strong>{" "}
+              A bot reviewing a PR does not mean it influenced the merge rate or
+              time to merge. These stats describe the <em>kind of PRs</em> the
+              bot reviews — not the bot&apos;s impact on outcomes.
+            </li>
+            <li>
+              <strong className="text-theme-text">Merge rate</strong> is the
+              percentage of sampled PRs in{" "}
+              <code className={codeClass}>MERGED</code> state (vs.{" "}
+              <code className={codeClass}>CLOSED</code> without merge or
+              still <code className={codeClass}>OPEN</code>).
+            </li>
+            <li>
+              <strong className="text-theme-text">Time to merge</strong> is the
+              average hours between PR creation and merge, computed only for
+              merged PRs. Products where no sampled PRs have been merged
+              show &ldquo;—&rdquo;.
+            </li>
+            <li>
+              Products with fewer than <strong className="text-theme-text">10
+              sampled PRs</strong> are excluded from the comparison table to
+              avoid misleading statistics from tiny samples.
+            </li>
+          </ul>
+        </div>
+        <p className="text-theme-muted text-sm italic">
+          The enrichment pipeline progress is visible on the{" "}
+          <Link href="/status" className={linkClass}>/status</Link> page.
+        </p>
+        {prEnrichmentPct !== null && prEnrichmentPct <= 95 && (
+          <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400" data-testid="pr-enrichment-warning">
+            <strong>Note:</strong> PR metadata has not yet been fully
+            collected ({prEnrichmentPct.toFixed(1)}% complete). PR profile
+            statistics are based on an incomplete sample.{" "}
+            <Link href="/status" className="text-red-300 hover:text-red-200 underline">
+              View status →
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* What's NOT Tracked */}
