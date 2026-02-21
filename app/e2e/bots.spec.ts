@@ -121,7 +121,7 @@ test.describe("Bot detail page", () => {
     // In CI/local dev with empty tables, this section won't be visible
   });
 
-  test("bot history shows github login under brand name", async ({ page }) => {
+  test("bot history shows bot identifier under brand name", async ({ page }) => {
     await page.goto("/bots/sentry");
     const historySection = page.getByTestId("bot-history-section");
     // Section only appears with activity data — skip in empty-DB environments
@@ -129,13 +129,14 @@ test.describe("Bot detail page", () => {
       test.skip(true, "Bot history section not visible, likely due to empty activity data.");
       return;
     }
-    // Each bot row should show the github_login beneath the brand name
+    // Each bot row should show a bot identifier beneath the brand name
     const loginLabels = historySection.locator("[data-testid^='bot-history-login-']");
     const count = await loginLabels.count();
     expect(count).toBeGreaterThan(0);
-    // Verify known logins for Sentry's bots
+    // Verify known Sentry bot identifiers are present (github_login or bot id)
     const allText = await historySection.textContent();
-    expect(allText).toContain("[bot]"); // all github logins end with [bot]
+    expect(allText).toContain("sentry"); // bot id or github_login
+    expect(allText).toContain("seer-by-sentry"); // bot id or github_login
   });
 
   test("returns 404 for unknown bot", async ({ page }) => {

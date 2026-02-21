@@ -273,11 +273,9 @@ export default async function ProductPage({
                   >
                     <td className="py-3 pr-4 font-medium">
                       {bot.name}
-                      {bot.github_login && (
-                        <span className="block text-xs text-theme-muted" data-testid={`bot-history-login-${bot.id}`}>
-                          {bot.github_login}
-                        </span>
-                      )}
+                      <span className="block text-xs text-theme-muted" data-testid={`bot-history-login-${bot.id}`}>
+                        {bot.github_login || bot.id}
+                      </span>
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
                       {Number(bot.total_reviews).toLocaleString()}
