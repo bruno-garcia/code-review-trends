@@ -97,11 +97,12 @@ export function ProductFilterBar() {
     setSelectedProductIds([]);
   }
 
-  function resetToTop10() {
-    if (selectedProductIds.length === defaultProductIds.length &&
-        defaultProductIds.every((id) => selectedSet.has(id))) return;
+  function selectTop10() {
+    const top10 = allProducts.slice(0, 10).map((p) => p.id);
+    if (selectedProductIds.length === top10.length &&
+        top10.every((id) => selectedSet.has(id))) return;
     signalNavigation();
-    setSelectedProductIds(defaultProductIds);
+    setSelectedProductIds(top10);
   }
 
   // Mobile nav is ~85px tall (py-3 + logo row + gap-y-2 + nav links row).
@@ -216,10 +217,10 @@ export function ProductFilterBar() {
               <button
                 type="button"
                 data-testid="filter-reset"
-                onClick={resetToTop10}
+                onClick={selectTop10}
                 className="text-xs px-2.5 py-1 rounded bg-theme-surface-alt text-theme-text-secondary hover:bg-theme-border transition-colors"
               >
-                Reset to Top 10
+                Select Top 10
               </button>
             </div>
 
