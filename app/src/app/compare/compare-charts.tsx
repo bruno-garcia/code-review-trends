@@ -83,10 +83,16 @@ const METRICS: {
     format: (v) => Number(v).toLocaleString(),
   },
   {
-    key: "approval_rate",
-    label: "Approval Rate",
-    description: "👍 / (👍 + 👎) — how often reviews are approved",
-    format: (v) => `${Number(v).toFixed(1)}%`,
+    key: "thumbs_up_rate",
+    label: "👍 Rate",
+    description: "👍 / (👍 + 👎) on bot comments — requires ≥30 reactions, otherwise N/A",
+    format: (v) => Number(v) >= 0 ? `${Number(v).toFixed(1)}%` : "—",
+  },
+  {
+    key: "reaction_rate",
+    label: "Reaction Rate",
+    description: "% of bot comments that received any 👍 or 👎 reaction",
+    format: (v) => Number(v) >= 0 ? `${Number(v).toFixed(1)}%` : "—",
   },
   {
     key: "thumbs_up",
@@ -268,7 +274,6 @@ export function CompareCharts({
     { key: "total_pr_comments" as SortKey, label: "PR Comments" },
     { key: "total_repos" as SortKey, label: "Repos" },
     { key: "total_orgs" as SortKey, label: "Orgs" },
-    { key: "approval_rate" as SortKey, label: "Approval" },
     { key: "latest_week_reviews" as SortKey, label: "Recent Activity" },
   ];
 
@@ -403,7 +408,8 @@ export function CompareCharts({
             { key: "total_repos" as SortKey, label: "Active Repos" },
             { key: "total_orgs" as SortKey, label: "Organizations" },
             { key: "avg_comments_per_review" as SortKey, label: "Avg Comments/Review" },
-            { key: "approval_rate" as SortKey, label: "Approval Rate %" },
+            { key: "thumbs_up_rate" as SortKey, label: "👍 Rate %" },
+            { key: "reaction_rate" as SortKey, label: "Reaction Rate %" },
             { key: "comments_per_repo" as SortKey, label: "Comments per Repo" },
           ].map(({ key, label }) => {
             const chartData = [...products]

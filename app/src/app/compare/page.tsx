@@ -7,7 +7,7 @@ import { CompareCharts } from "./compare-charts";
 export const metadata: Metadata = {
   title: "Compare AI Code Review Products",
   description:
-    "Side-by-side comparison of AI code review tools by volume, growth rate, repos, organizations, and approval ratings. Updated weekly.",
+    "Side-by-side comparison of AI code review tools by volume, growth rate, repos, organizations, and reaction sentiment. Updated weekly.",
   alternates: { canonical: "/compare" },
 };
 

@@ -117,7 +117,8 @@ export type ProductSummary = {
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
-  approval_rate: number;
+  thumbs_up_rate: number;
+  reaction_rate: number;
   comments_per_repo: number;
   first_seen: string;
 };
@@ -140,7 +141,8 @@ export type BotSummary = {
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
-  approval_rate: number;
+  thumbs_up_rate: number;
+  reaction_rate: number;
   comments_per_repo: number;
   first_seen: string;
 };
@@ -160,7 +162,8 @@ export type ProductComparison = {
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
-  approval_rate: number;
+  thumbs_up_rate: number;
+  reaction_rate: number;
   growth_pct: number;
   latest_week_reviews: number;
   latest_week_comments: number;
@@ -182,7 +185,8 @@ export type BotComparison = {
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
-  approval_rate: number;
+  thumbs_up_rate: number;
+  reaction_rate: number;
   growth_pct: number;
   latest_week_reviews: number;
   latest_week_comments: number;
@@ -344,7 +348,9 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           b.product_id,
           sum(cs.thumbs_up) AS thumbs_up,
           sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart
+          sum(cs.heart) AS heart,
+          sum(cs.comment_count) AS comment_count,
+          sum(cs.reacted_comment_count) AS reacted_comment_count
         FROM comment_stats_weekly cs
         JOIN bots b ON cs.bot_id = b.id
         ${reactionSinceFilter}
@@ -374,9 +380,12 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
-      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-        0), 1) AS approval_rate,
+      if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) >= 30,
+        round(COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)), 1),
+        -1) AS thumbs_up_rate,
+      if(COALESCE(rr.comment_count, 0) > 0,
+        round(COALESCE(rr.reacted_comment_count, 0) * 100.0 / COALESCE(rr.comment_count, 0), 1),
+        -1) AS reaction_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
     FROM products p
@@ -476,7 +485,9 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
           b.product_id,
           sum(cs.thumbs_up) AS thumbs_up,
           sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart
+          sum(cs.heart) AS heart,
+          sum(cs.comment_count) AS comment_count,
+          sum(cs.reacted_comment_count) AS reacted_comment_count
         FROM comment_stats_weekly cs
         JOIN bots b ON cs.bot_id = b.id
         ${reactionSinceFilter}
@@ -497,9 +508,12 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
-      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-        0), 1) AS approval_rate,
+      if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) >= 30,
+        round(COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)), 1),
+        -1) AS thumbs_up_rate,
+      if(COALESCE(rr.comment_count, 0) > 0,
+        round(COALESCE(rr.reacted_comment_count, 0) * 100.0 / COALESCE(rr.comment_count, 0), 1),
+        -1) AS reaction_rate,
       round(
         if(ra.prev_12w_reviews > 0,
           (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
@@ -690,7 +704,9 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
           cs.bot_id,
           sum(cs.thumbs_up) AS thumbs_up,
           sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart
+          sum(cs.heart) AS heart,
+          sum(cs.comment_count) AS comment_count,
+          sum(cs.reacted_comment_count) AS reacted_comment_count
         FROM comment_stats_weekly cs
         ${reactionSinceFilter}
         GROUP BY cs.bot_id
@@ -718,9 +734,12 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
-      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-        0), 1) AS approval_rate,
+      if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) >= 30,
+        round(COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)), 1),
+        -1) AS thumbs_up_rate,
+      if(COALESCE(rr.comment_count, 0) > 0,
+        round(COALESCE(rr.reacted_comment_count, 0) * 100.0 / COALESCE(rr.comment_count, 0), 1),
+        -1) AS reaction_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
     FROM bots AS b
@@ -775,7 +794,9 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
           cs.bot_id,
           sum(cs.thumbs_up) AS thumbs_up,
           sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart
+          sum(cs.heart) AS heart,
+          sum(cs.comment_count) AS comment_count,
+          sum(cs.reacted_comment_count) AS reacted_comment_count
         FROM comment_stats_weekly cs
         ${reactionSinceFilter}
         GROUP BY cs.bot_id
@@ -794,9 +815,12 @@ export async function getBotComparisons(since?: string): Promise<BotComparison[]
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
-      round(if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) > 0,
-        COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)),
-        0), 1) AS approval_rate,
+      if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) >= 30,
+        round(COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)), 1),
+        -1) AS thumbs_up_rate,
+      if(COALESCE(rr.comment_count, 0) > 0,
+        round(COALESCE(rr.reacted_comment_count, 0) * 100.0 / COALESCE(rr.comment_count, 0), 1),
+        -1) AS reaction_rate,
       round(
         if(ra.prev_12w_reviews > 0,
           (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
@@ -844,7 +868,8 @@ export type BotReactions = {
   total_thumbs_down: number;
   total_heart: number;
   total_comments: number;
-  approval_rate: number;
+  thumbs_up_rate: number;
+  reaction_rate: number;
 };
 
 export async function getBotReactionLeaderboard(since?: string): Promise<BotReactions[]> {
@@ -861,9 +886,12 @@ export async function getBotReactionLeaderboard(since?: string): Promise<BotReac
       sum(cs.thumbs_down) AS total_thumbs_down,
       sum(cs.heart) AS total_heart,
       sum(cs.comment_count) AS total_comments,
-      round(if((sum(cs.thumbs_up) + sum(cs.thumbs_down)) > 0,
-        sum(cs.thumbs_up) * 100.0 / (sum(cs.thumbs_up) + sum(cs.thumbs_down)),
-        0), 1) AS approval_rate
+      if((sum(cs.thumbs_up) + sum(cs.thumbs_down)) >= 30,
+        round(sum(cs.thumbs_up) * 100.0 / (sum(cs.thumbs_up) + sum(cs.thumbs_down)), 1),
+        -1) AS thumbs_up_rate,
+      if(sum(cs.comment_count) > 0,
+        round(sum(cs.reacted_comment_count) * 100.0 / sum(cs.comment_count), 1),
+        -1) AS reaction_rate
     FROM comment_stats_weekly cs
     JOIN bots b ON cs.bot_id = b.id
     ${sinceFilter}
