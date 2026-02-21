@@ -68,7 +68,7 @@ export function ProductFilterBar() {
   // On /orgs, product changes trigger a server navigation (via OrgProductSync).
   // Fire the progress bar immediately on user interaction rather than waiting
   // for the useEffect in OrgProductSync to dispatch after the render cycle.
-  const isOrgs = pathname === "/orgs" || pathname.startsWith("/orgs/");
+  const isOrgs = pathname === "/orgs";
 
   function signalNavigation() {
     if (isOrgs) {
@@ -86,20 +86,26 @@ export function ProductFilterBar() {
   }
 
   function selectAll() {
+    if (selectedProductIds.length === allProducts.length) return;
     signalNavigation();
     setSelectedProductIds(allProducts.map((p) => p.id));
   }
 
   function deselectAll() {
+    if (selectedProductIds.length === 0) return;
     signalNavigation();
     setSelectedProductIds([]);
   }
 
   function resetToTop10() {
+    if (selectedProductIds.length === defaultProductIds.length &&
+        defaultProductIds.every((id) => selectedSet.has(id))) return;
     signalNavigation();
     setSelectedProductIds(defaultProductIds);
   }
 
+  // Mobile nav is ~85px tall (py-3 + logo row + gap-y-2 + nav links row).
+  // Desktop nav is h-16 (64px). Keep top-[85px]/top-16 in sync with layout.tsx nav.
   return (
     <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg sticky top-[85px] sm:top-16 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
