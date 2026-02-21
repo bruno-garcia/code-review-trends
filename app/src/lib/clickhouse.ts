@@ -1697,10 +1697,8 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
     params.languages = languages;
   }
 
-  let productJoinFilter = "";
-  if (productIds && productIds.length > 0) {
-    productJoinFilter = "AND b.product_id IN ({productIds:Array(String)})";
-    havingConditions.push("COALESCE(uniqExactMerge(s.pr_count), 0) > 0");
+  const hasProductFilter = productIds && productIds.length > 0;
+  if (hasProductFilter) {
     params.productIds = productIds;
   }
 
@@ -1714,6 +1712,13 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
     ? `HAVING ${havingConditions.join(" AND ")}`
     : "";
 
+  // When filtering by product, use INNER JOINs so only repos reviewed by
+  // the selected products appear. Without a product filter, use LEFT JOINs
+  // so all repos show up (even those with no bot activity yet).
+  const eventJoin = hasProductFilter ? "JOIN" : "LEFT JOIN";
+  const botJoin = hasProductFilter ? "JOIN" : "LEFT JOIN";
+  const botCondition = hasProductFilter ? "AND b.product_id IN ({productIds:Array(String)})" : "";
+
   const dataQuery = `
     SELECT
       r.name AS name,
@@ -1724,8 +1729,8 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
       0 AS bot_comment_count,
       groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
     FROM repos r
-    LEFT JOIN pr_bot_event_counts s ON r.name = s.repo_name
-    LEFT JOIN bots b ON s.bot_id = b.id ${productJoinFilter}
+    ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
+    ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
     WHERE ${whereClause}
     GROUP BY r.name, r.owner, r.stars, r.primary_language
     ${havingClause}
@@ -1738,8 +1743,8 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
     SELECT count() AS total FROM (
       SELECT r.name
       FROM repos r
-      LEFT JOIN pr_bot_event_counts s ON r.name = s.repo_name
-      LEFT JOIN bots b ON s.bot_id = b.id ${productJoinFilter}
+      ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
+      ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
       WHERE ${whereClause}
       GROUP BY r.name
       ${havingClause}
