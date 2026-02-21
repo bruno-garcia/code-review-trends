@@ -24,11 +24,11 @@ SELECT
     bot_id,
     toMonday(created_at) AS week,
     count() AS comment_count,
-    sum(thumbs_up) AS thumbs_up,
-    sum(thumbs_down) AS thumbs_down,
-    sum(heart) AS heart,
+    sum(pr_comments.thumbs_up) AS thumbs_up,
+    sum(pr_comments.thumbs_down) AS thumbs_down,
+    sum(pr_comments.heart) AS heart,
     uniqExactState(repo_name, pr_number) AS pr_count,
-    countIf(thumbs_up + thumbs_down > 0) AS reacted_comment_count
+    countIf(pr_comments.thumbs_up + pr_comments.thumbs_down > 0) AS reacted_comment_count
 FROM code_review_trends.pr_comments FINAL
 WHERE comment_id > 0
 GROUP BY bot_id, week
@@ -41,11 +41,11 @@ AS SELECT
     bot_id,
     toMonday(created_at) AS week,
     count() AS comment_count,
-    sum(thumbs_up) AS thumbs_up,
-    sum(thumbs_down) AS thumbs_down,
-    sum(heart) AS heart,
+    sum(pr_comments.thumbs_up) AS thumbs_up,
+    sum(pr_comments.thumbs_down) AS thumbs_down,
+    sum(pr_comments.heart) AS heart,
     uniqExactState(repo_name, pr_number) AS pr_count,
-    countIf(thumbs_up + thumbs_down > 0) AS reacted_comment_count
+    countIf(pr_comments.thumbs_up + pr_comments.thumbs_down > 0) AS reacted_comment_count
 FROM code_review_trends.pr_comments
 WHERE comment_id > 0
 GROUP BY bot_id, week;
