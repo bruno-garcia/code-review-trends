@@ -81,7 +81,7 @@ export default async function ReposPage({
             {result.repos.map((repo, i) => (
               <Link
                 key={repo.name}
-                href={`/repos/${repo.owner}/${repo.name.split("/")[1]}`}
+                href={`/repos/${repo.name}`}
                 className="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-theme-surface/60 transition-colors group"
                 data-testid="repo-row"
               >

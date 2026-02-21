@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useTransition } from "react";
+import { useCallback, useRef, useTransition } from "react";
 
 type LanguageOption = { value: string; count: number };
 
@@ -68,6 +68,7 @@ export function OrgFilters({
   };
 
   const hasFilters = selectedLanguages.length > 0 || search.length > 0;
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   return (
     <div data-testid="org-filters" className={`transition-opacity duration-200 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
@@ -80,7 +81,10 @@ export function OrgFilters({
             defaultValue={search}
             onChange={(e) => {
               const val = e.target.value.trim();
-              applyFilters({ q: val || null });
+              if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+              searchTimerRef.current = setTimeout(() => {
+                applyFilters({ q: val || null });
+              }, 300);
             }}
             className="pl-8 pr-3 py-1.5 text-sm rounded-md bg-theme-surface border border-theme-border text-theme-text placeholder:text-theme-muted/60 focus:outline-none focus:border-violet-500 w-44 sm:w-56"
             data-testid="org-search"

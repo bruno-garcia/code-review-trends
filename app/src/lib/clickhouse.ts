@@ -1829,7 +1829,7 @@ export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> 
       p.avatar_url AS avatar_url,
       p.brand_color AS brand_color,
       uniqExactMerge(s.pr_count) AS pr_count,
-      COALESCE(e.event_count, 0) AS event_count
+      SUM(COALESCE(e.event_count, 0)) AS event_count
     FROM pr_bot_event_counts s
     JOIN bots b ON s.bot_id = b.id
     JOIN products p ON b.product_id = p.id
@@ -1840,7 +1840,7 @@ export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> 
       GROUP BY bot_id
     ) e ON s.bot_id = e.bot_id
     WHERE s.repo_name = {repoName:String}
-    GROUP BY p.id, p.name, p.avatar_url, p.brand_color, e.event_count
+    GROUP BY p.id, p.name, p.avatar_url, p.brand_color
     ORDER BY pr_count DESC
     `,
     { repoName },
