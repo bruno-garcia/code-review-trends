@@ -65,7 +65,19 @@ export function ProductFilterBar() {
     return null;
   }
 
+  // On /orgs, product changes trigger a server navigation (via OrgProductSync).
+  // Fire the progress bar immediately on user interaction rather than waiting
+  // for the useEffect in OrgProductSync to dispatch after the render cycle.
+  const isOrgs = pathname === "/orgs" || pathname.startsWith("/orgs/");
+
+  function signalNavigation() {
+    if (isOrgs) {
+      document.dispatchEvent(new CustomEvent("navigation-start"));
+    }
+  }
+
   function toggleProduct(id: string) {
+    signalNavigation();
     if (selectedSet.has(id)) {
       setSelectedProductIds(selectedProductIds.filter((pid) => pid !== id));
     } else {
@@ -74,19 +86,22 @@ export function ProductFilterBar() {
   }
 
   function selectAll() {
+    signalNavigation();
     setSelectedProductIds(allProducts.map((p) => p.id));
   }
 
   function deselectAll() {
+    signalNavigation();
     setSelectedProductIds([]);
   }
 
   function resetToTop10() {
+    signalNavigation();
     setSelectedProductIds(defaultProductIds);
   }
 
   return (
-    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg sticky top-16 z-40">
+    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg sticky top-[85px] sm:top-16 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Compact row — entire bar is clickable to toggle the picker */}
         <div
@@ -94,68 +109,83 @@ export function ProductFilterBar() {
           tabIndex={0}
           onClick={() => setExpanded(!expanded)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }}
-          className="flex items-center gap-3 min-h-12 py-2 cursor-pointer"
+          className="min-h-12 py-2 cursor-pointer"
           aria-label={expanded ? "Collapse filter" : "Expand filter"}
           aria-expanded={expanded}
         >
-          <span className="text-sm whitespace-nowrap shrink-0 text-theme-muted">
-            <span className={`font-semibold tabular-nums ${isSelectionEmpty ? "text-red-400" : "text-violet-400"}`}>{selectedProducts.length}</span>
-            {" of "}
-            <span className="font-semibold text-theme-text-secondary tabular-nums">{allProducts.length}</span>
-            {" products "}
-            <span className={`underline underline-offset-2 ${isSelectionEmpty ? "text-red-400 decoration-red-400/40 hover:decoration-red-400" : "text-violet-400 decoration-violet-400/40 hover:decoration-violet-400"}`}>selected</span>
-          </span>
-          {isSelectionEmpty && !expanded && (
-            <span className="text-xs text-red-400/80 hidden sm:inline">
-              Click to pick a product
+          <div className="flex items-center gap-3">
+            {/* Left: content rows */}
+            <div className="flex-1 min-w-0">
+              {/* Row 1: product count + (desktop: time range & pills) */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm whitespace-nowrap shrink-0 text-theme-muted">
+                  <span className={`font-semibold tabular-nums ${isSelectionEmpty ? "text-red-400" : "text-violet-400"}`}>{selectedProducts.length}</span>
+                  {" of "}
+                  <span className="font-semibold text-theme-text-secondary tabular-nums">{allProducts.length}</span>
+                  {" products "}
+                  <span className={`underline underline-offset-2 ${isSelectionEmpty ? "text-red-400 decoration-red-400/40 hover:decoration-red-400" : "text-violet-400 decoration-violet-400/40 hover:decoration-violet-400"}`}>selected</span>
+                </span>
+                {isSelectionEmpty && !expanded && (
+                  <span className="text-xs text-red-400/80 hidden sm:inline">
+                    Click to pick a product
+                  </span>
+                )}
+
+                {/* Desktop: time range inline */}
+                <div className="hidden sm:block border-l border-theme-border pl-3 ml-1" onClick={(e) => e.stopPropagation()}>
+                  <TimeRangeSelector />
+                </div>
+
+                <div className="flex-1 hidden sm:flex flex-wrap items-center gap-1.5">
+                  {selectedProducts.map((p) => {
+                    const color = getThemedBrandColor(p.id, p.brand_color, resolved);
+                    const alpha = getBrandAlpha(resolved);
+                    return (
+                    <span
+                      key={p.id}
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap border"
+                      style={{
+                        borderColor: color + alpha.border,
+                        backgroundColor: color + alpha.bg,
+                        color: color,
+                      }}
+                    >
+                      <img
+                        src={p.avatar_url}
+                        alt=""
+                        width={16}
+                        height={16}
+                        className="rounded-full"
+                        style={getAvatarStyle(p.id, resolved)}
+                      />
+                      {p.name}
+                    </span>
+                    );
+                  })}
+                  {allProducts.length - selectedProducts.length > 0 && (
+                    <span className="px-2 py-1 rounded-full text-xs whitespace-nowrap text-red-500 font-medium border border-dashed border-red-500/40 bg-red-500/10">
+                      {allProducts.length - selectedProducts.length} unselected
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: mobile-only time range */}
+              <div className="sm:hidden mt-2" onClick={(e) => e.stopPropagation()}>
+                <TimeRangeSelector />
+              </div>
+            </div>
+
+            {/* Right: chevron — vertically centered across both rows */}
+            <span
+              className="shrink-0 p-2 rounded-lg bg-theme-surface-alt border border-theme-border text-theme-text hover:bg-theme-border transition-colors"
+              aria-hidden="true"
+            >
+              <ChevronDown
+                className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+              />
             </span>
-          )}
-
-          <div className="border-l border-theme-border pl-3 ml-1" onClick={(e) => e.stopPropagation()}>
-            <TimeRangeSelector />
           </div>
-
-          <div className="flex-1 hidden sm:flex flex-wrap items-center gap-1.5">
-            {selectedProducts.map((p) => {
-              const color = getThemedBrandColor(p.id, p.brand_color, resolved);
-              const alpha = getBrandAlpha(resolved);
-              return (
-              <span
-                key={p.id}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs whitespace-nowrap border"
-                style={{
-                  borderColor: color + alpha.border,
-                  backgroundColor: color + alpha.bg,
-                  color: color,
-                }}
-              >
-                <img
-                  src={p.avatar_url}
-                  alt=""
-                  width={16}
-                  height={16}
-                  className="rounded-full"
-                  style={getAvatarStyle(p.id, resolved)}
-                />
-                {p.name}
-              </span>
-              );
-            })}
-            {allProducts.length - selectedProducts.length > 0 && (
-              <span className="px-2 py-1 rounded-full text-xs whitespace-nowrap text-red-500 font-medium border border-dashed border-red-500/40 bg-red-500/10">
-                {allProducts.length - selectedProducts.length} unselected
-              </span>
-            )}
-          </div>
-
-          <span
-            className="shrink-0 p-2 rounded-lg bg-theme-surface-alt border border-theme-border text-theme-text hover:bg-theme-border transition-colors"
-            aria-hidden="true"
-          >
-            <ChevronDown
-              className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-            />
-          </span>
         </div>
 
         {/* Expanded picker */}

@@ -109,13 +109,21 @@ export default async function RootLayout({
             <NavigationProgress />
             <nav className="border-b border-theme-border bg-theme-nav sticky top-0 z-50">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16 gap-4">
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between py-3 sm:py-0 sm:h-16 gap-x-4 gap-y-2">
                   <Link href="/" className="flex items-center flex-shrink-0">
                     <Logo />
                   </Link>
-                  <div className="flex items-center gap-3 sm:gap-6 text-sm text-nav-link overflow-x-auto flex-shrink min-w-0">
-                    <NavLinks />
+                  {/* Mobile: theme toggle in top row next to logo */}
+                  <div className="sm:hidden">
                     <ThemeToggle />
+                  </div>
+                  {/* Mobile: nav links wrap to second row (w-full). Desktop: inline */}
+                  <div className="flex items-center gap-3 sm:gap-6 text-sm text-nav-link overflow-x-auto w-full sm:w-auto">
+                    <NavLinks />
+                    {/* Desktop: theme toggle inline with nav links */}
+                    <div className="hidden sm:block">
+                      <ThemeToggle />
+                    </div>
                   </div>
                 </div>
               </div>
