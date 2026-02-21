@@ -338,7 +338,7 @@ test.describe("Table sort in URL", () => {
     const table = page.getByTestId("compare-table");
 
     // The "Reviews" header should show the sort indicator
-    const header = table.getByRole("button", { name: /^Reviews$/ });
+    const header = table.getByRole("button", { name: /^Reviews/ });
     await expect(header).toContainText("↑");
   });
 
@@ -405,7 +405,7 @@ test.describe("Full shareable URL", () => {
     // Sort: Reviews ascending
     const header = page
       .getByTestId("compare-table")
-      .getByRole("button", { name: /^Reviews$/ });
+      .getByRole("button", { name: /^Reviews/ });
     await expect(header).toContainText("↑");
   });
 
