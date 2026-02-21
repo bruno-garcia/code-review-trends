@@ -336,6 +336,7 @@ export function CompareCharts({
               <span className="ml-2 opacity-0 group-hover:opacity-50 transition-opacity text-theme-muted text-lg">#</span>
             </a>
           </h2>
+          <div className="flex-1" />
           <button
             type="button"
             data-testid="expand-table-btn"
@@ -346,18 +347,15 @@ export function CompareCharts({
             {isExpanded ? "⤡" : "⤢"}
           </button>
           {isExpanded && (
-            <>
-              <div className="flex-1" />
-              <button
-                type="button"
-                data-testid="collapse-table-x"
-                onClick={() => setExpanded("")}
-                title="Close expanded view"
-                className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-theme-surface border border-theme-border hover:bg-theme-border transition-colors text-theme-muted hover:text-theme-text text-base leading-none"
-              >
-                ✕
-              </button>
-            </>
+            <button
+              type="button"
+              data-testid="collapse-table-x"
+              onClick={() => setExpanded("")}
+              title="Close expanded view"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-theme-surface border border-theme-border hover:bg-theme-border transition-colors text-theme-muted hover:text-theme-text text-base leading-none"
+            >
+              ✕
+            </button>
           )}
         </div>
         <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%_-_10rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
