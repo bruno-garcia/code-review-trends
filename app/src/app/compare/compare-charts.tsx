@@ -359,7 +359,7 @@ export function CompareCharts({
             </button>
           )}
         </div>
-        <div className="overflow-x-auto relative [mask-image:linear-gradient(to_right,black_calc(100%_-_10rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]">
+        <div className={`overflow-x-auto relative ${isExpanded ? "" : "[mask-image:linear-gradient(to_right,black_calc(100%_-_10rem),transparent)] hover:[mask-image:none] focus-within:[mask-image:none]"}`}>
           <table
             className="w-full text-left text-sm"
             data-testid="compare-table"
