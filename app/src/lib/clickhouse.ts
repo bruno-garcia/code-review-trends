@@ -1683,7 +1683,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
   const conditions: string[] = ["r.fetch_status = 'ok'"];
   const havingConditions: string[] = [];
   const params: Record<string, unknown> = {
-    limit: limit + 1,
+    limit,
     offset,
   };
 
@@ -1722,7 +1722,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
       r.primary_language AS primary_language,
       COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
       COALESCE(sum(s.event_count), 0) AS bot_comment_count,
-      groupArray(DISTINCT b.product_id) AS product_ids
+      groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
     FROM repos r
     LEFT JOIN pr_bot_event_counts s ON r.name = s.repo_name
     LEFT JOIN bots b ON s.bot_id = b.id ${productJoinFilter}
@@ -1752,7 +1752,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
   ]);
 
   return {
-    repos: repos.slice(0, limit),
+    repos,
     total: countRows[0]?.total ?? 0,
   };
 }

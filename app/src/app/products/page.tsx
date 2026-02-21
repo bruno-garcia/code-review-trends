@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function BotsPage({
+export default async function ProductsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
