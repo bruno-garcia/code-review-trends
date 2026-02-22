@@ -21,6 +21,8 @@ import {
   fetchPRsBatch,
   GRAPHQL_PR_BATCH_SIZE,
 } from "./graphql-pull-requests.js";
+import { AdaptiveBatch } from "./adaptive-batch.js";
+import { isServerError } from "./graphql-retry.js";
 
 /**
  * Fetch and insert details for PRs discovered in pr_bot_events
@@ -100,12 +102,14 @@ export async function enrichPullRequests(
   let forbidden = 0;
   let rateLimited = 0;
   let errors = 0;
-  const BATCH_SIZE = GRAPHQL_PR_BATCH_SIZE;
+  const adaptive = new AdaptiveBatch({ max: 50, min: 5 });
 
-  for (let batchStart = 0; batchStart < validPrs.length; batchStart += BATCH_SIZE) {
-    const batch = validPrs.slice(batchStart, batchStart + BATCH_SIZE);
+  let batchStart = 0;
+  while (batchStart < validPrs.length) {
+    const batch = validPrs.slice(batchStart, batchStart + adaptive.size);
     const batchLabel = `prs batch ${batchStart}–${batchStart + batch.length}`;
 
+    let batchHandled = false;
     await Sentry.startSpan(
       { op: "enrichment.batch", name: batchLabel },
       async () => {
@@ -128,8 +132,15 @@ export async function enrichPullRequests(
               forbidden++;
             }
           }
+          batchHandled = true;
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
+
+          // On server error, reduce batch size and retry
+          if (isServerError(err) && adaptive.size > 5) {
+            adaptive.onServerError();
+            return; // batchHandled stays false → while loop retries
+          }
 
           captureEnrichmentError(err, "pull-requests", {
             fallback: "rest",
@@ -206,15 +217,22 @@ export async function enrichPullRequests(
               }
             }
           }
+          batchHandled = true;
         }
       },
     );
+
+    if (batchHandled) {
+      batchStart += batch.length;
+    }
+    // else: adaptive reduced size, retry same batchStart
 
     const processed = fetched + notFound + forbidden + rateLimited + errors;
     log(`[pull-requests] Progress: ${processed}/${validPrs.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.prs.batch", 1);
   }
 
+  log(`[pull-requests] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);
   log(`[pull-requests] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${errors} errors`);
   return { fetched, skipped: notFound + forbidden + rateLimited, errors };
 }

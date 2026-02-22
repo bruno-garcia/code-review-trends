@@ -84,13 +84,15 @@ export async function enrichRepos(
   let forbidden = 0;
   let rateLimited = 0;
   let errors = 0;
-  const BATCH_SIZE = GRAPHQL_REPO_BATCH_SIZE;
+  const adaptive = new AdaptiveBatch({ max: 50, min: 5 });
 
   // Process in batches — each batch is a single GraphQL query
-  for (let batchStart = 0; batchStart < validRepos.length; batchStart += BATCH_SIZE) {
-    const batch = validRepos.slice(batchStart, batchStart + BATCH_SIZE);
+  let batchStart = 0;
+  while (batchStart < validRepos.length) {
+    const batch = validRepos.slice(batchStart, batchStart + adaptive.size);
     const batchLabel = `repos batch ${batchStart}–${batchStart + batch.length}`;
 
+    let batchHandled = false;
     await Sentry.startSpan(
       { op: "enrichment.batch", name: batchLabel },
       async () => {
@@ -109,9 +111,16 @@ export async function enrichRepos(
               forbidden++;
             }
           }
+          batchHandled = true;
         } catch (err: unknown) {
           // If the whole batch fails, fall back to individual REST processing
           if (err instanceof RateLimitExitError) throw err;
+
+          // On server error, reduce batch size and retry
+          if (isServerError(err) && adaptive.size > 5) {
+            adaptive.onServerError();
+            return; // batchHandled stays false → while loop retries
+          }
 
           captureEnrichmentError(err, "repos", {
             fallback: "rest",
@@ -181,15 +190,22 @@ export async function enrichRepos(
               }
             }
           }
+          batchHandled = true;
         }
       },
     );
+
+    if (batchHandled) {
+      batchStart += batch.length;
+    }
+    // else: adaptive reduced size, retry same batchStart
 
     const processed = fetched + notFound + forbidden + rateLimited + errors;
     log(`[repos] Progress: ${processed}/${validRepos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.repos.batch", 1);
   }
 
+  log(`[repos] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);
   log(`[repos] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${errors} errors`);
   return { fetched, skipped: notFound + forbidden + rateLimited, errors };
 }
