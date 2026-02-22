@@ -114,10 +114,15 @@ async function main() {
         log(`⚠ GitHub token for ${login} never expires. Some GitHub orgs block data from such tokens.`);
         log(`  See: ${PAT_LIFETIME_POLICY_URL}`);
       } else {
-        const msUntilExpiry = expiry.getTime() - Date.now();
-        const daysUntilExpiry = Math.ceil(msUntilExpiry / (1000 * 60 * 60 * 24));
+        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+        const LONG_LIVED_TOKEN_DAYS = 365;
+        const EXPIRY_WARNING_DAYS = 28;
+        const EXPIRY_ERROR_DAYS = 7;
 
-        if (daysUntilExpiry > 365) {
+        const msUntilExpiry = expiry.getTime() - Date.now();
+        const daysUntilExpiry = Math.ceil(msUntilExpiry / MS_PER_DAY);
+
+        if (daysUntilExpiry > LONG_LIVED_TOKEN_DAYS) {
           // Tokens with lifetime > 365 days are also blocked by orgs with strict policies
           Sentry.captureMessage(`Token for ${login} expires in ${daysUntilExpiry} days (>365) — some GitHub orgs block long-lived tokens`, {
             level: "error",
@@ -132,8 +137,8 @@ async function main() {
           });
           log(`⚠ GitHub token for ${login} expires in ${daysUntilExpiry} days (>365). Some GitHub orgs block long-lived tokens.`);
           log(`  See: ${PAT_LIFETIME_POLICY_URL}`);
-        } else if (daysUntilExpiry < 28) {
-          const level = daysUntilExpiry < 7 ? "error" : "warning";
+        } else if (daysUntilExpiry < EXPIRY_WARNING_DAYS) {
+          const level = daysUntilExpiry < EXPIRY_ERROR_DAYS ? "error" : "warning";
           Sentry.captureMessage(`Token for ${login} is expiring in ${daysUntilExpiry} days`, {
             level,
             fingerprint: ["github-token-expiry", login],
@@ -144,6 +149,10 @@ async function main() {
       }
     } catch (err) {
       log(`⚠ Failed to resolve GitHub token identity: ${err instanceof Error ? err.message : err}`);
+      Sentry.captureException(err, {
+        fingerprint: ["github-token-identity-error"],
+        tags: { phase: "github-token-identity" },
+      });
     }
   }
 

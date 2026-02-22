@@ -21,13 +21,21 @@ export type GitHubTokenInfo = {
  * Tokens without expiry omit the header entirely.
  */
 export async function resolveGitHubTokenInfo(token: string): Promise<GitHubTokenInfo> {
-  const res = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+  let res: Response;
+  try {
+    res = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     throw new Error(`GitHub GET /user failed: ${res.status} ${res.statusText}`);

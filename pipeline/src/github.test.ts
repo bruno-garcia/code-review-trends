@@ -66,4 +66,19 @@ describe("resolveGitHubTokenInfo", () => {
       },
     );
   });
+
+  it("passes an AbortSignal to fetch", async () => {
+    globalThis.fetch = mock.fn(async (_url: string, init?: RequestInit) => {
+      assert.ok(init?.signal, "expected AbortSignal to be passed");
+      assert.ok(init.signal instanceof AbortSignal);
+      return {
+        ok: true,
+        json: async () => ({ login: "timeout-test" }),
+        headers: new Headers({}),
+      };
+    }) as unknown as typeof fetch;
+
+    const result = await resolveGitHubTokenInfo("ghp_signal");
+    assert.equal(result.login, "timeout-test");
+  });
 });
