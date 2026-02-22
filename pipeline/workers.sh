@@ -16,7 +16,7 @@
 # Secret name derived from env: crt-<env>-github-tokens
 #
 # Reentrant: start always kills existing session first.
-# Logs: ~/worker-{0,1,...}.log
+# Logs: ~/worker-<env>-{0,1,...}.log
 
 set -euo pipefail
 
@@ -31,10 +31,7 @@ err()  { echo -e "${RED}[workers]${NC} $*" >&2; }
 
 # --- Parse env argument ---
 
-PIPELINE_ENV="${1:-}"
-COMMAND="${2:-}"
-
-if [[ -z "$PIPELINE_ENV" || -z "$COMMAND" ]]; then
+if [[ $# -ne 2 ]]; then
   echo "Usage: $0 <env> {start|stop|status|update|tokens}"
   echo ""
   echo "  <env>     staging | production | development"
@@ -46,6 +43,9 @@ if [[ -z "$PIPELINE_ENV" || -z "$COMMAND" ]]; then
   echo "  tokens    Show token usernames and expiry dates"
   exit 1
 fi
+
+PIPELINE_ENV="$1"
+COMMAND="$2"
 
 case "$PIPELINE_ENV" in
   staging|production|development) ;;
@@ -98,7 +98,7 @@ cmd_start() {
   # Windows 1..N: workers
   for i in $(seq 0 $((n - 1))); do
     local wname="worker${i}"
-    local logfile="$HOME/worker-${i}.log"
+    local logfile="$HOME/worker-${PIPELINE_ENV}-${i}.log"
     local token="${TOKENS[$i]}"
 
     # Build the worker command — override GITHUB_TOKEN per worker
@@ -135,7 +135,7 @@ cmd_status() {
   fi
 
   # Show tail of each worker log
-  for logfile in "$HOME"/worker-*.log; do
+  for logfile in "$HOME"/worker-${PIPELINE_ENV}-*.log; do
     [[ -f "$logfile" ]] || continue
     echo -e "${GREEN}=== $(basename "$logfile") (last 5 lines) ===${NC}"
     tail -5 "$logfile"
