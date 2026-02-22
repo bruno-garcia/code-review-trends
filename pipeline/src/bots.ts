@@ -658,7 +658,7 @@ export const BOTS: BotDefinition[] = [
 
 /**
  * Bot logins we've seen via discover-bots but decided not to track.
- * Adding a login here suppresses the --alert Sentry event for it.
+ * Adding a login here suppresses the Sentry alert for it.
  */
 export const IGNORED_BOT_LOGINS = new Set([
   "devloai[bot]",

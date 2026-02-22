@@ -272,7 +272,7 @@ export type DiscoverBotsOptions = {
 export type DiscoverBotsSummary = {
   /** All discovered results */
   results: DiscoverResult[];
-  /** New bots with a valid GitHub App (not tracked, not ignored) — ready for --alert */
+  /** New bots with a valid GitHub App (not tracked, not ignored) — triggers Sentry alert */
   new_bots: DiscoverResult[];
   /** Total discovered (all strategies) */
   total_found: number;
@@ -560,8 +560,7 @@ export async function checkStaleBots(client: ClickHouseClient): Promise<StalePro
     INNER JOIN products p ON p.id = b.product_id
     WHERE p.status != 'retired'
     GROUP BY p.id, p.name
-    HAVING count() >= 1
-      AND max(activity.week) < toStartOfWeek(now(), 1) - INTERVAL 4 WEEK
+    HAVING max(activity.week) < toStartOfWeek(now(), 1) - INTERVAL 4 WEEK
     ORDER BY lastActivityWeek ASC
   `;
 
