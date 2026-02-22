@@ -6,6 +6,7 @@ import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareChartsAbove } from "./compare-charts-above";
 import { CompareBelowFold, BelowFoldSkeleton } from "./compare-below-fold";
 import { PAIR_BY_IDS } from "@/lib/generated/compare-pairs";
+import { OG_DEFAULTS } from "@/lib/constants";
 
 const DEFAULT_TITLE = "Compare AI Code Review Products";
 const DEFAULT_DESCRIPTION =
@@ -31,7 +32,7 @@ export async function generateMetadata({
         title: pair.title,
         description: pair.description,
         alternates: { canonical: `/compare/${pair.slug}` },
-        openGraph: { title: pair.title, description: pair.description },
+        openGraph: { ...OG_DEFAULTS, title: pair.title, description: pair.description },
         twitter: { title: pair.title, description: pair.description },
       };
     }
@@ -41,7 +42,7 @@ export async function generateMetadata({
     title: DEFAULT_TITLE,
     description: DEFAULT_DESCRIPTION,
     alternates: { canonical: "/compare" },
-    openGraph: { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION },
+    openGraph: { ...OG_DEFAULTS, title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION },
     twitter: { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION },
   };
 }

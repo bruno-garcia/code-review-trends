@@ -14,12 +14,26 @@ import { SchemaBanner } from "@/components/schema-banner";
 import { MigrationGate } from "@/components/migration-gate";
 import { getSchemaStatus } from "@/lib/migrations";
 import { NavigationProgress } from "@/components/navigation-progress";
+import { OG_DEFAULTS } from "@/lib/constants";
 import "./globals.css";
 
 export const revalidate = 300; // 5 minutes — matches in-memory query cache TTL
 
+const PROD_URL = "https://codereviewtrends.com";
+
+function resolveMetadataBase(): URL {
+  const raw = process.env.SITE_URL?.trim();
+  if (!raw) return new URL(PROD_URL);
+  try {
+    return new URL(raw);
+  } catch {
+    console.warn(`Invalid SITE_URL "${raw}", falling back to ${PROD_URL}`);
+    return new URL(PROD_URL);
+  }
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://codereviewtrends.com"),
+  metadataBase: resolveMetadataBase(),
   title: {
     default: "Code Review Trends — AI Code Review Adoption on GitHub",
     template: "%s — Code Review Trends",
@@ -34,11 +48,7 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-icon.png",
   },
-  openGraph: {
-    type: "website",
-    siteName: "Code Review Trends",
-    locale: "en_US",
-  },
+  openGraph: OG_DEFAULTS,
   twitter: {
     card: "summary_large_image",
   },

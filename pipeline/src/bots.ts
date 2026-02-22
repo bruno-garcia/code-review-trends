@@ -67,7 +67,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "CodeRabbit",
     website: "https://coderabbit.ai",
     description:
-      "AI-first code review agent. Auto-summarizes PRs, provides line-by-line feedback, and learns from your preferences over time. Supports custom review instructions and integrates with Jira, Linear, and GitHub Issues.",
+      "AI-first code review agent that learns from your team's preferences over time. Provides line-by-line feedback with auto-generated PR summaries, custom review instructions, and integration with Jira, Linear, and GitHub Issues. Adapts its review style and focus areas based on past interactions, making feedback increasingly relevant to your codebase conventions.",
     docs_url: "https://docs.coderabbit.ai",
     brand_color: "#f97316",
     avatar_url: "https://avatars.githubusercontent.com/in/347564?v=4",
@@ -77,7 +77,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "GitHub Copilot",
     website: "https://github.com/features/copilot",
     description:
-      "GitHub's native AI pair programmer. Provides inline code review suggestions directly in the GitHub pull request UI. Part of the Copilot suite that includes code completion, chat, and workspace features.",
+      "GitHub's native AI pair programmer spanning code completion, chat, and pull request review. Reviews PRs directly in the GitHub UI with zero third-party overhead. Part of the broader Copilot suite — developers using Copilot in their IDE get the same AI reviewing their PRs, creating a unified experience from writing to review.",
     docs_url: "https://docs.github.com/en/copilot",
     brand_color: "#58a6ff",
     avatar_url: "https://avatars.githubusercontent.com/in/946600?v=4",
@@ -87,7 +87,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "CodeScene",
     website: "https://codescene.com",
     description:
-      "Behavioral code analysis platform. Identifies code health issues, complexity hotspots, and technical debt trends. Combines static analysis with version control history to prioritize refactoring efforts.",
+      "Behavioral code analysis platform that mines version control history to understand code health and technical debt. PR reviews analyze changes through the lens of historical patterns — flagging modifications to hotspot areas with high churn and bug density. Unlike pure AI tools, CodeScene combines static analysis with git history to identify truly risky changes based on the trajectory of each file and module.",
     docs_url: "https://codescene.io/docs",
     brand_color: "#5f72ee",
     avatar_url: "https://avatars.githubusercontent.com/in/53921?v=4",
@@ -97,7 +97,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Sourcery",
     website: "https://sourcery.ai",
     description:
-      "AI code reviewer focused on code quality and refactoring. Enforces coding standards, suggests simplifications, and provides an overall quality score for each PR. Strong Python and JavaScript support.",
+      "AI code reviewer focused on refactoring and code quality rather than bug detection. Identifies opportunities for cleaner patterns, suggests simplifications, and assigns quality scores to track improvements over time. Strong Python and JavaScript support. Asks \"is this code well-written?\" rather than \"is this code correct?\" — helping teams prioritize maintainability and readability.",
     docs_url: "https://docs.sourcery.ai",
     brand_color: "#65a30d",
     avatar_url: "https://avatars.githubusercontent.com/in/48477?v=4",
@@ -107,7 +107,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Ellipsis",
     website: "https://ellipsis.dev",
     description:
-      "AI-powered code review and bug detection with configurable review rules. Auto-reviews PRs for bugs, security issues, and style violations. Supports custom prompts and per-repo configuration.",
+      "Configurable AI code review platform that lets teams define their own review rules and custom prompts. Rather than a fixed ruleset, Ellipsis empowers teams to encode their specific coding standards, architectural patterns, and regulatory requirements into automated checks. Valuable for organizations with practices that generic tools can't address.",
     docs_url: "https://docs.ellipsis.dev",
     brand_color: "#06b6d4",
     avatar_url: "https://avatars.githubusercontent.com/in/64358?v=4",
@@ -117,7 +117,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Qodo",
     website: "https://qodo.ai",
     description:
-      "Code integrity platform (formerly CodiumAI). Generates tests, reviews PRs, and provides suggestions for improving code quality. Focuses on test coverage and code correctness with IDE and CI integrations.",
+      "Code integrity platform (formerly CodiumAI) that uniquely integrates test generation with code review. Identifies areas lacking test coverage and auto-generates test cases to catch potential bugs. Bridges the gap between \"reviewed code\" and \"tested code\" — treating testing as an integral part of the review process rather than a separate concern.",
     docs_url: "https://qodo-merge-docs.qodo.ai",
     brand_color: "#9d75f8",
     avatar_url: "https://avatars.githubusercontent.com/in/484649?v=4",
@@ -127,7 +127,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Greptile",
     website: "https://greptile.com",
     description:
-      "Codebase-aware AI code review. Indexes your entire repository for context-rich feedback that understands architecture, patterns, and conventions specific to your project.",
+      "Codebase-aware AI code review that indexes your entire repository to understand architecture, dependencies, and design patterns. Reviews PRs in context of the full system — recognizing which components depend on changed code, where inconsistencies arise, and what architectural debt a change introduces. Particularly valuable for large, complex codebases where understanding cross-cutting impact matters most.",
     docs_url: "https://docs.greptile.com",
     brand_color: "#22c55e",
     avatar_url: "https://avatars.githubusercontent.com/in/867647?v=4",
@@ -137,7 +137,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Sentry",
     website: "https://sentry.io",
     description:
-      "Application monitoring and error tracking platform. PR review is part of Seer, Sentry's AI debugger, which uses production context — errors, traces, logs, and commit history — to catch breaking changes before they ship. Seer also automatically root causes issues in production and can open fix PRs for live errors.",
+      "Application monitoring and error tracking platform where PR review is powered by Seer, an AI debugger grounded in production context. Unlike generic code review tools, Seer correlates PR changes against real errors, traces, logs, and performance data to answer \"will this break production?\" Can automatically root-cause issues and open fix PRs for live errors — turning error detection into immediate remediation.",
     docs_url: "https://docs.sentry.io",
     brand_color: "#9589c4",
     avatar_url: "https://avatars.githubusercontent.com/u/1396951?v=4",
@@ -147,7 +147,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Baz",
     website: "https://baz.co",
     description:
-      "AI code reviewer for fast, actionable PR feedback. Focuses on catching real bugs before merge with minimal noise. Designed for teams that want signal over volume in code review.",
+      "AI code reviewer built on the principle of signal over volume. Focuses on catching genuine bugs, logic errors, and security vulnerabilities with high confidence rather than generating a flood of stylistic suggestions. Designed for teams that want every review comment to be actionable — prioritizing accuracy over coverage to avoid the noise that leads developers to ignore automated feedback.",
     docs_url: "https://docs.baz.co",
     brand_color: "#39FF14",
     avatar_url: "https://avatars.githubusercontent.com/in/933528?s=60&v=4",
@@ -157,7 +157,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Graphite",
     website: "https://graphite.dev",
     description:
-      "Developer productivity platform with stacked PRs, merge queues, and AI-assisted code review. Reviewer automatically summarizes changes and provides feedback to speed up the review cycle.",
+      "Developer productivity platform built around stacked PRs and merge queues, with AI-assisted code review that understands how changes build on one another. Reviewer summarizes changes and provides feedback while understanding dependencies across stacked PRs. Differentiates through workflow innovation — optimizing the review and merge process, not just analyzing code.",
     docs_url: "https://graphite.dev/docs",
     brand_color: "#5b8ef0",
     avatar_url: "https://avatars.githubusercontent.com/in/158384?v=4",
@@ -167,7 +167,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "CodeAnt",
     website: "https://codeant.ai",
     description:
-      "AI code review and static analysis tool. Catches bugs, anti-patterns, and security issues across 30+ languages. Provides auto-fix suggestions and integrates with GitHub, GitLab, and Bitbucket.",
+      "Static analysis platform with AI-enhanced detection and auto-fix capabilities across 30+ programming languages. Reviews PRs for bugs, security vulnerabilities, and anti-patterns, then generates fixes that can be applied directly. Differentiates through breadth of language coverage and automated remediation — identifying issues is half the problem; CodeAnt closes the loop by fixing them at scale.",
     docs_url: "https://docs.codeant.ai",
     brand_color: "#a855f7",
     avatar_url: "https://avatars.githubusercontent.com/in/646884?v=4",
@@ -177,7 +177,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Windsurf",
     website: "https://windsurf.com",
     description:
-      "AI-powered development platform (formerly Codeium). IDE-first experience with deep codebase understanding. PR review feature analyzes changes in the context of your full repository.",
+      "IDE-first AI development platform (formerly Codeium) that extends from code completion and generation into PR review. Analyzes changes in the context of your full repository with review feedback available both on GitHub and in the editor. Reduces context switching by bringing review insights back into the IDE where developers spend most of their time.",
     docs_url: "https://docs.windsurf.com",
     brand_color: "#0d9488",
     avatar_url: "https://avatars.githubusercontent.com/in/1066231?v=4",
@@ -187,7 +187,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Cubic",
     website: "https://cubic.dev",
     description:
-      "AI development assistant with automated code review. Reviews PRs for correctness, suggests improvements, and helps maintain code quality standards across your team.",
+      "AI development assistant that combines code review with developer education. Reviews PRs for bugs, security issues, and style while explaining not just what's wrong but why it matters. Designed to help teams grow their skills alongside maintaining code quality — particularly valuable for organizations investing in developer growth.",
     docs_url: "https://docs.cubic.dev",
     brand_color: "#edc00c",
     avatar_url: "https://avatars.githubusercontent.com/in/1082092?v=4",
@@ -197,7 +197,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Cursor Bugbot",
     website: "https://cursor.com",
     description:
-      "PR review feature from the Cursor AI code editor. Bugbot scans pull requests for potential bugs and suggests fixes, bringing Cursor's code understanding to the review workflow.",
+      "PR review extension from the Cursor AI code editor. Bugbot scans pull requests for potential bugs and suggests fixes, bringing Cursor's deep code understanding to the review workflow. Creates editor-to-PR continuity for teams already using Cursor — the same AI that helps write code also reviews it, ensuring consistent analysis from development through review.",
     docs_url: "https://docs.cursor.com",
     brand_color: "#e84e4e",
     avatar_url: "https://avatars.githubusercontent.com/in/1210556?v=4",
@@ -207,7 +207,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Gemini Code Assist",
     website: "https://cloud.google.com/gemini/docs/codeassist/overview",
     description:
-      "Google's AI code assistant. Reviews pull requests with suggestions for improvements, security fixes, and best practices. Part of Google Cloud's developer tools suite with enterprise integration.",
+      "Google Cloud's enterprise AI code assistant that reviews pull requests for bugs, security vulnerabilities, and best practices. Part of the broader Gemini suite with IDE plugins and chat. Integrates with Google Cloud's identity, security, and developer infrastructure — can be customized with organization-specific policies and training data for GCP-native teams.",
     docs_url:
       "https://cloud.google.com/gemini/docs/codeassist/overview",
     brand_color: "#ec4899",
@@ -218,7 +218,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Bito",
     website: "https://bito.ai",
     description:
-      "AI code review assistant powered by large language models. Provides PR summaries, security analysis, performance suggestions, and code explanations. Supports custom review checklists.",
+      "LLM-powered code review assistant with a focus on security analysis and customizable review checklists. Teams define domain-specific checklists (API versioning, data validation, error handling) and Bito checks each PR against them. Particularly valued in regulated industries where compliance and threat-model-driven reviews need to be applied consistently across PRs.",
     docs_url: "https://docs.bito.ai",
     brand_color: "#94a3b8",
     avatar_url: "https://avatars.githubusercontent.com/in/1061978?v=4",
@@ -228,7 +228,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Korbit",
     website: "https://korbit.ai",
     description:
-      "AI code review mentor. Goes beyond catching bugs — provides educational feedback that helps developers learn and improve. Focuses on teaching best practices during the review process.",
+      "AI code review mentor that went beyond bug detection to provide educational feedback aimed at helping developers learn and improve. Focused on teaching best practices through guided explanations during the review process — designed for learning contexts including coding bootcamps and team onboarding. Service has been retired.",
     docs_url: "https://docs.korbit.ai",
     brand_color: "#b07838",
     avatar_url: "https://avatars.githubusercontent.com/in/322216?v=4",
@@ -239,7 +239,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Claude",
     website: "https://claude.ai",
     description:
-      "Anthropic's AI assistant with GitHub integration. Provides thoughtful, in-depth code review with strong reasoning capabilities. Can be assigned as a reviewer on pull requests via the GitHub app.",
+      "Anthropic's AI assistant with deep reasoning capabilities, available as a GitHub PR reviewer and through Claude Code, a CLI-based coding agent. Reviews code by thinking through changes step by step — following complex logic chains across files to identify subtle bugs and architectural issues. Stands out for nuanced understanding of business logic rather than pattern-matching against rules.",
     docs_url: "https://docs.anthropic.com",
     brand_color: "#FF9F1C",
     avatar_url: "https://avatars.githubusercontent.com/in/1236702?v=4",
@@ -249,7 +249,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "OpenAI Codex",
     website: "https://openai.com/codex",
     description:
-      "OpenAI's cloud-based coding agent. Runs in a sandboxed environment to write code, fix bugs, and review pull requests. Operates asynchronously — assign tasks and review results when ready.",
+      "OpenAI's cloud-based coding agent that runs in a sandboxed environment to write code, fix bugs, and review pull requests asynchronously. Assign tasks and review results when ready — operates independently without blocking developer workflows. Optimized for stateless, scalable code analysis that can process high volumes of reviews across distributed environments.",
     docs_url: "https://platform.openai.com/docs/guides/codex",
     brand_color: "#808080",
     avatar_url: "https://avatars.githubusercontent.com/in/1144995?s=60&v=4",
@@ -259,7 +259,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Mesa",
     website: "https://mesa.dev",
     description:
-      "AI-powered development workflow platform. Automates code review as part of a broader CI/CD integration, providing feedback on code quality, testing, and deployment readiness.",
+      "Development workflow platform that integrates PR review with CI/CD orchestration and deployment context. AI suggestions appear alongside build results, test coverage, and deployment status — enabling review decisions informed by the full pipeline, not just the diff. Centralizes PRs, build logs, and deployment information to reduce context switching.",
     docs_url: "https://docs.mesa.dev",
     brand_color: "#c06a33",
     avatar_url: "https://avatars.githubusercontent.com/in/1050077?v=4",
@@ -269,7 +269,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "LinearB",
     website: "https://linearb.io",
     description:
-      "Developer workflow platform with gitStream automation and AI-powered code review. Automates PR routing, reviewer assignment, and provides workflow metrics for engineering teams.",
+      "Developer productivity and workflow intelligence platform that optimizes the review process itself. Uses gitStream automation to route PRs, auto-approve safe changes (documentation, version bumps), and assign the right reviewers. Focuses on team-level metrics — cycle time, review load balancing, and deployment frequency — rather than individual code quality analysis.",
     docs_url: "https://linearb.io/docs",
     brand_color: "#a37ce2",
     avatar_url: "https://avatars.githubusercontent.com/in/1658443?v=4",
@@ -279,7 +279,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Augment Code",
     website: "https://augmentcode.com",
     description:
-      "AI coding assistant with automated PR review. Understands your codebase context to provide relevant feedback. Designed for enterprise teams with support for private codebases and custom guidelines.",
+      "Enterprise AI coding assistant with automated PR review focused on security, compliance, and architectural alignment. Can be deployed on-premises or in private cloud for organizations with strict data residency requirements. Reviews PRs against company-specific coding standards and integration patterns — designed for regulated industries handling sensitive code.",
     docs_url: "https://docs.augmentcode.com",
     brand_color: "#968CFF",
     avatar_url: "https://avatars.githubusercontent.com/in/1027498?v=4",
@@ -289,7 +289,7 @@ export const PRODUCTS: ProductDefinition[] = [
     name: "Kodus",
     website: "https://kodus.io",
     description:
-      "AI code reviewer that analyzes pull requests like a senior developer. Provides actionable suggestions, identifies bugs, and enforces coding standards. Open-source with cloud and self-hosted options.",
+      "Open-source AI code reviewer with cloud and self-hosted deployment options. Analyzes pull requests for bugs, security issues, and coding standard violations with full transparency into how reviews are generated. Appeals to teams that want to audit AI decisions, customize detection logic, and avoid vendor lock-in while still getting automated code review.",
     docs_url: "https://docs.kodus.io",
     brand_color: "#6C63FF",
     avatar_url: "https://avatars.githubusercontent.com/in/413034?v=4",

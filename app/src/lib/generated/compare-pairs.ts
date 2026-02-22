@@ -19,7 +19,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Baz",
     "slug": "augment-code-vs-baz",
     "title": "Augment Code vs Baz — AI Code Review Comparison",
-    "description": "Compare Augment Code and Baz AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -28,7 +28,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Bito",
     "slug": "augment-code-vs-bito",
     "title": "Augment Code vs Bito — AI Code Review Comparison",
-    "description": "Compare Augment Code and Bito AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -37,7 +37,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Claude",
     "slug": "augment-code-vs-claude",
     "title": "Augment Code vs Claude — AI Code Review Comparison",
-    "description": "Compare Augment Code and Claude AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -46,7 +46,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeAnt",
     "slug": "augment-code-vs-codeant",
     "title": "Augment Code vs CodeAnt — AI Code Review Comparison",
-    "description": "Compare Augment Code and CodeAnt AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -55,7 +55,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeRabbit",
     "slug": "augment-code-vs-coderabbit",
     "title": "Augment Code vs CodeRabbit — AI Code Review Comparison",
-    "description": "Compare Augment Code and CodeRabbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -64,7 +64,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeScene",
     "slug": "augment-code-vs-codescene",
     "title": "Augment Code vs CodeScene — AI Code Review Comparison",
-    "description": "Compare Augment Code and CodeScene AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -73,7 +73,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cubic",
     "slug": "augment-code-vs-cubic",
     "title": "Augment Code vs Cubic — AI Code Review Comparison",
-    "description": "Compare Augment Code and Cubic AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Cubic is an AI assistant that combines code review with developer education and explanations. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -82,7 +82,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cursor Bugbot",
     "slug": "augment-code-vs-cursor-bugbot",
     "title": "Augment Code vs Cursor Bugbot — AI Code Review Comparison",
-    "description": "Compare Augment Code and Cursor Bugbot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -91,7 +91,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "augment-code-vs-ellipsis",
     "title": "Augment Code vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare Augment Code and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -100,7 +100,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "augment-code-vs-gemini-code-assist",
     "title": "Augment Code vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare Augment Code and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -109,7 +109,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "augment-code-vs-github-copilot",
     "title": "Augment Code vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare Augment Code and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -118,7 +118,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "augment-code-vs-graphite",
     "title": "Augment Code vs Graphite — AI Code Review Comparison",
-    "description": "Compare Augment Code and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -127,7 +127,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "augment-code-vs-greptile",
     "title": "Augment Code vs Greptile — AI Code Review Comparison",
-    "description": "Compare Augment Code and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -136,7 +136,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "augment-code-vs-kodus",
     "title": "Augment Code vs Kodus — AI Code Review Comparison",
-    "description": "Compare Augment Code and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -145,7 +145,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "augment-code-vs-korbit",
     "title": "Augment Code vs Korbit — AI Code Review Comparison",
-    "description": "Compare Augment Code and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -154,7 +154,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "augment-code-vs-linearb",
     "title": "Augment Code vs LinearB — AI Code Review Comparison",
-    "description": "Compare Augment Code and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -163,7 +163,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "augment-code-vs-mesa",
     "title": "Augment Code vs Mesa — AI Code Review Comparison",
-    "description": "Compare Augment Code and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -172,7 +172,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "augment-code-vs-openai-codex",
     "title": "Augment Code vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Augment Code and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -181,7 +181,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "augment-code-vs-qodo",
     "title": "Augment Code vs Qodo — AI Code Review Comparison",
-    "description": "Compare Augment Code and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -190,7 +190,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "augment-code-vs-sentry",
     "title": "Augment Code vs Sentry — AI Code Review Comparison",
-    "description": "Compare Augment Code and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -199,7 +199,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "augment-code-vs-sourcery",
     "title": "Augment Code vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Augment Code and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "augment",
@@ -208,7 +208,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "augment-code-vs-windsurf",
     "title": "Augment Code vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Augment Code and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -217,7 +217,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Bito",
     "slug": "baz-vs-bito",
     "title": "Baz vs Bito — AI Code Review Comparison",
-    "description": "Compare Baz and Bito AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -226,7 +226,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Claude",
     "slug": "baz-vs-claude",
     "title": "Baz vs Claude — AI Code Review Comparison",
-    "description": "Compare Baz and Claude AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -235,7 +235,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeAnt",
     "slug": "baz-vs-codeant",
     "title": "Baz vs CodeAnt — AI Code Review Comparison",
-    "description": "Compare Baz and CodeAnt AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -244,7 +244,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeRabbit",
     "slug": "baz-vs-coderabbit",
     "title": "Baz vs CodeRabbit — AI Code Review Comparison",
-    "description": "Compare Baz and CodeRabbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -253,7 +253,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeScene",
     "slug": "baz-vs-codescene",
     "title": "Baz vs CodeScene — AI Code Review Comparison",
-    "description": "Compare Baz and CodeScene AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -262,7 +262,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cubic",
     "slug": "baz-vs-cubic",
     "title": "Baz vs Cubic — AI Code Review Comparison",
-    "description": "Compare Baz and Cubic AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Cubic is an AI assistant that combines code review with developer education and explanations. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -271,7 +271,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cursor Bugbot",
     "slug": "baz-vs-cursor-bugbot",
     "title": "Baz vs Cursor Bugbot — AI Code Review Comparison",
-    "description": "Compare Baz and Cursor Bugbot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -280,7 +280,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "baz-vs-ellipsis",
     "title": "Baz vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare Baz and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -289,7 +289,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "baz-vs-gemini-code-assist",
     "title": "Baz vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare Baz and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -298,7 +298,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "baz-vs-github-copilot",
     "title": "Baz vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare Baz and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -307,7 +307,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "baz-vs-graphite",
     "title": "Baz vs Graphite — AI Code Review Comparison",
-    "description": "Compare Baz and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -316,7 +316,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "baz-vs-greptile",
     "title": "Baz vs Greptile — AI Code Review Comparison",
-    "description": "Compare Baz and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -325,7 +325,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "baz-vs-kodus",
     "title": "Baz vs Kodus — AI Code Review Comparison",
-    "description": "Compare Baz and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -334,7 +334,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "baz-vs-korbit",
     "title": "Baz vs Korbit — AI Code Review Comparison",
-    "description": "Compare Baz and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -343,7 +343,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "baz-vs-linearb",
     "title": "Baz vs LinearB — AI Code Review Comparison",
-    "description": "Compare Baz and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -352,7 +352,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "baz-vs-mesa",
     "title": "Baz vs Mesa — AI Code Review Comparison",
-    "description": "Compare Baz and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -361,7 +361,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "baz-vs-openai-codex",
     "title": "Baz vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Baz and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -370,7 +370,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "baz-vs-qodo",
     "title": "Baz vs Qodo — AI Code Review Comparison",
-    "description": "Compare Baz and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -379,7 +379,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "baz-vs-sentry",
     "title": "Baz vs Sentry — AI Code Review Comparison",
-    "description": "Compare Baz and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -388,7 +388,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "baz-vs-sourcery",
     "title": "Baz vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Baz and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "baz",
@@ -397,7 +397,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "baz-vs-windsurf",
     "title": "Baz vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Baz and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -406,7 +406,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Claude",
     "slug": "bito-vs-claude",
     "title": "Bito vs Claude — AI Code Review Comparison",
-    "description": "Compare Bito and Claude AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -415,7 +415,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeAnt",
     "slug": "bito-vs-codeant",
     "title": "Bito vs CodeAnt — AI Code Review Comparison",
-    "description": "Compare Bito and CodeAnt AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -424,7 +424,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeRabbit",
     "slug": "bito-vs-coderabbit",
     "title": "Bito vs CodeRabbit — AI Code Review Comparison",
-    "description": "Compare Bito and CodeRabbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -433,7 +433,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeScene",
     "slug": "bito-vs-codescene",
     "title": "Bito vs CodeScene — AI Code Review Comparison",
-    "description": "Compare Bito and CodeScene AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -442,7 +442,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cubic",
     "slug": "bito-vs-cubic",
     "title": "Bito vs Cubic — AI Code Review Comparison",
-    "description": "Compare Bito and Cubic AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Cubic is an AI assistant that combines code review with developer education and explanations. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -451,7 +451,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cursor Bugbot",
     "slug": "bito-vs-cursor-bugbot",
     "title": "Bito vs Cursor Bugbot — AI Code Review Comparison",
-    "description": "Compare Bito and Cursor Bugbot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -460,7 +460,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "bito-vs-ellipsis",
     "title": "Bito vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare Bito and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -469,7 +469,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "bito-vs-gemini-code-assist",
     "title": "Bito vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare Bito and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -478,7 +478,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "bito-vs-github-copilot",
     "title": "Bito vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare Bito and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -487,7 +487,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "bito-vs-graphite",
     "title": "Bito vs Graphite — AI Code Review Comparison",
-    "description": "Compare Bito and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -496,7 +496,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "bito-vs-greptile",
     "title": "Bito vs Greptile — AI Code Review Comparison",
-    "description": "Compare Bito and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -505,7 +505,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "bito-vs-kodus",
     "title": "Bito vs Kodus — AI Code Review Comparison",
-    "description": "Compare Bito and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -514,7 +514,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "bito-vs-korbit",
     "title": "Bito vs Korbit — AI Code Review Comparison",
-    "description": "Compare Bito and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -523,7 +523,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "bito-vs-linearb",
     "title": "Bito vs LinearB — AI Code Review Comparison",
-    "description": "Compare Bito and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -532,7 +532,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "bito-vs-mesa",
     "title": "Bito vs Mesa — AI Code Review Comparison",
-    "description": "Compare Bito and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -541,7 +541,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "bito-vs-openai-codex",
     "title": "Bito vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Bito and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -550,7 +550,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "bito-vs-qodo",
     "title": "Bito vs Qodo — AI Code Review Comparison",
-    "description": "Compare Bito and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -559,7 +559,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "bito-vs-sentry",
     "title": "Bito vs Sentry — AI Code Review Comparison",
-    "description": "Compare Bito and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -568,7 +568,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "bito-vs-sourcery",
     "title": "Bito vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Bito and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "bito",
@@ -577,7 +577,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "bito-vs-windsurf",
     "title": "Bito vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Bito and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -586,7 +586,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeAnt",
     "slug": "claude-vs-codeant",
     "title": "Claude vs CodeAnt — AI Code Review Comparison",
-    "description": "Compare Claude and CodeAnt AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -595,7 +595,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeRabbit",
     "slug": "claude-vs-coderabbit",
     "title": "Claude vs CodeRabbit — AI Code Review Comparison",
-    "description": "Compare Claude and CodeRabbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -604,7 +604,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeScene",
     "slug": "claude-vs-codescene",
     "title": "Claude vs CodeScene — AI Code Review Comparison",
-    "description": "Compare Claude and CodeScene AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -613,7 +613,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cubic",
     "slug": "claude-vs-cubic",
     "title": "Claude vs Cubic — AI Code Review Comparison",
-    "description": "Compare Claude and Cubic AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Cubic is an AI assistant that combines code review with developer education and explanations. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -622,7 +622,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cursor Bugbot",
     "slug": "claude-vs-cursor-bugbot",
     "title": "Claude vs Cursor Bugbot — AI Code Review Comparison",
-    "description": "Compare Claude and Cursor Bugbot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -631,7 +631,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "claude-vs-ellipsis",
     "title": "Claude vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare Claude and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -640,7 +640,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "claude-vs-gemini-code-assist",
     "title": "Claude vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare Claude and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -649,7 +649,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "claude-vs-github-copilot",
     "title": "Claude vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare Claude and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -658,7 +658,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "claude-vs-graphite",
     "title": "Claude vs Graphite — AI Code Review Comparison",
-    "description": "Compare Claude and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -667,7 +667,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "claude-vs-greptile",
     "title": "Claude vs Greptile — AI Code Review Comparison",
-    "description": "Compare Claude and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -676,7 +676,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "claude-vs-kodus",
     "title": "Claude vs Kodus — AI Code Review Comparison",
-    "description": "Compare Claude and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -685,7 +685,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "claude-vs-korbit",
     "title": "Claude vs Korbit — AI Code Review Comparison",
-    "description": "Compare Claude and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -694,7 +694,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "claude-vs-linearb",
     "title": "Claude vs LinearB — AI Code Review Comparison",
-    "description": "Compare Claude and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -703,7 +703,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "claude-vs-mesa",
     "title": "Claude vs Mesa — AI Code Review Comparison",
-    "description": "Compare Claude and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -712,7 +712,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "claude-vs-openai-codex",
     "title": "Claude vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Claude and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -721,7 +721,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "claude-vs-qodo",
     "title": "Claude vs Qodo — AI Code Review Comparison",
-    "description": "Compare Claude and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -730,7 +730,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "claude-vs-sentry",
     "title": "Claude vs Sentry — AI Code Review Comparison",
-    "description": "Compare Claude and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -739,7 +739,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "claude-vs-sourcery",
     "title": "Claude vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Claude and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "claude",
@@ -748,7 +748,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "claude-vs-windsurf",
     "title": "Claude vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Claude and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -757,7 +757,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeRabbit",
     "slug": "codeant-vs-coderabbit",
     "title": "CodeAnt vs CodeRabbit — AI Code Review Comparison",
-    "description": "Compare CodeAnt and CodeRabbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -766,7 +766,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeScene",
     "slug": "codeant-vs-codescene",
     "title": "CodeAnt vs CodeScene — AI Code Review Comparison",
-    "description": "Compare CodeAnt and CodeScene AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -775,7 +775,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cubic",
     "slug": "codeant-vs-cubic",
     "title": "CodeAnt vs Cubic — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Cubic AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Cubic is an AI assistant that combines code review with developer education and explanations. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -784,7 +784,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cursor Bugbot",
     "slug": "codeant-vs-cursor-bugbot",
     "title": "CodeAnt vs Cursor Bugbot — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Cursor Bugbot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -793,7 +793,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "codeant-vs-ellipsis",
     "title": "CodeAnt vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -802,7 +802,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "codeant-vs-gemini-code-assist",
     "title": "CodeAnt vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -811,7 +811,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "codeant-vs-github-copilot",
     "title": "CodeAnt vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare CodeAnt and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -820,7 +820,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "codeant-vs-graphite",
     "title": "CodeAnt vs Graphite — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -829,7 +829,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "codeant-vs-greptile",
     "title": "CodeAnt vs Greptile — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -838,7 +838,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "codeant-vs-kodus",
     "title": "CodeAnt vs Kodus — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -847,7 +847,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "codeant-vs-korbit",
     "title": "CodeAnt vs Korbit — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -856,7 +856,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "codeant-vs-linearb",
     "title": "CodeAnt vs LinearB — AI Code Review Comparison",
-    "description": "Compare CodeAnt and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -865,7 +865,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "codeant-vs-mesa",
     "title": "CodeAnt vs Mesa — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -874,7 +874,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "codeant-vs-openai-codex",
     "title": "CodeAnt vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare CodeAnt and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -883,7 +883,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "codeant-vs-qodo",
     "title": "CodeAnt vs Qodo — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -892,7 +892,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "codeant-vs-sentry",
     "title": "CodeAnt vs Sentry — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -901,7 +901,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "codeant-vs-sourcery",
     "title": "CodeAnt vs Sourcery — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codeant",
@@ -910,7 +910,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "codeant-vs-windsurf",
     "title": "CodeAnt vs Windsurf — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -919,7 +919,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "CodeScene",
     "slug": "coderabbit-vs-codescene",
     "title": "CodeRabbit vs CodeScene — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and CodeScene AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -928,7 +928,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cubic",
     "slug": "coderabbit-vs-cubic",
     "title": "CodeRabbit vs Cubic — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Cubic AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Cubic is an AI assistant that combines code review with developer education and explanations. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -937,7 +937,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cursor Bugbot",
     "slug": "coderabbit-vs-cursor-bugbot",
     "title": "CodeRabbit vs Cursor Bugbot — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Cursor Bugbot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -946,7 +946,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "coderabbit-vs-ellipsis",
     "title": "CodeRabbit vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -955,7 +955,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "coderabbit-vs-gemini-code-assist",
     "title": "CodeRabbit vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -964,7 +964,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "coderabbit-vs-github-copilot",
     "title": "CodeRabbit vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -973,7 +973,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "coderabbit-vs-graphite",
     "title": "CodeRabbit vs Graphite — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -982,7 +982,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "coderabbit-vs-greptile",
     "title": "CodeRabbit vs Greptile — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -991,7 +991,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "coderabbit-vs-kodus",
     "title": "CodeRabbit vs Kodus — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -1000,7 +1000,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "coderabbit-vs-korbit",
     "title": "CodeRabbit vs Korbit — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -1009,7 +1009,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "coderabbit-vs-linearb",
     "title": "CodeRabbit vs LinearB — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -1018,7 +1018,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "coderabbit-vs-mesa",
     "title": "CodeRabbit vs Mesa — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -1027,7 +1027,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "coderabbit-vs-openai-codex",
     "title": "CodeRabbit vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -1036,7 +1036,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "coderabbit-vs-qodo",
     "title": "CodeRabbit vs Qodo — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -1045,7 +1045,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "coderabbit-vs-sentry",
     "title": "CodeRabbit vs Sentry — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -1054,7 +1054,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "coderabbit-vs-sourcery",
     "title": "CodeRabbit vs Sourcery — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "coderabbit",
@@ -1063,7 +1063,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "coderabbit-vs-windsurf",
     "title": "CodeRabbit vs Windsurf — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1072,7 +1072,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cubic",
     "slug": "codescene-vs-cubic",
     "title": "CodeScene vs Cubic — AI Code Review Comparison",
-    "description": "Compare CodeScene and Cubic AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Cubic is an AI assistant that combines code review with developer education and explanations. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1081,7 +1081,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cursor Bugbot",
     "slug": "codescene-vs-cursor-bugbot",
     "title": "CodeScene vs Cursor Bugbot — AI Code Review Comparison",
-    "description": "Compare CodeScene and Cursor Bugbot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1090,7 +1090,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "codescene-vs-ellipsis",
     "title": "CodeScene vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare CodeScene and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1099,7 +1099,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "codescene-vs-gemini-code-assist",
     "title": "CodeScene vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare CodeScene and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1108,7 +1108,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "codescene-vs-github-copilot",
     "title": "CodeScene vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare CodeScene and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1117,7 +1117,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "codescene-vs-graphite",
     "title": "CodeScene vs Graphite — AI Code Review Comparison",
-    "description": "Compare CodeScene and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1126,7 +1126,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "codescene-vs-greptile",
     "title": "CodeScene vs Greptile — AI Code Review Comparison",
-    "description": "Compare CodeScene and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1135,7 +1135,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "codescene-vs-kodus",
     "title": "CodeScene vs Kodus — AI Code Review Comparison",
-    "description": "Compare CodeScene and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1144,7 +1144,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "codescene-vs-korbit",
     "title": "CodeScene vs Korbit — AI Code Review Comparison",
-    "description": "Compare CodeScene and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1153,7 +1153,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "codescene-vs-linearb",
     "title": "CodeScene vs LinearB — AI Code Review Comparison",
-    "description": "Compare CodeScene and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1162,7 +1162,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "codescene-vs-mesa",
     "title": "CodeScene vs Mesa — AI Code Review Comparison",
-    "description": "Compare CodeScene and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1171,7 +1171,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "codescene-vs-openai-codex",
     "title": "CodeScene vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare CodeScene and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1180,7 +1180,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "codescene-vs-qodo",
     "title": "CodeScene vs Qodo — AI Code Review Comparison",
-    "description": "Compare CodeScene and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1189,7 +1189,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "codescene-vs-sentry",
     "title": "CodeScene vs Sentry — AI Code Review Comparison",
-    "description": "Compare CodeScene and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1198,7 +1198,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "codescene-vs-sourcery",
     "title": "CodeScene vs Sourcery — AI Code Review Comparison",
-    "description": "Compare CodeScene and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "codescene",
@@ -1207,7 +1207,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "codescene-vs-windsurf",
     "title": "CodeScene vs Windsurf — AI Code Review Comparison",
-    "description": "Compare CodeScene and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1216,7 +1216,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Cursor Bugbot",
     "slug": "cubic-vs-cursor-bugbot",
     "title": "Cubic vs Cursor Bugbot — AI Code Review Comparison",
-    "description": "Compare Cubic and Cursor Bugbot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1225,7 +1225,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "cubic-vs-ellipsis",
     "title": "Cubic vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare Cubic and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1234,7 +1234,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "cubic-vs-gemini-code-assist",
     "title": "Cubic vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare Cubic and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1243,7 +1243,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "cubic-vs-github-copilot",
     "title": "Cubic vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare Cubic and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1252,7 +1252,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "cubic-vs-graphite",
     "title": "Cubic vs Graphite — AI Code Review Comparison",
-    "description": "Compare Cubic and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1261,7 +1261,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "cubic-vs-greptile",
     "title": "Cubic vs Greptile — AI Code Review Comparison",
-    "description": "Compare Cubic and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1270,7 +1270,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "cubic-vs-kodus",
     "title": "Cubic vs Kodus — AI Code Review Comparison",
-    "description": "Compare Cubic and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1279,7 +1279,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "cubic-vs-korbit",
     "title": "Cubic vs Korbit — AI Code Review Comparison",
-    "description": "Compare Cubic and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1288,7 +1288,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "cubic-vs-linearb",
     "title": "Cubic vs LinearB — AI Code Review Comparison",
-    "description": "Compare Cubic and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1297,7 +1297,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "cubic-vs-mesa",
     "title": "Cubic vs Mesa — AI Code Review Comparison",
-    "description": "Compare Cubic and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1306,7 +1306,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "cubic-vs-openai-codex",
     "title": "Cubic vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Cubic and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1315,7 +1315,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "cubic-vs-qodo",
     "title": "Cubic vs Qodo — AI Code Review Comparison",
-    "description": "Compare Cubic and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1324,7 +1324,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "cubic-vs-sentry",
     "title": "Cubic vs Sentry — AI Code Review Comparison",
-    "description": "Compare Cubic and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1333,7 +1333,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "cubic-vs-sourcery",
     "title": "Cubic vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Cubic and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cubic",
@@ -1342,7 +1342,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "cubic-vs-windsurf",
     "title": "Cubic vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Cubic and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1351,7 +1351,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Ellipsis",
     "slug": "cursor-bugbot-vs-ellipsis",
     "title": "Cursor Bugbot vs Ellipsis — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Ellipsis AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1360,7 +1360,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "cursor-bugbot-vs-gemini-code-assist",
     "title": "Cursor Bugbot vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1369,7 +1369,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "cursor-bugbot-vs-github-copilot",
     "title": "Cursor Bugbot vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1378,7 +1378,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "cursor-bugbot-vs-graphite",
     "title": "Cursor Bugbot vs Graphite — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1387,7 +1387,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "cursor-bugbot-vs-greptile",
     "title": "Cursor Bugbot vs Greptile — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1396,7 +1396,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "cursor-bugbot-vs-kodus",
     "title": "Cursor Bugbot vs Kodus — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1405,7 +1405,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "cursor-bugbot-vs-korbit",
     "title": "Cursor Bugbot vs Korbit — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1414,7 +1414,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "cursor-bugbot-vs-linearb",
     "title": "Cursor Bugbot vs LinearB — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1423,7 +1423,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "cursor-bugbot-vs-mesa",
     "title": "Cursor Bugbot vs Mesa — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1432,7 +1432,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "cursor-bugbot-vs-openai-codex",
     "title": "Cursor Bugbot vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1441,7 +1441,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "cursor-bugbot-vs-qodo",
     "title": "Cursor Bugbot vs Qodo — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1450,7 +1450,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "cursor-bugbot-vs-sentry",
     "title": "Cursor Bugbot vs Sentry — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1459,7 +1459,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "cursor-bugbot-vs-sourcery",
     "title": "Cursor Bugbot vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "cursor",
@@ -1468,7 +1468,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "cursor-bugbot-vs-windsurf",
     "title": "Cursor Bugbot vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1477,7 +1477,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Gemini Code Assist",
     "slug": "ellipsis-vs-gemini-code-assist",
     "title": "Ellipsis vs Gemini Code Assist — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Gemini Code Assist AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1486,7 +1486,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "ellipsis-vs-github-copilot",
     "title": "Ellipsis vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare Ellipsis and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1495,7 +1495,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "ellipsis-vs-graphite",
     "title": "Ellipsis vs Graphite — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1504,7 +1504,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "ellipsis-vs-greptile",
     "title": "Ellipsis vs Greptile — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1513,7 +1513,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "ellipsis-vs-kodus",
     "title": "Ellipsis vs Kodus — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1522,7 +1522,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "ellipsis-vs-korbit",
     "title": "Ellipsis vs Korbit — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1531,7 +1531,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "ellipsis-vs-linearb",
     "title": "Ellipsis vs LinearB — AI Code Review Comparison",
-    "description": "Compare Ellipsis and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1540,7 +1540,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "ellipsis-vs-mesa",
     "title": "Ellipsis vs Mesa — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1549,7 +1549,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "ellipsis-vs-openai-codex",
     "title": "Ellipsis vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Ellipsis and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1558,7 +1558,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "ellipsis-vs-qodo",
     "title": "Ellipsis vs Qodo — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1567,7 +1567,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "ellipsis-vs-sentry",
     "title": "Ellipsis vs Sentry — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1576,7 +1576,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "ellipsis-vs-sourcery",
     "title": "Ellipsis vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "ellipsis",
@@ -1585,7 +1585,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "ellipsis-vs-windsurf",
     "title": "Ellipsis vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1594,7 +1594,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "GitHub Copilot",
     "slug": "gemini-code-assist-vs-github-copilot",
     "title": "Gemini Code Assist vs GitHub Copilot — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and GitHub Copilot AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1603,7 +1603,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "gemini-code-assist-vs-graphite",
     "title": "Gemini Code Assist vs Graphite — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1612,7 +1612,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "gemini-code-assist-vs-greptile",
     "title": "Gemini Code Assist vs Greptile — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1621,7 +1621,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "gemini-code-assist-vs-kodus",
     "title": "Gemini Code Assist vs Kodus — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1630,7 +1630,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "gemini-code-assist-vs-korbit",
     "title": "Gemini Code Assist vs Korbit — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1639,7 +1639,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "gemini-code-assist-vs-linearb",
     "title": "Gemini Code Assist vs LinearB — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1648,7 +1648,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "gemini-code-assist-vs-mesa",
     "title": "Gemini Code Assist vs Mesa — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1657,7 +1657,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "gemini-code-assist-vs-openai-codex",
     "title": "Gemini Code Assist vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1666,7 +1666,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "gemini-code-assist-vs-qodo",
     "title": "Gemini Code Assist vs Qodo — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1675,7 +1675,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "gemini-code-assist-vs-sentry",
     "title": "Gemini Code Assist vs Sentry — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1684,7 +1684,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "gemini-code-assist-vs-sourcery",
     "title": "Gemini Code Assist vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "gemini",
@@ -1693,7 +1693,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "gemini-code-assist-vs-windsurf",
     "title": "Gemini Code Assist vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1702,7 +1702,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Graphite",
     "slug": "github-copilot-vs-graphite",
     "title": "GitHub Copilot vs Graphite — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Graphite AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1711,7 +1711,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "github-copilot-vs-greptile",
     "title": "GitHub Copilot vs Greptile — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1720,7 +1720,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "github-copilot-vs-kodus",
     "title": "GitHub Copilot vs Kodus — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1729,7 +1729,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "github-copilot-vs-korbit",
     "title": "GitHub Copilot vs Korbit — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1738,7 +1738,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "github-copilot-vs-linearb",
     "title": "GitHub Copilot vs LinearB — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1747,7 +1747,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "github-copilot-vs-mesa",
     "title": "GitHub Copilot vs Mesa — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1756,7 +1756,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "github-copilot-vs-openai-codex",
     "title": "GitHub Copilot vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1765,7 +1765,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "github-copilot-vs-qodo",
     "title": "GitHub Copilot vs Qodo — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1774,7 +1774,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "github-copilot-vs-sentry",
     "title": "GitHub Copilot vs Sentry — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1783,7 +1783,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "github-copilot-vs-sourcery",
     "title": "GitHub Copilot vs Sourcery — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "copilot",
@@ -1792,7 +1792,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "github-copilot-vs-windsurf",
     "title": "GitHub Copilot vs Windsurf — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1801,7 +1801,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Greptile",
     "slug": "graphite-vs-greptile",
     "title": "Graphite vs Greptile — AI Code Review Comparison",
-    "description": "Compare Graphite and Greptile AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1810,7 +1810,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "graphite-vs-kodus",
     "title": "Graphite vs Kodus — AI Code Review Comparison",
-    "description": "Compare Graphite and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1819,7 +1819,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "graphite-vs-korbit",
     "title": "Graphite vs Korbit — AI Code Review Comparison",
-    "description": "Compare Graphite and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1828,7 +1828,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "graphite-vs-linearb",
     "title": "Graphite vs LinearB — AI Code Review Comparison",
-    "description": "Compare Graphite and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1837,7 +1837,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "graphite-vs-mesa",
     "title": "Graphite vs Mesa — AI Code Review Comparison",
-    "description": "Compare Graphite and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1846,7 +1846,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "graphite-vs-openai-codex",
     "title": "Graphite vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Graphite and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1855,7 +1855,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "graphite-vs-qodo",
     "title": "Graphite vs Qodo — AI Code Review Comparison",
-    "description": "Compare Graphite and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1864,7 +1864,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "graphite-vs-sentry",
     "title": "Graphite vs Sentry — AI Code Review Comparison",
-    "description": "Compare Graphite and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1873,7 +1873,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "graphite-vs-sourcery",
     "title": "Graphite vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Graphite and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "graphite",
@@ -1882,7 +1882,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "graphite-vs-windsurf",
     "title": "Graphite vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Graphite and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1891,7 +1891,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Kodus",
     "slug": "greptile-vs-kodus",
     "title": "Greptile vs Kodus — AI Code Review Comparison",
-    "description": "Compare Greptile and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1900,7 +1900,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "greptile-vs-korbit",
     "title": "Greptile vs Korbit — AI Code Review Comparison",
-    "description": "Compare Greptile and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1909,7 +1909,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "greptile-vs-linearb",
     "title": "Greptile vs LinearB — AI Code Review Comparison",
-    "description": "Compare Greptile and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1918,7 +1918,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "greptile-vs-mesa",
     "title": "Greptile vs Mesa — AI Code Review Comparison",
-    "description": "Compare Greptile and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1927,7 +1927,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "greptile-vs-openai-codex",
     "title": "Greptile vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Greptile and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1936,7 +1936,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "greptile-vs-qodo",
     "title": "Greptile vs Qodo — AI Code Review Comparison",
-    "description": "Compare Greptile and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1945,7 +1945,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "greptile-vs-sentry",
     "title": "Greptile vs Sentry — AI Code Review Comparison",
-    "description": "Compare Greptile and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1954,7 +1954,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "greptile-vs-sourcery",
     "title": "Greptile vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Greptile and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "greptile",
@@ -1963,7 +1963,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "greptile-vs-windsurf",
     "title": "Greptile vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Greptile and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "kodus",
@@ -1972,7 +1972,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Korbit",
     "slug": "kodus-vs-korbit",
     "title": "Kodus vs Korbit — AI Code Review Comparison",
-    "description": "Compare Kodus and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Korbit is an educational code review mentor focused on teaching best practices (retired). Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "kodus",
@@ -1981,7 +1981,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "kodus-vs-linearb",
     "title": "Kodus vs LinearB — AI Code Review Comparison",
-    "description": "Compare Kodus and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "kodus",
@@ -1990,7 +1990,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "kodus-vs-mesa",
     "title": "Kodus vs Mesa — AI Code Review Comparison",
-    "description": "Compare Kodus and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "kodus",
@@ -1999,7 +1999,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "kodus-vs-openai-codex",
     "title": "Kodus vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Kodus and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "kodus",
@@ -2008,7 +2008,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "kodus-vs-qodo",
     "title": "Kodus vs Qodo — AI Code Review Comparison",
-    "description": "Compare Kodus and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "kodus",
@@ -2017,7 +2017,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "kodus-vs-sentry",
     "title": "Kodus vs Sentry — AI Code Review Comparison",
-    "description": "Compare Kodus and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "kodus",
@@ -2026,7 +2026,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "kodus-vs-sourcery",
     "title": "Kodus vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Kodus and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "kodus",
@@ -2035,7 +2035,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "kodus-vs-windsurf",
     "title": "Kodus vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Kodus and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "korbit",
@@ -2044,7 +2044,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "LinearB",
     "slug": "korbit-vs-linearb",
     "title": "Korbit vs LinearB — AI Code Review Comparison",
-    "description": "Compare Korbit and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Korbit is an educational code review mentor focused on teaching best practices (retired). LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "korbit",
@@ -2053,7 +2053,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "korbit-vs-mesa",
     "title": "Korbit vs Mesa — AI Code Review Comparison",
-    "description": "Compare Korbit and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Korbit is an educational code review mentor focused on teaching best practices (retired). Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "korbit",
@@ -2062,7 +2062,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "korbit-vs-openai-codex",
     "title": "Korbit vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Korbit and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Korbit is an educational code review mentor focused on teaching best practices (retired). OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "korbit",
@@ -2071,7 +2071,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "korbit-vs-qodo",
     "title": "Korbit vs Qodo — AI Code Review Comparison",
-    "description": "Compare Korbit and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Korbit is an educational code review mentor focused on teaching best practices (retired). Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "korbit",
@@ -2080,7 +2080,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "korbit-vs-sentry",
     "title": "Korbit vs Sentry — AI Code Review Comparison",
-    "description": "Compare Korbit and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Korbit is an educational code review mentor focused on teaching best practices (retired). Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "korbit",
@@ -2089,7 +2089,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "korbit-vs-sourcery",
     "title": "Korbit vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Korbit and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Korbit is an educational code review mentor focused on teaching best practices (retired). Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "korbit",
@@ -2098,7 +2098,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "korbit-vs-windsurf",
     "title": "Korbit vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Korbit and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Korbit is an educational code review mentor focused on teaching best practices (retired). Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "linearb",
@@ -2107,7 +2107,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Mesa",
     "slug": "linearb-vs-mesa",
     "title": "LinearB vs Mesa — AI Code Review Comparison",
-    "description": "Compare LinearB and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "linearb",
@@ -2116,7 +2116,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "linearb-vs-openai-codex",
     "title": "LinearB vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare LinearB and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "linearb",
@@ -2125,7 +2125,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "linearb-vs-qodo",
     "title": "LinearB vs Qodo — AI Code Review Comparison",
-    "description": "Compare LinearB and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "linearb",
@@ -2134,7 +2134,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "linearb-vs-sentry",
     "title": "LinearB vs Sentry — AI Code Review Comparison",
-    "description": "Compare LinearB and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "linearb",
@@ -2143,7 +2143,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "linearb-vs-sourcery",
     "title": "LinearB vs Sourcery — AI Code Review Comparison",
-    "description": "Compare LinearB and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "linearb",
@@ -2152,7 +2152,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "linearb-vs-windsurf",
     "title": "LinearB vs Windsurf — AI Code Review Comparison",
-    "description": "Compare LinearB and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "mesa",
@@ -2161,7 +2161,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "OpenAI Codex",
     "slug": "mesa-vs-openai-codex",
     "title": "Mesa vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Mesa and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "mesa",
@@ -2170,7 +2170,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "mesa-vs-qodo",
     "title": "Mesa vs Qodo — AI Code Review Comparison",
-    "description": "Compare Mesa and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "mesa",
@@ -2179,7 +2179,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "mesa-vs-sentry",
     "title": "Mesa vs Sentry — AI Code Review Comparison",
-    "description": "Compare Mesa and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "mesa",
@@ -2188,7 +2188,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "mesa-vs-sourcery",
     "title": "Mesa vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Mesa and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "mesa",
@@ -2197,7 +2197,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "mesa-vs-windsurf",
     "title": "Mesa vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Mesa and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "openai-codex",
@@ -2206,7 +2206,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Qodo",
     "slug": "openai-codex-vs-qodo",
     "title": "OpenAI Codex vs Qodo — AI Code Review Comparison",
-    "description": "Compare OpenAI Codex and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "openai-codex",
@@ -2215,7 +2215,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "openai-codex-vs-sentry",
     "title": "OpenAI Codex vs Sentry — AI Code Review Comparison",
-    "description": "Compare OpenAI Codex and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "openai-codex",
@@ -2224,7 +2224,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "openai-codex-vs-sourcery",
     "title": "OpenAI Codex vs Sourcery — AI Code Review Comparison",
-    "description": "Compare OpenAI Codex and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "openai-codex",
@@ -2233,7 +2233,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "openai-codex-vs-windsurf",
     "title": "OpenAI Codex vs Windsurf — AI Code Review Comparison",
-    "description": "Compare OpenAI Codex and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "qodo",
@@ -2242,7 +2242,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sentry",
     "slug": "qodo-vs-sentry",
     "title": "Qodo vs Sentry — AI Code Review Comparison",
-    "description": "Compare Qodo and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Qodo is a code integrity platform that combines PR review with automated test generation. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "qodo",
@@ -2251,7 +2251,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "qodo-vs-sourcery",
     "title": "Qodo vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Qodo and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Qodo is a code integrity platform that combines PR review with automated test generation. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "qodo",
@@ -2260,7 +2260,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "qodo-vs-windsurf",
     "title": "Qodo vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Qodo and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Qodo is a code integrity platform that combines PR review with automated test generation. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "sentry",
@@ -2269,7 +2269,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Sourcery",
     "slug": "sentry-vs-sourcery",
     "title": "Sentry vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Sentry and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "sentry",
@@ -2278,7 +2278,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "sentry-vs-windsurf",
     "title": "Sentry vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Sentry and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "sourcery",
@@ -2287,7 +2287,7 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "nameB": "Windsurf",
     "slug": "sourcery-vs-windsurf",
     "title": "Sourcery vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Sourcery and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+    "description": "Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   }
 ];
 

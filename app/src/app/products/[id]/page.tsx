@@ -24,6 +24,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { JsonLd } from "@/components/json-ld";
 import { formatNumber, formatHours } from "@/lib/format";
 import { InfoTooltip } from "@/components/info-tooltip";
+import { OG_DEFAULTS } from "@/lib/constants";
 import { ProductScopedLink } from "@/components/product-scoped-link";
 
 /** Max top orgs/repos shown on the bot detail page. */
@@ -54,6 +55,7 @@ export async function generateMetadata({
     description,
     alternates: { canonical: `/products/${id}` },
     openGraph: {
+      ...OG_DEFAULTS,
       title,
       description,
       url: `/products/${id}`,
