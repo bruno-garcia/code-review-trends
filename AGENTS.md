@@ -18,6 +18,9 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 Each checkout gets **isolated ports** (ClickHouse + Next.js) so multiple checkouts can run concurrently. Ports are auto-assigned and saved to `.env.local`.
 
 ```bash
+# Install agent skills (required once after cloning)
+npx @sentry/dotagents install
+
 # Start ClickHouse + app (auto-assigns ports)
 npm run dev            # or: ./dev.sh
 
