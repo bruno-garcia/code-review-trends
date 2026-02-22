@@ -16,7 +16,7 @@ export type ClickHouseConfig = {
   database: string;
 };
 
-export function getConfig(): ClickHouseConfig {
+function getConfig(): ClickHouseConfig {
   return {
     url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
     username: process.env.CLICKHOUSE_USER ?? "default",

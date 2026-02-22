@@ -206,11 +206,6 @@ export function logError(message: string): void {
   console.error(`[${new Date().toISOString()}] ${message}`);
 }
 
-/** Timestamped console.warn */
-export function logWarn(message: string): void {
-  console.warn(`[${new Date().toISOString()}] ${message}`);
-}
-
 // ── Cron monitoring (upsert API) ───────────────────────────────────────
 
 /**

@@ -51,28 +51,6 @@ export type Product = {
   avatar_url: string;
 };
 
-export type Bot = {
-  id: string;
-  name: string;
-  product_id: string;
-  github_login: string;
-  website: string;
-  description: string;
-  brand_color: string;
-  avatar_url: string;
-};
-
-export type WeeklyActivity = {
-  week: string;
-  bot_id: string;
-  bot_name: string;
-  review_count: number;
-  review_comment_count: number;
-  pr_comment_count: number;
-  repo_count: number;
-  org_count: number;
-};
-
 export type WeeklyActivityByProduct = {
   week: string;
   product_id: string;
@@ -151,29 +129,6 @@ export type ProductComparison = {
   id: string;
   name: string;
   brand_color: string;
-  total_reviews: number;
-  total_comments: number;
-  total_pr_comments: number;
-  total_repos: number;
-  total_orgs: number;
-  avg_comments_per_review: number;
-  comments_per_repo: number;
-  reviews_per_org: number;
-  thumbs_up: number;
-  thumbs_down: number;
-  heart: number;
-  thumbs_up_rate: number;
-  reaction_rate: number;
-  growth_pct: number;
-  latest_week_reviews: number;
-  latest_week_comments: number;
-  latest_week_pr_comments: number;
-  weeks_active: number;
-};
-
-export type BotComparison = {
-  id: string;
-  name: string;
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
@@ -572,69 +527,6 @@ export async function getProductBots(productId: string, since?: string): Promise
   );
 }
 
-// --- Bot queries (kept for detail views) ---
-
-async function assembleBots(botRows: { id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }[], cacheTtl?: number): Promise<Bot[]> {
-  if (botRows.length === 0) return [];
-  const botIds = botRows.map((b) => b.id);
-  const loginRows = await query<{ bot_id: string; github_login: string }>(
-    "SELECT bot_id, github_login FROM bot_logins WHERE bot_id IN ({botIds:Array(String)}) ORDER BY bot_id, github_login",
-    { botIds },
-    cacheTtl,
-  );
-  const loginByBot = new Map<string, string>();
-  for (const row of loginRows) {
-    loginByBot.set(row.bot_id, row.github_login);
-  }
-  return botRows.map((b) => ({
-    ...b,
-    github_login: loginByBot.get(b.id) ?? "",
-  }));
-}
-
-export async function getBots(): Promise<Bot[]> {
-  const rows = await query<{ id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }>(
-    "SELECT * FROM bots ORDER BY name",
-    undefined,
-    REFERENCE_CACHE_TTL_MS,
-  );
-  return assembleBots(rows, REFERENCE_CACHE_TTL_MS);
-}
-
-export async function getBotById(id: string): Promise<Bot | null> {
-  const rows = await query<{ id: string; name: string; product_id: string; website: string; description: string; brand_color: string; avatar_url: string }>(
-    "SELECT * FROM bots WHERE id = {id:String}",
-    { id },
-  );
-  if (rows.length === 0) return null;
-  const bots = await assembleBots(rows);
-  return bots[0] ?? null;
-}
-
-export async function getWeeklyActivity(
-  botId?: string,
-): Promise<WeeklyActivity[]> {
-  const where = botId ? "WHERE ra.bot_id = {botId:String}" : "";
-  return query<WeeklyActivity>(
-    `
-      SELECT
-        formatDateTime(ra.week, '%Y-%m-%d') AS week,
-        ra.bot_id,
-        b.name AS bot_name,
-        ra.review_count,
-        ra.review_comment_count,
-        ra.pr_comment_count,
-        ra.repo_count,
-        ra.org_count
-      FROM review_activity AS ra
-      JOIN bots AS b ON ra.bot_id = b.id
-      ${where}
-      ORDER BY ra.week ASC, ra.review_count DESC
-    `,
-    botId ? { botId } : {},
-  );
-}
-
 export async function getWeeklyTotals(since?: string): Promise<WeeklyTotals[]> {
   const sinceFilter = since ? "WHERE h.week >= toDate({since:String})" : "";
   return query<WeeklyTotals>(
@@ -742,95 +634,6 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
         -1) AS reaction_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
-    FROM bots AS b
-    LEFT JOIN activity_agg ra ON b.id = ra.bot_id
-    LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
-    ORDER BY total_reviews DESC
-    `,
-    since ? { since } : {},
-  );
-}
-
-export async function getBotComparisons(since?: string): Promise<BotComparison[]> {
-  const sinceCond = since
-    ? "week >= toDate({since:String})"
-    : "1";
-  const reactionSinceFilter = since
-    ? "WHERE cs.week >= toDate({since:String})"
-    : "";
-  return query<BotComparison>(
-    `
-    WITH
-      ref AS (
-        SELECT max(week) AS ref_week FROM (SELECT week FROM review_activity UNION ALL SELECT week FROM reaction_only_review_counts)
-        WHERE week < toStartOfWeek(now(), 1)
-      ),
-      activity_agg AS (
-        SELECT
-          bot_id,
-          sumIf(review_count, ${sinceCond}) AS total_reviews,
-          sumIf(review_comment_count, ${sinceCond}) AS total_comments,
-          sumIf(pr_comment_count, ${sinceCond}) AS total_pr_comments,
-          maxIf(repo_count, ${sinceCond}) AS max_repos,
-          maxIf(org_count, ${sinceCond}) AS max_orgs,
-          countIf(DISTINCT week, ${sinceCond}) AS weeks_active,
-          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_reviews,
-          sumIf(review_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_comments,
-          sumIf(pr_comment_count, week > (SELECT ref_week FROM ref) - INTERVAL 4 WEEK AND week <= (SELECT ref_week FROM ref)) AS latest_week_pr_comments,
-          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 12 WEEK AND week <= (SELECT ref_week FROM ref)) AS recent_12w_reviews,
-          sumIf(review_count, week > (SELECT ref_week FROM ref) - INTERVAL 24 WEEK AND week <= (SELECT ref_week FROM ref) - INTERVAL 12 WEEK) AS prev_12w_reviews
-        FROM (
-          SELECT bot_id, week, review_count, review_comment_count, pr_comment_count, repo_count, org_count
-          FROM review_activity
-          UNION ALL
-          SELECT bot_id, week, reaction_reviews AS review_count,
-            0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
-          FROM reaction_only_review_counts
-        )
-        GROUP BY bot_id
-      ),
-      reaction_agg AS (
-        SELECT
-          cs.bot_id,
-          sum(cs.thumbs_up) AS thumbs_up,
-          sum(cs.thumbs_down) AS thumbs_down,
-          sum(cs.heart) AS heart,
-          sum(cs.comment_count) AS comment_count,
-          sum(cs.reacted_comment_count) AS reacted_comment_count
-        FROM comment_stats_weekly cs
-        ${reactionSinceFilter}
-        GROUP BY cs.bot_id
-      )
-    SELECT
-      b.id,
-      b.name,
-      COALESCE(ra.total_reviews, 0) AS total_reviews,
-      COALESCE(ra.total_comments, 0) AS total_comments,
-      COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
-      COALESCE(ra.max_repos, 0) AS total_repos,
-      COALESCE(ra.max_orgs, 0) AS total_orgs,
-      round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
-      round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
-      round(if(ra.max_orgs > 0, ra.total_reviews / ra.max_orgs, 0), 0) AS reviews_per_org,
-      COALESCE(rr.thumbs_up, 0) AS thumbs_up,
-      COALESCE(rr.thumbs_down, 0) AS thumbs_down,
-      COALESCE(rr.heart, 0) AS heart,
-      if((COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)) >= 30,
-        round(COALESCE(rr.thumbs_up, 0) * 100.0 / (COALESCE(rr.thumbs_up, 0) + COALESCE(rr.thumbs_down, 0)), 1),
-        -1) AS thumbs_up_rate,
-      if(COALESCE(rr.comment_count, 0) > 0,
-        round(COALESCE(rr.reacted_comment_count, 0) * 100.0 / COALESCE(rr.comment_count, 0), 1),
-        -1) AS reaction_rate,
-      round(
-        if(ra.prev_12w_reviews > 0,
-          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
-          0),
-        1
-      ) AS growth_pct,
-      COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
-      COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
-      COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
-      COALESCE(ra.weeks_active, 0) AS weeks_active
     FROM bots AS b
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
