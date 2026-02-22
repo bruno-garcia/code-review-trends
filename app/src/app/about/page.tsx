@@ -475,6 +475,14 @@ export default async function AboutPage() {
               changed.
             </li>
             <li>
+              <strong className="text-theme-text">Large PRs may be incomplete.</strong>{" "}
+              The GitHub API returns at most 100 review threads per request.
+              For the rare PR with more than 100 threads, we save the first
+              100 and move on — any bot comments beyond that are missed. This
+              means reaction counts for those PRs are undercounted. In
+              practice, very few PRs hit this limit.
+            </li>
+            <li>
               <strong className="text-theme-text">No fix rate.</strong>{" "}
               We don&apos;t track whether a bot&apos;s suggestion was addressed
               by a subsequent commit. That would require analyzing commit diffs
