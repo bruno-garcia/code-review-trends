@@ -707,7 +707,9 @@ async function cmdDiscoverBots() {
     log(`Sent ${summary.new_bots.length} Sentry alert(s) for new bot(s)`);
   }
 
-  // Check for stale products (no recent activity)
+  // Check for stale products (no recent activity).
+  // Wrapped in try/catch so a ClickHouse failure doesn't block the primary
+  // purpose of discover-bots (new bot discovery + alerting).
   const { checkStaleBots } = await import("./tools/discover-bots.js");
   const ch = createCHClient();
   try {
@@ -730,6 +732,13 @@ async function cmdDiscoverBots() {
       log("No stale products found.");
     }
     countMetric("pipeline.discover_bots.stale_products", staleProducts.length);
+  } catch (err) {
+    log(`⚠ Stale product check failed (non-fatal): ${err instanceof Error ? err.message : err}`);
+    Sentry.captureException(err, {
+      fingerprint: ["discover-bots-stale-check"],
+      tags: { phase: "stale-product-check" },
+    });
+    countMetric("pipeline.discover_bots.stale_check_error");
   } finally {
     await ch.close();
   }
