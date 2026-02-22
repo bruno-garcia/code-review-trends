@@ -84,7 +84,6 @@ export default async function ComparePairPage({ params }: Props) {
         commentsPerPR={commentsPerPR}
         reactionLeaderboard={reactionLeaderboard}
         prCharacteristics={prCharacteristics}
-        overrideProductIds={[pair.idA, pair.idB]}
       />
       <div className="text-center">
         <Link
