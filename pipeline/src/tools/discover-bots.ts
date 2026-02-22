@@ -22,12 +22,14 @@
  */
 
 import type { BigQuery } from "@google-cloud/bigquery";
+import type { ClickHouseClient } from "@clickhouse/client";
 import {
   createBigQueryClient,
   discoverBotReviewers,
   queryReviewActivityByLogins,
 } from "../bigquery.js";
 import { BOT_LOGINS, IGNORED_BOT_LOGINS } from "../bots.js";
+import { query } from "../clickhouse.js";
 
 // ---------------------------------------------------------------------------
 // Marketplace scraping
@@ -526,6 +528,44 @@ export async function discoverBots(opts: DiscoverBotsOptions): Promise<DiscoverB
     apps_verified: appsVerified,
     apps_not_found: appsNotFound,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Stale bot detection
+// ---------------------------------------------------------------------------
+
+export type StaleProduct = {
+  productId: string;
+  productName: string;
+  lastActivityWeek: string;
+};
+
+/**
+ * Find non-retired products whose latest activity is older than 4 weeks.
+ * Unions review_activity and reaction_only_review_counts, joins through
+ * bots → products for product-level aggregation.
+ */
+export async function checkStaleBots(client: ClickHouseClient): Promise<StaleProduct[]> {
+  const sql = `
+    SELECT
+      p.id AS productId,
+      p.name AS productName,
+      toString(max(activity.week)) AS lastActivityWeek
+    FROM (
+      SELECT bot_id, week FROM review_activity
+      UNION ALL
+      SELECT bot_id, week FROM reaction_only_review_counts
+    ) AS activity
+    INNER JOIN bots b ON b.id = activity.bot_id
+    INNER JOIN products p ON p.id = b.product_id
+    WHERE p.status != 'retired'
+    GROUP BY p.id, p.name
+    HAVING count() >= 1
+      AND max(activity.week) < toStartOfWeek(now(), 1) - INTERVAL 4 WEEK
+    ORDER BY lastActivityWeek ASC
+  `;
+
+  return query<StaleProduct>(client, sql);
 }
 
 // ---------------------------------------------------------------------------
