@@ -27,6 +27,16 @@ function createManagedSecret(
   value: pulumi.Output<string>,
   parent?: pulumi.Resource,
 ): gcp.secretmanager.Secret {
+  // Validate that the secret value is not empty before creating the secret version
+  const validatedValue = value.apply((v) => {
+    if (!v || v.trim() === "") {
+      throw new Error(
+        `Secret '${secretId}' cannot be empty. Please set it in Pulumi config.`
+      );
+    }
+    return v;
+  });
+
   const secret = new gcp.secretmanager.Secret(
     name,
     {
@@ -40,7 +50,7 @@ function createManagedSecret(
     `${name}-version`,
     {
       secret: secret.id,
-      secretData: value,
+      secretData: validatedValue,
     },
     { parent },
   );
