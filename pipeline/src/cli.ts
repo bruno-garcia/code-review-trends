@@ -864,7 +864,7 @@ async function cmdEnrich() {
       ? parseInt(process.env.CLOUD_RUN_TASK_INDEX, 10)
       : (workerId ?? 0);
 
-    if (taskIndex < 0 || taskIndex >= tokens.length) {
+    if (isNaN(taskIndex) || taskIndex < 0 || taskIndex >= tokens.length) {
       throw new CliError(
         `Task index ${taskIndex} out of range for ${tokens.length} token(s) in GITHUB_TOKENS.`
       );
