@@ -1,7 +1,9 @@
 version = 1
-# Check skills into git so collaborators get them without running 'dotagents install'.
-# Set to true (or remove) to gitignore managed skills instead.
-gitignore = false
+# Skills are gitignored — collaborators must run 'npx @sentry/dotagents install' after cloning.
+gitignore = true
+
+[symlinks]
+targets = [".pi"]
 
 [[skills]]
 name = "find-bugs"
