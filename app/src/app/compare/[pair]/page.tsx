@@ -17,6 +17,9 @@ type Props = {
   params: Promise<{ pair: string }>;
 };
 
+/** Only pre-generated pair slugs are valid — return 404 for anything else. */
+export const dynamicParams = false;
+
 export async function generateStaticParams() {
   return COMPARE_PAIRS.map((p) => ({ pair: p.slug }));
 }
