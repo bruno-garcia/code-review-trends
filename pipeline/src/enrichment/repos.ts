@@ -12,7 +12,7 @@ import {
   insertRepos,
   query,
 } from "../clickhouse.js";
-import { Sentry, log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
+import { Sentry, log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -116,7 +116,9 @@ export async function enrichRepos(
             batchSize: batch.length,
             repos: batch.map(b => b.repo_name),
           });
-          logError(`[repos] Batch GraphQL query failed, processing individually: ${err instanceof Error ? err.message : err}`);
+          const errMsg = err instanceof Error ? err.message : String(err);
+          logError(`[repos] Batch GraphQL query failed, processing individually: ${errMsg}`);
+          sentryLogger.warn(sentryLogger.fmt`REST fallback triggered phase=repos batchSize=${batch.length} error=${errMsg}`);
 
           for (const { repo_name } of batch) {
             const [owner, repo] = repo_name.split("/");

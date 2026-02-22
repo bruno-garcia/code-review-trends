@@ -13,7 +13,7 @@
  */
 
 import type { Octokit } from "@octokit/rest";
-import { Sentry, log, countMetric } from "../sentry.js";
+import { Sentry, log, countMetric, sentryLogger } from "../sentry.js";
 
 const MAX_RETRIES = 3;
 
@@ -103,6 +103,7 @@ export async function graphqlWithRetry(
 
         // Log + breadcrumb + metric for visibility into retry behavior
         log(`[${label}] Transient network error (${errMsg}), retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        sentryLogger.warn(sentryLogger.fmt`GraphQL retry label=${label} attempt=${attempt + 1} error=${errMsg} backoffMs=${backoffMs}`);
         Sentry.addBreadcrumb({
           category: "graphql.retry",
           message: `${label}: ${errMsg}`,

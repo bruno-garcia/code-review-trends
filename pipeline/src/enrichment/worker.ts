@@ -6,7 +6,7 @@
  */
 
 import { Octokit } from "@octokit/rest";
-import { Sentry, log, countMetric, distributionMetric, gaugeMetric } from "../sentry.js";
+import { Sentry, log, countMetric, distributionMetric, gaugeMetric, sentryLogger } from "../sentry.js";
 import { createCHClient, query } from "../clickhouse.js";
 import { RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
@@ -111,6 +111,10 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     if (belowThreshold.length > 0 && belowThreshold.length < order.length) {
       const skipped = order.filter((s) => completion[s] >= ROUND_ROBIN_THRESHOLD);
       log(`[worker] Skipping stages above ${Math.round(ROUND_ROBIN_THRESHOLD * 100)}% complete: ${skipped.join(", ")}`);
+      for (const s of skipped) {
+        const pct = Math.round(completion[s] * 100);
+        sentryLogger.info(sentryLogger.fmt`Skipping stage=${s} completion=${pct}% above threshold=${Math.round(ROUND_ROBIN_THRESHOLD * 100)}%`);
+      }
       order = belowThreshold;
     }
   }
@@ -123,6 +127,9 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   let rateLimitExit = false;
   try {
     for (const step of order) {
+      const stageStart = Date.now();
+        const pct = Math.round(completion[step] * 100);
+        sentryLogger.info(sentryLogger.fmt`Starting enrichment stage=${step} completion=${pct}% worker=${partition.workerId}/${partition.totalWorkers}`);
       try {
         switch (step) {
           case "repos":
@@ -150,6 +157,8 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
             );
             break;
         }
+        const stageDuration = Date.now() - stageStart;
+        sentryLogger.info(sentryLogger.fmt`Completed stage=${step} duration=${stageDuration}ms`);
       } catch (e) {
         if (e instanceof RateLimitExitError) {
           log(`[worker] ${e.message}`);

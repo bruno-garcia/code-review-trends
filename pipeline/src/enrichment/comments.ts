@@ -14,7 +14,7 @@ import {
   type PrCommentRow,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
-import { Sentry, log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
+import { Sentry, log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 // handleEnterprisePolicyError removed — GraphQL batch handles errors differently
@@ -160,7 +160,9 @@ export async function enrichComments(
             batchSize: batch.length,
             repos: [...new Set(batch.map(b => b.repo_name))],
           });
-          logError(`[comments] Batch GraphQL failed, processing individually: ${err instanceof Error ? err.message : err}`);
+          const errMsg = err instanceof Error ? err.message : String(err);
+          logError(`[comments] Batch GraphQL failed, processing individually: ${errMsg}`);
+          sentryLogger.warn(sentryLogger.fmt`REST fallback triggered phase=comments batchSize=${batch.length} error=${errMsg}`);
 
           // Fall back to REST for this batch
           for (const { repo_name, pr_number, bot_id } of batch) {

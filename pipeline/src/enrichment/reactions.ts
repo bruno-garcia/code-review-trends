@@ -16,7 +16,7 @@ import {
   query,
   type PrBotReactionRow,
 } from "../clickhouse.js";
-import { log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
+import { log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { fetchReactionsBatch, GRAPHQL_REACTION_BATCH_SIZE, type ReactionBatchInput } from "./graphql-reactions.js";
@@ -137,7 +137,9 @@ export async function enrichReactions(
         batchSize: batch.length,
         repos: [...new Set(batch.map(b => b.repo_name))],
       });
-      logError(`[reactions] Batch GraphQL failed: ${err instanceof Error ? err.message : err}`);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logError(`[reactions] Batch GraphQL failed: ${errMsg}`);
+      sentryLogger.warn(sentryLogger.fmt`Batch failed phase=reactions batchSize=${batch.length} error=${errMsg}`);
       errors += batch.length;
     }
 
