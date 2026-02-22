@@ -61,7 +61,7 @@ pulumi config set gcp:project <your-gcp-project-id> --secret
 pulumi config set code-review-trends:clickhouseDomain your-ch-domain.example.com --secret
 
 # App domain (Cloud Run custom domain)
-pulumi config set code-review-trends:appDomain staging.codereviewtrends.com --secret
+pulumi config set code-review-trends:appDomain your-app-domain.example.com --secret
 
 # Sentry DSNs (separate projects for app and pipeline)
 pulumi config set code-review-trends:sentryDsnApp <dsn> --secret
@@ -177,7 +177,7 @@ gh secret set SENTRY_AUTH_TOKEN --body "<your-sentry-auth-token>"
 Create a CNAME record pointing your app domain to the Cloud Run service:
 
 ```
-staging.codereviewtrends.com  CNAME  <cloud-run-service-url>.run.app
+your-app-domain.example.com  CNAME  <cloud-run-service-url>.run.app
 ```
 
 Cloud Run will auto-provision a TLS certificate once DNS propagates.
