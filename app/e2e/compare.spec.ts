@@ -23,8 +23,8 @@ test.describe("Compare page", () => {
   test("trends metric is shareable via URL", async ({ page }) => {
     await page.goto("/compare?trend=orgs");
     const toggle = page.getByTestId("compare-trends-toggle");
-    // The Orgs button should be the active one (violet bg)
-    await expect(toggle.getByText("Orgs", { exact: true })).toBeVisible();
+    // The Orgs button should be the active (pressed) one
+    await expect(toggle.getByRole("button", { name: "Orgs", pressed: true })).toBeVisible();
   });
 
   test("shows radar chart section", async ({ page }) => {

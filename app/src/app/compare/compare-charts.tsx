@@ -11,6 +11,9 @@ import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
 import { SectionHeading } from "@/components/section-heading";
 import Link from "next/link";
 
+/** Minimum 👍 + 👎 reactions in a single week to compute a meaningful rate. */
+const MIN_WEEKLY_REACTIONS = 10;
+
 type CompareRow = ProductComparison & {
   sampled_prs: number;
   avg_additions: number | null;
@@ -419,7 +422,7 @@ export function CompareCharts({
         const rx = reactionIndex.get(rKey);
         if (rx) {
           const total = rx.thumbs_up + rx.thumbs_down;
-          metrics.thumbs_up_rate[week][name] = total >= 10
+          metrics.thumbs_up_rate[week][name] = total >= MIN_WEEKLY_REACTIONS
             ? Math.round(rx.thumbs_up * 1000 / total) / 10
             : 0; // not enough data for the week
           metrics.comments_per_pr[week][name] = rx.pr_count > 0
