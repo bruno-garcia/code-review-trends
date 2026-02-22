@@ -188,9 +188,10 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 
 1. Add an entry to `pipeline/src/bots.ts`.
 2. Run `npm run pipeline -- sync-bots` to push to ClickHouse.
-3. Update `db/init/002_bot_data.sql` to match (validated by `bots.test.ts`).
-4. The UI picks it up automatically — no code changes needed.
-5. Run the pipeline to backfill data for the new bot.
+3. Add a new migration file in `db/init/` (e.g., `005_new_bot.sql`) with the bot data (validated by `bots.test.ts`).
+4. Run `npm run pipeline -- generate-compare-pairs` to regenerate pair comparisons.
+5. The UI picks it up automatically — no code changes needed.
+6. Run the pipeline to backfill data for the new bot.
 
 ## Managing Remote Databases
 
