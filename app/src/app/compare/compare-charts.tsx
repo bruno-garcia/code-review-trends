@@ -191,6 +191,7 @@ export function CompareCharts({
   prCharacteristics,
   weeklyActivity,
   weeklyReactions,
+  overrideProductIds,
 }: {
   products: ProductComparison[];
   commentsPerPR: BotCommentsPerPR[];
@@ -198,8 +199,11 @@ export function CompareCharts({
   prCharacteristics: ProductPrCharacteristics[];
   weeklyActivity: WeeklyActivityByProduct[];
   weeklyReactions: WeeklyReactionsByProduct[];
+  /** When set, bypass the global product filter and show exactly these products. */
+  overrideProductIds?: string[];
 }) {
-  const { selectedProductIds } = useProductFilter();
+  const { selectedProductIds: globalIds } = useProductFilter();
+  const selectedProductIds = overrideProductIds ?? globalIds;
   const { resolved } = useTheme();
   const buildUrl = useFilterUrl();
 
