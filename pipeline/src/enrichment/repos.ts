@@ -18,6 +18,8 @@ import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 import { summarizeOrgs } from "./summary.js";
 import { fetchReposBatch, GRAPHQL_REPO_BATCH_SIZE } from "./graphql-repos.js";
+import { AdaptiveBatch } from "./adaptive-batch.js";
+import { isServerError } from "./graphql-retry.js";
 
 /**
  * Fetch and insert metadata for repos discovered in pr_bot_events
@@ -229,78 +231,99 @@ export async function refreshStaleRepos(
   log(`[repos] Found ${staleRepos.length} stale repos to refresh`);
 
   let refreshed = 0;
+  const adaptive = new AdaptiveBatch({ max: 50, min: 5 });
+  let batchStart = 0;
 
-  for (const { name } of staleRepos) {
-    const [owner, repo] = name.split("/");
-    if (!owner || !repo) continue;
-
-    await rateLimiter.waitIfNeeded();
+  while (batchStart < staleRepos.length) {
+    const batch = staleRepos.slice(batchStart, batchStart + adaptive.size);
+    const repoNames = batch.map(r => r.name);
 
     try {
-      const { data, headers } = await octokit.rest.repos.get({ owner, repo });
-      rateLimiter.update(headers as Record<string, string>);
+      const results = await fetchReposBatch(octokit, rateLimiter, repoNames);
 
-      await insertRepos(ch, [{
-        name,
-        owner,
-        stars: data.stargazers_count,
-        primary_language: data.language ?? "",
-        fork: data.fork,
-        archived: data.archived,
-        fetch_status: "ok",
-      }]);
+      for (const result of results) {
+        await insertRepos(ch, [result.row]);
+        if (result.status === "ok") refreshed++;
+      }
 
-      refreshed++;
+      batchStart += batch.length;
     } catch (err: unknown) {
-      const status = (err as { status?: number }).status;
-      if (status === 404) {
-        await insertRepos(ch, [{
-          name,
-          owner,
-          stars: 0,
-          primary_language: "",
-          fork: false,
-          archived: false,
-          fetch_status: "not_found",
-        }]);
-      } else if (status === 403) {
-        const headers = (err as { response?: { headers?: Record<string, string> } }).response?.headers;
-        const isRateLimit = headers?.["retry-after"] || (headers?.["x-ratelimit-remaining"] === "0");
-        if (headers) {
-          rateLimiter.update(headers);
-          const retryAfter = headers["retry-after"];
-          if (retryAfter) {
-            await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+      if (err instanceof RateLimitExitError) throw err;
+
+      if (isServerError(err) && adaptive.size > adaptive.min) {
+        adaptive.onServerError();
+        continue; // retry same batch at smaller size
+      }
+
+      // REST fallback for this batch
+      const errMsg = err instanceof Error ? err.message : String(err);
+      sentryLogger.warn(sentryLogger.fmt`REST fallback triggered phase=${"repos.refresh"} batchSize=${batch.length} error=${errMsg}`);
+      captureEnrichmentError(err, "repos.refresh", {
+        fallback: "rest",
+        batchSize: batch.length,
+        repos: repoNames,
+      });
+
+      for (const { name } of batch) {
+        const [owner, repo] = name.split("/");
+        if (!owner || !repo) continue;
+
+        await rateLimiter.waitIfNeeded();
+
+        try {
+          const { data, headers } = await octokit.rest.repos.get({ owner, repo });
+          rateLimiter.update(headers as Record<string, string>);
+
+          await insertRepos(ch, [{
+            name, owner,
+            stars: data.stargazers_count,
+            primary_language: data.language ?? "",
+            fork: data.fork, archived: data.archived,
+            fetch_status: "ok",
+          }]);
+          refreshed++;
+        } catch (innerErr: unknown) {
+          const status = (innerErr as { status?: number }).status;
+          if (status === 404) {
+            await insertRepos(ch, [{
+              name, owner, stars: 0, primary_language: "",
+              fork: false, archived: false, fetch_status: "not_found",
+            }]);
+          } else if (status === 403) {
+            const headers = (innerErr as { response?: { headers?: Record<string, string> } }).response?.headers;
+            const isRateLimit = headers?.["retry-after"] || (headers?.["x-ratelimit-remaining"] === "0");
+            if (headers) {
+              rateLimiter.update(headers);
+              const retryAfter = headers["retry-after"];
+              if (retryAfter) {
+                await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+              }
+            }
+            if (!isRateLimit) {
+              handleEnterprisePolicyError(innerErr, name, "repos");
+              await insertRepos(ch, [{
+                name, owner, stars: 0, primary_language: "",
+                fork: false, archived: false, fetch_status: "forbidden",
+              }]);
+            } else {
+              log(`[repos] Rate-limited refreshing ${name}, will retry later`);
+            }
+          } else {
+            captureEnrichmentError(innerErr, "repos.refresh", { repo: name });
+            logError(`[repos] Error refreshing ${name}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
           }
         }
-        if (!isRateLimit) {
-          // Check for enterprise token policy before marking forbidden
-          handleEnterprisePolicyError(err, name, "repos");
-
-          // Real 403 (DMCA, private, enterprise policy, etc.) — mark as forbidden
-          await insertRepos(ch, [{
-            name,
-            owner,
-            stars: 0,
-            primary_language: "",
-            fork: false,
-            archived: false,
-            fetch_status: "forbidden",
-          }]);
-        } else {
-          log(`[repos] Rate-limited refreshing ${name}, will retry later`);
-        }
-      } else {
-        captureEnrichmentError(err, "repos.refresh", { repo: name });
-        logError(`[repos] Error refreshing ${name}: ${err instanceof Error ? err.message : err}`);
       }
+
+      batchStart += batch.length;
     }
 
-    if (refreshed % 50 === 0 && refreshed > 0) {
-      log(`[repos] Refresh progress: ${refreshed} refreshed`);
+    const processed = batchStart;
+    if (processed % 50 < adaptive.size && processed > 0) {
+      log(`[repos] Refresh progress: ${refreshed} refreshed of ${staleRepos.length} processed`);
     }
   }
 
-  log(`[repos] Refresh done: ${refreshed} refreshed`);
+  log(`[repos] Refresh done: ${refreshed} refreshed (batch size: ${adaptive.summary().current}, reductions: ${adaptive.summary().reductions})`);
   return { refreshed };
 }
