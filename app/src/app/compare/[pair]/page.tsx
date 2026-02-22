@@ -12,6 +12,7 @@ import { COMPARE_PAIRS, PAIR_BY_SLUG } from "@/lib/generated/compare-pairs";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "../compare-charts";
 import { JsonLd } from "@/components/json-ld";
+import { PairFilterSync } from "./pair-filter-sync";
 
 type Props = {
   params: Promise<{ pair: string }>;
@@ -70,6 +71,7 @@ export default async function ComparePairPage({ params }: Props) {
 
   return (
     <div className="space-y-10" data-testid="compare-pair">
+      <PairFilterSync productIds={[pair.idA, pair.idB]} />
       <div>
         <h1 className="text-3xl font-bold">
           {pair.nameA} vs {pair.nameB}

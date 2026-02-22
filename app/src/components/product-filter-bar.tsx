@@ -61,7 +61,12 @@ export function ProductFilterBar() {
   const isSelectionEmpty = selectedProducts.length === 0;
 
   // Only show filter on pages that use it
-  if (pathname !== "/products" && pathname !== "/compare" && pathname !== "/repos" && pathname !== "/orgs") {
+  const isFilterPage =
+    pathname === "/products" ||
+    pathname === "/repos" ||
+    pathname === "/orgs" ||
+    pathname.startsWith("/compare");
+  if (!isFilterPage) {
     return null;
   }
 
@@ -72,7 +77,7 @@ export function ProductFilterBar() {
 
   // Time range only works on pages that query weekly activity data.
   // /repos and /orgs use all-time aggregated data with no time dimension.
-  const showTimeRange = pathname === "/products" || pathname === "/compare";
+  const showTimeRange = pathname === "/products" || pathname.startsWith("/compare");
 
   function signalNavigation() {
     if (isServerSyncPage) {
