@@ -3,7 +3,7 @@ import { getProductComparisons, getAvgCommentsPerPR, getBotReactionLeaderboard, 
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "./compare-charts";
-import { PAIR_BY_SLUG } from "@/lib/generated/compare-pairs";
+import { PAIR_BY_IDS } from "@/lib/generated/compare-pairs";
 
 const DEFAULT_TITLE = "Compare AI Code Review Products";
 const DEFAULT_DESCRIPTION =
@@ -23,13 +23,12 @@ export async function generateMetadata({
 
   if (ids.length === 2) {
     const sorted = [...ids].sort();
-    const slug = `${sorted[0]}-vs-${sorted[1]}`;
-    const pair = PAIR_BY_SLUG.get(slug);
+    const pair = PAIR_BY_IDS.get(`${sorted[0]}:${sorted[1]}`);
     if (pair) {
       return {
         title: pair.title,
         description: pair.description,
-        alternates: { canonical: `/compare/${slug}` },
+        alternates: { canonical: `/compare/${pair.slug}` },
         openGraph: { title: pair.title, description: pair.description },
         twitter: { title: pair.title, description: pair.description },
       };

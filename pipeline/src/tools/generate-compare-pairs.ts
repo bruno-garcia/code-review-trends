@@ -76,6 +76,14 @@ export const COMPARE_PAIRS: ComparePair[] = ${JSON.stringify(pairs, null, 2)};
 export const PAIR_BY_SLUG = new Map<string, ComparePair>(
   COMPARE_PAIRS.map((p) => [p.slug, p]),
 );
+
+/** Lookup by sorted product IDs: "idA:idB" → ComparePair (IDs alphabetically sorted). */
+export const PAIR_BY_IDS = new Map<string, ComparePair>(
+  COMPARE_PAIRS.map((p) => {
+    const key = p.idA < p.idB ? \`\${p.idA}:\${p.idB}\` : \`\${p.idB}:\${p.idA}\`;
+    return [key, p];
+  }),
+);
 `;
 
   // Ensure output directory exists
