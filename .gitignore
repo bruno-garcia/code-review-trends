@@ -34,3 +34,4 @@ review.md
 # (yarn is installed globally and sometimes creates this)
 yarn.lock
 .vercel
+next-env.d.ts
