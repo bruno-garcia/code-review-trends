@@ -457,6 +457,114 @@ export function BotRadarChart({
   );
 }
 
+// --- Compare Trends (multi-line time series for compare page) ---
+
+type TrendMetricKey = "reviews" | "review_comments" | "pr_comments" | "repos" | "orgs" | "thumbs_up_rate" | "comments_per_pr";
+
+const TREND_METRICS: { value: TrendMetricKey; label: string }[] = [
+  { value: "reviews", label: "Reviews" },
+  { value: "review_comments", label: "Rev. Comments" },
+  { value: "pr_comments", label: "PR Comments" },
+  { value: "repos", label: "Repos" },
+  { value: "orgs", label: "Orgs" },
+  { value: "thumbs_up_rate", label: "👍 Rate" },
+  { value: "comments_per_pr", label: "Cmts/PR" },
+];
+
+export function CompareTrendsChart({
+  dataByMetric,
+  products,
+  colors,
+}: {
+  dataByMetric: Record<string, Record<string, Record<string, string | number>>>;
+  products: string[];
+  colors?: Record<string, string>;
+}) {
+  const [metric, setMetric] = useUrlState("trend", "reviews");
+  const c = useChartColors();
+
+  // Validate the metric value
+  const validMetric: TrendMetricKey = TREND_METRICS.some((m) => m.value === metric)
+    ? (metric as TrendMetricKey)
+    : "reviews";
+
+  const isPercent = validMetric === "thumbs_up_rate";
+
+  const data = useMemo(
+    () => Object.values(dataByMetric[validMetric] ?? {}),
+    [dataByMetric, validMetric],
+  );
+
+  if (data.length === 0) {
+    return (
+      <div data-testid="compare-trends-chart">
+        <ToggleGroup
+          options={TREND_METRICS}
+          value={validMetric}
+          onChange={setMetric}
+          testId="compare-trends-toggle"
+        />
+        <p className="text-theme-muted text-sm mt-4">No trend data for the selected filters.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div data-testid="compare-trends-chart">
+      <ToggleGroup
+        options={TREND_METRICS}
+        value={validMetric}
+        onChange={setMetric}
+        testId="compare-trends-toggle"
+      />
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
+          <XAxis
+            dataKey="week"
+            tickFormatter={formatWeek}
+            stroke={c.axis}
+            tick={{ fontSize: 12 }}
+          />
+          <YAxis
+            stroke={c.axis}
+            tick={{ fontSize: 12 }}
+            tickFormatter={isPercent ? (v) => `${v}%` : formatNumber}
+          />
+          <Tooltip
+            contentStyle={c.tooltipStyle}
+            wrapperStyle={TOOLTIP_WRAPPER_STYLE}
+            labelFormatter={(v) => formatWeekLong(String(v))}
+            formatter={(value, name) => [
+              isPercent ? `${Number(value).toFixed(1)}%` : formatNumber(Number(value)),
+              name,
+            ]}
+            itemSorter={descendingItemSorter}
+          />
+          <Legend wrapperStyle={c.legendStyle} />
+          {products.map((product, i) => {
+            const color = colors?.[product] ?? COLORS[i % COLORS.length];
+            return (
+              <Line
+                key={product}
+                type="monotone"
+                dataKey={product}
+                stroke={color}
+                dot={false}
+                strokeWidth={2}
+                name={product}
+                animationDuration={ANIM_DURATION}
+                animationEasing={ANIM_EASING}
+                connectNulls
+              />
+            );
+          })}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 // --- Bot Reaction Leaderboard (horizontal stacked bar) ---
 
 type BotReactionLeaderboardData = {

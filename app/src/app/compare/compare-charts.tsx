@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import type { ProductComparison, BotCommentsPerPR, BotReactions, ProductPrCharacteristics } from "@/lib/clickhouse";
+import type { ProductComparison, BotCommentsPerPR, BotReactions, ProductPrCharacteristics, WeeklyActivityByProduct, WeeklyReactionsByProduct } from "@/lib/clickhouse";
 import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
-import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, COLORS } from "@/components/charts";
+import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, CompareTrendsChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor } from "@/lib/theme-overrides";
 import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
 import { SectionHeading } from "@/components/section-heading";
 import Link from "next/link";
+
+/** Minimum 👍 + 👎 reactions in a single week to compute a meaningful rate. */
+const MIN_WEEKLY_REACTIONS = 10;
 
 type CompareRow = ProductComparison & {
   sampled_prs: number;
@@ -186,11 +189,15 @@ export function CompareCharts({
   commentsPerPR: allCommentsPerPR,
   reactionLeaderboard: allReactionLeaderboard,
   prCharacteristics,
+  weeklyActivity,
+  weeklyReactions,
 }: {
   products: ProductComparison[];
   commentsPerPR: BotCommentsPerPR[];
   reactionLeaderboard: BotReactions[];
   prCharacteristics: ProductPrCharacteristics[];
+  weeklyActivity: WeeklyActivityByProduct[];
+  weeklyReactions: WeeklyReactionsByProduct[];
 }) {
   const { selectedProductIds } = useProductFilter();
   const { resolved } = useTheme();
@@ -319,6 +326,117 @@ export function CompareCharts({
     const i = products.indexOf(p);
     nameColorMap[p.name] = getThemedBrandColor(p.id, p.brand_color || COLORS[i % COLORS.length], resolved);
   }
+
+  // Build a product_id→name lookup for pivoting
+  const idToName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of allProducts) m.set(p.id, p.name);
+    return m;
+  }, [allProducts]);
+
+  // Pivot weekly activity + reactions into per-metric trend data.
+  // The chart component picks the right keys based on the selected metric.
+  const trendData = useMemo(() => {
+    const selectedSet = new Set(selectedProductIds);
+
+    // Index reaction data by (week, product_id)
+    type ReactionRow = { thumbs_up: number; thumbs_down: number; comment_count: number; reacted_comment_count: number; pr_count: number };
+    const reactionIndex = new Map<string, ReactionRow>();
+    for (const r of weeklyReactions) {
+      if (!selectedSet.has(r.product_id)) continue;
+      const key = `${r.week}|${r.product_id}`;
+      const existing = reactionIndex.get(key);
+      if (existing) {
+        existing.thumbs_up += Number(r.thumbs_up);
+        existing.thumbs_down += Number(r.thumbs_down);
+        existing.comment_count += Number(r.comment_count);
+        existing.reacted_comment_count += Number(r.reacted_comment_count);
+        existing.pr_count += Number(r.pr_count);
+      } else {
+        reactionIndex.set(key, {
+          thumbs_up: Number(r.thumbs_up),
+          thumbs_down: Number(r.thumbs_down),
+          comment_count: Number(r.comment_count),
+          reacted_comment_count: Number(r.reacted_comment_count),
+          pr_count: Number(r.pr_count),
+        });
+      }
+    }
+
+    // Collect all weeks from both sources
+    const allWeeks = new Set<string>();
+    const activityByWeek = new Map<string, Map<string, WeeklyActivityByProduct>>();
+
+    for (const row of weeklyActivity) {
+      if (!selectedSet.has(row.product_id)) continue;
+      allWeeks.add(row.week);
+      let weekMap = activityByWeek.get(row.week);
+      if (!weekMap) {
+        weekMap = new Map();
+        activityByWeek.set(row.week, weekMap);
+      }
+      weekMap.set(row.product_id, row);
+    }
+    for (const r of weeklyReactions) {
+      if (!selectedSet.has(r.product_id)) continue;
+      allWeeks.add(r.week);
+    }
+
+    const sortedWeeks = [...allWeeks].sort();
+
+    // For each metric, we build: { reviews: { week, ProductA: val, ProductB: val }, ... }
+    // But we want a single array keyed by metric prefix so the chart can pick.
+    // Simpler: build 7 pivoted arrays keyed by metric name.
+    const metrics: Record<string, Record<string, Record<string, string | number>>> = {
+      reviews: {},
+      review_comments: {},
+      pr_comments: {},
+      repos: {},
+      orgs: {},
+      thumbs_up_rate: {},
+      comments_per_pr: {},
+    };
+
+    for (const week of sortedWeeks) {
+      for (const key of Object.keys(metrics)) {
+        metrics[key][week] = { week };
+      }
+    }
+
+    for (const week of sortedWeeks) {
+      const weekMap = activityByWeek.get(week);
+      for (const pid of selectedProductIds) {
+        const name = idToName.get(pid);
+        if (!name) continue;
+        const act = weekMap?.get(pid);
+        if (act) {
+          metrics.reviews[week][name] = Number(act.review_count);
+          metrics.review_comments[week][name] = Number(act.review_comment_count);
+          metrics.pr_comments[week][name] = Number(act.pr_comment_count);
+          metrics.repos[week][name] = Number(act.repo_count);
+          metrics.orgs[week][name] = Number(act.org_count);
+        }
+
+        // Reaction-based metrics
+        const rKey = `${week}|${pid}`;
+        const rx = reactionIndex.get(rKey);
+        if (rx) {
+          const total = rx.thumbs_up + rx.thumbs_down;
+          metrics.thumbs_up_rate[week][name] = total >= MIN_WEEKLY_REACTIONS
+            ? Math.round(rx.thumbs_up * 1000 / total) / 10
+            : 0; // not enough data for the week
+          metrics.comments_per_pr[week][name] = rx.pr_count > 0
+            ? Math.round(rx.comment_count * 100 / rx.pr_count) / 100
+            : 0;
+        }
+      }
+    }
+
+    return metrics;
+  }, [weeklyActivity, weeklyReactions, selectedProductIds, idToName]);
+
+  // trendData is passed to the chart as a map; the chart selects the metric
+  // internally via useUrlState("trend") and picks the right array to render.
 
   const tableSection = (
       <section
@@ -452,6 +570,22 @@ export function CompareCharts({
 
   return (
     <div className="space-y-10">
+      {/* Trends over time — hero section, hidden when table is expanded */}
+      {!isExpanded && (
+      <section data-testid="trends-section" id="trends">
+        <SectionHeading id="trends">Trends Over Time</SectionHeading>
+        <p className="text-theme-muted mb-4 text-sm">
+          Compare how products evolve week by week. Pick a metric to explore.
+        </p>
+        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
+          <CompareTrendsChart dataByMetric={trendData} products={productNames} colors={nameColorMap} />
+        </div>
+      </section>
+      )}
+
+      {/* Big comparison table — always visible */}
+      {tableSection}
+
       {/* Radar chart — hidden when table is expanded */}
       {!isExpanded && (
       <section data-testid="radar-section" id="radar">
@@ -464,9 +598,6 @@ export function CompareCharts({
         </div>
       </section>
       )}
-
-      {/* Big comparison table — always visible */}
-      {tableSection}
 
       {/* Bar chart breakdowns, comments/PR, sentiment — hidden when table is expanded */}
       {!isExpanded && (<>
