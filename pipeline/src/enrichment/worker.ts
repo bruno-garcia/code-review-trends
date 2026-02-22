@@ -62,7 +62,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   const limit = options.limit;
 
   log(
-    `[worker] Starting enrichment (worker ${partition.workerId}/${partition.totalWorkers}, limit: ${limit ?? "unlimited"})`,
+    `[worker] Starting enrichment (worker ${partition.workerId + 1}/${partition.totalWorkers}, limit: ${limit ?? "unlimited"})`,
   );
   if (limit !== undefined) {
     gaugeMetric("pipeline.enrich.limit", limit);
@@ -151,7 +151,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
       if (rateLimitExit) break;
       const stageStart = Date.now();
       const pct = Math.round(completion[step] * 100);
-      sentryLogger.info(sentryLogger.fmt`Starting enrichment stage=${step} completion=${pct}% worker=${partition.workerId}/${partition.totalWorkers}`);
+      sentryLogger.info(sentryLogger.fmt`Starting enrichment stage=${step} completion=${pct}% worker=${partition.workerId + 1}/${partition.totalWorkers}`);
       try {
         switch (step) {
           case "repos":

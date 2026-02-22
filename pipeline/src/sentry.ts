@@ -95,7 +95,7 @@ function parseWorkerTag(): string {
     ? args[wIdx + 1] : "0";
   const totalWorkers = tIdx >= 0 && tIdx + 1 < args.length && !args[tIdx + 1].startsWith("--")
     ? args[tIdx + 1] : "1";
-  return `${workerId}/${totalWorkers}`;
+  return `${Number(workerId) + 1}/${totalWorkers}`;
 }
 
 const workerTag = parseWorkerTag();

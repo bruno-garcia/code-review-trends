@@ -16,7 +16,7 @@
 # Secret name derived from env: crt-<env>-github-tokens
 #
 # Reentrant: start always kills existing session first.
-# Logs: ~/worker-<env>-{0,1,...}.log
+# Logs: ~/worker-<env>-{1,2,...}.log
 
 set -euo pipefail
 
@@ -95,18 +95,26 @@ cmd_start() {
   tmux new-session -d -s "$SESSION" -n status
   tmux send-keys -t "$SESSION:status" "cd $REPO_DIR && watch -n 60 'export \$(grep -v \"^#\" $ENV_FILE | xargs) && npm run pipeline -- enrich-status --env $PIPELINE_ENV --no-sentry 2>&1 | tail -40'" Enter
 
-  # Windows 1..N: workers
+  # Windows 1..N: workers (staggered 60s apart to avoid ClickHouse overload)
   for i in $(seq 0 $((n - 1))); do
-    local wname="worker${i}"
-    local logfile="$HOME/worker-${PIPELINE_ENV}-${i}.log"
+    local display_id=$((i + 1))
+    local wname="worker${display_id}"
+    local logfile="$HOME/worker-${PIPELINE_ENV}-${display_id}.log"
     local token="${TOKENS[$i]}"
 
     # Build the worker command — override GITHUB_TOKEN per worker
-    local cmd="cd $REPO_DIR && export \$(grep -v '^#' $ENV_FILE | xargs) && export GITHUB_TOKEN='${token}' && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --no-sentry 2>&1 | tee $logfile"
+    # Workers after the first sleep before starting to stagger ClickHouse queries
+    # CLI --worker-id is 0-based (used for hash partitioning), display is 1-based
+    local sleep_cmd=""
+    if [[ $i -gt 0 ]]; then
+      sleep_cmd="echo 'Worker ${display_id}/${n}: waiting $((i * 60))s to stagger start...' && sleep $((i * 60)) && "
+    fi
+    local escaped_token=$(printf %q "${token}")
+    local cmd="${sleep_cmd}cd $REPO_DIR && export \$(grep -v '^#' $ENV_FILE | xargs) && export GITHUB_TOKEN=${escaped_token} && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --no-sentry 2>&1 | tee $logfile"
 
     tmux new-window -t "$SESSION" -n "$wname"
     tmux send-keys -t "$SESSION:$wname" "$cmd" Enter
-    log "  $wname → token ${token:0:15}... → $logfile"
+    log "  $wname → token ${token:0:15}... (starts in ${i}m) → $logfile"
   done
 
   # Select status window
