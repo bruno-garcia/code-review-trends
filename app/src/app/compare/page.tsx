@@ -88,7 +88,7 @@ export default async function ComparePage({
 
       {/* Below fold: comments per PR + bot sentiment — streamed via Suspense */}
       <Suspense fallback={<BelowFoldSkeleton />}>
-        <CompareBelowFold since={since} products={products} />
+        <CompareBelowFold since={since} />
       </Suspense>
     </div>
   );

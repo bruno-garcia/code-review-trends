@@ -177,6 +177,29 @@ const METRICS: {
   },
 ];
 
+/** Columns that use -1 as a sentinel for N/A — push to end when sorting. */
+const SENTINEL_KEYS: Set<SortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
+
+const RADAR_DIMENSIONS: { key: SortKey; label: string }[] = [
+  { key: "total_reviews", label: "Reviews" },
+  { key: "total_comments", label: "Review Comments" },
+  { key: "total_pr_comments", label: "PR Comments" },
+  { key: "total_repos", label: "Repos" },
+  { key: "total_orgs", label: "Orgs" },
+  { key: "latest_week_reviews", label: "Recent Activity" },
+];
+
+const BAR_CHART_METRICS: { key: SortKey; label: string }[] = [
+  { key: "total_reviews", label: "Total Reviews" },
+  { key: "total_pr_comments", label: "PR Comments" },
+  { key: "total_repos", label: "Active Repos" },
+  { key: "total_orgs", label: "Organizations" },
+  { key: "avg_comments_per_review", label: "Avg Comments/Review" },
+  { key: "thumbs_up_rate", label: "👍 Rate %" },
+  { key: "reaction_rate", label: "Reaction Rate %" },
+  { key: "comments_per_repo", label: "Comments per Repo" },
+];
+
 function normalize(products: CompareRow[], key: SortKey): number[] {
   const values = products.map((p) => Number(p[key] ?? 0));
   const max = Math.max(...values);
@@ -257,7 +280,7 @@ export function CompareChartsAbove({
   const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
   // Columns that use -1 as a sentinel for N/A — push to end.
-  const sentinelKeys: Set<SortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
+  // (static Set defined at module level to avoid re-creation on every render)
 
   const sorted = [...products].sort((a, b) => {
     const aRaw = a[sortKey];
@@ -267,7 +290,7 @@ export function CompareChartsAbove({
     if (bRaw == null) return -1;
     const av = Number(aRaw);
     const bv = Number(bRaw);
-    if (sentinelKeys.has(sortKey)) {
+    if (SENTINEL_KEYS.has(sortKey)) {
       const aNA = av < 0;
       const bNA = bv < 0;
       if (aNA && bNA) return 0;
@@ -402,16 +425,7 @@ export function CompareChartsAbove({
 
   // --- Radar chart data ---
 
-  const radarDimensions = [
-    { key: "total_reviews" as SortKey, label: "Reviews" },
-    { key: "total_comments" as SortKey, label: "Review Comments" },
-    { key: "total_pr_comments" as SortKey, label: "PR Comments" },
-    { key: "total_repos" as SortKey, label: "Repos" },
-    { key: "total_orgs" as SortKey, label: "Orgs" },
-    { key: "latest_week_reviews" as SortKey, label: "Recent Activity" },
-  ];
-
-  const radarData = radarDimensions.map((dim) => {
+  const radarData = RADAR_DIMENSIONS.map((dim) => {
     const normalized = normalize(products, dim.key);
     const point: Record<string, string | number> = { metric: dim.label };
     products.forEach((p, i) => {
@@ -421,17 +435,6 @@ export function CompareChartsAbove({
   });
 
   // --- Bar chart breakdowns ---
-
-  const barChartMetrics = [
-    { key: "total_reviews" as SortKey, label: "Total Reviews" },
-    { key: "total_pr_comments" as SortKey, label: "PR Comments" },
-    { key: "total_repos" as SortKey, label: "Active Repos" },
-    { key: "total_orgs" as SortKey, label: "Organizations" },
-    { key: "avg_comments_per_review" as SortKey, label: "Avg Comments/Review" },
-    { key: "thumbs_up_rate" as SortKey, label: "👍 Rate %" },
-    { key: "reaction_rate" as SortKey, label: "Reaction Rate %" },
-    { key: "comments_per_repo" as SortKey, label: "Comments per Repo" },
-  ];
 
   // --- Table section ---
 
@@ -600,7 +603,7 @@ export function CompareChartsAbove({
       <section data-testid="bar-charts-section" id="breakdowns">
         <SectionHeading id="breakdowns">Visual Breakdowns</SectionHeading>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {barChartMetrics.map(({ key, label }) => {
+          {BAR_CHART_METRICS.map(({ key, label }) => {
             const chartData = [...products]
               .sort((a, b) => Number(b[key]) - Number(a[key]))
               .map((product) => ({

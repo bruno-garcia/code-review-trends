@@ -88,7 +88,6 @@ export default async function ComparePairPage({ params }: Props) {
       <Suspense fallback={<BelowFoldSkeleton />}>
         <CompareBelowFold
           since={undefined}
-          products={allProducts}
           overrideProductIds={overrideIds}
         />
       </Suspense>

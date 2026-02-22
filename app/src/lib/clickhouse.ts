@@ -813,20 +813,38 @@ export async function getPrCharacteristics(
   const params: Record<string, string> = { productId };
   if (since) params.since = since;
 
-  const rows = await query<PrCharacteristics>(
-    `SELECT
-      count() AS sampled_prs,
-      round(avg(additions), 0) AS avg_additions,
-      round(avg(deletions), 0) AS avg_deletions,
-      round(avg(changed_files), 1) AS avg_changed_files,
-      round(countIf(state = 'merged') * 100.0 / count(), 1) AS merge_rate,
-      round(avg(if(state = 'merged' AND merged_at IS NOT NULL,
-        dateDiff('hour', created_at, merged_at), NULL)), 1) AS avg_hours_to_merge
-    FROM pr_product_characteristics FINAL
-    WHERE product_id = {productId:String}
-    ${since ? "AND created_at >= toDate({since:String})" : ""}`,
-    params,
-  );
+  // When `since` is provided, fall back to the original query that filters by
+  // event_week (when the bot event occurred). The MV doesn't store event_week,
+  // so using created_at would change the semantics — PRs created before the
+  // cutoff but reviewed within the range would be excluded.
+  const sql = since
+    ? `SELECT
+        count() AS sampled_prs,
+        round(avg(p.additions), 0) AS avg_additions,
+        round(avg(p.deletions), 0) AS avg_deletions,
+        round(avg(p.changed_files), 1) AS avg_changed_files,
+        round(countIf(p.state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+        round(avg(if(p.state = 'merged' AND p.merged_at IS NOT NULL,
+          dateDiff('hour', p.created_at, p.merged_at), NULL)), 1) AS avg_hours_to_merge
+      FROM (
+        SELECT DISTINCT e.repo_name, e.pr_number
+        FROM pr_bot_events e
+        JOIN bots b ON e.bot_id = b.id
+        WHERE b.product_id = {productId:String}
+        AND e.event_week >= toDate({since:String})
+      ) AS de
+      JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number`
+    : `SELECT
+        count() AS sampled_prs,
+        round(avg(additions), 0) AS avg_additions,
+        round(avg(deletions), 0) AS avg_deletions,
+        round(avg(changed_files), 1) AS avg_changed_files,
+        round(countIf(state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+        round(avg(if(state = 'merged' AND merged_at IS NOT NULL,
+          dateDiff('hour', created_at, merged_at), NULL)), 1) AS avg_hours_to_merge
+      FROM pr_product_characteristics FINAL
+      WHERE product_id = {productId:String}`;
+  const rows = await query<PrCharacteristics>(sql, params);
 
   const row = rows[0];
   if (!row || row.sampled_prs === 0) return null;
@@ -843,22 +861,41 @@ export async function getAllPrCharacteristics(
   const params: Record<string, string> = {};
   if (since) params.since = since;
 
-  return query<ProductPrCharacteristics>(
-    `SELECT
-      product_id,
-      count() AS sampled_prs,
-      round(avg(additions), 0) AS avg_additions,
-      round(avg(deletions), 0) AS avg_deletions,
-      round(avg(changed_files), 1) AS avg_changed_files,
-      round(countIf(state = 'merged') * 100.0 / count(), 1) AS merge_rate,
-      round(avg(if(state = 'merged' AND merged_at IS NOT NULL,
-        dateDiff('hour', created_at, merged_at), NULL)), 1) AS avg_hours_to_merge
-    FROM pr_product_characteristics FINAL
-    ${since ? "WHERE created_at >= toDate({since:String})" : ""}
-    GROUP BY product_id
-    HAVING sampled_prs >= 10`,
-    params,
-  );
+  // When `since` is provided, fall back to the original query that filters by
+  // event_week to preserve exact time-range semantics. The fast MV path is used
+  // for the default (unfiltered) case — the common path on the compare page.
+  const sql = since
+    ? `SELECT
+        de.product_id,
+        count() AS sampled_prs,
+        round(avg(p.additions), 0) AS avg_additions,
+        round(avg(p.deletions), 0) AS avg_deletions,
+        round(avg(p.changed_files), 1) AS avg_changed_files,
+        round(countIf(p.state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+        round(avg(if(p.state = 'merged' AND p.merged_at IS NOT NULL,
+          dateDiff('hour', p.created_at, p.merged_at), NULL)), 1) AS avg_hours_to_merge
+      FROM (
+        SELECT DISTINCT e.repo_name, e.pr_number, b.product_id
+        FROM pr_bot_events e
+        JOIN bots b ON e.bot_id = b.id
+        WHERE e.event_week >= toDate({since:String})
+      ) AS de
+      JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number
+      GROUP BY de.product_id
+      HAVING sampled_prs >= 10`
+    : `SELECT
+        product_id,
+        count() AS sampled_prs,
+        round(avg(additions), 0) AS avg_additions,
+        round(avg(deletions), 0) AS avg_deletions,
+        round(avg(changed_files), 1) AS avg_changed_files,
+        round(countIf(state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+        round(avg(if(state = 'merged' AND merged_at IS NOT NULL,
+          dateDiff('hour', created_at, merged_at), NULL)), 1) AS avg_hours_to_merge
+      FROM pr_product_characteristics FINAL
+      GROUP BY product_id
+      HAVING sampled_prs >= 10`;
+  return query<ProductPrCharacteristics>(sql, params);
 }
 
 export type BotByLanguage = {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { BotCommentsPerPR, BotReactions } from "@/lib/clickhouse";
 import { CommentsPerPRChart, BotReactionLeaderboardChart } from "@/components/charts";
 import { useProductFilter } from "@/lib/product-filter";
@@ -31,14 +32,16 @@ export function CompareChartsBelow({
   const [expanded] = useUrlState("expanded", "");
   const isExpanded = expanded === "1";
 
-  if (isExpanded) return null;
+  const commentsPerPR = useMemo(
+    () => allCommentsPerPR.filter((c) => selectedProductIds.includes(c.product_id)),
+    [allCommentsPerPR, selectedProductIds],
+  );
+  const filteredReactions = useMemo(
+    () => allReactionLeaderboard.filter((r) => selectedProductIds.includes(r.product_id)),
+    [allReactionLeaderboard, selectedProductIds],
+  );
 
-  const commentsPerPR = allCommentsPerPR.filter((c) =>
-    selectedProductIds.includes(c.product_id),
-  );
-  const filteredReactions = allReactionLeaderboard.filter((r) =>
-    selectedProductIds.includes(r.product_id),
-  );
+  if (isExpanded) return null;
 
   return (
     <>

@@ -785,7 +785,7 @@ async function cmdEnrich() {
   log("\nOptimizing tables...");
   const ch = createCHClient();
   try {
-    await optimizeTables(ch, ["repos", "pull_requests", "pr_comments", "pr_bot_reactions", "reaction_scan_progress"]);
+    await optimizeTables(ch, ["repos", "pull_requests", "pr_comments", "pr_bot_reactions", "reaction_scan_progress", "pr_product_characteristics"]);
     log("✓ Tables optimized");
   } finally {
     await ch.close();

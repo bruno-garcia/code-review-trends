@@ -1,4 +1,3 @@
-import type { ProductComparison } from "@/lib/clickhouse";
 import { getAvgCommentsPerPR, getBotReactionLeaderboard } from "@/lib/clickhouse";
 import { CompareChartsBelow } from "./compare-charts-below";
 
@@ -15,11 +14,9 @@ import { CompareChartsBelow } from "./compare-charts-below";
  */
 export async function CompareBelowFold({
   since,
-  products,
   overrideProductIds,
 }: {
   since: string | undefined;
-  products: ProductComparison[];
   overrideProductIds?: string[];
 }) {
   const [commentsPerPR, reactionLeaderboard] = await Promise.all([
