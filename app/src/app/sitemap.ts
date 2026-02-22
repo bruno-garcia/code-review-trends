@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import * as Sentry from "@sentry/nextjs";
 import { getProductSummaries, getOrgList, getRepoList } from "@/lib/clickhouse";
+import { COMPARE_PAIRS } from "@/lib/generated/compare-pairs";
 
 const SITE_URL = process.env.SITE_URL;
 const isProduction = SITE_URL === "https://codereviewtrends.com";
@@ -22,6 +23,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/about`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/status`, changeFrequency: "daily", priority: 0.4 },
   );
+
+  // Compare pair pages
+  for (const pair of COMPARE_PAIRS) {
+    entries.push({
+      url: `${BASE_URL}/compare/${pair.slug}`,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    });
+  }
 
   // Dynamic product pages
   try {

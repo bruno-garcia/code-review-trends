@@ -3,13 +3,46 @@ import { getProductComparisons, getAvgCommentsPerPR, getBotReactionLeaderboard, 
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "./compare-charts";
+import { PAIR_BY_IDS } from "@/lib/generated/compare-pairs";
 
-export const metadata: Metadata = {
-  title: "Compare AI Code Review Products",
-  description:
-    "Side-by-side comparison of AI code review tools by volume, growth rate, repos, organizations, and reaction sentiment. Updated weekly.",
-  alternates: { canonical: "/compare" },
-};
+const DEFAULT_TITLE = "Compare AI Code Review Products";
+const DEFAULT_DESCRIPTION =
+  "Side-by-side comparison of AI code review tools by volume, growth rate, repos, organizations, and reaction sentiment. Updated weekly.";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const raw = params.products;
+  const ids =
+    typeof raw === "string"
+      ? raw.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+
+  if (ids.length === 2) {
+    const sorted = [...ids].sort();
+    const pair = PAIR_BY_IDS.get(`${sorted[0]}:${sorted[1]}`);
+    if (pair) {
+      return {
+        title: pair.title,
+        description: pair.description,
+        alternates: { canonical: `/compare/${pair.slug}` },
+        openGraph: { title: pair.title, description: pair.description },
+        twitter: { title: pair.title, description: pair.description },
+      };
+    }
+  }
+
+  return {
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    alternates: { canonical: "/compare" },
+    openGraph: { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION },
+    twitter: { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION },
+  };
+}
 
 export default async function ComparePage({
   searchParams,

@@ -255,3 +255,112 @@ describe("bot_data SQL consistency", () => {
     );
   });
 });
+
+describe("compare pairs consistency", () => {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const REGEN_MSG =
+    "Run `npm run pipeline -- generate-compare-pairs` to regenerate";
+
+  const source = readFileSync(
+    join(__dirname, "../../app/src/lib/generated/compare-pairs.ts"),
+    "utf-8",
+  );
+
+  // Extract the JSON array from the generated TypeScript and parse it.
+  // More robust than regex — survives key reordering and formatting changes.
+  type ParsedPair = {
+    idA: string;
+    idB: string;
+    nameA: string;
+    nameB: string;
+    slug: string;
+  };
+  const arrayMatch = source.match(
+    /export const COMPARE_PAIRS: ComparePair\[] = (\[[\s\S]*?\n\]);/,
+  );
+  assert.ok(arrayMatch, `Could not find COMPARE_PAIRS array in generated file. ${REGEN_MSG}`);
+  const pairs: ParsedPair[] = JSON.parse(arrayMatch[1]);
+
+  const n = PRODUCTS.length;
+  const expectedCount = (n * (n - 1)) / 2;
+
+  it("pair count equals C(n,2)", () => {
+    assert.equal(
+      pairs.length,
+      expectedCount,
+      `Expected ${expectedCount} pairs for ${n} products, got ${pairs.length}. ${REGEN_MSG}`,
+    );
+  });
+
+  it("every pair references valid product IDs", () => {
+    for (const pair of pairs) {
+      assert.ok(
+        PRODUCT_BY_ID.has(pair.idA),
+        `Unknown idA "${pair.idA}" in pair ${pair.slug}. ${REGEN_MSG}`,
+      );
+      assert.ok(
+        PRODUCT_BY_ID.has(pair.idB),
+        `Unknown idB "${pair.idB}" in pair ${pair.slug}. ${REGEN_MSG}`,
+      );
+    }
+  });
+
+  it("every pair slug has its two parts in alphabetical order", () => {
+    for (const pair of pairs) {
+      const parts = pair.slug.split("-vs-");
+      assert.equal(parts.length, 2, `Slug "${pair.slug}" doesn't contain exactly one "-vs-". ${REGEN_MSG}`);
+      assert.ok(
+        parts[0] < parts[1],
+        `Pair ${pair.slug} has "${parts[0]}" >= "${parts[1]}" — slug parts not alphabetically ordered. ${REGEN_MSG}`,
+      );
+    }
+  });
+
+  it("no duplicate slugs", () => {
+    const slugs = pairs.map((p) => p.slug);
+    const unique = new Set(slugs);
+    assert.equal(
+      unique.size,
+      slugs.length,
+      `Found ${slugs.length - unique.size} duplicate slugs. ${REGEN_MSG}`,
+    );
+  });
+
+  it("product names match PRODUCTS", () => {
+    for (const pair of pairs) {
+      const productA = PRODUCT_BY_ID.get(pair.idA);
+      const productB = PRODUCT_BY_ID.get(pair.idB);
+      assert.equal(
+        pair.nameA,
+        productA?.name,
+        `nameA mismatch for ${pair.slug}: got "${pair.nameA}", expected "${productA?.name}". ${REGEN_MSG}`,
+      );
+      assert.equal(
+        pair.nameB,
+        productB?.name,
+        `nameB mismatch for ${pair.slug}: got "${pair.nameB}", expected "${productB?.name}". ${REGEN_MSG}`,
+      );
+    }
+  });
+
+  it("every possible product pair has an entry", () => {
+    // Normalize pair keys so order doesn't matter (pairs are sorted by
+    // name-slug, not by ID, so idA/idB ordering varies).
+    const normalize = (a: string, b: string) => a < b ? `${a}:${b}` : `${b}:${a}`;
+    const pairKeys = new Set(pairs.map((p) => normalize(p.idA, p.idB)));
+    const ids = PRODUCTS.map((p) => p.id);
+    const missing: string[] = [];
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const key = normalize(ids[i], ids[j]);
+        if (!pairKeys.has(key)) missing.push(key);
+      }
+    }
+    assert.equal(
+      missing.length,
+      0,
+      `Missing ${missing.length} pairs: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "..." : ""}. ${REGEN_MSG}`,
+    );
+  });
+});

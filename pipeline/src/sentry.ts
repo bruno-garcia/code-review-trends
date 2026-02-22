@@ -64,8 +64,8 @@ function parseEnv(): PipelineEnv {
   // In test runners, default to "development" silently
   if (isTestRunner) return "development";
 
-  // help/--help don't need environment (no Sentry, no ClickHouse)
-  if (!command || command === "help" || command === "--help" || command === "-h") {
+  // help/--help and local-only commands don't need environment
+  if (!command || command === "help" || command === "--help" || command === "-h" || command === "generate-compare-pairs") {
     return "development";
   }
 
