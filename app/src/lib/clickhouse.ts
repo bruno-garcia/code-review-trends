@@ -1434,6 +1434,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       SELECT toString(max(completed_at)) AS last_run
       FROM pipeline_state
       WHERE job_name = 'backfill'
+        AND completed_at <= now() + INTERVAL 1 DAY
     `);
     if (stateRows[0] && stateRows[0].last_run !== "1970-01-01 00:00:00") {
       lastImport = stateRows[0].last_run;

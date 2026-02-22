@@ -19,6 +19,7 @@ import {
   syncBots,
   insertReviewActivity,
   insertHumanActivity,
+  assertNotLiveDatabase,
 } from "../clickhouse.js";
 import { BOTS } from "../bots.js";
 import type { ClickHouseClient } from "@clickhouse/client";
@@ -94,6 +95,7 @@ describe("buildReport integration", () => {
   let ch: ClickHouseClient;
 
   before(async () => {
+    assertNotLiveDatabase();
     ch = createCHClient();
 
     // Ensure bots exist

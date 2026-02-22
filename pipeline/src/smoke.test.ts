@@ -40,6 +40,7 @@ import {
   type RepoRow,
   type PullRequestRow,
   type PrCommentRow,
+  assertNotLiveDatabase,
 } from "./clickhouse.js";
 import {
   mapBotActivityRows,
@@ -103,6 +104,7 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
   const logins = [...BOT_LOGINS];
 
   before(async () => {
+    assertNotLiveDatabase();
     ch = createCHClient();
     await syncProducts(ch, PRODUCTS);
     await syncBots(ch, BOTS);
@@ -407,6 +409,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
   let ch: ClickHouseClient;
 
   before(async () => {
+    assertNotLiveDatabase();
     octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
     ch = createCHClient();
     await syncProducts(ch, PRODUCTS);

@@ -36,6 +36,25 @@ export function createCHClient(config?: ClickHouseConfig): ClickHouseClient {
 }
 
 /**
+ * Stop tests from running against a live instance such as production
+ * if accidentally configured to do so once prod goes live.
+ *
+ * Call this in the `before` hook of every test suite that creates a
+ * ClickHouse client. Throws if CLICKHOUSE_URL points at a .com host.
+ */
+export function assertNotLiveDatabase(): void {
+  const url = process.env.CLICKHOUSE_URL;
+  if (!url) return; // defaults to localhost — safe
+  const host = new URL(url).hostname;
+  if (host.endsWith(".com")) {
+    throw new Error(
+      `Refusing to run tests against a live database: ${url} — ` +
+        `unset CLICKHOUSE_URL or point it at localhost.`,
+    );
+  }
+}
+
+/**
  * Sync product definitions into the `products` table.
  * Uses ReplacingMergeTree so re-inserts update existing rows.
  */

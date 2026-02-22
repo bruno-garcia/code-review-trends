@@ -32,7 +32,7 @@ function relativeTime(dateStr: string | null): string {
   const d = parseUTC(dateStr);
   if (isNaN(d.getTime())) return "Never";
   const diffMs = Date.now() - d.getTime();
-  if (diffMs < 0) return "Just now";
+  if (diffMs < 0) return "In the future";
   const mins = Math.floor(diffMs / 60_000);
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;

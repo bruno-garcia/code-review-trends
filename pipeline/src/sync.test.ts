@@ -19,7 +19,7 @@ import {
   type DataFetcher,
   type SyncChunk,
 } from "./sync.js";
-import { createCHClient, query, syncBots } from "./clickhouse.js";
+import { createCHClient, query, syncBots, assertNotLiveDatabase } from "./clickhouse.js";
 import { BOTS } from "./bots.js";
 import type { ClickHouseClient } from "@clickhouse/client";
 import type { WeeklyBotReviewRow } from "./bigquery.js";
@@ -291,6 +291,7 @@ describe("backfill integration", () => {
   let ch: ClickHouseClient;
 
   before(async () => {
+    assertNotLiveDatabase();
     ch = createCHClient();
     // Ensure bots exist (needed for login → id mapping)
     await syncBots(ch, BOTS);
@@ -314,6 +315,11 @@ describe("backfill integration", () => {
   });
 
   after(async () => {
+    // Clean up test rows — especially those with far-future completed_at
+    // (e.g. 2100-01-01) that pollute the status page's max(completed_at) query.
+    await ch.command({
+      query: `DELETE FROM pipeline_state WHERE job_name = 'backfill'`,
+    });
     await ch.close();
   });
 
@@ -575,6 +581,7 @@ describe("syncRecent integration", () => {
   let ch: ClickHouseClient;
 
   before(async () => {
+    assertNotLiveDatabase();
     ch = createCHClient();
     await syncBots(ch, BOTS);
   });
