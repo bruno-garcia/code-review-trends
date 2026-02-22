@@ -22,6 +22,7 @@ export const BRAND_COLORS: { name: string; color: string }[] = [
   { name: "Cursor Bugbot", color: "#e84e4e" },
   { name: "Gemini Code Assist", color: "#ec4899" },
   { name: "Bito", color: "#94a3b8" },
+  { name: "Korbit", color: "#b07838" },
   { name: "Claude", color: "#FF9F1C" },
   { name: "OpenAI Codex", color: "#808080" },
   { name: "Jazzberry", color: "#d44d7f" },

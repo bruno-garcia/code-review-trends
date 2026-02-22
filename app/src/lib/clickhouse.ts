@@ -49,6 +49,7 @@ export type Product = {
   docs_url: string;
   brand_color: string;
   avatar_url: string;
+  status: string;
 };
 
 export type WeeklyActivityByProduct = {
@@ -84,6 +85,7 @@ export type ProductSummary = {
   docs_url: string;
   brand_color: string;
   avatar_url: string;
+  status: string;
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
@@ -319,6 +321,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       p.docs_url,
       p.brand_color,
       p.avatar_url,
+      p.status,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,

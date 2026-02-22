@@ -295,16 +295,16 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
       const inputs: CommentBatchInput[] = [{
         repo_name: BLT_PR.repo_name,
         pr_number: BLT_PR.pr_number,
-        bot_id: "bito",
-        bot_login: "bito-code-review[bot]",
-        bot_logins: new Set(["bito-code-review[bot]"]),
+        bot_id: "korbit",
+        bot_login: "korbit-ai[bot]",
+        bot_logins: new Set(["korbit-ai[bot]"]),
       }];
 
       const results = await fetchCommentsBatch(octokit, rateLimiter, inputs);
 
       assert.equal(results.length, 1);
       assert.ok(!results[0].error);
-      // Bito didn't review this PR — should have no comments
+      // Korbit didn't review this PR — should have no comments
       assert.equal(results[0].comments.length, 0, "Unrelated bot should have no comments");
     });
 
