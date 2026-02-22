@@ -44,6 +44,10 @@ export class AdaptiveBatch {
     return this.current;
   }
 
+  get minSize(): number {
+    return this.min;
+  }
+
   onSuccess(): void {
     // No-op — don't grow back automatically.
   }

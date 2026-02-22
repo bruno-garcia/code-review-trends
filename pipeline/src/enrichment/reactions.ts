@@ -139,7 +139,7 @@ export async function enrichReactions(
       if (err instanceof RateLimitExitError) throw err;
 
       // On server error, reduce batch size and retry
-      if (isServerError(err) && adaptive.size > 5) {
+      if (isServerError(err) && adaptive.size > adaptive.minSize) {
         adaptive.onServerError();
         // batchHandled stays false → while loop retries
       } else {
@@ -162,8 +162,7 @@ export async function enrichReactions(
     // else: adaptive reduced size, retry same batchStart
 
     totalApiCalls++;
-    const batchIndex = Math.floor(batchStart / adaptive.size);
-    if (batchIndex % 10 === 0) {
+    if (totalApiCalls % 10 === 0) {
       const processed = scanned + skipped + errors;
       log(`[reactions] Progress: ${processed}/${allPendingPrs.length} PRs (${fetched} with bot reactions)`);
     }

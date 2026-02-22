@@ -151,8 +151,8 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     for (const step of order) {
       if (rateLimitExit) break;
       const stageStart = Date.now();
-        const pct = Math.round(completion[step] * 100);
-        sentryLogger.info(sentryLogger.fmt`Starting enrichment stage=${step} completion=${pct}% worker=${partition.workerId}/${partition.totalWorkers}`);
+      const pct = Math.round(completion[step] * 100);
+      sentryLogger.info(sentryLogger.fmt`Starting enrichment stage=${step} completion=${pct}% worker=${partition.workerId}/${partition.totalWorkers}`);
       try {
         switch (step) {
           case "repos":

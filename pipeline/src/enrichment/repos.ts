@@ -117,7 +117,7 @@ export async function enrichRepos(
           if (err instanceof RateLimitExitError) throw err;
 
           // On server error, reduce batch size and retry
-          if (isServerError(err) && adaptive.size > 5) {
+          if (isServerError(err) && adaptive.size > adaptive.minSize) {
             adaptive.onServerError();
             return; // batchHandled stays false → while loop retries
           }
@@ -266,7 +266,7 @@ export async function refreshStaleRepos(
     } catch (err: unknown) {
       if (err instanceof RateLimitExitError) throw err;
 
-      if (isServerError(err) && adaptive.size > 5) {
+      if (isServerError(err) && adaptive.size > adaptive.minSize) {
         adaptive.onServerError();
         continue; // retry same batch at smaller size
       }

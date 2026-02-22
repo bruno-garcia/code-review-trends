@@ -161,7 +161,7 @@ export async function enrichComments(
           if (err instanceof RateLimitExitError) throw err;
 
           // On server error, reduce batch size and retry
-          if (isServerError(err) && adaptive.size > 5) {
+          if (isServerError(err) && adaptive.size > adaptive.minSize) {
             adaptive.onServerError();
             return; // batchHandled stays false → while loop retries
           }
