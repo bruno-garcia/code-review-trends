@@ -542,19 +542,21 @@ const MIGRATION_010: Migration = {
     ) ENGINE = ReplacingMergeTree()
     ORDER BY (product_id, repo_name, pr_number)`,
 
-    // MV: auto-populates on INSERT to pull_requests
+    // MV: auto-populates on INSERT to pull_requests.
+    // Explicit AS aliases are required because ClickHouse prefixes column
+    // names with the table alias in JOINs (e.g. "p.repo_name" vs "repo_name").
     `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_product_characteristics_mv
     TO pr_product_characteristics
     AS SELECT
-      b.product_id,
-      p.repo_name,
-      p.pr_number,
-      p.additions,
-      p.deletions,
-      p.changed_files,
-      p.state,
-      p.created_at,
-      p.merged_at
+      b.product_id AS product_id,
+      p.repo_name AS repo_name,
+      p.pr_number AS pr_number,
+      p.additions AS additions,
+      p.deletions AS deletions,
+      p.changed_files AS changed_files,
+      p.state AS state,
+      p.created_at AS created_at,
+      p.merged_at AS merged_at
     FROM pull_requests AS p
     INNER JOIN pr_bot_events AS e
       ON p.repo_name = e.repo_name AND p.pr_number = e.pr_number
@@ -564,15 +566,15 @@ const MIGRATION_010: Migration = {
     // Backfill existing data
     `INSERT INTO pr_product_characteristics
     SELECT
-      b.product_id,
-      p.repo_name,
-      p.pr_number,
-      p.additions,
-      p.deletions,
-      p.changed_files,
-      p.state,
-      p.created_at,
-      p.merged_at
+      b.product_id AS product_id,
+      p.repo_name AS repo_name,
+      p.pr_number AS pr_number,
+      p.additions AS additions,
+      p.deletions AS deletions,
+      p.changed_files AS changed_files,
+      p.state AS state,
+      p.created_at AS created_at,
+      p.merged_at AS merged_at
     FROM pull_requests AS p
     INNER JOIN pr_bot_events AS e
       ON p.repo_name = e.repo_name AND p.pr_number = e.pr_number
