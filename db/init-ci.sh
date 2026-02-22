@@ -32,8 +32,12 @@ for f in db/init/*.sql; do
   echo "  Done."
 done
 
-# 2. Record schema version (must match EXPECTED_SCHEMA_VERSION in app/src/lib/migrations.ts)
-SCHEMA_VERSION=7
+# 2. Record schema version (extracted from app/src/lib/migrations.ts — single source of truth)
+SCHEMA_VERSION=$(awk '/EXPECTED_SCHEMA_VERSION *= *[0-9]/{gsub(/[^0-9]/,"",$NF); print $NF; exit}' app/src/lib/migrations.ts)
+if [ -z "$SCHEMA_VERSION" ]; then
+  echo "ERROR: Could not extract EXPECTED_SCHEMA_VERSION from app/src/lib/migrations.ts"
+  exit 1
+fi
 echo "Recording schema version ${SCHEMA_VERSION}..."
 run_statement "INSERT INTO code_review_trends.schema_migrations (version, name) VALUES (${SCHEMA_VERSION}, 'ci_init')"
 echo "  Done."
