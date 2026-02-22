@@ -14,7 +14,8 @@ export interface SecretsResult {
   /** Pipeline Sentry DSN — private, injected at runtime via Secret Manager */
   sentryDsnPipelineSecret: gcp.secretmanager.Secret;
   sentryAuthTokenSecret: gcp.secretmanager.Secret;
-  githubTokenSecret: gcp.secretmanager.Secret;
+  /** JSON array of GitHub PATs — used by parallel enrichment workers and workers.sh */
+  githubTokensSecret: gcp.secretmanager.Secret;
 }
 
 /**
@@ -114,10 +115,10 @@ export function createSecrets(
     parent,
   );
 
-  const githubTokenSecret = createManagedSecret(
-    `${prefix}-github-token`,
-    `${prefix}-github-token`,
-    cfg.githubToken,
+  const githubTokensSecret = createManagedSecret(
+    `${prefix}-github-tokens`, // Pulumi resource name
+    `${prefix}-github-tokens`, // GCP Secret Manager secretId
+    cfg.githubTokens,
     parent,
   );
 
@@ -128,6 +129,6 @@ export function createSecrets(
     sentryDsnAppBackendSecret,
     sentryDsnPipelineSecret,
     sentryAuthTokenSecret,
-    githubTokenSecret,
+    githubTokensSecret,
   };
 }

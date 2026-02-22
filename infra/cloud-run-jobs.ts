@@ -83,11 +83,11 @@ export function createCloudRunJobs(
     { name: "GCP_PROJECT_ID", value: gcp.config.project! },
   ];
 
-  const githubTokenEnv = {
-    name: "GITHUB_TOKEN",
+  const githubTokensEnv = {
+    name: "GITHUB_TOKENS",
     valueSource: {
       secretKeyRef: {
-        secret: secrets.githubTokenSecret.secretId,
+        secret: secrets.githubTokensSecret.secretId,
         version: "latest",
       },
     },
@@ -106,7 +106,7 @@ export function createCloudRunJobs(
 
   for (const job of jobs) {
     const jobName = `${prefix}-${job.name}`;
-    const extraEnvs = job.name === "enrich" ? [githubTokenEnv] : [];
+    const extraEnvs = job.name === "enrich" ? [githubTokensEnv] : [];
     const image = currentJobImage(jobName);
     // Append --env so every pipeline invocation knows its environment
     const jobArgs = [...job.args, "--env", cfg.environment];
@@ -117,7 +117,8 @@ export function createCloudRunJobs(
         name: jobName,
         location: gcp.config.region!,
         template: {
-          taskCount: 1,
+          taskCount: job.name === "enrich" ? cfg.githubTokenCount : 1,
+          parallelism: job.name === "enrich" ? cfg.githubTokenCount : 1,
           template: {
             serviceAccount: runtimeSa.email,
             timeout: job.timeout,
