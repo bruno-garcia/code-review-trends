@@ -37,6 +37,26 @@ export default async function AboutPage() {
     <div data-testid="about-page" className="mx-auto max-w-5xl space-y-12 px-4 py-8">
       <h1 className="text-4xl font-bold text-theme-text">Methodology</h1>
 
+      {/* Table of Contents */}
+      <nav className="rounded-lg border border-theme-border bg-theme-surface px-6 py-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-theme-muted mb-3">On this page</h2>
+        <ul className="columns-1 sm:columns-2 gap-x-8 space-y-1.5 text-sm">
+          <li><a href="#data-source" className={linkClass}>Data Source</a></li>
+          <li><a href="#interpreting" className={linkClass}>Interpreting the Numbers</a></li>
+          <li><a href="#what-counts" className={linkClass}>What Counts as a &ldquo;Review&rdquo;</a></li>
+          <li><a href="#ai-share" className={linkClass}>How &ldquo;AI Share&rdquo; Is Calculated</a></li>
+          <li><a href="#how-bots-differ" className={linkClass}>How Bots Differ</a></li>
+          <li><a href="#rankings" className={linkClass}>How Rankings Work</a></li>
+          <li><a href="#pr-profile" className={linkClass}>PR Profile &amp; Merge Characteristics</a></li>
+          <li><a href="#thumbs-up-rate" className={linkClass}>👍 Rate &amp; Reaction Data</a></li>
+          <li><a href="#not-tracked" className={linkClass}>What&apos;s NOT Tracked</a></li>
+          <li><a href="#products-vs-bots" className={linkClass}>Products vs. Bots</a></li>
+          <li><a href="#bot-registry" className={linkClass}>Bot Registry</a></li>
+          <li><a href="#comparison" className={linkClass}>Comparison with Other Trackers</a></li>
+          <li><a href="#who" className={linkClass}>Who&apos;s Behind This</a></li>
+        </ul>
+      </nav>
+
       {/* Data Source */}
       <section className="space-y-4">
         <SectionHeading id="data-source" className="text-theme-text">Data Source</SectionHeading>
@@ -61,6 +81,71 @@ export default async function AboutPage() {
         <p className="text-theme-muted text-sm italic">
           Note: Only public repositories are included. Activity on private repos
           is invisible.
+        </p>
+      </section>
+
+      {/* Interpreting the Numbers */}
+      <section className="space-y-4">
+        <SectionHeading id="interpreting" className="text-theme-text">
+          Interpreting the Numbers
+        </SectionHeading>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Review counts measure <em>activity volume</em>, not review quality or
+          depth. Two bots with the same number of reviews may be doing very
+          different things — and a direct comparison of their counts can be
+          misleading. Here&apos;s why:
+        </p>
+
+        <p className="text-theme-text-secondary leading-relaxed">
+          <strong className="text-theme-text">Bots have different scopes.</strong>{" "}
+          Some bots do comprehensive code review covering style, bugs, security,
+          and performance in a single pass. Others focus narrowly — bug
+          prediction only, security scanning only, or enforcing team-specific
+          linting rules. A bug-prediction bot that flags one critical defect is
+          doing fundamentally different work than a style bot that flags 20
+          formatting issues, even though the latter generates 20× more review
+          comment events. The same applies to a security scanner that catches a
+          single vulnerability versus a bot that leaves comments on every
+          function missing a docstring. Volume says nothing about severity or
+          value.
+        </p>
+
+        <p className="text-theme-text-secondary leading-relaxed">
+          <strong className="text-theme-text">Not every review is a code review.</strong>{" "}
+          Bots generate events for operational reasons that have nothing to do
+          with reviewing your code. A bot might post a review to tell you
+          you&apos;ve exceeded your usage quota, or respond to your reply
+          explaining why a flagged issue might be a false positive. These are
+          legitimate GitHub events that appear in our counts, but they&apos;re
+          administrative overhead, not code analysis.
+        </p>
+
+        <p className="text-theme-text-secondary leading-relaxed">
+          <strong className="text-theme-text">Some counts include benchmarking and testing.</strong>{" "}
+          A few products run large-scale public evaluations — reviewing
+          thousands of PRs across open-source repositories to benchmark their
+          analysis engine. These reviews are real GitHub events and are counted
+          in our data. There&apos;s no reliable way to distinguish a
+          &ldquo;benchmark run&rdquo; from organic usage in GH Archive data, so
+          these inflate the product&apos;s review counts.
+        </p>
+
+        <p className="text-theme-text-secondary leading-relaxed">
+          <strong className="text-theme-text">Comment volume reflects bot design, not thoroughness.</strong>{" "}
+          A bot that posts one summary comment per PR generates far fewer events
+          than one that posts individual inline comments for each finding. A bot
+          configured with strict custom rules for a large monorepo will generate
+          more events per PR than the same bot with default settings on a small
+          project. Volume is a function of configuration and design philosophy
+          as much as adoption.
+        </p>
+
+        <p className="text-theme-muted text-sm italic">
+          The bottom line: use the numbers to understand adoption trends and
+          relative growth over time — not to judge which bot gives
+          &ldquo;better&rdquo; reviews. For that, you&apos;d need to evaluate
+          the actual content and accuracy of their suggestions, which is beyond
+          what event counting can tell you.
         </p>
       </section>
 
