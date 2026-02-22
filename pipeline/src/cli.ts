@@ -352,6 +352,7 @@ const SCHEMA_MIGRATIONS: { version: number; name: string }[] = [
   { version: 7, name: "reaction_only_repo_counts" },
   { version: 8, name: "comment_stats_reacted_count" },
   { version: 9, name: "product_status" },
+  { version: 10, name: "pr_product_characteristics" },
 ];
 
 /** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table. */
