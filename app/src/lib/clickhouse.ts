@@ -1580,46 +1580,38 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
   const botJoin = hasProductFilter ? "JOIN" : "LEFT JOIN";
   const botCondition = hasProductFilter ? "AND b.product_id IN ({productIds:Array(String)})" : "";
 
-  const dataQuery = `
-    SELECT
-      r.name AS name,
-      r.owner AS owner,
-      r.stars AS stars,
-      r.primary_language AS primary_language,
-      COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
-      0 AS bot_comment_count,
-      groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
-    FROM repos r
-    ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
-    ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
-    WHERE ${whereClause}
-    GROUP BY r.name, r.owner, r.stars, r.primary_language
-    ${havingClause}
+  // Single query with count() OVER() to get total alongside data rows.
+  // Avoids running two expensive queries (data + count) in parallel — both
+  // scan pr_bot_event_counts (471K rows) JOINed with repos.
+  const combinedQuery = `
+    SELECT *, count() OVER() AS _total FROM (
+      SELECT
+        r.name AS name,
+        r.owner AS owner,
+        r.stars AS stars,
+        r.primary_language AS primary_language,
+        COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
+        0 AS bot_comment_count,
+        groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
+      FROM repos r
+      ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
+      ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
+      WHERE ${whereClause}
+      GROUP BY r.name, r.owner, r.stars, r.primary_language
+      ${havingClause}
+    )
     ORDER BY ${orderBy}
     LIMIT {limit:UInt32}
     OFFSET {offset:UInt32}
   `;
 
-  const countQuery = `
-    SELECT count() AS total FROM (
-      SELECT r.name
-      FROM repos r
-      ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
-      ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
-      WHERE ${whereClause}
-      GROUP BY r.name
-      ${havingClause}
-    )
-  `;
-
-  const [repos, countRows] = await Promise.all([
-    query<RepoListItem>(dataQuery, params),
-    query<{ total: number }>(countQuery, params),
-  ]);
+  type RepoListItemWithTotal = RepoListItem & { _total: number };
+  const rows = await query<RepoListItemWithTotal>(combinedQuery, params);
+  const total = rows.length > 0 ? Number(rows[0]._total) : 0;
 
   return {
-    repos,
-    total: countRows[0]?.total ?? 0,
+    repos: rows.map(({ _total, ...repo }) => repo),
+    total,
   };
 }
 
