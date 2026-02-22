@@ -14,12 +14,14 @@ import {
   type PrCommentRow,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
-import { Sentry, log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
+import { Sentry, log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 // handleEnterprisePolicyError removed — GraphQL batch handles errors differently
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
-import { fetchCommentsBatch, GRAPHQL_COMMENT_BATCH_SIZE, type CommentBatchInput } from "./graphql-comments.js";
+import { fetchCommentsBatch, type CommentBatchInput } from "./graphql-comments.js";
+import { AdaptiveBatch } from "./adaptive-batch.js";
+import { isServerError } from "./graphql-retry.js";
 
 /**
  * Fetch and insert bot review comments with reactions for PRs
@@ -98,12 +100,14 @@ export async function enrichComments(
   let unknownBot = 0;
   let repliesFiltered = 0;
   let errors = 0;
-  const BATCH_SIZE = GRAPHQL_COMMENT_BATCH_SIZE;
+  const adaptive = new AdaptiveBatch({ max: 40, min: 5 });
 
-  for (let batchStart = 0; batchStart < combos.length; batchStart += BATCH_SIZE) {
-    const batch = combos.slice(batchStart, batchStart + BATCH_SIZE);
+  let batchStart = 0;
+  while (batchStart < combos.length) {
+    const batch = combos.slice(batchStart, batchStart + adaptive.size);
     const batchLabel = `comments batch ${batchStart}–${batchStart + batch.length}`;
 
+    let batchHandled = false;
     await Sentry.startSpan(
       { op: "enrichment.batch", name: batchLabel },
       async () => {
@@ -152,15 +156,24 @@ export async function enrichComments(
 
             fetched++;
           }
+          batchHandled = true;
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
+
+          // On server error, reduce batch size and retry
+          if (isServerError(err) && adaptive.size > adaptive.minSize) {
+            adaptive.onServerError();
+            return; // batchHandled stays false → while loop retries
+          }
 
           captureEnrichmentError(err, "comments", {
             fallback: "rest",
             batchSize: batch.length,
             repos: [...new Set(batch.map(b => b.repo_name))],
           });
-          logError(`[comments] Batch GraphQL failed, processing individually: ${err instanceof Error ? err.message : err}`);
+          const errMsg = err instanceof Error ? err.message : String(err);
+          logError(`[comments] Batch GraphQL failed, processing individually: ${errMsg}`);
+          sentryLogger.warn(sentryLogger.fmt`REST fallback triggered phase=comments batchSize=${batch.length} error=${errMsg}`);
 
           // Fall back to REST for this batch
           for (const { repo_name, pr_number, bot_id } of batch) {
@@ -235,15 +248,22 @@ export async function enrichComments(
               }
             }
           }
+          batchHandled = true;
         }
       },
     );
+
+    if (batchHandled) {
+      batchStart += batch.length;
+    }
+    // else: adaptive reduced size, retry same batchStart
 
     const processed = fetched + notFound + forbidden + rateLimited + unknownBot + errors;
     log(`[comments] Progress: ${processed}/${combos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.comments.batch", 1);
   }
 
+  log(`[comments] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);
   log(`[comments] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${unknownBot} unknown_bot, ${repliesFiltered} replies_filtered, ${errors} errors`);
   return {
     fetched,

@@ -13,14 +13,13 @@ import {
   query,
 } from "../clickhouse.js";
 import { extractReactionCounts } from "../github.js";
-import { Sentry, log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
+import { Sentry, log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
-import {
-  fetchPRsBatch,
-  GRAPHQL_PR_BATCH_SIZE,
-} from "./graphql-pull-requests.js";
+import { fetchPRsBatch } from "./graphql-pull-requests.js";
+import { AdaptiveBatch } from "./adaptive-batch.js";
+import { isServerError } from "./graphql-retry.js";
 
 /**
  * Fetch and insert details for PRs discovered in pr_bot_events
@@ -100,12 +99,14 @@ export async function enrichPullRequests(
   let forbidden = 0;
   let rateLimited = 0;
   let errors = 0;
-  const BATCH_SIZE = GRAPHQL_PR_BATCH_SIZE;
+  const adaptive = new AdaptiveBatch({ max: 50, min: 5 });
 
-  for (let batchStart = 0; batchStart < validPrs.length; batchStart += BATCH_SIZE) {
-    const batch = validPrs.slice(batchStart, batchStart + BATCH_SIZE);
+  let batchStart = 0;
+  while (batchStart < validPrs.length) {
+    const batch = validPrs.slice(batchStart, batchStart + adaptive.size);
     const batchLabel = `prs batch ${batchStart}–${batchStart + batch.length}`;
 
+    let batchHandled = false;
     await Sentry.startSpan(
       { op: "enrichment.batch", name: batchLabel },
       async () => {
@@ -128,17 +129,24 @@ export async function enrichPullRequests(
               forbidden++;
             }
           }
+          batchHandled = true;
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
+
+          // On server error, reduce batch size and retry
+          if (isServerError(err) && adaptive.size > adaptive.minSize) {
+            adaptive.onServerError();
+            return; // batchHandled stays false → while loop retries
+          }
 
           captureEnrichmentError(err, "pull-requests", {
             fallback: "rest",
             batchSize: batch.length,
             repos: [...new Set(batch.map(b => b.repo_name))],
           });
-          logError(
-            `[pull-requests] Batch GraphQL failed, processing individually: ${err instanceof Error ? err.message : err}`,
-          );
+          const errMsg = err instanceof Error ? err.message : String(err);
+          logError(`[pull-requests] Batch GraphQL failed, processing individually: ${errMsg}`);
+          sentryLogger.warn(sentryLogger.fmt`REST fallback triggered phase=pull-requests batchSize=${batch.length} error=${errMsg}`);
 
           // REST fallback
           for (const { repo_name, pr_number } of batch) {
@@ -206,15 +214,22 @@ export async function enrichPullRequests(
               }
             }
           }
+          batchHandled = true;
         }
       },
     );
+
+    if (batchHandled) {
+      batchStart += batch.length;
+    }
+    // else: adaptive reduced size, retry same batchStart
 
     const processed = fetched + notFound + forbidden + rateLimited + errors;
     log(`[pull-requests] Progress: ${processed}/${validPrs.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.prs.batch", 1);
   }
 
+  log(`[pull-requests] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);
   log(`[pull-requests] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${errors} errors`);
   return { fetched, skipped: notFound + forbidden + rateLimited, errors };
 }

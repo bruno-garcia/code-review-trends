@@ -258,4 +258,7 @@ export function gaugeMetric(name: string, value: number, extra?: Record<string, 
   Sentry.metrics.gauge(name, value, { attributes: { ...metricAttrs, ...extra } });
 }
 
+/** Sentry structured logger — sends logs to Sentry Logs product. */
+export const sentryLogger = Sentry.logger;
+
 export { Sentry };

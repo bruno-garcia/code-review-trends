@@ -6,7 +6,7 @@
  */
 
 import { Octokit } from "@octokit/rest";
-import { Sentry, log, countMetric, distributionMetric, gaugeMetric } from "../sentry.js";
+import { Sentry, log, countMetric, distributionMetric, gaugeMetric, sentryLogger } from "../sentry.js";
 import { createCHClient, query } from "../clickhouse.js";
 import { RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
@@ -15,6 +15,7 @@ import { enrichComments } from "./comments.js";
 import { enrichReactions } from "./reactions.js";
 import type { WorkerConfig } from "./partitioner.js";
 import { createOctokitAgent } from "./octokit-agent.js";
+import { enrichCombined, type CombinedResult } from "./combined-enrichment.js";
 
 const ROUND_ROBIN_THRESHOLD = 0.70;
 
@@ -33,6 +34,7 @@ export type EnrichmentResult = {
   pullRequests: { fetched: number; skipped: number; errors: number };
   comments: { fetched: number; skipped: number; replies_filtered: number; errors: number };
   reactions: { fetched: number; scanned: number; skipped: number; errors: number };
+  combined: { prs_fetched: number; comments_fetched: number; skipped: number; errors: number };
   reposRefreshed: number;
   duration: number;
 };
@@ -111,6 +113,10 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     if (belowThreshold.length > 0 && belowThreshold.length < order.length) {
       const skipped = order.filter((s) => completion[s] >= ROUND_ROBIN_THRESHOLD);
       log(`[worker] Skipping stages above ${Math.round(ROUND_ROBIN_THRESHOLD * 100)}% complete: ${skipped.join(", ")}`);
+      for (const s of skipped) {
+        const pct = Math.round(completion[s] * 100);
+        sentryLogger.info(sentryLogger.fmt`Skipping stage=${s} completion=${pct}% above threshold=${Math.round(ROUND_ROBIN_THRESHOLD * 100)}%`);
+      }
       order = belowThreshold;
     }
   }
@@ -121,8 +127,31 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   let reactionsResult = { fetched: 0, scanned: 0, skipped: 0, errors: 0 };
 
   let rateLimitExit = false;
+
   try {
+    // Combined PR+Comments enrichment — handles items needing BOTH, reducing total API calls.
+    // Runs first so individual stages only handle leftovers.
+    let combinedResult: CombinedResult = { prs_fetched: 0, comments_fetched: 0, skipped: 0, errors: 0 };
+    if (!options.priority || options.priority === "prs" || options.priority === "comments") {
+      try {
+        combinedResult = await Sentry.startSpan(
+          { op: "enrichment", name: "enrich.combined" },
+          () => enrichCombined(octokit, ch, rateLimiter, partition, { limit }),
+        );
+      } catch (e) {
+        if (e instanceof RateLimitExitError) {
+          log(`[worker] ${e.message}`);
+          rateLimitExit = true;
+        } else {
+          throw e;
+        }
+      }
+    }
     for (const step of order) {
+      if (rateLimitExit) break;
+      const stageStart = Date.now();
+      const pct = Math.round(completion[step] * 100);
+      sentryLogger.info(sentryLogger.fmt`Starting enrichment stage=${step} completion=${pct}% worker=${partition.workerId}/${partition.totalWorkers}`);
       try {
         switch (step) {
           case "repos":
@@ -150,6 +179,8 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
             );
             break;
         }
+        const stageDuration = Date.now() - stageStart;
+        sentryLogger.info(sentryLogger.fmt`Completed stage=${step} duration=${stageDuration}ms`);
       } catch (e) {
         if (e instanceof RateLimitExitError) {
           log(`[worker] ${e.message}`);
@@ -188,12 +219,14 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     const totalItems = reposResult.fetched + reposResult.skipped + reposResult.errors
       + prsResult.fetched + prsResult.skipped + prsResult.errors
       + commentsResult.fetched + commentsResult.skipped + commentsResult.errors
-      + reactionsResult.scanned + reactionsResult.skipped + reactionsResult.errors;
+      + reactionsResult.scanned + reactionsResult.skipped + reactionsResult.errors
+      + combinedResult.prs_fetched + combinedResult.comments_fetched + combinedResult.skipped + combinedResult.errors;
     const itemsPerSec = workTime > 0 ? (totalItems / (workTime / 1000)).toFixed(1) : "∞";
     const rlPct = duration > 0 ? ((rl.totalWaitMs / duration) * 100).toFixed(1) : "0";
 
     log(`[worker] Enrichment ${rateLimitExit ? "stopped (rate limit)" : "complete"} in ${Math.ceil(duration / 1000)}s`);
     log(`[worker]   Items processed: ${totalItems} (${itemsPerSec} items/s effective)`);
+    log(`[worker]   Combined: ${combinedResult.prs_fetched} PRs + ${combinedResult.comments_fetched} comment combos (${combinedResult.errors} errors)`);
     log(`[worker]   Rate-limit waits: ${rl.waitCount} pauses, ${Math.ceil(rl.totalWaitMs / 1000)}s total (${rlPct}% of wall time)`);
     if (rl.secondaryHits > 0) {
       log(`[worker]   Secondary rate limits: ${rl.secondaryHits}`);
@@ -213,6 +246,9 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     countMetric("pipeline.enrich.reactions.skipped", reactionsResult.skipped, { phase: "reactions" });
     countMetric("pipeline.enrich.reactions.scanned", reactionsResult.scanned, { phase: "reactions" });
     countMetric("pipeline.enrich.reactions.errors", reactionsResult.errors, { phase: "reactions" });
+    countMetric("pipeline.enrich.combined.prs", combinedResult.prs_fetched, { phase: "combined" });
+    countMetric("pipeline.enrich.combined.comments", combinedResult.comments_fetched, { phase: "combined" });
+    countMetric("pipeline.enrich.combined.errors", combinedResult.errors, { phase: "combined" });
     distributionMetric("pipeline.enrich.duration", duration, "millisecond");
     distributionMetric("pipeline.ratelimit.total_wait", rl.totalWaitMs, "millisecond");
     countMetric("pipeline.ratelimit.total_pauses", rl.waitCount);
@@ -224,6 +260,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
       pullRequests: prsResult,
       comments: commentsResult,
       reactions: reactionsResult,
+      combined: combinedResult,
       reposRefreshed: refreshResult.refreshed,
       duration,
     };

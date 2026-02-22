@@ -13,7 +13,7 @@
  */
 
 import type { Octokit } from "@octokit/rest";
-import { Sentry, log, countMetric } from "../sentry.js";
+import { Sentry, log, countMetric, sentryLogger } from "../sentry.js";
 
 const MAX_RETRIES = 3;
 
@@ -28,6 +28,23 @@ export const TRANSIENT_ERROR_PATTERNS = [
 export function isTransientNetworkError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return TRANSIENT_ERROR_PATTERNS.some((pattern) => msg.includes(pattern));
+}
+
+const SERVER_ERROR_STATUSES = [502, 503];
+const SERVER_ERROR_MESSAGE_PATTERNS = ["<html>", "<!doctype", "bad gateway", "service unavailable"];
+
+export function isServerError(err: unknown): boolean {
+  if (err && typeof err === "object") {
+    const status = (err as Record<string, unknown>).status ??
+      ((err as Record<string, unknown>).response as Record<string, unknown> | undefined)?.status;
+    if (typeof status === "number" && SERVER_ERROR_STATUSES.includes(status)) return true;
+  }
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return SERVER_ERROR_MESSAGE_PATTERNS.some((pattern) => msg.includes(pattern));
+}
+
+export function isRetryableError(err: unknown): boolean {
+  return isTransientNetworkError(err) || isServerError(err);
 }
 
 export type GraphQLResponse = {
@@ -80,12 +97,13 @@ export async function graphqlWithRetry(
     } catch (err: unknown) {
       lastError = err;
 
-      if (isTransientNetworkError(err) && attempt < MAX_RETRIES - 1) {
+      if (isRetryableError(err) && attempt < MAX_RETRIES - 1) {
         const backoffMs = Math.min(1000 * 2 ** attempt, 5000);
         const errMsg = err instanceof Error ? err.message.split("\n")[0] : String(err);
 
         // Log + breadcrumb + metric for visibility into retry behavior
         log(`[${label}] Transient network error (${errMsg}), retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        sentryLogger.warn(sentryLogger.fmt`GraphQL retry label=${label} attempt=${attempt + 1} error=${errMsg} backoffMs=${backoffMs}`);
         Sentry.addBreadcrumb({
           category: "graphql.retry",
           message: `${label}: ${errMsg}`,
@@ -98,7 +116,18 @@ export async function graphqlWithRetry(
         continue;
       }
 
-      // Non-transient or exhausted retries — throw for module-specific handling
+      // Exhausted retries — report to Sentry before throwing
+      if (isRetryableError(err) && attempt === MAX_RETRIES - 1) {
+        Sentry.captureException(err, {
+          tags: { graphql_exhausted: "true", label },
+          fingerprint: ["graphql-exhausted", label],
+        });
+        Sentry.logger.error(
+          Sentry.logger.fmt`GraphQL retries exhausted for ${label} after ${MAX_RETRIES} attempts`,
+        );
+      }
+
+      // Non-retryable or exhausted retries — throw for module-specific handling
       throw err;
     }
   }

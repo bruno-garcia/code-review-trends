@@ -8,7 +8,7 @@
  * time is spent blocked on rate limits vs doing real work.
  */
 
-import { log, distributionMetric, countMetric } from "../sentry.js";
+import { log, distributionMetric, countMetric, sentryLogger } from "../sentry.js";
 
 /**
  * Thrown when `exitOnRateLimit` is enabled and the rate limit threshold is hit.
@@ -71,6 +71,7 @@ export class RateLimiter {
     log(
       `[rate-limiter] Throttled: ${this.remaining} remaining, waiting ${Math.ceil(waitMs / 1000)}s until reset`,
     );
+    sentryLogger.warn(sentryLogger.fmt`Rate limit throttle remaining=${this.remaining} waitMs=${waitMs}`);
 
     await sleep(waitMs);
 
@@ -102,6 +103,7 @@ export class RateLimiter {
     log(
       `[rate-limiter] Secondary rate limit hit (attempt ${attempt + 1}), waiting ${Math.ceil(waitMs / 1000)}s`,
     );
+    sentryLogger.warn(sentryLogger.fmt`Secondary rate limit hit attempt=${attempt + 1} waitMs=${waitMs}`);
 
     await sleep(waitMs);
 

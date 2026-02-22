@@ -16,10 +16,12 @@ import {
   query,
   type PrBotReactionRow,
 } from "../clickhouse.js";
-import { log, logError, countMetric, captureEnrichmentError } from "../sentry.js";
+import { log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
-import { fetchReactionsBatch, GRAPHQL_REACTION_BATCH_SIZE, type ReactionBatchInput } from "./graphql-reactions.js";
+import { fetchReactionsBatch, type ReactionBatchInput } from "./graphql-reactions.js";
+import { AdaptiveBatch } from "./adaptive-batch.js";
+import { isServerError } from "./graphql-retry.js";
 
 export async function enrichReactions(
   octokit: Octokit,
@@ -93,11 +95,13 @@ export async function enrichReactions(
   let errors = 0;
   let totalApiCalls = 0;
 
-  const BATCH_SIZE = GRAPHQL_REACTION_BATCH_SIZE;
+  const adaptive = new AdaptiveBatch({ max: 100, min: 5 });
 
-  for (let batchStart = 0; batchStart < allPendingPrs.length; batchStart += BATCH_SIZE) {
-    const batch = allPendingPrs.slice(batchStart, batchStart + BATCH_SIZE);
+  let batchStart = 0;
+  while (batchStart < allPendingPrs.length) {
+    const batch = allPendingPrs.slice(batchStart, batchStart + adaptive.size);
 
+    let batchHandled = false;
     try {
       const results = await fetchReactionsBatch(octokit, rateLimiter, batch);
 
@@ -130,26 +134,42 @@ export async function enrichReactions(
       if (reactionRows.length > 0) {
         await insertPrBotReactions(ch, reactionRows);
       }
+      batchHandled = true;
     } catch (err: unknown) {
       if (err instanceof RateLimitExitError) throw err;
-      captureEnrichmentError(err, "reactions", {
-        fallback: "none",
-        batchSize: batch.length,
-        repos: [...new Set(batch.map(b => b.repo_name))],
-      });
-      logError(`[reactions] Batch GraphQL failed: ${err instanceof Error ? err.message : err}`);
-      errors += batch.length;
+
+      // On server error, reduce batch size and retry
+      if (isServerError(err) && adaptive.size > adaptive.minSize) {
+        adaptive.onServerError();
+        // batchHandled stays false → while loop retries
+      } else {
+        captureEnrichmentError(err, "reactions", {
+          fallback: "none",
+          batchSize: batch.length,
+          repos: [...new Set(batch.map(b => b.repo_name))],
+        });
+        const errMsg = err instanceof Error ? err.message : String(err);
+        logError(`[reactions] Batch GraphQL failed: ${errMsg}`);
+        sentryLogger.warn(sentryLogger.fmt`Batch failed phase=reactions batchSize=${batch.length} error=${errMsg}`);
+        errors += batch.length;
+        batchHandled = true;
+      }
     }
 
+    if (batchHandled) {
+      batchStart += batch.length;
+    }
+    // else: adaptive reduced size, retry same batchStart
+
     totalApiCalls++;
-    const batchIndex = batchStart / BATCH_SIZE;
-    if (batchIndex % 10 === 0) {
+    if (totalApiCalls % 10 === 0) {
       const processed = scanned + skipped + errors;
       log(`[reactions] Progress: ${processed}/${allPendingPrs.length} PRs (${fetched} with bot reactions)`);
     }
     countMetric("pipeline.enrich.reactions.batch", 1);
   }
 
+  log(`[reactions] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);
   log(`[reactions] Done: ${fetched} PRs with bot reactions, ${scanned} scanned, ${skipped} skipped, ${errors} errors (${totalApiCalls} API calls)`);
   return { fetched, scanned, skipped, errors };
 }
