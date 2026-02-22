@@ -81,7 +81,7 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
       sentryDsnAppBackend: "https://test-be@sentry.io/app",
       sentryDsnPipeline: "https://test@sentry.io/pipeline",
       sentryAuthToken: "sntrys_test_token",
-      githubToken: "ghp_test_token",
+      githubTokens: '["ghp_test_token_1","ghp_test_token_2","ghp_test_token_3","ghp_test_token_4"]',
       githubRepo: "test-owner/test-repo",
       alertEmail: "alerts@example.com",
     };

@@ -247,7 +247,6 @@ Options for discover-bots:
   --bigquery-only      Skip marketplace scan
 
 Options for enrich:
-  --token TOKEN        GitHub PAT (or set GITHUB_TOKEN env var)
   --worker-id N        Worker ID for partitioning (default: 0)
   --total-workers N    Total workers (default: 1)
   --limit N            Max items per entity type per run
@@ -258,14 +257,21 @@ Options for enrich:
 Options for validate-bq-prs:
   --sample N           Number of PRs to compare (default: 500)
 
+Connection options (CLI args override env vars):
+  --clickhouse-url URL      ClickHouse HTTP URL (env: CLICKHOUSE_URL, default: http://localhost:8123)
+  --clickhouse-password PW  ClickHouse password (env: CLICKHOUSE_PASSWORD, default: dev)
+  --sentry-dsn DSN          Sentry DSN (env: SENTRY_DSN_CRT_CLI, required unless --no-sentry)
+
 Environment variables:
-  CLICKHOUSE_URL       ClickHouse HTTP URL (default: http://localhost:8123)
   CLICKHOUSE_USER      ClickHouse user (default: default)
-  CLICKHOUSE_PASSWORD  ClickHouse password (default: dev)
   CLICKHOUSE_DB        ClickHouse database (default: code_review_trends)
   GCP_PROJECT_ID       GCP project for BigQuery
   BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 15TB)
   GITHUB_TOKEN         GitHub PAT for API enrichment
+  GITHUB_TOKENS        JSON array of GitHub PATs (for multi-worker enrichment)
+                       When set, auto-selects token via CLOUD_RUN_TASK_INDEX or --worker-id.
+                       Falls back to GITHUB_TOKEN if not set.
+  CLOUD_RUN_TASK_INDEX Auto-set by Cloud Run Jobs for multi-task jobs
   PULUMI_CONFIG_PASSPHRASE  Passphrase for Pulumi secrets (if not using interactive login)
 
 Global options:
@@ -823,13 +829,6 @@ async function cmdDiscoverBots() {
 
 async function cmdEnrich() {
   const args = parseArgs();
-  const token = args["--token"] ?? process.env.GITHUB_TOKEN;
-
-  if (!token) {
-    throw new CliError("GitHub token required. Use --token or set GITHUB_TOKEN env var.");
-  }
-
-  const { runEnrichment } = await import("./enrichment/worker.js");
 
   function parseIntArg(name: string, value: string | undefined): number | undefined {
     if (value === undefined) return undefined;
@@ -840,10 +839,55 @@ async function cmdEnrich() {
     return n;
   }
 
+  // Resolve token + worker partitioning.
+  // Priority: GITHUB_TOKENS (JSON array) > GITHUB_TOKEN (single)
+  // When GITHUB_TOKENS is set, auto-derive workerId/totalWorkers from the array
+  // index (CLOUD_RUN_TASK_INDEX or --worker-id).
+  let token: string;
+  let workerId = parseIntArg("--worker-id", args["--worker-id"]);
+  let totalWorkers = parseIntArg("--total-workers", args["--total-workers"]);
+
+  if (process.env.GITHUB_TOKENS) {
+    let tokens: string[];
+    try {
+      tokens = JSON.parse(process.env.GITHUB_TOKENS);
+    } catch {
+      throw new CliError("GITHUB_TOKENS must be a valid JSON array of strings.");
+    }
+    if (!Array.isArray(tokens) || tokens.length === 0 || tokens.some(t => typeof t !== "string" || !t.trim())) {
+      throw new CliError("GITHUB_TOKENS must be a non-empty JSON array of non-empty strings.");
+    }
+
+    // Determine which token this worker should use.
+    // Cloud Run Jobs set CLOUD_RUN_TASK_INDEX automatically (0-based).
+    // Falls back to --worker-id if set, otherwise defaults to 0.
+    const taskIndex = process.env.CLOUD_RUN_TASK_INDEX !== undefined
+      ? parseInt(process.env.CLOUD_RUN_TASK_INDEX, 10)
+      : (workerId ?? 0);
+
+    if (isNaN(taskIndex) || taskIndex < 0 || taskIndex >= tokens.length) {
+      throw new CliError(
+        `Task index ${taskIndex} out of range for ${tokens.length} token(s) in GITHUB_TOKENS.`
+      );
+    }
+
+    token = tokens[taskIndex];
+    // Auto-set worker partitioning from the token array size
+    workerId = taskIndex;
+    totalWorkers = tokens.length;
+    log(`Using token ${taskIndex + 1}/${tokens.length} from GITHUB_TOKENS (worker ${taskIndex}/${tokens.length})`);
+  } else if (process.env.GITHUB_TOKEN) {
+    token = process.env.GITHUB_TOKEN;
+  } else {
+    throw new CliError("GitHub token required. Set GITHUB_TOKENS (JSON array) or GITHUB_TOKEN env var.");
+  }
+
+  const { runEnrichment } = await import("./enrichment/worker.js");
+
   const result = await runEnrichment({
     githubToken: token,
-    workerId: parseIntArg("--worker-id", args["--worker-id"]),
-    totalWorkers: parseIntArg("--total-workers", args["--total-workers"]),
+    workerId,
+    totalWorkers,
     limit: parseIntArg("--limit", args["--limit"]),
     staleDays: parseIntArg("--stale-days", args["--stale-days"]),
     priority: args["--priority"] as "repos" | "prs" | "comments" | "reactions" | undefined,
@@ -1160,12 +1204,12 @@ function formatDate(d: Date): string {
 }
 
 /**
- * Get the effective GitHub token from --token arg or GITHUB_TOKEN env var.
+ * Get the effective GitHub token from --gh-token arg or GITHUB_TOKEN env var.
  * Used to resolve token identity for Sentry tagging before command dispatch.
  */
 function getGitHubToken(): string | undefined {
   const args = process.argv;
-  const idx = args.indexOf("--token");
+  const idx = args.indexOf("--gh-token");
   if (idx >= 0 && idx + 1 < args.length && !args[idx + 1].startsWith("--")) {
     return args[idx + 1];
   }
@@ -1174,7 +1218,7 @@ function getGitHubToken(): string | undefined {
 
 /** Redact known sensitive flags from CLI args before sending to Sentry. */
 function redactArgs(args: string): string {
-  return args.replace(/(--token\s+)\S+/g, "$1[REDACTED]");
+  return args.replace(/(--gh-token|--clickhouse-password|--sentry-dsn)\s+\S+/g, "$1 [REDACTED]");
 }
 
 /** Strip credentials from a URL (user:pass in authority). */
