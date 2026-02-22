@@ -20,7 +20,63 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
+/**
+ * Short focus blurb for each product, used to build contrastive pair descriptions.
+ * Keyed by product ID. Should be a concise phrase (not a sentence) describing
+ * what makes this product's approach to code review distinctive.
+ */
+const PRODUCT_FOCUS: Record<string, string> = {
+  coderabbit: "an AI-first review agent that learns from team preferences and provides line-by-line feedback",
+  copilot: "GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup",
+  codescene: "a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots",
+  sourcery: "a refactoring-focused reviewer that scores code quality and suggests cleaner patterns",
+  ellipsis: "a configurable review platform where teams define their own rules and custom prompts",
+  qodo: "a code integrity platform that combines PR review with automated test generation",
+  greptile: "a codebase-aware reviewer that indexes your entire repo for architecture-level feedback",
+  sentry: "an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs",
+  baz: "a high-signal reviewer focused on catching real bugs with minimal false positives",
+  graphite: "a developer productivity platform with stacked PRs, merge queues, and AI-assisted review",
+  codeant: "a static analysis tool covering 30+ languages with auto-fix capabilities",
+  windsurf: "an IDE-first AI platform (formerly Codeium) that extends code completion into PR review",
+  cubic: "an AI assistant that combines code review with developer education and explanations",
+  cursor: "a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub",
+  gemini: "Google Cloud's enterprise AI assistant with GCP integration and custom policy support",
+  bito: "an LLM-powered reviewer with security analysis and customizable compliance checklists",
+  korbit: "an educational code review mentor focused on teaching best practices (retired)",
+  claude: "Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis",
+  "openai-codex": "OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment",
+  mesa: "a workflow platform integrating PR review with CI/CD pipeline context and deployment status",
+  linearb: "a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics",
+  augment: "an enterprise AI assistant with on-premises deployment and compliance-focused review",
+  kodus: "an open-source AI reviewer with self-hosted deployment and full review transparency",
+};
+
+/**
+ * Build a contrastive description for a pair of products.
+ * Uses each product's focus blurb to highlight what makes them different.
+ */
+function buildDescription(nameA: string, idA: string, nameB: string, idB: string): string {
+  const focusA = PRODUCT_FOCUS[idA];
+  const focusB = PRODUCT_FOCUS[idB];
+
+  if (!focusA || !focusB) {
+    // Fallback for any product missing a focus entry
+    return `Compare ${nameA} and ${nameB} AI code review tools side-by-side — review volume, growth trends, top repos, and community sentiment.`;
+  }
+
+  return `${nameA} is ${focusA}. ${nameB} is ${focusB}. Compare their review volume, growth, repos, and community reactions side-by-side.`;
+}
+
 export async function generateComparePairs(): Promise<void> {
+  // Verify all products have a focus entry
+  const missing = PRODUCTS.filter((p) => !PRODUCT_FOCUS[p.id]);
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing PRODUCT_FOCUS entries for: ${missing.map((p) => p.id).join(", ")}. ` +
+      `Add entries to generate-compare-pairs.ts.`,
+    );
+  }
+
   // Build slug for each product from its display name (not ID).
   // e.g. "Cursor Bugbot" → "cursor-bugbot", "GitHub Copilot" → "github-copilot"
   const withSlugs = PRODUCTS.map((p) => ({ ...p, nameSlug: slugify(p.name) }));
@@ -52,7 +108,7 @@ export async function generateComparePairs(): Promise<void> {
         nameB: b.name,
         slug,
         title: `${a.name} vs ${b.name} — AI Code Review Comparison`,
-        description: `Compare ${a.name} and ${b.name} AI code review tools side-by-side. See review volume, growth, repos, organizations, and more.`,
+        description: buildDescription(a.name, a.id, b.name, b.id),
       });
     }
   }
