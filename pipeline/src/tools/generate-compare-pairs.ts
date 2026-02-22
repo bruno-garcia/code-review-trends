@@ -54,17 +54,12 @@ const PRODUCT_FOCUS: Record<string, string> = {
 /**
  * Build a contrastive description for a pair of products.
  * Uses each product's focus blurb to highlight what makes them different.
+ *
+ * Callers must ensure both product IDs have entries in PRODUCT_FOCUS —
+ * {@link generateComparePairs} validates this before calling.
  */
 function buildDescription(nameA: string, idA: string, nameB: string, idB: string): string {
-  const focusA = PRODUCT_FOCUS[idA];
-  const focusB = PRODUCT_FOCUS[idB];
-
-  if (!focusA || !focusB) {
-    // Fallback for any product missing a focus entry
-    return `Compare ${nameA} and ${nameB} AI code review tools side-by-side — review volume, growth trends, top repos, and community sentiment.`;
-  }
-
-  return `${nameA} is ${focusA}. ${nameB} is ${focusB}. Compare their review volume, growth, repos, and community reactions side-by-side.`;
+  return `${nameA} is ${PRODUCT_FOCUS[idA]}. ${nameB} is ${PRODUCT_FOCUS[idB]}. Compare their review volume, growth, repos, and community reactions side-by-side.`;
 }
 
 export async function generateComparePairs(): Promise<void> {

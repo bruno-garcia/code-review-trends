@@ -19,8 +19,21 @@ import "./globals.css";
 
 export const revalidate = 300; // 5 minutes — matches in-memory query cache TTL
 
+const PROD_URL = "https://codereviewtrends.com";
+
+function resolveMetadataBase(): URL {
+  const raw = process.env.SITE_URL?.trim();
+  if (!raw) return new URL(PROD_URL);
+  try {
+    return new URL(raw);
+  } catch {
+    console.warn(`Invalid SITE_URL "${raw}", falling back to ${PROD_URL}`);
+    return new URL(PROD_URL);
+  }
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.SITE_URL || "https://codereviewtrends.com"),
+  metadataBase: resolveMetadataBase(),
   title: {
     default: "Code Review Trends — AI Code Review Adoption on GitHub",
     template: "%s — Code Review Trends",
