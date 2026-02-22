@@ -109,7 +109,8 @@ cmd_start() {
     if [[ $i -gt 0 ]]; then
       sleep_cmd="echo 'Worker ${display_id}/${n}: waiting $((i * 60))s to stagger start...' && sleep $((i * 60)) && "
     fi
-    local cmd="${sleep_cmd}cd $REPO_DIR && export \$(grep -v '^#' $ENV_FILE | xargs) && export GITHUB_TOKEN='${token}' && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --no-sentry 2>&1 | tee $logfile"
+    local escaped_token=$(printf %q "${token}")
+    local cmd="${sleep_cmd}cd $REPO_DIR && export \$(grep -v '^#' $ENV_FILE | xargs) && export GITHUB_TOKEN=${escaped_token} && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --no-sentry 2>&1 | tee $logfile"
 
     tmux new-window -t "$SESSION" -n "$wname"
     tmux send-keys -t "$SESSION:$wname" "$cmd" Enter
