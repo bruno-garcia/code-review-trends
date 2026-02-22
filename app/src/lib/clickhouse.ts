@@ -944,6 +944,51 @@ export async function getAvgCommentsPerPR(botId?: string, since?: string): Promi
   );
 }
 
+// --- Weekly reactions by product (for compare trends chart) ---
+
+export type WeeklyReactionsByProduct = {
+  week: string;
+  product_id: string;
+  product_name: string;
+  brand_color: string;
+  thumbs_up: number;
+  thumbs_down: number;
+  heart: number;
+  comment_count: number;
+  reacted_comment_count: number;
+  pr_count: number;
+};
+
+export async function getWeeklyReactionsByProduct(
+  since?: string,
+): Promise<WeeklyReactionsByProduct[]> {
+  const sinceFilter = since
+    ? "WHERE cs.week >= toDate({since:String})"
+    : "";
+  return query<WeeklyReactionsByProduct>(
+    `
+    SELECT
+      formatDateTime(cs.week, '%Y-%m-%d') AS week,
+      b.product_id,
+      p.name AS product_name,
+      p.brand_color,
+      sum(cs.thumbs_up) AS thumbs_up,
+      sum(cs.thumbs_down) AS thumbs_down,
+      sum(cs.heart) AS heart,
+      sum(cs.comment_count) AS comment_count,
+      sum(cs.reacted_comment_count) AS reacted_comment_count,
+      uniqExactMerge(cs.pr_count) AS pr_count
+    FROM comment_stats_weekly cs
+    JOIN bots b ON cs.bot_id = b.id
+    JOIN products p ON b.product_id = p.id
+    ${sinceFilter}
+    GROUP BY cs.week, b.product_id, p.name, p.brand_color
+    ORDER BY cs.week ASC
+    `,
+    since ? { since } : {},
+  );
+}
+
 // --- PR Characteristics (from enriched pull_requests table) ---
 
 export type PrCharacteristics = {
