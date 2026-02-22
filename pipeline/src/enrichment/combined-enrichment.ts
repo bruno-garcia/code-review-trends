@@ -259,9 +259,10 @@ export async function enrichCombined(
             }
 
             // Insert reaction data — only for successfully fetched PRs
+            // where the hoorayReactions field was present in the response.
             // Skip if hasMoreReactions (>20 hooray reactions) — leave for
             // the dedicated reaction stage which can paginate.
-            if (result.prStatus === "ok" && !result.hasMoreReactions) {
+            if (result.prStatus === "ok" && result.reactionsAvailable && !result.hasMoreReactions) {
               if (result.reactions.length > 0) {
                 await insertPrBotReactions(ch, result.reactions);
                 reactions_found++;
@@ -271,7 +272,7 @@ export async function enrichCombined(
                 pr_number: result.input.pr_number,
               }]);
               reactions_scanned++;
-            } else if (result.prStatus === "ok" && result.hasMoreReactions) {
+            } else if (result.prStatus === "ok" && result.reactionsAvailable && result.hasMoreReactions) {
               // Insert what we have but don't mark as scanned — dedicated
               // reaction stage will do a full scan with pagination.
               if (result.reactions.length > 0) {

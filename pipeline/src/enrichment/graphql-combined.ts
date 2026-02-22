@@ -45,6 +45,8 @@ export type CombinedBatchResult = {
   comments: Map<string, PrCommentRow[]>;
   /** Bot hooray reactions found on the PR (for reaction-only review detection) */
   reactions: PrBotReactionRow[];
+  /** Whether the hoorayReactions field was present in the response (false on partial/field-level errors) */
+  reactionsAvailable: boolean;
   /** Whether more hooray reactions exist beyond the first 20 fetched */
   hasMoreReactions: boolean;
   prStatus: "ok" | "not_found" | "forbidden";
@@ -256,6 +258,7 @@ export function buildCombinedResults(
           pr: null,
           comments: new Map(input.bot_entries.map((b) => [b.bot_id, []])),
           reactions: [],
+          reactionsAvailable: false,
           hasMoreReactions: false,
           prStatus: "not_found",
           hasMoreThreads: false,
@@ -271,6 +274,7 @@ export function buildCombinedResults(
           pr: null,
           comments: new Map(input.bot_entries.map((b) => [b.bot_id, []])),
           reactions: [],
+          reactionsAvailable: false,
           hasMoreReactions: false,
           prStatus: "not_found",
           hasMoreThreads: false,
@@ -350,6 +354,7 @@ export function buildCombinedResults(
 
       // Parse hooray reactions — filter for tracked bot logins
       const botReactions: PrBotReactionRow[] = [];
+      const reactionsAvailable = prData.hoorayReactions !== undefined;
       const hasMoreReactions = prData.hoorayReactions?.pageInfo.hasNextPage ?? false;
       for (const reaction of prData.hoorayReactions?.nodes ?? []) {
         const login = reaction.user?.login;
@@ -372,6 +377,7 @@ export function buildCombinedResults(
         pr,
         comments: commentsByBot,
         reactions: botReactions,
+        reactionsAvailable,
         hasMoreReactions,
         prStatus: "ok",
         hasMoreThreads,

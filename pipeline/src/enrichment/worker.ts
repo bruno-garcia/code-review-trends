@@ -34,7 +34,7 @@ export type EnrichmentResult = {
   pullRequests: { fetched: number; skipped: number; errors: number };
   comments: { fetched: number; skipped: number; replies_filtered: number; errors: number };
   reactions: { fetched: number; scanned: number; skipped: number; errors: number };
-  combined: { prs_fetched: number; comments_fetched: number; skipped: number; errors: number };
+  combined: { prs_fetched: number; comments_fetched: number; reactions_scanned: number; reactions_found: number; skipped: number; errors: number };
   reposRefreshed: number;
   duration: number;
 };
@@ -220,7 +220,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
       + prsResult.fetched + prsResult.skipped + prsResult.errors
       + commentsResult.fetched + commentsResult.skipped + commentsResult.errors
       + reactionsResult.scanned + reactionsResult.skipped + reactionsResult.errors
-      + combinedResult.prs_fetched + combinedResult.comments_fetched + combinedResult.skipped + combinedResult.errors;
+      + combinedResult.prs_fetched + combinedResult.comments_fetched + combinedResult.reactions_scanned + combinedResult.skipped + combinedResult.errors;
     const itemsPerSec = workTime > 0 ? (totalItems / (workTime / 1000)).toFixed(1) : "∞";
     const rlPct = duration > 0 ? ((rl.totalWaitMs / duration) * 100).toFixed(1) : "0";
 
