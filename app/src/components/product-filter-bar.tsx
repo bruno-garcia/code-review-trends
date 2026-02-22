@@ -77,7 +77,7 @@ export function ProductFilterBar() {
 
   // Time range only works on pages that query weekly activity data.
   // /repos and /orgs use all-time aggregated data with no time dimension.
-  const showTimeRange = pathname === "/products" || pathname.startsWith("/compare");
+  const showTimeRange = pathname === "/products" || pathname === "/compare";
 
   function signalNavigation() {
     if (isServerSyncPage) {
