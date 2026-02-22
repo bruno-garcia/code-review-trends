@@ -131,6 +131,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "augment",
+    "idB": "kodus",
+    "nameA": "Augment Code",
+    "nameB": "Kodus",
+    "slug": "augment-code-vs-kodus",
+    "title": "Augment Code vs Kodus — AI Code Review Comparison",
+    "description": "Compare Augment Code and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "augment",
     "idB": "linearb",
     "nameA": "Augment Code",
     "nameB": "LinearB",
@@ -302,6 +311,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "baz",
+    "idB": "kodus",
+    "nameA": "Baz",
+    "nameB": "Kodus",
+    "slug": "baz-vs-kodus",
+    "title": "Baz vs Kodus — AI Code Review Comparison",
+    "description": "Compare Baz and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "baz",
     "idB": "linearb",
     "nameA": "Baz",
     "nameB": "LinearB",
@@ -464,6 +482,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "bito",
+    "idB": "kodus",
+    "nameA": "Bito",
+    "nameB": "Kodus",
+    "slug": "bito-vs-kodus",
+    "title": "Bito vs Kodus — AI Code Review Comparison",
+    "description": "Compare Bito and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "bito",
     "idB": "linearb",
     "nameA": "Bito",
     "nameB": "LinearB",
@@ -617,6 +644,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "claude",
+    "idB": "kodus",
+    "nameA": "Claude",
+    "nameB": "Kodus",
+    "slug": "claude-vs-kodus",
+    "title": "Claude vs Kodus — AI Code Review Comparison",
+    "description": "Compare Claude and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "claude",
     "idB": "linearb",
     "nameA": "Claude",
     "nameB": "LinearB",
@@ -761,6 +797,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "codeant",
+    "idB": "kodus",
+    "nameA": "CodeAnt",
+    "nameB": "Kodus",
+    "slug": "codeant-vs-kodus",
+    "title": "CodeAnt vs Kodus — AI Code Review Comparison",
+    "description": "Compare CodeAnt and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "codeant",
     "idB": "linearb",
     "nameA": "CodeAnt",
     "nameB": "LinearB",
@@ -896,6 +941,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "coderabbit",
+    "idB": "kodus",
+    "nameA": "CodeRabbit",
+    "nameB": "Kodus",
+    "slug": "coderabbit-vs-kodus",
+    "title": "CodeRabbit vs Kodus — AI Code Review Comparison",
+    "description": "Compare CodeRabbit and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "coderabbit",
     "idB": "linearb",
     "nameA": "CodeRabbit",
     "nameB": "LinearB",
@@ -1022,6 +1076,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "codescene",
+    "idB": "kodus",
+    "nameA": "CodeScene",
+    "nameB": "Kodus",
+    "slug": "codescene-vs-kodus",
+    "title": "CodeScene vs Kodus — AI Code Review Comparison",
+    "description": "Compare CodeScene and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "codescene",
     "idB": "linearb",
     "nameA": "CodeScene",
     "nameB": "LinearB",
@@ -1139,6 +1202,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "cubic",
+    "idB": "kodus",
+    "nameA": "Cubic",
+    "nameB": "Kodus",
+    "slug": "cubic-vs-kodus",
+    "title": "Cubic vs Kodus — AI Code Review Comparison",
+    "description": "Compare Cubic and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "cubic",
     "idB": "linearb",
     "nameA": "Cubic",
     "nameB": "LinearB",
@@ -1247,6 +1319,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "cursor",
+    "idB": "kodus",
+    "nameA": "Cursor Bugbot",
+    "nameB": "Kodus",
+    "slug": "cursor-bugbot-vs-kodus",
+    "title": "Cursor Bugbot vs Kodus — AI Code Review Comparison",
+    "description": "Compare Cursor Bugbot and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "cursor",
     "idB": "linearb",
     "nameA": "Cursor Bugbot",
     "nameB": "LinearB",
@@ -1346,6 +1427,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "ellipsis",
+    "idB": "kodus",
+    "nameA": "Ellipsis",
+    "nameB": "Kodus",
+    "slug": "ellipsis-vs-kodus",
+    "title": "Ellipsis vs Kodus — AI Code Review Comparison",
+    "description": "Compare Ellipsis and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "ellipsis",
     "idB": "linearb",
     "nameA": "Ellipsis",
     "nameB": "LinearB",
@@ -1436,6 +1526,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "gemini",
+    "idB": "kodus",
+    "nameA": "Gemini Code Assist",
+    "nameB": "Kodus",
+    "slug": "gemini-code-assist-vs-kodus",
+    "title": "Gemini Code Assist vs Kodus — AI Code Review Comparison",
+    "description": "Compare Gemini Code Assist and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "gemini",
     "idB": "linearb",
     "nameA": "Gemini Code Assist",
     "nameB": "LinearB",
@@ -1517,6 +1616,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "copilot",
+    "idB": "kodus",
+    "nameA": "GitHub Copilot",
+    "nameB": "Kodus",
+    "slug": "github-copilot-vs-kodus",
+    "title": "GitHub Copilot vs Kodus — AI Code Review Comparison",
+    "description": "Compare GitHub Copilot and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "copilot",
     "idB": "linearb",
     "nameA": "GitHub Copilot",
     "nameB": "LinearB",
@@ -1589,6 +1697,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "graphite",
+    "idB": "kodus",
+    "nameA": "Graphite",
+    "nameB": "Kodus",
+    "slug": "graphite-vs-kodus",
+    "title": "Graphite vs Kodus — AI Code Review Comparison",
+    "description": "Compare Graphite and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "graphite",
     "idB": "linearb",
     "nameA": "Graphite",
     "nameB": "LinearB",
@@ -1652,6 +1769,15 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "greptile",
+    "idB": "kodus",
+    "nameA": "Greptile",
+    "nameB": "Kodus",
+    "slug": "greptile-vs-kodus",
+    "title": "Greptile vs Kodus — AI Code Review Comparison",
+    "description": "Compare Greptile and Kodus AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "greptile",
     "idB": "linearb",
     "nameA": "Greptile",
     "nameB": "LinearB",
@@ -1712,6 +1838,69 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "slug": "greptile-vs-windsurf",
     "title": "Greptile vs Windsurf — AI Code Review Comparison",
     "description": "Compare Greptile and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "kodus",
+    "idB": "linearb",
+    "nameA": "Kodus",
+    "nameB": "LinearB",
+    "slug": "kodus-vs-linearb",
+    "title": "Kodus vs LinearB — AI Code Review Comparison",
+    "description": "Compare Kodus and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "kodus",
+    "idB": "mesa",
+    "nameA": "Kodus",
+    "nameB": "Mesa",
+    "slug": "kodus-vs-mesa",
+    "title": "Kodus vs Mesa — AI Code Review Comparison",
+    "description": "Compare Kodus and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "kodus",
+    "idB": "openai-codex",
+    "nameA": "Kodus",
+    "nameB": "OpenAI Codex",
+    "slug": "kodus-vs-openai-codex",
+    "title": "Kodus vs OpenAI Codex — AI Code Review Comparison",
+    "description": "Compare Kodus and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "kodus",
+    "idB": "qodo",
+    "nameA": "Kodus",
+    "nameB": "Qodo",
+    "slug": "kodus-vs-qodo",
+    "title": "Kodus vs Qodo — AI Code Review Comparison",
+    "description": "Compare Kodus and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "kodus",
+    "idB": "sentry",
+    "nameA": "Kodus",
+    "nameB": "Sentry",
+    "slug": "kodus-vs-sentry",
+    "title": "Kodus vs Sentry — AI Code Review Comparison",
+    "description": "Compare Kodus and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "kodus",
+    "idB": "sourcery",
+    "nameA": "Kodus",
+    "nameB": "Sourcery",
+    "slug": "kodus-vs-sourcery",
+    "title": "Kodus vs Sourcery — AI Code Review Comparison",
+    "description": "Compare Kodus and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
+  },
+  {
+    "idA": "kodus",
+    "idB": "windsurf",
+    "nameA": "Kodus",
+    "nameB": "Windsurf",
+    "slug": "kodus-vs-windsurf",
+    "title": "Kodus vs Windsurf — AI Code Review Comparison",
+    "description": "Compare Kodus and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
   },
   {
     "idA": "linearb",

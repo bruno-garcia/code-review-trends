@@ -30,7 +30,8 @@ INSERT INTO code_review_trends.products (id, name, website, description, docs_ur
     ('openai-codex', 'OpenAI Codex', 'https://openai.com/codex', 'OpenAI''s cloud-based coding agent. Runs in a sandboxed environment to write code, fix bugs, and review pull requests. Operates asynchronously — assign tasks and review results when ready.', 'https://platform.openai.com/docs/guides/codex', '#808080', 'https://avatars.githubusercontent.com/in/1144995?s=60&v=4'),
     ('mesa', 'Mesa', 'https://mesa.dev', 'AI-powered development workflow platform. Automates code review as part of a broader CI/CD integration, providing feedback on code quality, testing, and deployment readiness.', 'https://docs.mesa.dev', '#c06a33', 'https://avatars.githubusercontent.com/in/1050077?v=4'),
     ('linearb', 'LinearB', 'https://linearb.io', 'Developer workflow platform with gitStream automation and AI-powered code review. Automates PR routing, reviewer assignment, and provides workflow metrics for engineering teams.', 'https://linearb.io/docs', '#a37ce2', 'https://avatars.githubusercontent.com/in/1658443?v=4'),
-    ('augment', 'Augment Code', 'https://augmentcode.com', 'AI coding assistant with automated PR review. Understands your codebase context to provide relevant feedback. Designed for enterprise teams with support for private codebases and custom guidelines.', 'https://docs.augmentcode.com', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4');
+    ('augment', 'Augment Code', 'https://augmentcode.com', 'AI coding assistant with automated PR review. Understands your codebase context to provide relevant feedback. Designed for enterprise teams with support for private codebases and custom guidelines.', 'https://docs.augmentcode.com', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4'),
+    ('kodus', 'Kodus', 'https://kodus.io', 'AI code reviewer that analyzes pull requests like a senior developer. Provides actionable suggestions, identifies bugs, and enforces coding standards. Open-source with cloud and self-hosted options.', 'https://docs.kodus.io', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4');
 
 -- Bots
 
@@ -63,7 +64,8 @@ INSERT INTO code_review_trends.bots (id, name, product_id, website, description,
     ('mesa', 'Mesa', 'mesa', 'https://mesa.dev', 'AI-powered development workflow platform with integrated code review and CI/CD automation.', '#c06a33', 'https://avatars.githubusercontent.com/in/1050077?v=4'),
     ('gitstream', 'gitStream', 'linearb', 'https://linearb.io', 'LinearB''s gitStream workflow automation bot. Automates PR routing and continuous merge management.', '#a37ce2', 'https://avatars.githubusercontent.com/ml/13414?v=4'),
     ('linearb', 'LinearB', 'linearb', 'https://linearb.io', 'LinearB''s GitHub bot for dev workflow insights, metrics, and AI-powered code review.', '#a37ce2', 'https://avatars.githubusercontent.com/in/1658443?v=4'),
-    ('augment', 'Augment Code', 'augment', 'https://augmentcode.com', 'AI coding assistant with codebase-aware PR review. Designed for enterprise teams with private codebases.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4');
+    ('augment', 'Augment Code', 'augment', 'https://augmentcode.com', 'AI coding assistant with codebase-aware PR review. Designed for enterprise teams with private codebases.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4'),
+    ('kodus', 'Kody AI', 'kodus', 'https://kodus.io', 'Kodus AI code reviewer. Automatically analyzes PRs with actionable suggestions and bug detection.', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4');
 
 -- Bot logins (GitHub usernames)
 
@@ -97,5 +99,6 @@ INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
     ('mesa', 'mesa-dot-dev[bot]'),
     ('gitstream', 'gitstream-cm[bot]'),
     ('linearb', 'linearb[bot]'),
-    ('augment', 'augmentcode[bot]');
+    ('augment', 'augmentcode[bot]'),
+    ('kodus', 'kody-ai[bot]');
 
