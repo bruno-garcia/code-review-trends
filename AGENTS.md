@@ -135,8 +135,8 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 | `app/src/components/theme-provider.tsx` | Light/dark theme system (CSS custom properties) |
 | `app/src/components/theme-toggle.tsx` | Theme toggle UI component |
 | `app/src/app/page.tsx` | Home page — AI share, volume, leaderboard |
-| `app/src/app/bots/page.tsx` | Bot listing page |
-| `app/src/app/bots/[id]/page.tsx` | Individual bot detail page |
+| `app/src/app/products/page.tsx` | Bot listing page |
+| `app/src/app/products/[id]/page.tsx` | Individual bot detail page |
 | `app/src/app/about/page.tsx` | About / methodology page |
 | `app/src/app/status/page.tsx` | Pipeline status page |
 | `app/src/app/orgs/page.tsx` | Organization listing page |
@@ -144,7 +144,7 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 | `app/src/app/compare/page.tsx` | Bot comparison page |
 | `app/src/app/error.tsx` | Error boundary page |
 | `app/src/app/opengraph-image.tsx` | Homepage OG image (dynamic, queries ClickHouse) |
-| `app/src/app/bots/[id]/opengraph-image.tsx` | Per-product OG image (avatar, stats, brand color) |
+| `app/src/app/products/[id]/opengraph-image.tsx` | Per-product OG image (avatar, stats, brand color) |
 | `app/src/app/compare/opengraph-image.tsx` | Compare page OG image (top products bar chart) |
 | `app/src/app/orgs/opengraph-image.tsx` | Orgs listing OG image (top org avatars) |
 | `app/src/app/sitemap.ts` | Dynamic sitemap (static pages + products + top orgs) |
