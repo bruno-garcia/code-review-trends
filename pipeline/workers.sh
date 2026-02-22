@@ -141,7 +141,7 @@ cmd_tokens() {
   for i in $(seq 0 $((n - 1))); do
     local token="${TOKENS[$i]}"
     local info
-    info=$(gh api user -H "Authorization: token $token" --include 2>&1) || {
+    info=$(GH_TOKEN="$token" gh api user --include 2>&1) || {
       echo "  [$i] ${token:0:15}... → INVALID"
       continue
     }
