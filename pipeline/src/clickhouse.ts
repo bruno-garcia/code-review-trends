@@ -32,6 +32,10 @@ export function createCHClient(config?: ClickHouseConfig): ClickHouseClient {
     username: c.username,
     password: c.password,
     database: c.database,
+    request_timeout: 120_000,
+    clickhouse_settings: {
+      connect_timeout: 60,
+    },
   });
 }
 

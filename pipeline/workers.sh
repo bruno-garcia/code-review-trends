@@ -95,18 +95,23 @@ cmd_start() {
   tmux new-session -d -s "$SESSION" -n status
   tmux send-keys -t "$SESSION:status" "cd $REPO_DIR && watch -n 60 'export \$(grep -v \"^#\" $ENV_FILE | xargs) && npm run pipeline -- enrich-status --env $PIPELINE_ENV --no-sentry 2>&1 | tail -40'" Enter
 
-  # Windows 1..N: workers
+  # Windows 1..N: workers (staggered 60s apart to avoid ClickHouse overload)
   for i in $(seq 0 $((n - 1))); do
     local wname="worker${i}"
     local logfile="$HOME/worker-${PIPELINE_ENV}-${i}.log"
     local token="${TOKENS[$i]}"
 
     # Build the worker command — override GITHUB_TOKEN per worker
-    local cmd="cd $REPO_DIR && export \$(grep -v '^#' $ENV_FILE | xargs) && export GITHUB_TOKEN='${token}' && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --no-sentry 2>&1 | tee $logfile"
+    # Workers after the first sleep before starting to stagger ClickHouse queries
+    local sleep_cmd=""
+    if [[ $i -gt 0 ]]; then
+      sleep_cmd="echo 'Waiting $((i * 60))s to stagger start...' && sleep $((i * 60)) && "
+    fi
+    local cmd="${sleep_cmd}cd $REPO_DIR && export \$(grep -v '^#' $ENV_FILE | xargs) && export GITHUB_TOKEN='${token}' && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --no-sentry 2>&1 | tee $logfile"
 
     tmux new-window -t "$SESSION" -n "$wname"
     tmux send-keys -t "$SESSION:$wname" "$cmd" Enter
-    log "  $wname → token ${token:0:15}... → $logfile"
+    log "  $wname → token ${token:0:15}... (starts in ${i}m) → $logfile"
   done
 
   # Select status window
