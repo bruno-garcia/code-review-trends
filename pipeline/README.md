@@ -387,7 +387,6 @@ The canonical bot list lives in `src/bots.ts`. Current bots:
 | Cursor Bugbot | `cursor[bot]` |
 | Gemini Code Assist | `gemini-code-assist[bot]` |
 | Bito | `bito-code-review[bot]` |
-| Korbit | `korbit-ai[bot]` |
 | Claude | `claude[bot]` |
 | OpenAI Codex | `chatgpt-codex-connector[bot]` |
 | Mesa | `mesa-dot-dev[bot]` |

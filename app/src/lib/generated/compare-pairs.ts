@@ -131,15 +131,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "augment",
-    "idB": "korbit",
-    "nameA": "Augment Code",
-    "nameB": "Korbit",
-    "slug": "augment-code-vs-korbit",
-    "title": "Augment Code vs Korbit — AI Code Review Comparison",
-    "description": "Compare Augment Code and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "augment",
     "idB": "linearb",
     "nameA": "Augment Code",
     "nameB": "LinearB",
@@ -311,15 +302,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "baz",
-    "idB": "korbit",
-    "nameA": "Baz",
-    "nameB": "Korbit",
-    "slug": "baz-vs-korbit",
-    "title": "Baz vs Korbit — AI Code Review Comparison",
-    "description": "Compare Baz and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "baz",
     "idB": "linearb",
     "nameA": "Baz",
     "nameB": "LinearB",
@@ -482,15 +464,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "bito",
-    "idB": "korbit",
-    "nameA": "Bito",
-    "nameB": "Korbit",
-    "slug": "bito-vs-korbit",
-    "title": "Bito vs Korbit — AI Code Review Comparison",
-    "description": "Compare Bito and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "bito",
     "idB": "linearb",
     "nameA": "Bito",
     "nameB": "LinearB",
@@ -644,15 +617,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "claude",
-    "idB": "korbit",
-    "nameA": "Claude",
-    "nameB": "Korbit",
-    "slug": "claude-vs-korbit",
-    "title": "Claude vs Korbit — AI Code Review Comparison",
-    "description": "Compare Claude and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "claude",
     "idB": "linearb",
     "nameA": "Claude",
     "nameB": "LinearB",
@@ -797,15 +761,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "codeant",
-    "idB": "korbit",
-    "nameA": "CodeAnt",
-    "nameB": "Korbit",
-    "slug": "codeant-vs-korbit",
-    "title": "CodeAnt vs Korbit — AI Code Review Comparison",
-    "description": "Compare CodeAnt and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "codeant",
     "idB": "linearb",
     "nameA": "CodeAnt",
     "nameB": "LinearB",
@@ -941,15 +896,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "coderabbit",
-    "idB": "korbit",
-    "nameA": "CodeRabbit",
-    "nameB": "Korbit",
-    "slug": "coderabbit-vs-korbit",
-    "title": "CodeRabbit vs Korbit — AI Code Review Comparison",
-    "description": "Compare CodeRabbit and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "coderabbit",
     "idB": "linearb",
     "nameA": "CodeRabbit",
     "nameB": "LinearB",
@@ -1076,15 +1022,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "codescene",
-    "idB": "korbit",
-    "nameA": "CodeScene",
-    "nameB": "Korbit",
-    "slug": "codescene-vs-korbit",
-    "title": "CodeScene vs Korbit — AI Code Review Comparison",
-    "description": "Compare CodeScene and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "codescene",
     "idB": "linearb",
     "nameA": "CodeScene",
     "nameB": "LinearB",
@@ -1202,15 +1139,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "cubic",
-    "idB": "korbit",
-    "nameA": "Cubic",
-    "nameB": "Korbit",
-    "slug": "cubic-vs-korbit",
-    "title": "Cubic vs Korbit — AI Code Review Comparison",
-    "description": "Compare Cubic and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "cubic",
     "idB": "linearb",
     "nameA": "Cubic",
     "nameB": "LinearB",
@@ -1319,15 +1247,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "cursor",
-    "idB": "korbit",
-    "nameA": "Cursor Bugbot",
-    "nameB": "Korbit",
-    "slug": "cursor-bugbot-vs-korbit",
-    "title": "Cursor Bugbot vs Korbit — AI Code Review Comparison",
-    "description": "Compare Cursor Bugbot and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "cursor",
     "idB": "linearb",
     "nameA": "Cursor Bugbot",
     "nameB": "LinearB",
@@ -1427,15 +1346,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "ellipsis",
-    "idB": "korbit",
-    "nameA": "Ellipsis",
-    "nameB": "Korbit",
-    "slug": "ellipsis-vs-korbit",
-    "title": "Ellipsis vs Korbit — AI Code Review Comparison",
-    "description": "Compare Ellipsis and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "ellipsis",
     "idB": "linearb",
     "nameA": "Ellipsis",
     "nameB": "LinearB",
@@ -1526,15 +1436,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "gemini",
-    "idB": "korbit",
-    "nameA": "Gemini Code Assist",
-    "nameB": "Korbit",
-    "slug": "gemini-code-assist-vs-korbit",
-    "title": "Gemini Code Assist vs Korbit — AI Code Review Comparison",
-    "description": "Compare Gemini Code Assist and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "gemini",
     "idB": "linearb",
     "nameA": "Gemini Code Assist",
     "nameB": "LinearB",
@@ -1616,15 +1517,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "copilot",
-    "idB": "korbit",
-    "nameA": "GitHub Copilot",
-    "nameB": "Korbit",
-    "slug": "github-copilot-vs-korbit",
-    "title": "GitHub Copilot vs Korbit — AI Code Review Comparison",
-    "description": "Compare GitHub Copilot and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "copilot",
     "idB": "linearb",
     "nameA": "GitHub Copilot",
     "nameB": "LinearB",
@@ -1697,15 +1589,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "graphite",
-    "idB": "korbit",
-    "nameA": "Graphite",
-    "nameB": "Korbit",
-    "slug": "graphite-vs-korbit",
-    "title": "Graphite vs Korbit — AI Code Review Comparison",
-    "description": "Compare Graphite and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "graphite",
     "idB": "linearb",
     "nameA": "Graphite",
     "nameB": "LinearB",
@@ -1769,15 +1652,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "greptile",
-    "idB": "korbit",
-    "nameA": "Greptile",
-    "nameB": "Korbit",
-    "slug": "greptile-vs-korbit",
-    "title": "Greptile vs Korbit — AI Code Review Comparison",
-    "description": "Compare Greptile and Korbit AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "greptile",
     "idB": "linearb",
     "nameA": "Greptile",
     "nameB": "LinearB",
@@ -1838,69 +1712,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "slug": "greptile-vs-windsurf",
     "title": "Greptile vs Windsurf — AI Code Review Comparison",
     "description": "Compare Greptile and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "korbit",
-    "idB": "linearb",
-    "nameA": "Korbit",
-    "nameB": "LinearB",
-    "slug": "korbit-vs-linearb",
-    "title": "Korbit vs LinearB — AI Code Review Comparison",
-    "description": "Compare Korbit and LinearB AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "korbit",
-    "idB": "mesa",
-    "nameA": "Korbit",
-    "nameB": "Mesa",
-    "slug": "korbit-vs-mesa",
-    "title": "Korbit vs Mesa — AI Code Review Comparison",
-    "description": "Compare Korbit and Mesa AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "korbit",
-    "idB": "openai-codex",
-    "nameA": "Korbit",
-    "nameB": "OpenAI Codex",
-    "slug": "korbit-vs-openai-codex",
-    "title": "Korbit vs OpenAI Codex — AI Code Review Comparison",
-    "description": "Compare Korbit and OpenAI Codex AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "korbit",
-    "idB": "qodo",
-    "nameA": "Korbit",
-    "nameB": "Qodo",
-    "slug": "korbit-vs-qodo",
-    "title": "Korbit vs Qodo — AI Code Review Comparison",
-    "description": "Compare Korbit and Qodo AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "korbit",
-    "idB": "sentry",
-    "nameA": "Korbit",
-    "nameB": "Sentry",
-    "slug": "korbit-vs-sentry",
-    "title": "Korbit vs Sentry — AI Code Review Comparison",
-    "description": "Compare Korbit and Sentry AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "korbit",
-    "idB": "sourcery",
-    "nameA": "Korbit",
-    "nameB": "Sourcery",
-    "slug": "korbit-vs-sourcery",
-    "title": "Korbit vs Sourcery — AI Code Review Comparison",
-    "description": "Compare Korbit and Sourcery AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
-  },
-  {
-    "idA": "korbit",
-    "idB": "windsurf",
-    "nameA": "Korbit",
-    "nameB": "Windsurf",
-    "slug": "korbit-vs-windsurf",
-    "title": "Korbit vs Windsurf — AI Code Review Comparison",
-    "description": "Compare Korbit and Windsurf AI code review tools side-by-side. See review volume, growth, repos, organizations, and more."
   },
   {
     "idA": "linearb",
