@@ -8,7 +8,7 @@ import {
   getPrCommentSyncPct,
   getAllPrCharacteristics,
 } from "@/lib/clickhouse";
-import { COMPARE_PAIRS, PAIR_BY_SLUG } from "@/lib/generated/compare-pairs";
+import { PAIR_BY_SLUG } from "@/lib/generated/compare-pairs";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "../compare-charts";
 import { JsonLd } from "@/components/json-ld";
@@ -17,13 +17,6 @@ import { PairFilterSync } from "./pair-filter-sync";
 type Props = {
   params: Promise<{ pair: string }>;
 };
-
-/** Only pre-generated pair slugs are valid — return 404 for anything else. */
-export const dynamicParams = false;
-
-export async function generateStaticParams() {
-  return COMPARE_PAIRS.map((p) => ({ pair: p.slug }));
-}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { pair: slug } = await params;
