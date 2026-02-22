@@ -15,6 +15,8 @@ export interface SecretsResult {
   sentryDsnPipelineSecret: gcp.secretmanager.Secret;
   sentryAuthTokenSecret: gcp.secretmanager.Secret;
   githubTokenSecret: gcp.secretmanager.Secret;
+  /** JSON array of GitHub PATs — used by parallel enrichment workers */
+  githubTokensSecret: gcp.secretmanager.Secret;
 }
 
 /**
@@ -121,6 +123,13 @@ export function createSecrets(
     parent,
   );
 
+  const githubTokensSecret = createManagedSecret(
+    `${prefix}-github-tokens`,
+    `${prefix}-github-tokens`,
+    cfg.githubTokens,
+    parent,
+  );
+
   return {
     clickhousePassword: password.result,
     clickhousePasswordSecret,
@@ -129,5 +138,6 @@ export function createSecrets(
     sentryDsnPipelineSecret,
     sentryAuthTokenSecret,
     githubTokenSecret,
+    githubTokensSecret,
   };
 }
