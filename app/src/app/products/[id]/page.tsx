@@ -137,7 +137,7 @@ export default async function ProductPage({
           "@type": "SoftwareApplication",
           name: product.name,
           description: product.description,
-          url: product.website,
+          ...(product.status !== "retired" ? { url: product.website } : {}),
           applicationCategory: "DeveloperApplication",
           operatingSystem: "Web",
           ...(product.avatar_url ? { image: product.avatar_url } : {}),
@@ -167,6 +167,9 @@ export default async function ProductPage({
         )}
         <div className="mt-4 flex items-center gap-4 flex-wrap">
           {product.website && (
+            product.status === "retired" ? (
+              <span className="text-sm text-theme-muted/50">{product.website}</span>
+            ) : (
             <a
               href={product.website}
               target="_blank"
@@ -175,8 +178,12 @@ export default async function ProductPage({
             >
               {product.website} ↗
             </a>
+            )
           )}
           {product.docs_url && product.docs_url !== product.website && (
+            product.status === "retired" ? (
+              <span className="text-sm text-theme-muted/50">Docs</span>
+            ) : (
             <a
               href={product.docs_url}
               target="_blank"
@@ -185,6 +192,7 @@ export default async function ProductPage({
             >
               Docs ↗
             </a>
+            )
           )}
           {githubLogins.length > 0 && (
             <span className="text-sm text-theme-muted/70">
