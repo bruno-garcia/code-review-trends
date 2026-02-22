@@ -9,7 +9,8 @@
 import type { Octokit } from "@octokit/rest";
 import { log } from "../sentry.js";
 import type { RateLimiter } from "./rate-limiter.js";
-import type { PullRequestRow, PrCommentRow } from "../clickhouse.js";
+import type { PullRequestRow, PrCommentRow, PrBotReactionRow } from "../clickhouse.js";
+import { BOT_BY_LOGIN } from "../bots.js";
 import { graphqlWithRetry } from "./graphql-retry.js";
 
 export const GRAPHQL_COMBINED_BATCH_MAX = 25;
@@ -42,6 +43,12 @@ export type CombinedBatchResult = {
   pr: PullRequestRow | null;
   /** bot_id → comment rows (empty array = no matching comments, caller inserts sentinel) */
   comments: Map<string, PrCommentRow[]>;
+  /** Bot hooray reactions found on the PR (for reaction-only review detection) */
+  reactions: PrBotReactionRow[];
+  /** Whether the hoorayReactions field was present in the response (false on partial/field-level errors) */
+  reactionsAvailable: boolean;
+  /** Whether more hooray reactions exist beyond the first 20 fetched */
+  hasMoreReactions: boolean;
   prStatus: "ok" | "not_found" | "forbidden";
   hasMoreThreads: boolean;
 };
@@ -108,6 +115,16 @@ export async function fetchCombinedBatch(
             }
           }
           pageInfo { hasNextPage }
+        }
+        hoorayReactions: reactions(content: HOORAY, first: 20) {
+          totalCount
+          pageInfo { hasNextPage }
+          nodes {
+            databaseId
+            user { login }
+            createdAt
+            content
+          }
         }
       }`,
     );
@@ -183,6 +200,13 @@ type GraphQLThreadNode = {
   };
 };
 
+type GraphQLHoorayReaction = {
+  databaseId: number;
+  user: { login: string } | null;
+  createdAt: string;
+  content: string;
+};
+
 type GraphQLPRData = {
   title: string;
   author: { login: string } | null;
@@ -197,6 +221,11 @@ type GraphQLPRData = {
   reviewThreads: {
     nodes: GraphQLThreadNode[];
     pageInfo: { hasNextPage: boolean };
+  };
+  hoorayReactions?: {
+    totalCount: number;
+    pageInfo: { hasNextPage: boolean };
+    nodes: GraphQLHoorayReaction[];
   };
 } | null;
 
@@ -228,6 +257,9 @@ export function buildCombinedResults(
           input,
           pr: null,
           comments: new Map(input.bot_entries.map((b) => [b.bot_id, []])),
+          reactions: [],
+          reactionsAvailable: false,
+          hasMoreReactions: false,
           prStatus: "not_found",
           hasMoreThreads: false,
         });
@@ -241,6 +273,9 @@ export function buildCombinedResults(
           input,
           pr: null,
           comments: new Map(input.bot_entries.map((b) => [b.bot_id, []])),
+          reactions: [],
+          reactionsAvailable: false,
+          hasMoreReactions: false,
           prStatus: "not_found",
           hasMoreThreads: false,
         });
@@ -317,10 +352,33 @@ export function buildCombinedResults(
         }
       }
 
+      // Parse hooray reactions — filter for tracked bot logins
+      const botReactions: PrBotReactionRow[] = [];
+      const reactionsAvailable = prData.hoorayReactions != null;
+      const hasMoreReactions = prData.hoorayReactions?.pageInfo.hasNextPage ?? false;
+      for (const reaction of prData.hoorayReactions?.nodes ?? []) {
+        const login = reaction.user?.login;
+        if (!login) continue;
+        // GraphQL strips [bot] suffix — check both forms
+        const bot = BOT_BY_LOGIN.get(login) ?? BOT_BY_LOGIN.get(`${login}[bot]`);
+        if (!bot) continue;
+        botReactions.push({
+          repo_name: input.repo_name,
+          pr_number: input.pr_number,
+          bot_id: bot.id,
+          reaction_type: reaction.content.toLowerCase(),
+          reacted_at: reaction.createdAt,
+          reaction_id: reaction.databaseId,
+        });
+      }
+
       results.push({
         input,
         pr,
         comments: commentsByBot,
+        reactions: botReactions,
+        reactionsAvailable,
+        hasMoreReactions,
         prStatus: "ok",
         hasMoreThreads,
       });

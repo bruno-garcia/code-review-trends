@@ -34,7 +34,7 @@ export type EnrichmentResult = {
   pullRequests: { fetched: number; skipped: number; errors: number };
   comments: { fetched: number; skipped: number; replies_filtered: number; errors: number };
   reactions: { fetched: number; scanned: number; skipped: number; errors: number };
-  combined: { prs_fetched: number; comments_fetched: number; skipped: number; errors: number };
+  combined: { prs_fetched: number; comments_fetched: number; reactions_scanned: number; reactions_found: number; skipped: number; errors: number };
   reposRefreshed: number;
   duration: number;
 };
@@ -131,7 +131,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
   try {
     // Combined PR+Comments enrichment — handles items needing BOTH, reducing total API calls.
     // Runs first so individual stages only handle leftovers.
-    let combinedResult: CombinedResult = { prs_fetched: 0, comments_fetched: 0, skipped: 0, errors: 0 };
+    let combinedResult: CombinedResult = { prs_fetched: 0, comments_fetched: 0, reactions_scanned: 0, reactions_found: 0, skipped: 0, errors: 0 };
     if (!options.priority || options.priority === "prs" || options.priority === "comments") {
       try {
         combinedResult = await Sentry.startSpan(
@@ -220,13 +220,13 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
       + prsResult.fetched + prsResult.skipped + prsResult.errors
       + commentsResult.fetched + commentsResult.skipped + commentsResult.errors
       + reactionsResult.scanned + reactionsResult.skipped + reactionsResult.errors
-      + combinedResult.prs_fetched + combinedResult.comments_fetched + combinedResult.skipped + combinedResult.errors;
+      + combinedResult.prs_fetched + combinedResult.comments_fetched + combinedResult.reactions_scanned + combinedResult.skipped + combinedResult.errors;
     const itemsPerSec = workTime > 0 ? (totalItems / (workTime / 1000)).toFixed(1) : "∞";
     const rlPct = duration > 0 ? ((rl.totalWaitMs / duration) * 100).toFixed(1) : "0";
 
     log(`[worker] Enrichment ${rateLimitExit ? "stopped (rate limit)" : "complete"} in ${Math.ceil(duration / 1000)}s`);
     log(`[worker]   Items processed: ${totalItems} (${itemsPerSec} items/s effective)`);
-    log(`[worker]   Combined: ${combinedResult.prs_fetched} PRs + ${combinedResult.comments_fetched} comment combos (${combinedResult.errors} errors)`);
+    log(`[worker]   Combined: ${combinedResult.prs_fetched} PRs + ${combinedResult.comments_fetched} comment combos + ${combinedResult.reactions_scanned} reactions scanned (${combinedResult.reactions_found} with bot reactions, ${combinedResult.errors} errors)`);
     log(`[worker]   Rate-limit waits: ${rl.waitCount} pauses, ${Math.ceil(rl.totalWaitMs / 1000)}s total (${rlPct}% of wall time)`);
     if (rl.secondaryHits > 0) {
       log(`[worker]   Secondary rate limits: ${rl.secondaryHits}`);
@@ -248,6 +248,8 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     countMetric("pipeline.enrich.reactions.errors", reactionsResult.errors, { phase: "reactions" });
     countMetric("pipeline.enrich.combined.prs", combinedResult.prs_fetched, { phase: "combined" });
     countMetric("pipeline.enrich.combined.comments", combinedResult.comments_fetched, { phase: "combined" });
+    countMetric("pipeline.enrich.combined.reactions_scanned", combinedResult.reactions_scanned, { phase: "combined" });
+    countMetric("pipeline.enrich.combined.reactions_found", combinedResult.reactions_found, { phase: "combined" });
     countMetric("pipeline.enrich.combined.errors", combinedResult.errors, { phase: "combined" });
     distributionMetric("pipeline.enrich.duration", duration, "millisecond");
     distributionMetric("pipeline.ratelimit.total_wait", rl.totalWaitMs, "millisecond");

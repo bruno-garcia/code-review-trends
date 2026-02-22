@@ -14,6 +14,8 @@ import type { ClickHouseClient } from "@clickhouse/client";
 import {
   insertPullRequests,
   insertPrComments,
+  insertPrBotReactions,
+  insertReactionScanProgress,
   query,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
@@ -40,6 +42,8 @@ import {
 export type CombinedResult = {
   prs_fetched: number;
   comments_fetched: number;
+  reactions_scanned: number;
+  reactions_found: number;
   skipped: number;
   errors: number;
 };
@@ -129,11 +133,13 @@ export async function enrichCombined(
   }
 
   if (prGroups.length === 0) {
-    return { prs_fetched: 0, comments_fetched: 0, skipped: 0, errors: 0 };
+    return { prs_fetched: 0, comments_fetched: 0, reactions_scanned: 0, reactions_found: 0, skipped: 0, errors: 0 };
   }
 
   let prs_fetched = 0;
   let comments_fetched = 0;
+  let reactions_scanned = 0;
+  let reactions_found = 0;
   let skipped = 0;
   let errors = 0;
   const adaptive = new AdaptiveBatch({
@@ -251,6 +257,31 @@ export async function enrichCombined(
                 );
               }
             }
+
+            // Insert reaction data — only for successfully fetched PRs
+            // where the hoorayReactions field was present in the response.
+            // Skip if hasMoreReactions (>20 hooray reactions) — leave for
+            // the dedicated reaction stage which can paginate.
+            if (result.prStatus === "ok" && result.reactionsAvailable && !result.hasMoreReactions) {
+              if (result.reactions.length > 0) {
+                await insertPrBotReactions(ch, result.reactions);
+                reactions_found++;
+              }
+              await insertReactionScanProgress(ch, [{
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
+              }]);
+              reactions_scanned++;
+            } else if (result.prStatus === "ok" && result.reactionsAvailable && result.hasMoreReactions) {
+              // Insert what we have but don't mark as scanned — dedicated
+              // reaction stage will do a full scan with pagination.
+              if (result.reactions.length > 0) {
+                await insertPrBotReactions(ch, result.reactions);
+              }
+              log(
+                `[combined] ${result.input.repo_name}#${result.input.pr_number} has >20 hooray reactions, leaving for reaction stage`,
+              );
+            }
           }
           batchHandled = true;
         } catch (err: unknown) {
@@ -292,7 +323,7 @@ export async function enrichCombined(
     const processed = prs_fetched + skipped + errors;
     if (processed % 50 < adaptive.size && processed > 0) {
       log(
-        `[combined] Progress: ${processed}/${prGroups.length} (${prs_fetched} PRs, ${comments_fetched} comment combos, ${skipped} skipped, ${errors} errors)`,
+        `[combined] Progress: ${processed}/${prGroups.length} (${prs_fetched} PRs, ${comments_fetched} comment combos, ${reactions_scanned} reactions scanned, ${skipped} skipped, ${errors} errors)`,
       );
     }
     countMetric("pipeline.enrich.combined.batch", 1);
@@ -302,8 +333,8 @@ export async function enrichCombined(
     `[combined] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`,
   );
   log(
-    `[combined] Done: ${prs_fetched} PRs fetched, ${comments_fetched} comment combos, ${skipped} skipped, ${errors} errors`,
+    `[combined] Done: ${prs_fetched} PRs fetched, ${comments_fetched} comment combos, ${reactions_scanned} reactions scanned (${reactions_found} with bot reactions), ${skipped} skipped, ${errors} errors`,
   );
 
-  return { prs_fetched, comments_fetched, skipped, errors };
+  return { prs_fetched, comments_fetched, reactions_scanned, reactions_found, skipped, errors };
 }
