@@ -472,11 +472,11 @@ const TREND_METRICS: { value: TrendMetricKey; label: string }[] = [
 ];
 
 export function CompareTrendsChart({
-  data,
+  dataByMetric,
   products,
   colors,
 }: {
-  data: Record<string, string | number>[];
+  dataByMetric: Record<string, Record<string, Record<string, string | number>>>;
   products: string[];
   colors?: Record<string, string>;
 }) {
@@ -490,8 +490,23 @@ export function CompareTrendsChart({
 
   const isPercent = validMetric === "thumbs_up_rate";
 
+  const data = useMemo(
+    () => Object.values(dataByMetric[validMetric] ?? {}),
+    [dataByMetric, validMetric],
+  );
+
   if (data.length === 0) {
-    return <p className="text-theme-muted text-sm">No trend data for the selected filters.</p>;
+    return (
+      <div data-testid="compare-trends-chart">
+        <ToggleGroup
+          options={TREND_METRICS}
+          value={validMetric}
+          onChange={setMetric}
+          testId="compare-trends-toggle"
+        />
+        <p className="text-theme-muted text-sm mt-4">No trend data for the selected filters.</p>
+      </div>
+    );
   }
 
   return (

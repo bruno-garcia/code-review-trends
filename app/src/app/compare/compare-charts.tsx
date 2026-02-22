@@ -432,13 +432,8 @@ export function CompareCharts({
     return metrics;
   }, [weeklyActivity, weeklyReactions, selectedProductIds, idToName]);
 
-  // Resolve the currently selected trend metric from URL state
-  const [trendMetric] = useUrlState("trend", "reviews");
-  const validTrendMetric = trendData[trendMetric] ? trendMetric : "reviews";
-  const trendChartData = useMemo(
-    () => Object.values(trendData[validTrendMetric] ?? {}),
-    [trendData, validTrendMetric],
-  );
+  // trendData is passed to the chart as a map; the chart selects the metric
+  // internally via useUrlState("trend") and picks the right array to render.
 
   const tableSection = (
       <section
@@ -580,7 +575,7 @@ export function CompareCharts({
           Compare how products evolve week by week. Pick a metric to explore.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <CompareTrendsChart data={trendChartData} products={productNames} colors={nameColorMap} />
+          <CompareTrendsChart dataByMetric={trendData} products={productNames} colors={nameColorMap} />
         </div>
       </section>
       )}
