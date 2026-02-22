@@ -1,10 +1,9 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   getProductComparisons,
-  getAvgCommentsPerPR,
-  getBotReactionLeaderboard,
   getPrCommentSyncPct,
   getAllPrCharacteristics,
   getWeeklyActivityByProduct,
@@ -12,7 +11,8 @@ import {
 } from "@/lib/clickhouse";
 import { PAIR_BY_SLUG } from "@/lib/generated/compare-pairs";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
-import { CompareCharts } from "../compare-charts";
+import { CompareChartsAbove } from "../compare-charts-above";
+import { CompareBelowFold, BelowFoldSkeleton } from "../compare-below-fold";
 import { JsonLd } from "@/components/json-ld";
 import { PairFilterSync } from "./pair-filter-sync";
 
@@ -49,12 +49,12 @@ export default async function ComparePairPage({ params }: Props) {
   if (!pair) notFound();
 
   const ids = new Set([pair.idA, pair.idB]);
+  const overrideIds: [string, string] = [pair.idA, pair.idB];
 
-  const [allProducts, allCommentsPerPR, allReactions, prCommentSyncPct, allCharacteristics, weeklyActivity, weeklyReactions] =
+  // Critical: above-fold data
+  const [allProducts, prCommentSyncPct, allCharacteristics, weeklyActivity, weeklyReactions] =
     await Promise.all([
       getProductComparisons(),
-      getAvgCommentsPerPR(),
-      getBotReactionLeaderboard(),
       getPrCommentSyncPct(),
       getAllPrCharacteristics(),
       getWeeklyActivityByProduct(),
@@ -62,13 +62,11 @@ export default async function ComparePairPage({ params }: Props) {
     ]);
 
   const products = allProducts.filter((p) => ids.has(p.id));
-  const commentsPerPR = allCommentsPerPR.filter((c) => ids.has(c.product_id));
-  const reactionLeaderboard = allReactions.filter((r) => ids.has(r.product_id));
   const prCharacteristics = allCharacteristics.filter((c) => ids.has(c.product_id));
 
   return (
     <div className="space-y-10" data-testid="compare-pair">
-      <PairFilterSync productIds={[pair.idA, pair.idB]} />
+      <PairFilterSync productIds={overrideIds} />
       <div>
         <h1 className="text-3xl font-bold">
           {pair.nameA} vs {pair.nameB}
@@ -76,15 +74,25 @@ export default async function ComparePairPage({ params }: Props) {
         <p className="mt-2 text-theme-muted">{pair.description}</p>
       </div>
       <PrCommentSyncBanner pct={prCommentSyncPct} />
-      <CompareCharts
+
+      {/* Above fold: trends chart + table + radar + bar breakdowns */}
+      <CompareChartsAbove
         products={products}
-        commentsPerPR={commentsPerPR}
-        reactionLeaderboard={reactionLeaderboard}
         prCharacteristics={prCharacteristics}
         weeklyActivity={weeklyActivity}
         weeklyReactions={weeklyReactions}
-        overrideProductIds={[pair.idA, pair.idB]}
+        overrideProductIds={overrideIds}
       />
+
+      {/* Below fold: comments per PR + bot sentiment */}
+      <Suspense fallback={<BelowFoldSkeleton />}>
+        <CompareBelowFold
+          since={undefined}
+          products={allProducts}
+          overrideProductIds={overrideIds}
+        />
+      </Suspense>
+
       <div className="text-center">
         <Link
           href={`/compare?products=${pair.idA},${pair.idB}`}

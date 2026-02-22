@@ -816,20 +816,15 @@ export async function getPrCharacteristics(
   const rows = await query<PrCharacteristics>(
     `SELECT
       count() AS sampled_prs,
-      round(avg(p.additions), 0) AS avg_additions,
-      round(avg(p.deletions), 0) AS avg_deletions,
-      round(avg(p.changed_files), 1) AS avg_changed_files,
-      round(countIf(p.state = 'merged') * 100.0 / count(), 1) AS merge_rate,
-      round(avg(if(p.state = 'merged' AND p.merged_at IS NOT NULL,
-        dateDiff('hour', p.created_at, p.merged_at), NULL)), 1) AS avg_hours_to_merge
-    FROM (
-      SELECT DISTINCT e.repo_name, e.pr_number
-      FROM pr_bot_events e
-      JOIN bots b ON e.bot_id = b.id
-      WHERE b.product_id = {productId:String}
-      ${since ? "AND e.event_week >= toDate({since:String})" : ""}
-    ) AS de
-    JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number`,
+      round(avg(additions), 0) AS avg_additions,
+      round(avg(deletions), 0) AS avg_deletions,
+      round(avg(changed_files), 1) AS avg_changed_files,
+      round(countIf(state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+      round(avg(if(state = 'merged' AND merged_at IS NOT NULL,
+        dateDiff('hour', created_at, merged_at), NULL)), 1) AS avg_hours_to_merge
+    FROM pr_product_characteristics FINAL
+    WHERE product_id = {productId:String}
+    ${since ? "AND created_at >= toDate({since:String})" : ""}`,
     params,
   );
 
@@ -850,22 +845,17 @@ export async function getAllPrCharacteristics(
 
   return query<ProductPrCharacteristics>(
     `SELECT
-      de.product_id,
+      product_id,
       count() AS sampled_prs,
-      round(avg(p.additions), 0) AS avg_additions,
-      round(avg(p.deletions), 0) AS avg_deletions,
-      round(avg(p.changed_files), 1) AS avg_changed_files,
-      round(countIf(p.state = 'merged') * 100.0 / count(), 1) AS merge_rate,
-      round(avg(if(p.state = 'merged' AND p.merged_at IS NOT NULL,
-        dateDiff('hour', p.created_at, p.merged_at), NULL)), 1) AS avg_hours_to_merge
-    FROM (
-      SELECT DISTINCT e.repo_name, e.pr_number, b.product_id
-      FROM pr_bot_events e
-      JOIN bots b ON e.bot_id = b.id
-      ${since ? "WHERE e.event_week >= toDate({since:String})" : ""}
-    ) AS de
-    JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number
-    GROUP BY de.product_id
+      round(avg(additions), 0) AS avg_additions,
+      round(avg(deletions), 0) AS avg_deletions,
+      round(avg(changed_files), 1) AS avg_changed_files,
+      round(countIf(state = 'merged') * 100.0 / count(), 1) AS merge_rate,
+      round(avg(if(state = 'merged' AND merged_at IS NOT NULL,
+        dateDiff('hour', created_at, merged_at), NULL)), 1) AS avg_hours_to_merge
+    FROM pr_product_characteristics FINAL
+    ${since ? "WHERE created_at >= toDate({since:String})" : ""}
+    GROUP BY product_id
     HAVING sampled_prs >= 10`,
     params,
   );

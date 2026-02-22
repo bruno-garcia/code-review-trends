@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 9;
+export const EXPECTED_SCHEMA_VERSION = 10;
 
 export type SchemaStatus = {
   /**
@@ -514,8 +514,76 @@ const MIGRATION_009: Migration = {
   ],
 };
 
+/**
+ * Migration 10 — pr_product_characteristics materialized view.
+ * Matches db/init/011_pr_product_characteristics.sql.
+ *
+ * Pre-joins pull_requests with pr_bot_events + bots so that per-product PR
+ * characteristic queries (avg additions, merge rate, time-to-merge) don't need
+ * a DISTINCT over millions of pr_bot_events rows at query time. Reduces the
+ * compare page's slowest query from a 5.6M-row DISTINCT + 627K-row JOIN to a
+ * simple GROUP BY on ~750K pre-joined rows.
+ */
+const MIGRATION_010: Migration = {
+  version: 10,
+  name: "pr_product_characteristics",
+  statements: [
+    // Target table — one row per (product, PR), deduplicated by ReplacingMergeTree
+    `CREATE TABLE IF NOT EXISTS pr_product_characteristics (
+      product_id String,
+      repo_name String,
+      pr_number UInt32,
+      additions UInt32,
+      deletions UInt32,
+      changed_files UInt32,
+      state String,
+      created_at DateTime,
+      merged_at Nullable(DateTime)
+    ) ENGINE = ReplacingMergeTree()
+    ORDER BY (product_id, repo_name, pr_number)`,
+
+    // MV: auto-populates on INSERT to pull_requests
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_product_characteristics_mv
+    TO pr_product_characteristics
+    AS SELECT
+      b.product_id,
+      p.repo_name,
+      p.pr_number,
+      p.additions,
+      p.deletions,
+      p.changed_files,
+      p.state,
+      p.created_at,
+      p.merged_at
+    FROM pull_requests AS p
+    INNER JOIN pr_bot_events AS e
+      ON p.repo_name = e.repo_name AND p.pr_number = e.pr_number
+    INNER JOIN bots AS b
+      ON e.bot_id = b.id`,
+
+    // Backfill existing data
+    `INSERT INTO pr_product_characteristics
+    SELECT
+      b.product_id,
+      p.repo_name,
+      p.pr_number,
+      p.additions,
+      p.deletions,
+      p.changed_files,
+      p.state,
+      p.created_at,
+      p.merged_at
+    FROM pull_requests AS p
+    INNER JOIN pr_bot_events AS e
+      ON p.repo_name = e.repo_name AND p.pr_number = e.pr_number
+    INNER JOIN bots AS b
+      ON e.bot_id = b.id
+    SETTINGS max_execution_time = 300`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

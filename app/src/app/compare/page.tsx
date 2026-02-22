@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { getProductComparisons, getAvgCommentsPerPR, getBotReactionLeaderboard, getPrCommentSyncPct, getAllPrCharacteristics, getWeeklyActivityByProduct, getWeeklyReactionsByProduct } from "@/lib/clickhouse";
+import { getProductComparisons, getPrCommentSyncPct, getAllPrCharacteristics, getWeeklyActivityByProduct, getWeeklyReactionsByProduct } from "@/lib/clickhouse";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
-import { CompareCharts } from "./compare-charts";
+import { CompareChartsAbove } from "./compare-charts-above";
+import { CompareBelowFold, BelowFoldSkeleton } from "./compare-below-fold";
 import { PAIR_BY_IDS } from "@/lib/generated/compare-pairs";
 
 const DEFAULT_TITLE = "Compare AI Code Review Products";
@@ -53,10 +55,12 @@ export default async function ComparePage({
   const range = parseTimeRange(params.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [products, commentsPerPR, reactionLeaderboard, prCommentSyncPct, prCharacteristics, weeklyActivity, weeklyReactions] = await Promise.all([
+  // Critical data: above-fold content (trends chart, comparison table, radar, bar charts).
+  // These block the initial HTML response but use fast pre-aggregated tables.
+  // getAllPrCharacteristics uses the pr_product_characteristics MV — no more
+  // DISTINCT over millions of pr_bot_events rows.
+  const [products, prCommentSyncPct, prCharacteristics, weeklyActivity, weeklyReactions] = await Promise.all([
     getProductComparisons(since),
-    getAvgCommentsPerPR(undefined, since),
-    getBotReactionLeaderboard(since),
     getPrCommentSyncPct(),
     getAllPrCharacteristics(since),
     getWeeklyActivityByProduct(undefined, since),
@@ -73,7 +77,19 @@ export default async function ComparePage({
         </p>
       </div>
       <PrCommentSyncBanner pct={prCommentSyncPct} />
-      <CompareCharts products={products} commentsPerPR={commentsPerPR} reactionLeaderboard={reactionLeaderboard} prCharacteristics={prCharacteristics} weeklyActivity={weeklyActivity} weeklyReactions={weeklyReactions} />
+
+      {/* Above fold: trends chart + table + radar + bar breakdowns */}
+      <CompareChartsAbove
+        products={products}
+        prCharacteristics={prCharacteristics}
+        weeklyActivity={weeklyActivity}
+        weeklyReactions={weeklyReactions}
+      />
+
+      {/* Below fold: comments per PR + bot sentiment — streamed via Suspense */}
+      <Suspense fallback={<BelowFoldSkeleton />}>
+        <CompareBelowFold since={since} products={products} />
+      </Suspense>
     </div>
   );
 }
