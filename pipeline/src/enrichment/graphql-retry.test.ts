@@ -12,7 +12,7 @@
 
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { graphqlWithRetry, isTransientNetworkError, TRANSIENT_ERROR_PATTERNS, type GraphQLResponse } from "./graphql-retry.js";
+import { graphqlWithRetry, isTransientNetworkError, isServerError, isRetryableError, TRANSIENT_ERROR_PATTERNS, type GraphQLResponse } from "./graphql-retry.js";
 import type { Octokit } from "@octokit/rest";
 
 /** Build a minimal Octokit-like object with a stubbed request method. */
@@ -169,5 +169,123 @@ describe("graphqlWithRetry", () => {
 
     assert.deepStrictEqual(result.data, OK_RESPONSE.data);
     assert.equal(requestFn.mock.callCount(), 3);
+  });
+
+  it("retries on 502 server error and recovers", async () => {
+    let calls = 0;
+    const requestFn = mock.fn(async () => {
+      calls++;
+      if (calls === 1) {
+        const err = new Error("Bad Gateway") as Error & { status: number };
+        err.status = 502;
+        throw err;
+      }
+      return OK_RESPONSE;
+    });
+    const octokit = makeOctokit(requestFn);
+
+    const result = await graphqlWithRetry(octokit, "query {}", "test-502");
+
+    assert.deepStrictEqual(result.data, OK_RESPONSE.data);
+    assert.equal(requestFn.mock.callCount(), 2);
+  });
+
+  it("exhausts retries on persistent 502 and throws", async () => {
+    const requestFn = mock.fn(async () => {
+      const err = new Error("Bad Gateway") as Error & { status: number };
+      err.status = 502;
+      throw err;
+    });
+    const octokit = makeOctokit(requestFn);
+
+    await assert.rejects(
+      () => graphqlWithRetry(octokit, "query {}", "test-502-exhaust"),
+      (err: Error & { status?: number }) => {
+        assert.equal(err.status, 502);
+        return true;
+      },
+    );
+
+    assert.equal(requestFn.mock.callCount(), 3);
+  });
+
+  it("retries on HTML error response", async () => {
+    let calls = 0;
+    const requestFn = mock.fn(async () => {
+      calls++;
+      if (calls === 1) throw new Error("<html><body>Server Error</body></html>");
+      return OK_RESPONSE;
+    });
+    const octokit = makeOctokit(requestFn);
+
+    const result = await graphqlWithRetry(octokit, "query {}", "test-html");
+
+    assert.deepStrictEqual(result.data, OK_RESPONSE.data);
+    assert.equal(requestFn.mock.callCount(), 2);
+  });
+
+  it("does not retry non-retryable errors (status 400)", async () => {
+    const requestFn = mock.fn(async () => {
+      const err = new Error("GraphQL validation error") as Error & { status: number };
+      err.status = 400;
+      throw err;
+    });
+    const octokit = makeOctokit(requestFn);
+
+    await assert.rejects(
+      () => graphqlWithRetry(octokit, "query {}", "test-400"),
+      (err: Error & { status?: number }) => {
+        assert.equal(err.status, 400);
+        return true;
+      },
+    );
+
+    assert.equal(requestFn.mock.callCount(), 1);
+  });
+});
+
+describe("isServerError", () => {
+  it("detects 502 status", () => {
+    const err = Object.assign(new Error("Bad Gateway"), { status: 502 });
+    assert.equal(isServerError(err), true);
+  });
+
+  it("detects 503 status", () => {
+    const err = Object.assign(new Error("Service Unavailable"), { status: 503 });
+    assert.equal(isServerError(err), true);
+  });
+
+  it("detects status on response object", () => {
+    const err = Object.assign(new Error("fail"), { response: { status: 502 } });
+    assert.equal(isServerError(err), true);
+  });
+
+  it("detects HTML error message", () => {
+    assert.equal(isServerError(new Error("<html><body>502</body></html>")), true);
+    assert.equal(isServerError(new Error("<!DOCTYPE html>")), true);
+  });
+
+  it("detects bad gateway / service unavailable messages", () => {
+    assert.equal(isServerError(new Error("Bad Gateway")), true);
+    assert.equal(isServerError(new Error("Service Unavailable")), true);
+  });
+
+  it("returns false for non-server errors", () => {
+    assert.equal(isServerError(new Error("Bad credentials")), false);
+    assert.equal(isServerError(Object.assign(new Error("fail"), { status: 400 })), false);
+  });
+});
+
+describe("isRetryableError", () => {
+  it("returns true for transient network errors", () => {
+    assert.equal(isRetryableError(new Error("read ECONNRESET")), true);
+  });
+
+  it("returns true for server errors", () => {
+    assert.equal(isRetryableError(Object.assign(new Error("Bad Gateway"), { status: 502 })), true);
+  });
+
+  it("returns false for other errors", () => {
+    assert.equal(isRetryableError(new Error("Bad credentials")), false);
   });
 });
