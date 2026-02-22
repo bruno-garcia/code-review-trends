@@ -16,7 +16,7 @@
 # Secret name derived from env: crt-<env>-github-tokens
 #
 # Reentrant: start always kills existing session first.
-# Logs: ~/worker-<env>-{0,1,...}.log
+# Logs: ~/worker-<env>-{1,2,...}.log
 
 set -euo pipefail
 
@@ -97,15 +97,17 @@ cmd_start() {
 
   # Windows 1..N: workers (staggered 60s apart to avoid ClickHouse overload)
   for i in $(seq 0 $((n - 1))); do
-    local wname="worker${i}"
-    local logfile="$HOME/worker-${PIPELINE_ENV}-${i}.log"
+    local display_id=$((i + 1))
+    local wname="worker${display_id}"
+    local logfile="$HOME/worker-${PIPELINE_ENV}-${display_id}.log"
     local token="${TOKENS[$i]}"
 
     # Build the worker command — override GITHUB_TOKEN per worker
     # Workers after the first sleep before starting to stagger ClickHouse queries
+    # CLI --worker-id is 0-based (used for hash partitioning), display is 1-based
     local sleep_cmd=""
     if [[ $i -gt 0 ]]; then
-      sleep_cmd="echo 'Waiting $((i * 60))s to stagger start...' && sleep $((i * 60)) && "
+      sleep_cmd="echo 'Worker ${display_id}/${n}: waiting $((i * 60))s to stagger start...' && sleep $((i * 60)) && "
     fi
     local cmd="${sleep_cmd}cd $REPO_DIR && export \$(grep -v '^#' $ENV_FILE | xargs) && export GITHUB_TOKEN='${token}' && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --no-sentry 2>&1 | tee $logfile"
 
