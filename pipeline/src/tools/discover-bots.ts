@@ -611,7 +611,12 @@ async function main() {
   await discoverBots({ startDate, endDate, marketplaceOnly, bigqueryOnly });
 }
 
-main().catch((err) => {
-  console.error("Error:", err);
-  process.exit(1);
-});
+const isDirectRun =
+  process.argv[1]?.endsWith("discover-bots.ts") ||
+  process.argv[1]?.endsWith("discover-bots.js");
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error("Error:", err);
+    process.exit(1);
+  });
+}
