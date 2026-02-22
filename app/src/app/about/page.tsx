@@ -693,7 +693,7 @@ export default async function AboutPage() {
               events/day to ~18,000 events/day (a 99% reduction) for five days.
               GitHub Support{" "}
               <a
-                href="https://github.com/igrigorik/gharchive.org/issues/312#issuecomment-3410638850"
+                href="https://github.com/igrigorik/gharchive.org/issues/312#issuecomment-3411383428"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={linkClass}
