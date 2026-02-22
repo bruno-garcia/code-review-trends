@@ -135,7 +135,7 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 | `app/src/components/theme-provider.tsx` | Light/dark theme system (CSS custom properties) |
 | `app/src/components/theme-toggle.tsx` | Theme toggle UI component |
 | `app/src/app/page.tsx` | Home page — AI share, volume, leaderboard |
-| `app/src/app/products/page.tsx` | Bot listing page |
+| `app/src/app/products/page.tsx` | Product listing page |
 | `app/src/app/products/[id]/page.tsx` | Individual bot detail page |
 | `app/src/app/about/page.tsx` | About / methodology page |
 | `app/src/app/status/page.tsx` | Pipeline status page |
