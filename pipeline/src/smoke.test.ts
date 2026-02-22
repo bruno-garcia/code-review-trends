@@ -574,30 +574,33 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
     let testPRNumber: number;
 
     before(async () => {
-      // Find a PR with bot review comments by looking at recent pr_bot_events
-      // Fall back to a hardcoded approach: just fetch comments from a recent PR
-      const resp = await octokit.rest.pulls.list({
-        owner: TEST_REPO_OWNER,
-        repo: TEST_REPO_NAME,
-        state: "closed",
-        sort: "updated",
-        direction: "desc",
-        per_page: 10,
-      });
-
-      // Try each PR until we find one with review comments
-      for (const pr of resp.data) {
-        const commentResp = await octokit.rest.pulls.listReviewComments({
+      // Find a PR with review comments by scanning recent PRs.
+      // Try closed PRs first, then open PRs as fallback (open PRs are
+      // more likely to have active review threads).
+      for (const state of ["closed", "open"] as const) {
+        const resp = await octokit.rest.pulls.list({
           owner: TEST_REPO_OWNER,
           repo: TEST_REPO_NAME,
-          pull_number: pr.number,
-          per_page: 5,
+          state,
+          sort: "updated",
+          direction: "desc",
+          per_page: 30,
         });
-        if (commentResp.data.length > 0) {
-          comments = commentResp.data;
-          testPRNumber = pr.number;
-          break;
+
+        for (const pr of resp.data) {
+          const commentResp = await octokit.rest.pulls.listReviewComments({
+            owner: TEST_REPO_OWNER,
+            repo: TEST_REPO_NAME,
+            pull_number: pr.number,
+            per_page: 5,
+          });
+          if (commentResp.data.length > 0) {
+            comments = commentResp.data;
+            testPRNumber = pr.number;
+            break;
+          }
         }
+        if (comments) break;
       }
     });
 

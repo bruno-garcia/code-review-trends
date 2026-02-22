@@ -630,6 +630,97 @@ export default async function AboutPage() {
         </p>
       </section>
 
+      {/* Known Data Gaps */}
+      <section className="space-y-4">
+        <SectionHeading id="data-gaps" className="text-theme-text">
+          Known Data Gaps
+        </SectionHeading>
+        <p className="text-theme-text-secondary leading-relaxed">
+          GH Archive is our sole source for trend data, and it has
+          known data-collection issues that affect our charts. These are
+          upstream problems we cannot fix — the raw event counts in BigQuery
+          are lower than reality for the affected periods.
+        </p>
+
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium text-theme-text">
+              May 24, 2025 — permanent ~35% drop in captured events
+            </h3>
+            <p className="mt-2 text-theme-text-secondary leading-relaxed">
+              Starting May 24, 2025 the number of events captured by GH Archive
+              dropped by roughly 35% and has not recovered. The GH Archive{" "}
+              <a
+                href="https://github.com/igrigorik/gharchive.org/blob/master/crawler/crawler.rb"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClass}
+              >
+                crawler
+              </a>{" "}
+              only fetches the first page of the GitHub Events API. Analysis of
+              event IDs shows the archive has always missed some events, but the
+              miss rate increased sharply on this date — likely due to a
+              server-side change at GitHub. This is tracked in{" "}
+              <a
+                href="https://github.com/igrigorik/gharchive.org/issues/310"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClass}
+              >
+                gharchive.org issue 310
+              </a>
+              {" "}(open, unresolved).
+            </p>
+            <p className="mt-2 text-theme-text-secondary leading-relaxed">
+              <strong className="text-theme-text">Impact:</strong> All absolute
+              event counts (bot and human) after May 24 are ~35% lower than
+              they should be. Because both sides are affected proportionally,
+              the <em>AI Share percentage</em> remains approximately correct —
+              ratios are preserved even when the underlying counts are
+              undercounted.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium text-theme-text">
+              Oct 9–14, 2025 — near-total outage (5 days)
+            </h3>
+            <p className="mt-2 text-theme-text-secondary leading-relaxed">
+              GitHub introduced a cache on the Events API that caused certain
+              API tokens — including the one used by the GH Archive crawler —
+              to see stale data. Event capture dropped from ~2.7 million
+              events/day to ~18,000 events/day (a 99% reduction) for five days.
+              GitHub Support{" "}
+              <a
+                href="https://github.com/igrigorik/gharchive.org/issues/312#issuecomment-3411383428"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClass}
+              >
+                confirmed the issue
+              </a>
+              {" "}and disabled the cache. Normal collection resumed October 15.
+            </p>
+            <p className="mt-2 text-theme-text-secondary leading-relaxed">
+              <strong className="text-theme-text">Impact:</strong> The weeks of
+              October 6 and October 13 show dramatically lower counts, visible
+              as a sharp dip in all volume charts. The AI Share percentage for
+              those weeks is also unreliable since the missing events may not be
+              evenly distributed between bot and human activity.
+            </p>
+          </div>
+        </div>
+
+        <p className="text-theme-muted text-sm italic">
+          These gaps are inherent to GH Archive. We do not attempt to
+          interpolate, estimate, or backfill the missing data — what you see
+          in the charts is exactly what GH Archive captured. If GH Archive
+          recovers to full event coverage in the future, our next pipeline
+          backfill will automatically reflect the corrected data.
+        </p>
+      </section>
+
       {/* Comparison with Other Trackers */}
       <section className="space-y-4">
         <SectionHeading id="comparison" className="text-theme-text">
