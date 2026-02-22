@@ -105,7 +105,7 @@ export function FilteredProductsPage({
           <Link
             key={product.id}
             href={buildUrl(`/products/${product.id}`)}
-            className="block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors"
+            className={`block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors${product.status === "retired" ? " opacity-60" : ""}`}
             data-testid={`bot-card-${product.id}`}
           >
             <div className="flex items-center gap-3 mb-3">
