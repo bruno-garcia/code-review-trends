@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 10;
+export const EXPECTED_SCHEMA_VERSION = 11;
 
 export type SchemaStatus = {
   /**
@@ -584,8 +584,49 @@ const MIGRATION_010: Migration = {
   ],
 };
 
+/**
+ * Migration 11 — org_bot_pr_counts pre-aggregated table.
+ * Matches db/init/012_org_pr_counts.sql.
+ *
+ * Pre-aggregates pr_bot_events at the (owner, bot_id) level by extracting
+ * the owner from repo_name (format: "owner/repo") using splitByChar.
+ * Eliminates the expensive repos JOIN + double GROUP BY in getOrgList,
+ * which was timing out at >15s on staging.
+ */
+const MIGRATION_011: Migration = {
+  version: 11,
+  name: "org_bot_pr_counts",
+  statements: [
+    `CREATE TABLE IF NOT EXISTS org_bot_pr_counts (
+      owner String,
+      bot_id String,
+      pr_count AggregateFunction(uniqExact, UInt32)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY (owner, bot_id)`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS org_bot_pr_counts_mv
+    TO org_bot_pr_counts
+    AS SELECT
+      splitByChar('/', repo_name)[1] AS owner,
+      bot_id,
+      uniqExactState(pr_number) AS pr_count
+    FROM pr_bot_events
+    GROUP BY owner, bot_id`,
+
+    // Backfill from existing data
+    `INSERT INTO org_bot_pr_counts
+    SELECT
+      splitByChar('/', repo_name)[1] AS owner,
+      bot_id,
+      uniqExactState(pr_number) AS pr_count
+    FROM pr_bot_events
+    GROUP BY owner, bot_id
+    SETTINGS max_execution_time = 300`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables
