@@ -2,6 +2,57 @@
  * GitHub API utilities for enrichment data.
  */
 
+// ── Token identity ─────────────────────────────────────────────────────
+
+export type GitHubTokenInfo = {
+  login: string;
+  /** Token expiry date, or null if the token never expires. */
+  expiry: Date | null;
+};
+
+/**
+ * Resolve the authenticated user and token expiry from a GitHub PAT.
+ *
+ * Calls `GET /user` — a single lightweight API request that counts against
+ * the token's rate limit but does NOT consume a GraphQL point.
+ *
+ * Fine-grained and classic PATs with an expiry date return a
+ * `github-token-expiration` response header (format: "2025-03-15 00:00:00 UTC").
+ * Tokens without expiry omit the header entirely.
+ */
+export async function resolveGitHubTokenInfo(token: string): Promise<GitHubTokenInfo> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+  let res: Response;
+  try {
+    res = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!res.ok) {
+    throw new Error(`GitHub GET /user failed: ${res.status} ${res.statusText}`);
+  }
+
+  const data = (await res.json()) as { login: string };
+
+  // Parse token expiration from response header (if present).
+  // Format: "2025-03-15 00:00:00 UTC"
+  const expiryHeader = res.headers.get("github-token-expiration");
+  const expiry = expiryHeader ? new Date(expiryHeader) : null;
+
+  return { login: data.login, expiry };
+}
+
+// ── Reactions ──────────────────────────────────────────────────────────
+
 export type ReviewCommentReactions = {
   thumbs_up: number;
   thumbs_down: number;
