@@ -14,12 +14,13 @@ import { SchemaBanner } from "@/components/schema-banner";
 import { MigrationGate } from "@/components/migration-gate";
 import { getSchemaStatus } from "@/lib/migrations";
 import { NavigationProgress } from "@/components/navigation-progress";
+import { OG_DEFAULTS } from "@/lib/constants";
 import "./globals.css";
 
 export const revalidate = 300; // 5 minutes — matches in-memory query cache TTL
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://codereviewtrends.com"),
+  metadataBase: new URL(process.env.SITE_URL || "https://codereviewtrends.com"),
   title: {
     default: "Code Review Trends — AI Code Review Adoption on GitHub",
     template: "%s — Code Review Trends",
@@ -34,11 +35,7 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-icon.png",
   },
-  openGraph: {
-    type: "website",
-    siteName: "Code Review Trends",
-    locale: "en_US",
-  },
+  openGraph: OG_DEFAULTS,
   twitter: {
     card: "summary_large_image",
   },

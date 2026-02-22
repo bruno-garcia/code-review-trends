@@ -9,6 +9,7 @@ import {
 import { formatNumber, formatHours } from "@/lib/format";
 import { SectionHeading } from "@/components/section-heading";
 import { JsonLd } from "@/components/json-ld";
+import { OG_DEFAULTS } from "@/lib/constants";
 
 type Params = { params: Promise<{ owner: string; name: string }> };
 
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: `/repos/${owner}/${name}` },
-    openGraph: { title, description, url: `/repos/${owner}/${name}` },
+    openGraph: { ...OG_DEFAULTS, title, description, url: `/repos/${owner}/${name}` },
   };
 }
 

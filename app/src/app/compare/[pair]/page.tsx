@@ -11,6 +11,7 @@ import {
   getWeeklyReactionsByProduct,
 } from "@/lib/clickhouse";
 import { PAIR_BY_SLUG } from "@/lib/generated/compare-pairs";
+import { OG_DEFAULTS } from "@/lib/constants";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareCharts } from "../compare-charts";
 import { JsonLd } from "@/components/json-ld";
@@ -31,6 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: pair.description,
     alternates: { canonical: url },
     openGraph: {
+      ...OG_DEFAULTS,
       title: pair.title,
       description: pair.description,
       url,

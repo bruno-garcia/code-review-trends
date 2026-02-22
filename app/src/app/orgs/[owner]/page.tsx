@@ -8,6 +8,7 @@ import {
 } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
 import { SectionHeading } from "@/components/section-heading";
+import { OG_DEFAULTS } from "@/lib/constants";
 
 export async function generateMetadata({
   params,
@@ -29,7 +30,7 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: `/orgs/${owner}` },
-    openGraph: { title, description, url: `/orgs/${owner}` },
+    openGraph: { ...OG_DEFAULTS, title, description, url: `/orgs/${owner}` },
   };
 }
 
