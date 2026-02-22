@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import type { ProductComparison, BotCommentsPerPR, BotReactions, ProductPrCharacteristics, WeeklyActivityByProduct, WeeklyReactionsByProduct } from "@/lib/clickhouse";
+import type { ProductComparison, ProductPrCharacteristics, WeeklyActivityByProduct, WeeklyReactionsByProduct } from "@/lib/clickhouse";
 import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
-import { BotRadarChart, CommentsPerPRChart, BotReactionLeaderboardChart, CompareTrendsChart, COLORS } from "@/components/charts";
+import { BotRadarChart, CompareTrendsChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor } from "@/lib/theme-overrides";
 import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
@@ -177,6 +177,29 @@ const METRICS: {
   },
 ];
 
+/** Columns that use -1 as a sentinel for N/A — push to end when sorting. */
+const SENTINEL_KEYS: Set<SortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
+
+const RADAR_DIMENSIONS: { key: SortKey; label: string }[] = [
+  { key: "total_reviews", label: "Reviews" },
+  { key: "total_comments", label: "Review Comments" },
+  { key: "total_pr_comments", label: "PR Comments" },
+  { key: "total_repos", label: "Repos" },
+  { key: "total_orgs", label: "Orgs" },
+  { key: "latest_week_reviews", label: "Recent Activity" },
+];
+
+const BAR_CHART_METRICS: { key: SortKey; label: string }[] = [
+  { key: "total_reviews", label: "Total Reviews" },
+  { key: "total_pr_comments", label: "PR Comments" },
+  { key: "total_repos", label: "Active Repos" },
+  { key: "total_orgs", label: "Organizations" },
+  { key: "avg_comments_per_review", label: "Avg Comments/Review" },
+  { key: "thumbs_up_rate", label: "👍 Rate %" },
+  { key: "reaction_rate", label: "Reaction Rate %" },
+  { key: "comments_per_repo", label: "Comments per Repo" },
+];
+
 function normalize(products: CompareRow[], key: SortKey): number[] {
   const values = products.map((p) => Number(p[key] ?? 0));
   const max = Math.max(...values);
@@ -184,18 +207,14 @@ function normalize(products: CompareRow[], key: SortKey): number[] {
   return values.map((v) => Math.round((v / max) * 100));
 }
 
-export function CompareCharts({
+export function CompareChartsAbove({
   products: allProducts,
-  commentsPerPR: allCommentsPerPR,
-  reactionLeaderboard: allReactionLeaderboard,
   prCharacteristics,
   weeklyActivity,
   weeklyReactions,
   overrideProductIds,
 }: {
   products: ProductComparison[];
-  commentsPerPR: BotCommentsPerPR[];
-  reactionLeaderboard: BotReactions[];
   prCharacteristics: ProductPrCharacteristics[];
   weeklyActivity: WeeklyActivityByProduct[];
   weeklyReactions: WeeklyReactionsByProduct[];
@@ -232,12 +251,6 @@ export function CompareCharts({
         }),
     [allProducts, selectedProductIds, prCharsMap],
   );
-  const commentsPerPR = allCommentsPerPR.filter((c) =>
-    selectedProductIds.includes(c.product_id),
-  );
-  const filteredReactions = allReactionLeaderboard.filter((r) =>
-    selectedProductIds.includes(r.product_id),
-  );
 
   // Table sort state (synced to URL for sharing)
   const [rawSortKey, setRawSortKey] = useUrlState("sort", "growth_pct");
@@ -267,19 +280,17 @@ export function CompareCharts({
   const sortDir: "asc" | "desc" = rawSortDir === "asc" ? "asc" : "desc";
 
   // Columns that use -1 as a sentinel for N/A — push to end.
-  // Other columns (e.g. growth_pct) have legitimate negative values.
-  const sentinelKeys: Set<SortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
+  // (static Set defined at module level to avoid re-creation on every render)
 
   const sorted = [...products].sort((a, b) => {
     const aRaw = a[sortKey];
     const bRaw = b[sortKey];
-    // Push nulls to the end regardless of sort direction
     if (aRaw == null && bRaw == null) return 0;
     if (aRaw == null) return 1;
     if (bRaw == null) return -1;
     const av = Number(aRaw);
     const bv = Number(bRaw);
-    if (sentinelKeys.has(sortKey)) {
+    if (SENTINEL_KEYS.has(sortKey)) {
       const aNA = av < 0;
       const bNA = bv < 0;
       if (aNA && bNA) return 0;
@@ -303,47 +314,17 @@ export function CompareCharts({
     products.map((p, i) => [p.id, getThemedBrandColor(p.id, p.brand_color || COLORS[i % COLORS.length], resolved)]),
   );
 
-  // Radar chart data
-  const radarDimensions = [
-    { key: "total_reviews" as SortKey, label: "Reviews" },
-    { key: "total_comments" as SortKey, label: "Review Comments" },
-    { key: "total_pr_comments" as SortKey, label: "PR Comments" },
-    { key: "total_repos" as SortKey, label: "Repos" },
-    { key: "total_orgs" as SortKey, label: "Orgs" },
-    { key: "latest_week_reviews" as SortKey, label: "Recent Activity" },
-  ];
+  // --- Trends chart data ---
 
-  const radarData = radarDimensions.map((dim) => {
-    const normalized = normalize(products, dim.key);
-    const point: Record<string, string | number> = { metric: dim.label };
-    products.forEach((p, i) => {
-      point[p.name] = normalized[i];
-    });
-    return point;
-  });
-
-  const productNames = products.map((p) => p.name);
-
-  // Name→color map for charts that use names as series keys
-  const nameColorMap: Record<string, string> = {};
-  for (const p of products) {
-    const i = products.indexOf(p);
-    nameColorMap[p.name] = getThemedBrandColor(p.id, p.brand_color || COLORS[i % COLORS.length], resolved);
-  }
-
-  // Build a product_id→name lookup for pivoting
   const idToName = useMemo(() => {
     const m = new Map<string, string>();
     for (const p of allProducts) m.set(p.id, p.name);
     return m;
   }, [allProducts]);
 
-  // Pivot weekly activity + reactions into per-metric trend data.
-  // The chart component picks the right keys based on the selected metric.
   const trendData = useMemo(() => {
     const selectedSet = new Set(selectedProductIds);
 
-    // Index reaction data by (week, product_id)
     type ReactionRow = { thumbs_up: number; thumbs_down: number; comment_count: number; reacted_comment_count: number; pr_count: number };
     const reactionIndex = new Map<string, ReactionRow>();
     for (const r of weeklyReactions) {
@@ -367,7 +348,6 @@ export function CompareCharts({
       }
     }
 
-    // Collect all weeks from both sources
     const allWeeks = new Set<string>();
     const activityByWeek = new Map<string, Map<string, WeeklyActivityByProduct>>();
 
@@ -388,9 +368,6 @@ export function CompareCharts({
 
     const sortedWeeks = [...allWeeks].sort();
 
-    // For each metric, we build: { reviews: { week, ProductA: val, ProductB: val }, ... }
-    // But we want a single array keyed by metric prefix so the chart can pick.
-    // Simpler: build 7 pivoted arrays keyed by metric name.
     const metrics: Record<string, Record<string, Record<string, string | number>>> = {
       reviews: {},
       review_comments: {},
@@ -421,14 +398,13 @@ export function CompareCharts({
           metrics.orgs[week][name] = Number(act.org_count);
         }
 
-        // Reaction-based metrics
         const rKey = `${week}|${pid}`;
         const rx = reactionIndex.get(rKey);
         if (rx) {
           const total = rx.thumbs_up + rx.thumbs_down;
           metrics.thumbs_up_rate[week][name] = total >= MIN_WEEKLY_REACTIONS
             ? Math.round(rx.thumbs_up * 1000 / total) / 10
-            : 0; // not enough data for the week
+            : 0;
           metrics.comments_per_pr[week][name] = rx.pr_count > 0
             ? Math.round(rx.comment_count * 100 / rx.pr_count) / 100
             : 0;
@@ -439,15 +415,34 @@ export function CompareCharts({
     return metrics;
   }, [weeklyActivity, weeklyReactions, selectedProductIds, idToName]);
 
-  // trendData is passed to the chart as a map; the chart selects the metric
-  // internally via useUrlState("trend") and picks the right array to render.
+  const productNames = products.map((p) => p.name);
+
+  const nameColorMap: Record<string, string> = {};
+  for (const p of products) {
+    const i = products.indexOf(p);
+    nameColorMap[p.name] = getThemedBrandColor(p.id, p.brand_color || COLORS[i % COLORS.length], resolved);
+  }
+
+  // --- Radar chart data ---
+
+  const radarData = RADAR_DIMENSIONS.map((dim) => {
+    const normalized = normalize(products, dim.key);
+    const point: Record<string, string | number> = { metric: dim.label };
+    products.forEach((p, i) => {
+      point[p.name] = normalized[i];
+    });
+    return point;
+  });
+
+  // --- Bar chart breakdowns ---
+
+  // --- Table section ---
 
   const tableSection = (
       <section
         data-testid="compare-table-section"
         className={isExpanded ? "mx-[calc(-50vw+50%)] w-screen px-4 sm:px-6 lg:px-8" : undefined}
       >
-        {/* Heading row with expand/collapse + X buttons */}
         <div className="flex items-center gap-3 mb-4">
           <h2
             id="detailed"
@@ -603,21 +598,12 @@ export function CompareCharts({
       </section>
       )}
 
-      {/* Bar chart breakdowns, comments/PR, sentiment — hidden when table is expanded */}
-      {!isExpanded && (<>
+      {/* Bar chart breakdowns — hidden when table is expanded */}
+      {!isExpanded && (
       <section data-testid="bar-charts-section" id="breakdowns">
         <SectionHeading id="breakdowns">Visual Breakdowns</SectionHeading>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[
-            { key: "total_reviews" as SortKey, label: "Total Reviews" },
-            { key: "total_pr_comments" as SortKey, label: "PR Comments" },
-            { key: "total_repos" as SortKey, label: "Active Repos" },
-            { key: "total_orgs" as SortKey, label: "Organizations" },
-            { key: "avg_comments_per_review" as SortKey, label: "Avg Comments/Review" },
-            { key: "thumbs_up_rate" as SortKey, label: "👍 Rate %" },
-            { key: "reaction_rate" as SortKey, label: "Reaction Rate %" },
-            { key: "comments_per_repo" as SortKey, label: "Comments per Repo" },
-          ].map(({ key, label }) => {
+          {BAR_CHART_METRICS.map(({ key, label }) => {
             const chartData = [...products]
               .sort((a, b) => Number(b[key]) - Number(a[key]))
               .map((product) => ({
@@ -666,32 +652,7 @@ export function CompareCharts({
           })}
         </div>
       </section>
-
-      {/* Comments per PR */}
-      <section data-testid="comments-per-pr-section" id="comments-per-pr">
-        <SectionHeading id="comments-per-pr">Comments per PR</SectionHeading>
-        <p className="text-theme-muted mb-6">
-          Average number of review comments each bot leaves per pull request.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <CommentsPerPRChart data={commentsPerPR} />
-        </div>
-      </section>
-
-      {/* Bot Sentiment */}
-      <section data-testid="bot-sentiment-section" id="sentiment">
-        <SectionHeading id="sentiment">Bot Sentiment</SectionHeading>
-        <p className="text-theme-muted mb-6">
-          How developers react to each bot&apos;s review comments — thumbs up,
-          hearts, and thumbs down.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <BotReactionLeaderboardChart data={filteredReactions} />
-        </div>
-      </section>
-      </>)}
+      )}
     </div>
   );
 }
-
-

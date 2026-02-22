@@ -352,6 +352,7 @@ const SCHEMA_MIGRATIONS: { version: number; name: string }[] = [
   { version: 7, name: "reaction_only_repo_counts" },
   { version: 8, name: "comment_stats_reacted_count" },
   { version: 9, name: "product_status" },
+  { version: 10, name: "pr_product_characteristics" },
 ];
 
 /** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table. */
@@ -784,7 +785,7 @@ async function cmdEnrich() {
   log("\nOptimizing tables...");
   const ch = createCHClient();
   try {
-    await optimizeTables(ch, ["repos", "pull_requests", "pr_comments", "pr_bot_reactions", "reaction_scan_progress"]);
+    await optimizeTables(ch, ["repos", "pull_requests", "pr_comments", "pr_bot_reactions", "reaction_scan_progress", "pr_product_characteristics"]);
     log("✓ Tables optimized");
   } finally {
     await ch.close();
