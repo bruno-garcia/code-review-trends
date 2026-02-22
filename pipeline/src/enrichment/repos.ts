@@ -266,7 +266,7 @@ export async function refreshStaleRepos(
     } catch (err: unknown) {
       if (err instanceof RateLimitExitError) throw err;
 
-      if (isServerError(err) && adaptive.size > adaptive.min) {
+      if (isServerError(err) && adaptive.size > 5) {
         adaptive.onServerError();
         continue; // retry same batch at smaller size
       }
