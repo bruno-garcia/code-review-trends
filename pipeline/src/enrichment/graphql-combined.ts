@@ -354,7 +354,7 @@ export function buildCombinedResults(
 
       // Parse hooray reactions — filter for tracked bot logins
       const botReactions: PrBotReactionRow[] = [];
-      const reactionsAvailable = prData.hoorayReactions !== undefined;
+      const reactionsAvailable = prData.hoorayReactions != null;
       const hasMoreReactions = prData.hoorayReactions?.pageInfo.hasNextPage ?? false;
       for (const reaction of prData.hoorayReactions?.nodes ?? []) {
         const login = reaction.user?.login;
