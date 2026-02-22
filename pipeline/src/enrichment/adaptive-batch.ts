@@ -54,9 +54,13 @@ export class AdaptiveBatch {
 
   onServerError(): void {
     const previous = this.current;
-    this.current = Math.max(this.min, Math.floor(this.current / 2));
-    this.reductions++;
-    this.log(`Adaptive batch reduced from ${previous} to ${this.current} (reduction #${this.reductions})`);
+    const newSize = Math.max(this.min, Math.floor(this.current / 2));
+
+    if (newSize < previous) {
+      this.current = newSize;
+      this.reductions++;
+      this.log(`Adaptive batch reduced from ${previous} to ${this.current} (reduction #${this.reductions})`);
+    }
   }
 
   summary(): AdaptiveBatchSummary {

@@ -199,34 +199,57 @@ export async function enrichCombined(
               skipped++;
             }
 
-            // Insert comment rows for each bot
-            for (const botEntry of result.input.bot_entries) {
-              const botComments =
-                result.comments.get(botEntry.bot_id) ?? [];
-              if (botComments.length > 0) {
-                await insertPrComments(ch, botComments);
-              } else {
-                // Sentinel row — marks this bot/PR combo as enriched with no results
-                await insertPrComments(ch, [
-                  {
-                    repo_name: result.input.repo_name,
-                    pr_number: result.input.pr_number,
-                    comment_id: "0",
-                    bot_id: botEntry.bot_id,
-                    body_length: 0,
-                    created_at: new Date().toISOString(),
-                    thumbs_up: 0,
-                    thumbs_down: 0,
-                    laugh: 0,
-                    confused: 0,
-                    heart: 0,
-                    hooray: 0,
-                    eyes: 0,
-                    rocket: 0,
-                  },
-                ]);
+            // Insert comment rows for each bot — only when PR was actually found.
+            // Skip not_found/forbidden PRs: don't insert sentinels that would
+            // permanently prevent retry if the PR was only temporarily unavailable.
+            // Also skip if hasMoreThreads is true — there may be bot comments
+            // beyond the first 100 threads that we couldn't fetch.
+            if (result.prStatus === "ok" && !result.hasMoreThreads) {
+              for (const botEntry of result.input.bot_entries) {
+                const botComments =
+                  result.comments.get(botEntry.bot_id) ?? [];
+                if (botComments.length > 0) {
+                  await insertPrComments(ch, botComments);
+                } else {
+                  // Sentinel row — marks this bot/PR combo as enriched with no results
+                  await insertPrComments(ch, [
+                    {
+                      repo_name: result.input.repo_name,
+                      pr_number: result.input.pr_number,
+                      comment_id: "0",
+                      bot_id: botEntry.bot_id,
+                      body_length: 0,
+                      created_at: new Date().toISOString(),
+                      thumbs_up: 0,
+                      thumbs_down: 0,
+                      laugh: 0,
+                      confused: 0,
+                      heart: 0,
+                      hooray: 0,
+                      eyes: 0,
+                      rocket: 0,
+                    },
+                  ]);
+                }
+                comments_fetched++;
               }
-              comments_fetched++;
+            } else if (result.prStatus === "ok" && result.hasMoreThreads) {
+              // PR has >100 review threads — insert found comments but skip
+              // sentinels. The individual enrichComments stage will handle the rest.
+              for (const botEntry of result.input.bot_entries) {
+                const botComments =
+                  result.comments.get(botEntry.bot_id) ?? [];
+                if (botComments.length > 0) {
+                  await insertPrComments(ch, botComments);
+                  comments_fetched++;
+                }
+                // No sentinel — leave for individual stage to process fully
+              }
+              if (result.hasMoreThreads) {
+                log(
+                  `[combined] ${result.input.repo_name}#${result.input.pr_number} has >100 review threads, skipping sentinels`,
+                );
+              }
             }
           }
           batchHandled = true;

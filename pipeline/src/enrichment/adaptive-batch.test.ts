@@ -47,8 +47,11 @@ describe("AdaptiveBatch", () => {
     batch.onServerError(); // 5
     batch.onServerError(); // 3 (floor, not 2)
     assert.equal(batch.size, 3);
-    batch.onServerError(); // still 3
+    batch.onServerError(); // no-op — already at min
     assert.equal(batch.size, 3);
+    // Only 2 actual reductions (third call was a no-op)
+    assert.equal(batch.summary().reductions, 2);
+    assert.equal(logFn.mock.callCount(), 2);
   });
 
   it("onSuccess does not change size", () => {

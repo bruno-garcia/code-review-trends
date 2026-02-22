@@ -128,26 +128,25 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
 
   let rateLimitExit = false;
 
-  // Combined PR+Comments enrichment — handles items needing BOTH, reducing total API calls.
-  // Runs first so individual stages only handle leftovers.
-  let combinedResult: CombinedResult = { prs_fetched: 0, comments_fetched: 0, skipped: 0, errors: 0 };
-  if (!options.priority || options.priority === "prs" || options.priority === "comments") {
-    try {
-      combinedResult = await Sentry.startSpan(
-        { op: "enrichment", name: "enrich.combined" },
-        () => enrichCombined(octokit, ch, rateLimiter, partition, { limit }),
-      );
-    } catch (e) {
-      if (e instanceof RateLimitExitError) {
-        log(`[worker] ${e.message}`);
-        rateLimitExit = true;
-      } else {
-        throw e;
+  try {
+    // Combined PR+Comments enrichment — handles items needing BOTH, reducing total API calls.
+    // Runs first so individual stages only handle leftovers.
+    let combinedResult: CombinedResult = { prs_fetched: 0, comments_fetched: 0, skipped: 0, errors: 0 };
+    if (!options.priority || options.priority === "prs" || options.priority === "comments") {
+      try {
+        combinedResult = await Sentry.startSpan(
+          { op: "enrichment", name: "enrich.combined" },
+          () => enrichCombined(octokit, ch, rateLimiter, partition, { limit }),
+        );
+      } catch (e) {
+        if (e instanceof RateLimitExitError) {
+          log(`[worker] ${e.message}`);
+          rateLimitExit = true;
+        } else {
+          throw e;
+        }
       }
     }
-  }
-
-  try {
     for (const step of order) {
       if (rateLimitExit) break;
       const stageStart = Date.now();
