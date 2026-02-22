@@ -50,7 +50,6 @@ export interface EnvironmentConfig {
   /** Sentry DSN for the pipeline CLI (private — runtime env var via Secret Manager) */
   sentryDsnPipeline: pulumi.Output<string>;
   sentryAuthToken: pulumi.Output<string>;
-  githubToken: pulumi.Output<string>;
   /** JSON array of GitHub PATs for parallel enrichment workers */
   githubTokens: pulumi.Output<string>;
   /** Number of tokens in githubTokens (drives Cloud Run Job taskCount) */
@@ -86,16 +85,6 @@ export function loadConfig(): EnvironmentConfig {
 
   const environment = config.require("environment");
 
-  // Validate that githubToken is not empty
-  const githubToken = config.requireSecret("githubToken").apply((token) => {
-    if (!token || token.trim() === "") {
-      throw new Error(
-        "GitHub token cannot be empty. Set it with: pulumi config set code-review-trends:githubToken <pat> --secret"
-      );
-    }
-    return token;
-  });
-
   return {
     environment,
     clickhouseMachineType: config.require("clickhouseMachineType"),
@@ -121,7 +110,6 @@ export function loadConfig(): EnvironmentConfig {
     sentryDsnAppBackend: config.requireSecret("sentryDsnAppBackend"),
     sentryDsnPipeline: config.requireSecret("sentryDsnPipeline"),
     sentryAuthToken: config.requireSecret("sentryAuthToken"),
-    githubToken,
     githubTokens: config.requireSecret("githubTokens").apply((tokens) => {
       let arr: unknown;
       try { arr = JSON.parse(tokens); } catch {

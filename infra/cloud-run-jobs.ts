@@ -83,16 +83,6 @@ export function createCloudRunJobs(
     { name: "GCP_PROJECT_ID", value: gcp.config.project! },
   ];
 
-  const githubTokenEnv = {
-    name: "GITHUB_TOKEN",
-    valueSource: {
-      secretKeyRef: {
-        secret: secrets.githubTokenSecret.secretId,
-        version: "latest",
-      },
-    },
-  };
-
   const githubTokensEnv = {
     name: "GITHUB_TOKENS",
     valueSource: {
