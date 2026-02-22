@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 8;
+export const EXPECTED_SCHEMA_VERSION = 9;
 
 export type SchemaStatus = {
   /**
@@ -498,8 +498,24 @@ const MIGRATION_008: Migration = {
   ],
 };
 
+/**
+ * Migration 9 — add status column to products table.
+ * Matches db/init/010_product_status.sql.
+ *
+ * Allows products to be marked as 'retired' when their service is no longer
+ * available, preserving historical data while showing a badge in the UI.
+ */
+const MIGRATION_009: Migration = {
+  version: 9,
+  name: "product_status",
+  statements: [
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS status String DEFAULT 'active'`,
+    `ALTER TABLE products UPDATE status = 'retired' WHERE id = 'korbit'`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

@@ -49,7 +49,7 @@ export type Product = {
   docs_url: string;
   brand_color: string;
   avatar_url: string;
-  status: string;
+  status: "active" | "retired";
 };
 
 export type WeeklyActivityByProduct = {
@@ -85,7 +85,7 @@ export type ProductSummary = {
   docs_url: string;
   brand_color: string;
   avatar_url: string;
-  status: string;
+  status: "active" | "retired";
   total_reviews: number;
   total_comments: number;
   total_pr_comments: number;
