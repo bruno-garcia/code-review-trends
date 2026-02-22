@@ -7,6 +7,8 @@ import {
   getBotReactionLeaderboard,
   getPrCommentSyncPct,
   getAllPrCharacteristics,
+  getWeeklyActivityByProduct,
+  getWeeklyReactionsByProduct,
 } from "@/lib/clickhouse";
 import { PAIR_BY_SLUG } from "@/lib/generated/compare-pairs";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
@@ -48,13 +50,15 @@ export default async function ComparePairPage({ params }: Props) {
 
   const ids = new Set([pair.idA, pair.idB]);
 
-  const [allProducts, allCommentsPerPR, allReactions, prCommentSyncPct, allCharacteristics] =
+  const [allProducts, allCommentsPerPR, allReactions, prCommentSyncPct, allCharacteristics, weeklyActivity, weeklyReactions] =
     await Promise.all([
       getProductComparisons(),
       getAvgCommentsPerPR(),
       getBotReactionLeaderboard(),
       getPrCommentSyncPct(),
       getAllPrCharacteristics(),
+      getWeeklyActivityByProduct(),
+      getWeeklyReactionsByProduct(),
     ]);
 
   const products = allProducts.filter((p) => ids.has(p.id));
@@ -77,6 +81,8 @@ export default async function ComparePairPage({ params }: Props) {
         commentsPerPR={commentsPerPR}
         reactionLeaderboard={reactionLeaderboard}
         prCharacteristics={prCharacteristics}
+        weeklyActivity={weeklyActivity}
+        weeklyReactions={weeklyReactions}
         overrideProductIds={[pair.idA, pair.idB]}
       />
       <div className="text-center">
