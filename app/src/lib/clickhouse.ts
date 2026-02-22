@@ -1221,25 +1221,117 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     ? `HAVING ${havingConditions.join(" AND ")}`
     : "";
 
-  // Single query with count() OVER() to get total alongside data rows.
+  // Two strategies depending on whether we need event data to sort/filter:
   //
-  // Uses org_bot_pr_counts (owner-level MV on pr_bot_events) for the events
-  // subquery — this is the big win. The old query scanned pr_bot_event_counts
-  // (471K rows), grouped by repo_name, JOINed repos to get owner, then grouped
-  // by owner again. org_bot_pr_counts pre-aggregates at (owner, bot_id) level
-  // by extracting owner from repo_name with splitByChar, no repos JOIN needed.
+  // Fast path (default star-sorted, no product filter): Two-phase approach:
+  //   Phase 1: Get paginated owners from repos table alone (cheap GROUP BY).
+  //   Phase 2: Enrich only those owners with PR counts + product_ids from
+  //            org_bot_pr_counts + reaction_only_repo_counts.
+  //   This avoids JOINing event tables for ALL 200K+ owners just to show 50.
   //
-  // Note: org_bot_pr_counts does NOT filter by repos.fetch_status because the
-  // MV fires on pr_bot_events INSERT (before repos are enriched). The outer
-  // query still JOINs repos with fetch_status='ok', so orgs with only
-  // non-ok repos are excluded. The PR counts may include some PRs from
-  // non-ok repos within an org that also has ok repos — this is acceptable
-  // since the vast majority of repos are fetch_status='ok'.
-  //
-  // For reaction_only_repo_counts (small table, refreshable MV), we use
-  // splitByChar inline to extract owner and keep the two-level aggregation:
-  // per-repo max(exclusive_pr_count) first (dedup across bots), then sum
-  // across repos per owner. Also filter by fetch_status via repos JOIN.
+  // Slow path (sort by PRs or product filter): Full JOIN query needed because
+  //   we need event data to determine sort order or filter which orgs appear.
+  const needsEventData = (productIds && productIds.length > 0) || sort === "prs";
+
+  type OrgListItemWithTotal = OrgListItem & { _total: number };
+
+  if (!needsEventData) {
+    // --- Fast path: repos-only for pagination, then enrich the page ---
+    const simpleConditions: string[] = ["fetch_status = 'ok'"];
+    if (search) simpleConditions.push("owner ILIKE {search:String}");
+    if (languages && languages.length > 0) {
+      simpleConditions.push(
+        "owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))"
+      );
+    }
+    const simpleWhere = simpleConditions.join(" AND ");
+
+    const simpleOrderBy =
+      sort === "repos" ? "repo_count DESC, total_stars DESC" :
+      "total_stars DESC";
+
+    // Phase 1: Get the page of owners + total count
+    const pageQuery = `
+      SELECT *, count() OVER() AS _total FROM (
+        SELECT
+          owner,
+          sum(stars) AS total_stars,
+          count() AS repo_count,
+          groupUniqArray(primary_language) AS languages
+        FROM repos
+        WHERE ${simpleWhere}
+        GROUP BY owner
+      )
+      ORDER BY ${simpleOrderBy}
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `;
+
+    type PageRow = { owner: string; total_stars: number; repo_count: number; languages: string[]; _total: number };
+    const pageRows = await query<PageRow>(pageQuery, params);
+    const total = pageRows.length > 0 ? Number(pageRows[0]._total) : 0;
+
+    if (pageRows.length === 0) {
+      return { orgs: [], total };
+    }
+
+    // Phase 2: Enrich just these owners with PR counts + product_ids
+    const owners = pageRows.map(r => r.owner);
+    const enrichParams = { owners };
+
+    const [eventRows, reactionRows] = await Promise.all([
+      query<{ owner: string; total_prs: number; product_ids: string[] }>(`
+        SELECT
+          opc.owner,
+          uniqExactMerge(opc.pr_count) AS total_prs,
+          groupUniqArray(b.product_id) AS product_ids
+        FROM org_bot_pr_counts opc
+        JOIN bots b ON opc.bot_id = b.id
+        WHERE opc.owner IN ({owners:Array(String)})
+        GROUP BY opc.owner
+      `, enrichParams),
+      query<{ rrc_owner: string; exclusive_reaction_prs: number; reaction_product_ids: string[] }>(`
+        SELECT
+          rrc_owner,
+          sum(repo_exclusive) AS exclusive_reaction_prs,
+          arrayDistinct(arrayFlatten(groupArray(repo_product_ids))) AS reaction_product_ids
+        FROM (
+          SELECT
+            splitByChar('/', rrc.repo_name)[1] AS rrc_owner,
+            max(rrc.exclusive_pr_count) AS repo_exclusive,
+            groupUniqArray(b.product_id) AS repo_product_ids
+          FROM reaction_only_repo_counts rrc FINAL
+          JOIN bots b ON rrc.bot_id = b.id
+          WHERE splitByChar('/', rrc.repo_name)[1] IN ({owners:Array(String)})
+            AND rrc.repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')
+          GROUP BY rrc_owner, rrc.repo_name
+        )
+        GROUP BY rrc_owner
+      `, enrichParams),
+    ]);
+
+    const eventMap = new Map(eventRows.map(r => [r.owner, r]));
+    const reactionMap = new Map(reactionRows.map(r => [r.rrc_owner, r]));
+
+    const orgs: OrgListItem[] = pageRows.map(({ _total, ...row }) => {
+      const ev = eventMap.get(row.owner);
+      const rr = reactionMap.get(row.owner);
+      return {
+        ...row,
+        total_prs: (ev ? Number(ev.total_prs) : 0) + (rr ? Number(rr.exclusive_reaction_prs) : 0),
+        product_ids: [...new Set([
+          ...(ev?.product_ids ?? []),
+          ...(rr?.reaction_product_ids ?? []),
+        ])],
+      };
+    });
+
+    return { orgs, total };
+  }
+
+  // --- Slow path: full JOIN query (sort by PRs or product filter) ---
+  // Uses org_bot_pr_counts (owner-level MV) + reaction_only_repo_counts
+  // with two-level aggregation for exclusive PR dedup.
   const combinedQuery = `
     SELECT *, count() OVER() AS _total FROM (
       SELECT
@@ -1264,9 +1356,6 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
         GROUP BY opc.owner
       ) pr ON r.owner = pr.owner
       LEFT JOIN (
-        -- Two-level aggregation: per-repo first (max deduplicates across bots),
-        -- then per-owner. Prevents double-counting when multiple bots react on
-        -- the same exclusive PR (a PR with no events from any bot).
         SELECT
           rrc_owner,
           sum(repo_exclusive) AS exclusive_reaction_prs,
@@ -1295,7 +1384,6 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     OFFSET {offset:UInt32}
   `;
 
-  type OrgListItemWithTotal = OrgListItem & { _total: number };
   const rows = await query<OrgListItemWithTotal>(combinedQuery, params);
   const total = rows.length > 0 ? Number(rows[0]._total) : 0;
 
