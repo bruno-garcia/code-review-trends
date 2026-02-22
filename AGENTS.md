@@ -122,6 +122,10 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 
 17. **Beware sentinel rows masking bugs.** The enrichment pipeline inserts sentinel rows (`comment_id=0`) to mark "enriched, nothing found." If a code bug silently discards all results (e.g., a login filter that never matches), the sentinel makes the combo look "done" and it's never reprocessed. When adding sentinel/marker patterns, ensure the "nothing found" path is covered by integration tests that verify real data against known-good targets. Silent success with empty data is worse than a crash — it produces wrong information that looks correct.
 
+18. **Materialized views can silently change query semantics.** When a MV pre-joins data for performance, it may drop columns from the source tables (e.g., `event_week`). If the app query previously filtered on that column, switching to the MV silently changes what the filter means. Always check that existing filter semantics are preserved. When the MV lacks a needed column, fall back to the original query for that code path rather than substituting a different column.
+
+19. **New ReplacingMergeTree tables must be added to `optimizeTables`.** Without periodic `OPTIMIZE TABLE`, deduplication only happens at merge time, so `FINAL` queries must scan all duplicate parts at read time. When adding a new table or MV target that uses ReplacingMergeTree, add it to the relevant `optimizeTables` call in `pipeline/src/cli.ts`.
+
 ## Key Files
 
 | Path | Purpose |
