@@ -17,7 +17,7 @@ import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
 import { summarizeOrgs } from "./summary.js";
-import { fetchReposBatch, GRAPHQL_REPO_BATCH_SIZE } from "./graphql-repos.js";
+import { fetchReposBatch } from "./graphql-repos.js";
 import { AdaptiveBatch } from "./adaptive-batch.js";
 import { isServerError } from "./graphql-retry.js";
 

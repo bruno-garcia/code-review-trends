@@ -15,7 +15,6 @@ import {
   insertPullRequests,
   insertPrComments,
   query,
-  type PrCommentRow,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
 import {

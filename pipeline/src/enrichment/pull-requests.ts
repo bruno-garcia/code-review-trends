@@ -17,10 +17,7 @@ import { Sentry, log, logError, countMetric, captureEnrichmentError, sentryLogge
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
-import {
-  fetchPRsBatch,
-  GRAPHQL_PR_BATCH_SIZE,
-} from "./graphql-pull-requests.js";
+import { fetchPRsBatch } from "./graphql-pull-requests.js";
 import { AdaptiveBatch } from "./adaptive-batch.js";
 import { isServerError } from "./graphql-retry.js";
 

@@ -19,7 +19,7 @@ import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 // handleEnterprisePolicyError removed — GraphQL batch handles errors differently
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
-import { fetchCommentsBatch, GRAPHQL_COMMENT_BATCH_SIZE, type CommentBatchInput } from "./graphql-comments.js";
+import { fetchCommentsBatch, type CommentBatchInput } from "./graphql-comments.js";
 import { AdaptiveBatch } from "./adaptive-batch.js";
 import { isServerError } from "./graphql-retry.js";
 
