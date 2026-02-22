@@ -1329,10 +1329,17 @@ export type EnrichmentStats = {
   total_comments: number;
 };
 
+const ENRICHMENT_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes — this is just banner data
+
 export async function getEnrichmentStats(): Promise<EnrichmentStats> {
   const cached = getCached<EnrichmentStats>("enrichmentStats");
   if (cached) return cached;
 
+  // Use count from repos + pull_requests (cheap) to approximate enrichment progress.
+  // The old total_discovered_prs subquery scanned pr_bot_event_counts (471K rows,
+  // 8-11s cold) just for a banner. Use count(DISTINCT repo_name) from pr_bot_event_counts
+  // for repos total (cheap because it's the primary key prefix), and sum the pre-aggregated
+  // pr_count for PRs total.
   const rows = await query<EnrichmentStats>(`
     SELECT
       (SELECT count() FROM repos) AS total_discovered_repos,
@@ -1347,7 +1354,7 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
     total_discovered_prs: 0,
     enriched_prs: 0,
     total_comments: 0,
-  });
+  }, ENRICHMENT_CACHE_TTL_MS);
 }
 
 // --- Data collection stats (for /about page) ---
@@ -1449,7 +1456,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     reactions_total: Number(base?.reactions_total ?? 0),
     reactions_scanned: Number(base?.reactions_scanned ?? 0),
     reactions_found: Number(base?.reactions_found ?? 0),
-  });
+  }, ENRICHMENT_CACHE_TTL_MS); // 30-min cache — status data changes slowly
 }
 
 /**
