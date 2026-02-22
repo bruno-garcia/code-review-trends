@@ -875,7 +875,7 @@ export default async function AboutPage() {
           This is a personal project, not a Sentry product. I have an obvious
           bias — Sentry is one of the tracked bots — so I want to be upfront
           about that. The data is public, the{" "}
-          <a href="https://github.com/bruno-garcia/code-review-trends" target="_blank" rel="noopener noreferrer" className={linkClass}>code is open source</a>,
+          <a href="https://github.com/bruno-garcia/code-review-trends" target="_blank" rel="noopener noreferrer" className={linkClass}>code is public</a>,
           and every bot gets the same treatment.
         </p>
         <p className="text-theme-text-secondary leading-relaxed">
