@@ -24,6 +24,7 @@ const CLI_TO_ENV: Record<string, string> = {
   "--clickhouse-url": "CLICKHOUSE_URL",
   "--clickhouse-password": "CLICKHOUSE_PASSWORD",
   "--sentry-dsn": "SENTRY_DSN_CRT_CLI",
+  "--gh-token": "GITHUB_TOKEN",
 };
 
 {

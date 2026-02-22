@@ -110,19 +110,22 @@ export function loadConfig(): EnvironmentConfig {
     sentryDsnAppBackend: config.requireSecret("sentryDsnAppBackend"),
     sentryDsnPipeline: config.requireSecret("sentryDsnPipeline"),
     sentryAuthToken: config.requireSecret("sentryAuthToken"),
-    githubTokens: config.requireSecret("githubTokens").apply((tokens) => {
-      let arr: unknown;
-      try { arr = JSON.parse(tokens); } catch {
-        throw new Error("githubTokens must be a valid JSON array of strings.");
-      }
-      if (!Array.isArray(arr) || arr.length === 0 || arr.some((t) => typeof t !== "string" || !t.trim())) {
-        throw new Error("githubTokens must be a non-empty JSON array of non-empty strings.");
-      }
-      return tokens;
-    }),
-    githubTokenCount: config.requireSecret("githubTokens").apply((tokens) => {
-      return (JSON.parse(tokens) as string[]).length;
-    }),
+    ...(() => {
+      const parsed = config.requireSecret("githubTokens").apply((tokens) => {
+        let arr: unknown;
+        try { arr = JSON.parse(tokens); } catch {
+          throw new Error("githubTokens must be a valid JSON array of strings.");
+        }
+        if (!Array.isArray(arr) || arr.length === 0 || arr.some((t) => typeof t !== "string" || !t.trim())) {
+          throw new Error("githubTokens must be a non-empty JSON array of non-empty strings.");
+        }
+        return { raw: tokens, count: (arr as string[]).length };
+      });
+      return {
+        githubTokens: parsed.apply((p) => p.raw),
+        githubTokenCount: parsed.apply((p) => p.count),
+      };
+    })(),
     githubRepo: config.require("githubRepo"),
     alertEmail: config.requireSecret("alertEmail"),
   };

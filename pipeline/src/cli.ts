@@ -853,8 +853,8 @@ async function cmdEnrich() {
     } catch {
       throw new CliError("GITHUB_TOKENS must be a valid JSON array of strings.");
     }
-    if (!Array.isArray(tokens) || tokens.length === 0 || tokens.some(t => typeof t !== "string")) {
-      throw new CliError("GITHUB_TOKENS must be a non-empty JSON array of strings.");
+    if (!Array.isArray(tokens) || tokens.length === 0 || tokens.some(t => typeof t !== "string" || !t.trim())) {
+      throw new CliError("GITHUB_TOKENS must be a non-empty JSON array of non-empty strings.");
     }
 
     // Determine which token this worker should use.
@@ -1217,7 +1217,7 @@ function getGitHubToken(): string | undefined {
 
 /** Redact known sensitive flags from CLI args before sending to Sentry. */
 function redactArgs(args: string): string {
-  return args.replace(/(--gh-token\s+)\S+/g, "$1[REDACTED]");
+  return args.replace(/(--gh-token|--clickhouse-password|--sentry-dsn)\s+\S+/g, "$1 [REDACTED]");
 }
 
 /** Strip credentials from a URL (user:pass in authority). */
