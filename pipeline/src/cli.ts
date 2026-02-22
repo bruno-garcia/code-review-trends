@@ -33,6 +33,7 @@ class CliError extends Error {
   }
 }
 
+import { resolveGitHubTokenInfo } from "./github.js";
 import { BOTS, BOT_LOGINS, PRODUCTS } from "./bots.js";
 import {
   createCHClient,
@@ -80,6 +81,71 @@ async function main() {
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
   log(`Environment: ${pipelineEnv}`);
   log(`ClickHouse:  ${chUrl}`);
+
+  // Resolve GitHub token identity and tag Sentry (non-blocking: failures are logged, not fatal)
+  const githubToken = getGitHubToken();
+  if (githubToken) {
+    try {
+      const { login, expiry } = await resolveGitHubTokenInfo(githubToken);
+      Sentry.setTag("github.user", login);
+      Sentry.setContext("github_token", {
+        user: login,
+        expiry: expiry?.toISOString() ?? "never",
+      });
+      log(`GitHub user: ${login} (token expires: ${expiry ? expiry.toISOString() : "never"})`);
+
+      const PAT_LIFETIME_POLICY_URL =
+        "https://docs.github.com/en/enterprise-cloud@latest/admin/enforcing-policies/enforcing-policies-for-your-enterprise/enforcing-policies-for-personal-access-tokens-in-your-enterprise#enforcing-a-maximum-lifetime-policy-for-personal-access-tokens";
+
+      if (!expiry) {
+        // Non-expiring tokens are blocked by some GitHub Enterprise orgs
+        // that enforce a maximum lifetime policy on PATs.
+        Sentry.captureMessage(`Token for ${login} never expires — some GitHub orgs block data from such tokens`, {
+          level: "error",
+          fingerprint: ["github-token-no-expiry", login],
+          tags: { "github.token_expiry": "never" },
+          contexts: {
+            token_policy: {
+              issue: "Non-expiring PATs are blocked by GitHub Enterprise orgs that enforce a maximum lifetime policy.",
+              docs: PAT_LIFETIME_POLICY_URL,
+            },
+          },
+        });
+        log(`⚠ GitHub token for ${login} never expires. Some GitHub orgs block data from such tokens.`);
+        log(`  See: ${PAT_LIFETIME_POLICY_URL}`);
+      } else {
+        const msUntilExpiry = expiry.getTime() - Date.now();
+        const daysUntilExpiry = Math.ceil(msUntilExpiry / (1000 * 60 * 60 * 24));
+
+        if (daysUntilExpiry > 365) {
+          // Tokens with lifetime > 365 days are also blocked by orgs with strict policies
+          Sentry.captureMessage(`Token for ${login} expires in ${daysUntilExpiry} days (>365) — some GitHub orgs block long-lived tokens`, {
+            level: "error",
+            fingerprint: ["github-token-long-lived", login],
+            tags: { "github.token_expiry_days": String(daysUntilExpiry) },
+            contexts: {
+              token_policy: {
+                issue: `Token lifetime is ${daysUntilExpiry} days, exceeding the 365-day maximum that some GitHub Enterprise orgs enforce.`,
+                docs: PAT_LIFETIME_POLICY_URL,
+              },
+            },
+          });
+          log(`⚠ GitHub token for ${login} expires in ${daysUntilExpiry} days (>365). Some GitHub orgs block long-lived tokens.`);
+          log(`  See: ${PAT_LIFETIME_POLICY_URL}`);
+        } else if (daysUntilExpiry < 28) {
+          const level = daysUntilExpiry < 7 ? "error" : "warning";
+          Sentry.captureMessage(`Token for ${login} is expiring in ${daysUntilExpiry} days`, {
+            level,
+            fingerprint: ["github-token-expiry", login],
+            tags: { "github.token_expiry_days": String(daysUntilExpiry) },
+          });
+          log(`⚠ GitHub token for ${login} expires in ${daysUntilExpiry} days!`);
+        }
+      }
+    } catch (err) {
+      log(`⚠ Failed to resolve GitHub token identity: ${err instanceof Error ? err.message : err}`);
+    }
+  }
 
   // Commands that run on a schedule get cron monitoring (from schedules.json)
   const schedule = schedules[command as keyof typeof schedules];
@@ -1080,6 +1146,19 @@ function defaultStart(): string {
 
 function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
+}
+
+/**
+ * Get the effective GitHub token from --token arg or GITHUB_TOKEN env var.
+ * Used to resolve token identity for Sentry tagging before command dispatch.
+ */
+function getGitHubToken(): string | undefined {
+  const args = process.argv;
+  const idx = args.indexOf("--token");
+  if (idx >= 0 && idx + 1 < args.length && !args[idx + 1].startsWith("--")) {
+    return args[idx + 1];
+  }
+  return process.env.GITHUB_TOKEN;
 }
 
 /** Redact known sensitive flags from CLI args before sending to Sentry. */
