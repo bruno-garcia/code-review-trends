@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code Review Trends — AI Code Review Adoption on GitHub</title>
+  <meta name="description" content="Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles for CodeRabbit, Copilot, Qodo, and more.">
+  <link rel="canonical" href="https://codereviewtrends.com/">
+
+  <!-- Icons -->
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="apple-touch-icon" href="/apple-icon.png">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Code Review Trends">
+  <meta property="og:title" content="Code Review Trends — AI Code Review Adoption on GitHub">
+  <meta property="og:description" content="Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles for CodeRabbit, Copilot, Qodo, and more.">
+  <meta property="og:url" content="https://codereviewtrends.com/">
+  <meta property="og:image" content="https://codereviewtrends.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Code Review Trends — AI Code Review Adoption on GitHub">
+  <meta name="twitter:description" content="Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles for CodeRabbit, Copilot, Qodo, and more.">
+  <meta name="twitter:image" content="https://codereviewtrends.com/og-image.png">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Code Review Trends",
+    "url": "https://codereviewtrends.com",
+    "description": "Track the adoption of AI code review bots on GitHub. Trends, statistics, and per-provider profiles for CodeRabbit, Copilot, Qodo, and more."
+  }
+  </script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #0a0a0f;
+      color: #f3f4f6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 600px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .logo svg {
+      width: 48px;
+      height: 48px;
+    }
+
+    .wordmark {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+
+    .wordmark-code { color: #e0e0ef; }
+    .wordmark-review { color: #a78bfa; }
+    .wordmark-trends { color: #7c5fcf; }
+
+    h1 {
+      font-size: 1.875rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 1rem;
+      color: #f3f4f6;
+    }
+
+    .description {
+      color: #9ca3af;
+      font-size: 1.125rem;
+      line-height: 1.6;
+      margin-bottom: 2.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #12121a;
+      border: 1px solid #1e1e2e;
+      border-radius: 9999px;
+      padding: 0.5rem 1.25rem;
+      font-size: 0.875rem;
+      color: #a78bfa;
+      font-weight: 500;
+    }
+
+    .products {
+      margin-top: 3rem;
+      color: #6b7280;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.5rem; }
+      .description { font-size: 1rem; }
+      .wordmark { font-size: 1.25rem; }
+      .logo svg { width: 40px; height: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <div class="logo">
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="g1" x1="10" y1="0" x2="42" y2="52" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#a78bfa"/>
+            <stop offset="100%" stop-color="#6d28d9"/>
+          </linearGradient>
+          <linearGradient id="g2" x1="26" y1="8" x2="26" y2="44" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#c4b5fd"/>
+            <stop offset="100%" stop-color="#8b5cf6"/>
+          </linearGradient>
+        </defs>
+        <rect x="26" y="2" width="33.94" height="33.94" rx="7" transform="rotate(45 26 2)" fill="url(#g1)" opacity="0.15"/>
+        <rect x="26" y="4" width="31.11" height="31.11" rx="6" transform="rotate(45 26 4)" fill="none" stroke="url(#g1)" stroke-width="1.2" opacity="0.4"/>
+        <line x1="22" y1="14" x2="22" y2="40" stroke="url(#g2)" stroke-width="3" stroke-linecap="round"/>
+        <path d="M22 20 C22 20, 24 20, 28 16" stroke="url(#g2)" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M22 32 C22 32, 24 32, 28 28" stroke="url(#g2)" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.5" stroke-dasharray="2 3"/>
+        <circle cx="22" cy="14" r="3.5" fill="#c4b5fd" stroke="#0a0a0f" stroke-width="1.5"/>
+        <circle cx="22" cy="40" r="3.5" fill="#7c3aed" stroke="#0a0a0f" stroke-width="1.5"/>
+        <circle cx="30" cy="14" r="3" fill="#a78bfa" stroke="#0a0a0f" stroke-width="1.5"/>
+        <circle cx="30" cy="26" r="3" fill="#8b5cf6" stroke="#0a0a0f" stroke-width="1.5" opacity="0.6"/>
+        <g opacity="0.9">
+          <polyline points="30,36 35,30 38,32 44,24" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <polyline points="40,24 44,24 44,28" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </g>
+      </svg>
+      <span class="wordmark">
+        <span class="wordmark-code">Code</span><span class="wordmark-review">Review</span><span class="wordmark-trends">Trends</span>
+      </span>
+    </div>
+
+    <h1>Tracking AI Code Review Adoption on GitHub</h1>
+
+    <p class="description">
+      Open analytics on how AI code review is changing software development.
+      Trends, statistics, and per-provider profiles — built from public GitHub data.
+    </p>
+
+    <span class="badge">Coming soon</span>
+
+    <p class="products">
+      Tracking CodeRabbit, GitHub Copilot, Sentry, Qodo, Augment Code,
+      Cubic, Mesa, Sourcery, Greptile, and more
+    </p>
+  </main>
+</body>
+</html>
