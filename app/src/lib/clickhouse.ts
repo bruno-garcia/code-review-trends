@@ -1683,9 +1683,9 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
   // a simple indexed scan of the repos table.
   const needsEventJoin = hasProductFilter || sort === "prs";
 
-  let combinedQuery: string;
   if (needsEventJoin) {
-    combinedQuery = `
+    // Slow path: full JOIN query needed for sort-by-PRs or product filter
+    const combinedQuery = `
       SELECT *, count() OVER() AS _total FROM (
         SELECT
           r.name AS name,
@@ -1706,23 +1706,25 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
       LIMIT {limit:UInt32}
       OFFSET {offset:UInt32}
     `;
+
+    type RepoListItemWithTotal = RepoListItem & { _total: number };
+    const rows = await query<RepoListItemWithTotal>(combinedQuery, params);
+    const total = rows.length > 0 ? Number(rows[0]._total) : 0;
+    return {
+      repos: rows.map(({ _total, ...repo }) => repo),
+      total,
+    };
   } else {
-    // Build simple conditions without table alias prefix
+    // Fast path: two-phase like getOrgList — repos-only pagination, then enrich.
     const simpleConditions: string[] = ["fetch_status = 'ok'"];
     if (search) simpleConditions.push("name ILIKE {search:String}");
     if (languages && languages.length > 0) simpleConditions.push("primary_language IN ({languages:Array(String)})");
     const simpleWhere = simpleConditions.join(" AND ");
 
-    combinedQuery = `
+    // Phase 1: Get the page of repos from repos table only
+    const pageQuery = `
       SELECT *, count() OVER() AS _total FROM (
-        SELECT
-          name,
-          owner,
-          stars,
-          primary_language,
-          0 AS total_prs,
-          0 AS bot_comment_count,
-          CAST([] AS Array(String)) AS product_ids
+        SELECT name, owner, stars, primary_language
         FROM repos
         WHERE ${simpleWhere}
       )
@@ -1730,16 +1732,43 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
       LIMIT {limit:UInt32}
       OFFSET {offset:UInt32}
     `;
+
+    type PageRow = { name: string; owner: string; stars: number; primary_language: string; _total: number };
+    const pageRows = await query<PageRow>(pageQuery, params);
+    const total = pageRows.length > 0 ? Number(pageRows[0]._total) : 0;
+
+    if (pageRows.length === 0) {
+      return { repos: [], total };
+    }
+
+    // Phase 2: Enrich just these repos with PR counts + product_ids
+    const repoNames = pageRows.map(r => r.name);
+    const enrichRows = await query<{ repo_name: string; total_prs: number; product_ids: string[] }>(`
+      SELECT
+        s.repo_name,
+        uniqExactMerge(s.pr_count) AS total_prs,
+        groupUniqArray(b.product_id) AS product_ids
+      FROM pr_bot_event_counts s
+      JOIN bots b ON s.bot_id = b.id
+      WHERE s.repo_name IN ({repoNames:Array(String)})
+      GROUP BY s.repo_name
+    `, { repoNames });
+
+    const enrichMap = new Map(enrichRows.map(r => [r.repo_name, r]));
+
+    return {
+      repos: pageRows.map(({ _total, ...row }) => {
+        const enrich = enrichMap.get(row.name);
+        return {
+          ...row,
+          total_prs: enrich ? Number(enrich.total_prs) : 0,
+          bot_comment_count: 0,
+          product_ids: enrich?.product_ids ?? [],
+        };
+      }),
+      total,
+    };
   }
-
-  type RepoListItemWithTotal = RepoListItem & { _total: number };
-  const rows = await query<RepoListItemWithTotal>(combinedQuery, params);
-  const total = rows.length > 0 ? Number(rows[0]._total) : 0;
-
-  return {
-    repos: rows.map(({ _total, ...repo }) => repo),
-    total,
-  };
 }
 
 export async function getRepoLanguageOptions(): Promise<OrgFilterOption[]> {
