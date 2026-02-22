@@ -122,9 +122,14 @@ test.describe("Cross-page filter stickiness", () => {
     await page.goto("/compare?products=coderabbit,copilot&range=6m");
 
     const nav = page.locator("nav");
+    const orgsLink = nav.getByRole("link", { name: "Orgs", exact: true });
+
+    // Wait for client-side filter state to initialize and update the nav href
+    await expect(orgsLink).toHaveAttribute("href", /products=/);
+
     await Promise.all([
       page.waitForURL(/\/orgs/),
-      nav.getByRole("link", { name: "Orgs", exact: true }).click(),
+      orgsLink.click(),
     ]);
 
     await expect(page).toHaveURL(/products=coderabbit%2Ccopilot|products=coderabbit,copilot/);
@@ -170,8 +175,10 @@ test.describe("Cross-page filter stickiness", () => {
     ).toHaveCount(3);
 
     // → Status (non-filter page — no filter bar)
-    await nav.getByRole("link", { name: "Status", exact: true }).click();
-    await expect(page).toHaveURL("/status");
+    await Promise.all([
+      page.waitForURL(/\/status/),
+      nav.getByRole("link", { name: "Status", exact: true }).click(),
+    ]);
 
     // → Back to Products — selection should survive the detour through Status
     await nav.getByRole("link", { name: "Products", exact: true }).click();
