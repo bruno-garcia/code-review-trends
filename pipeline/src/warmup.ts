@@ -21,12 +21,13 @@ import * as Sentry from "@sentry/node";
 
 // ── Configuration ──────────────────────────────────────────────────────
 
-export const PAGES = ["/", "/bots", "/orgs", "/compare", "/about", "/status"];
+export const PAGES = ["/", "/products", "/orgs", "/repos", "/compare", "/about", "/status"];
 
 export const PAGE_NAMES: Record<string, string> = {
   "/": "overview",
-  "/bots": "bots",
+  "/products": "products",
   "/orgs": "orgs",
+  "/repos": "repos",
   "/compare": "compare",
   "/about": "about",
   "/status": "status",

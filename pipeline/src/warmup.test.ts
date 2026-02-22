@@ -137,7 +137,7 @@ describe("fetchPage", () => {
 
   it("returns ok for 301 redirect", async () => {
     const result = await fetchPage(
-      "https://example.com", "/bots", 5000, 0, staticFetch(301), quiet,
+      "https://example.com", "/products", 5000, 0, staticFetch(301), quiet,
     );
     assert.equal(result.ok, true);
     assert.equal(result.status, 301);
@@ -359,12 +359,13 @@ describe("warmup", () => {
 describe("constants", () => {
   it("PAGES has all expected routes", () => {
     assert.ok(PAGES.includes("/"));
-    assert.ok(PAGES.includes("/bots"));
+    assert.ok(PAGES.includes("/products"));
     assert.ok(PAGES.includes("/orgs"));
+    assert.ok(PAGES.includes("/repos"));
     assert.ok(PAGES.includes("/compare"));
     assert.ok(PAGES.includes("/about"));
     assert.ok(PAGES.includes("/status"));
-    assert.equal(PAGES.length, 6);
+    assert.equal(PAGES.length, 7);
   });
 
   it("PAGE_NAMES maps every page", () => {
