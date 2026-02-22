@@ -255,3 +255,114 @@ describe("bot_data SQL consistency", () => {
     );
   });
 });
+
+describe("compare pairs consistency", () => {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const REGEN_MSG =
+    "Run `npm run pipeline -- generate-compare-pairs` to regenerate";
+
+  const source = readFileSync(
+    join(__dirname, "../../app/src/lib/generated/compare-pairs.ts"),
+    "utf-8",
+  );
+
+  // Parse all pair objects from the generated source
+  type ParsedPair = {
+    idA: string;
+    idB: string;
+    nameA: string;
+    nameB: string;
+    slug: string;
+  };
+  const pairs: ParsedPair[] = [];
+  const pairPattern =
+    /\{\s*"idA":\s*"([^"]+)",\s*"idB":\s*"([^"]+)",\s*"nameA":\s*"([^"]+)",\s*"nameB":\s*"([^"]+)",\s*"slug":\s*"([^"]+)"/g;
+  let m;
+  while ((m = pairPattern.exec(source)) !== null) {
+    pairs.push({
+      idA: m[1],
+      idB: m[2],
+      nameA: m[3],
+      nameB: m[4],
+      slug: m[5],
+    });
+  }
+
+  const n = PRODUCTS.length;
+  const expectedCount = (n * (n - 1)) / 2;
+
+  it("pair count equals C(n,2)", () => {
+    assert.equal(
+      pairs.length,
+      expectedCount,
+      `Expected ${expectedCount} pairs for ${n} products, got ${pairs.length}. ${REGEN_MSG}`,
+    );
+  });
+
+  it("every pair references valid product IDs", () => {
+    for (const pair of pairs) {
+      assert.ok(
+        PRODUCT_BY_ID.has(pair.idA),
+        `Unknown idA "${pair.idA}" in pair ${pair.slug}. ${REGEN_MSG}`,
+      );
+      assert.ok(
+        PRODUCT_BY_ID.has(pair.idB),
+        `Unknown idB "${pair.idB}" in pair ${pair.slug}. ${REGEN_MSG}`,
+      );
+    }
+  });
+
+  it("every pair has idA < idB alphabetically", () => {
+    for (const pair of pairs) {
+      assert.ok(
+        pair.idA < pair.idB,
+        `Pair ${pair.slug} has idA="${pair.idA}" >= idB="${pair.idB}". ${REGEN_MSG}`,
+      );
+    }
+  });
+
+  it("no duplicate slugs", () => {
+    const slugs = pairs.map((p) => p.slug);
+    const unique = new Set(slugs);
+    assert.equal(
+      unique.size,
+      slugs.length,
+      `Found ${slugs.length - unique.size} duplicate slugs. ${REGEN_MSG}`,
+    );
+  });
+
+  it("product names match PRODUCTS", () => {
+    for (const pair of pairs) {
+      const productA = PRODUCT_BY_ID.get(pair.idA);
+      const productB = PRODUCT_BY_ID.get(pair.idB);
+      assert.equal(
+        pair.nameA,
+        productA?.name,
+        `nameA mismatch for ${pair.slug}: got "${pair.nameA}", expected "${productA?.name}". ${REGEN_MSG}`,
+      );
+      assert.equal(
+        pair.nameB,
+        productB?.name,
+        `nameB mismatch for ${pair.slug}: got "${pair.nameB}", expected "${productB?.name}". ${REGEN_MSG}`,
+      );
+    }
+  });
+
+  it("every possible product pair has an entry", () => {
+    const pairKeys = new Set(pairs.map((p) => `${p.idA}:${p.idB}`));
+    const ids = PRODUCTS.map((p) => p.id).sort();
+    const missing: string[] = [];
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const key = `${ids[i]}:${ids[j]}`;
+        if (!pairKeys.has(key)) missing.push(key);
+      }
+    }
+    assert.equal(
+      missing.length,
+      0,
+      `Missing ${missing.length} pairs: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "..." : ""}. ${REGEN_MSG}`,
+    );
+  });
+});
