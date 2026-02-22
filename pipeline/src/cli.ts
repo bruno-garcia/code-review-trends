@@ -61,6 +61,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   enrich: cmdEnrich,
   "enrich-status": cmdEnrichStatus,
   "validate-bq-prs": cmdValidateBqPrs,
+  "generate-compare-pairs": cmdGenerateComparePairs,
   help: cmdHelp,
 };
 
@@ -102,6 +103,11 @@ async function main() {
   await Sentry.flush(10000);
 }
 
+async function cmdGenerateComparePairs() {
+  const { generateComparePairs } = await import("./tools/generate-compare-pairs.js");
+  await generateComparePairs();
+}
+
 async function cmdHelp() {
   console.log(`
 Pipeline CLI — Code Review Trends
@@ -120,6 +126,7 @@ Commands:
   enrich             Run GitHub API enrichment (repos → PRs → comments → reactions)
   enrich-status      Show enrichment progress
   validate-bq-prs    Compare PR data from BigQuery vs GitHub API
+  generate-compare-pairs  Generate compare pair metadata for the app
   help               Show this help message
 
 Options for fetch-bigquery:

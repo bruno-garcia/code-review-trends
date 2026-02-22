@@ -65,7 +65,7 @@ function parseEnv(): PipelineEnv {
   if (isTestRunner) return "development";
 
   // help/--help don't need environment (no Sentry, no ClickHouse)
-  if (!command || command === "help" || command === "--help" || command === "-h") {
+  if (!command || command === "help" || command === "--help" || command === "-h" || command === "generate-compare-pairs") {
     return "development";
   }
 
