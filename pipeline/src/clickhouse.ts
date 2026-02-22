@@ -472,6 +472,7 @@ const TABLES_TO_OPTIMIZE = [
   "review_activity",
   "human_review_activity",
   "pr_bot_events",
+  "org_bot_pr_counts",
   "repos",
   "pull_requests",
   "pr_comments",

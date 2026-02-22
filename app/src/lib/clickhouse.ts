@@ -1185,7 +1185,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
   const conditions: string[] = ["r.fetch_status = 'ok'"];
   const havingConditions: string[] = [];
   const params: Record<string, unknown> = {
-    limit: limit + 1, // fetch one extra to detect if there are more
+    limit,
     offset,
   };
 
@@ -1221,121 +1221,175 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     ? `HAVING ${havingConditions.join(" AND ")}`
     : "";
 
-  // Uses pr_bot_event_counts MV for events, plus reaction_only_repo_counts MV
-  // for reaction-only reviews. The repo_counts MV has two columns:
-  //   - pr_count: per-bot reaction-only PRs (Sentry shows up as a product)
-  //   - exclusive_pr_count: subset with NO events from any bot (safe to add to total_prs)
-  const dataQuery = `
-    SELECT
-      r.owner AS owner,
-      sum(r.stars) AS total_stars,
-      count() AS repo_count,
-      groupUniqArray(r.primary_language) AS languages,
-      COALESCE(any(pr.total_prs), 0) + COALESCE(any(rr.exclusive_reaction_prs), 0) AS total_prs,
-      arrayDistinct(arrayConcat(
-        COALESCE(any(pr.product_ids), []),
-        COALESCE(any(rr.reaction_product_ids), [])
-      )) AS product_ids
-    FROM repos r
-    LEFT JOIN (
+  // Two strategies depending on whether we need event data to sort/filter:
+  //
+  // Fast path (default star-sorted, no product filter): Two-phase approach:
+  //   Phase 1: Get paginated owners from repos table alone (cheap GROUP BY).
+  //   Phase 2: Enrich only those owners with PR counts + product_ids from
+  //            org_bot_pr_counts + reaction_only_repo_counts.
+  //   This avoids JOINing event tables for ALL 200K+ owners just to show 50.
+  //
+  // Slow path (sort by PRs or product filter): Full JOIN query needed because
+  //   we need event data to determine sort order or filter which orgs appear.
+  const needsEventData = (productIds && productIds.length > 0) || sort === "prs";
+
+  type OrgListItemWithTotal = OrgListItem & { _total: number };
+
+  if (!needsEventData) {
+    // --- Fast path: repos-only for pagination, then enrich the page ---
+    const simpleConditions: string[] = ["fetch_status = 'ok'"];
+    if (search) simpleConditions.push("owner ILIKE {search:String}");
+    if (languages && languages.length > 0) {
+      simpleConditions.push(
+        "owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))"
+      );
+    }
+    const simpleWhere = simpleConditions.join(" AND ");
+
+    const simpleOrderBy =
+      sort === "repos" ? "repo_count DESC, total_stars DESC" :
+      "total_stars DESC";
+
+    // Phase 1: Get the page of owners + total count
+    const pageQuery = `
+      SELECT *, count() OVER() AS _total FROM (
+        SELECT
+          owner,
+          sum(stars) AS total_stars,
+          count() AS repo_count,
+          groupUniqArray(primary_language) AS languages
+        FROM repos
+        WHERE ${simpleWhere}
+        GROUP BY owner
+      )
+      ORDER BY ${simpleOrderBy}
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `;
+
+    type PageRow = { owner: string; total_stars: number; repo_count: number; languages: string[]; _total: number };
+    const pageRows = await query<PageRow>(pageQuery, params);
+    const total = pageRows.length > 0 ? Number(pageRows[0]._total) : 0;
+
+    if (pageRows.length === 0) {
+      return { orgs: [], total };
+    }
+
+    // Phase 2: Enrich just these owners with PR counts + product_ids
+    const owners = pageRows.map(r => r.owner);
+    const enrichParams = { owners };
+
+    const [eventRows, reactionRows] = await Promise.all([
+      query<{ owner: string; total_prs: number; product_ids: string[] }>(`
+        SELECT
+          opc.owner,
+          uniqExactMerge(opc.pr_count) AS total_prs,
+          groupUniqArray(b.product_id) AS product_ids
+        FROM org_bot_pr_counts opc
+        JOIN bots b ON opc.bot_id = b.id
+        WHERE opc.owner IN ({owners:Array(String)})
+        GROUP BY opc.owner
+      `, enrichParams),
+      query<{ rrc_owner: string; exclusive_reaction_prs: number; reaction_product_ids: string[] }>(`
+        SELECT
+          rrc_owner,
+          sum(repo_exclusive) AS exclusive_reaction_prs,
+          arrayDistinct(arrayFlatten(groupArray(repo_product_ids))) AS reaction_product_ids
+        FROM (
+          SELECT
+            splitByChar('/', rrc.repo_name)[1] AS rrc_owner,
+            max(rrc.exclusive_pr_count) AS repo_exclusive,
+            groupUniqArray(b.product_id) AS repo_product_ids
+          FROM reaction_only_repo_counts rrc FINAL
+          JOIN bots b ON rrc.bot_id = b.id
+          WHERE splitByChar('/', rrc.repo_name)[1] IN ({owners:Array(String)})
+            AND rrc.repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')
+          GROUP BY rrc_owner, rrc.repo_name
+        )
+        GROUP BY rrc_owner
+      `, enrichParams),
+    ]);
+
+    const eventMap = new Map(eventRows.map(r => [r.owner, r]));
+    const reactionMap = new Map(reactionRows.map(r => [r.rrc_owner, r]));
+
+    const orgs: OrgListItem[] = pageRows.map(({ _total, ...row }) => {
+      const ev = eventMap.get(row.owner);
+      const rr = reactionMap.get(row.owner);
+      return {
+        ...row,
+        total_prs: (ev ? Number(ev.total_prs) : 0) + (rr ? Number(rr.exclusive_reaction_prs) : 0),
+        product_ids: [...new Set([
+          ...(ev?.product_ids ?? []),
+          ...(rr?.reaction_product_ids ?? []),
+        ])],
+      };
+    });
+
+    return { orgs, total };
+  }
+
+  // --- Slow path: full JOIN query (sort by PRs or product filter) ---
+  // Uses org_bot_pr_counts (owner-level MV) + reaction_only_repo_counts
+  // with two-level aggregation for exclusive PR dedup.
+  const combinedQuery = `
+    SELECT *, count() OVER() AS _total FROM (
       SELECT
-        r2.owner,
-        sum(repo_pr_count) AS total_prs,
-        arrayDistinct(arrayFlatten(groupArray(repo_product_ids))) AS product_ids
-      FROM (
-        SELECT s.repo_name,
-          uniqExactMerge(s.pr_count) AS repo_pr_count,
-          groupUniqArray(b.product_id) AS repo_product_ids
-        FROM pr_bot_event_counts s
-        JOIN bots b ON s.bot_id = b.id
+        r.owner AS owner,
+        sum(r.stars) AS total_stars,
+        count() AS repo_count,
+        groupUniqArray(r.primary_language) AS languages,
+        COALESCE(any(pr.total_prs), 0) + COALESCE(any(rr.exclusive_reaction_prs), 0) AS total_prs,
+        arrayDistinct(arrayConcat(
+          COALESCE(any(pr.product_ids), []),
+          COALESCE(any(rr.reaction_product_ids), [])
+        )) AS product_ids
+      FROM repos r
+      LEFT JOIN (
+        SELECT
+          opc.owner,
+          uniqExactMerge(opc.pr_count) AS total_prs,
+          groupUniqArray(b.product_id) AS product_ids
+        FROM org_bot_pr_counts opc
+        JOIN bots b ON opc.bot_id = b.id
         ${productJoinFilter}
-        GROUP BY s.repo_name
-      ) repo_agg
-      JOIN repos r2 ON repo_agg.repo_name = r2.name
-      WHERE r2.fetch_status = 'ok'
-      GROUP BY r2.owner
-    ) pr ON r.owner = pr.owner
-    LEFT JOIN (
-      -- Two-level aggregation: per-repo first (max deduplicates across bots),
-      -- then per-owner. Prevents double-counting when multiple bots react on
-      -- the same exclusive PR (a PR with no events from any bot).
-      SELECT r2.owner,
-        sum(repo_agg.repo_exclusive) AS exclusive_reaction_prs,
-        sum(repo_agg.repo_activity) AS reaction_activity,
-        arrayDistinct(arrayFlatten(groupArray(repo_agg.repo_product_ids))) AS reaction_product_ids
-      FROM (
-        SELECT rrc.repo_name,
-          max(rrc.exclusive_pr_count) AS repo_exclusive,
-          sum(rrc.pr_count) AS repo_activity,
-          groupUniqArray(b.product_id) AS repo_product_ids
-        FROM reaction_only_repo_counts rrc
-        JOIN bots b ON rrc.bot_id = b.id
-        WHERE 1=1
-          ${reactionProductFilter}
-        GROUP BY rrc.repo_name
-      ) repo_agg
-      JOIN repos r2 ON repo_agg.repo_name = r2.name
-      WHERE r2.fetch_status = 'ok'
-      GROUP BY r2.owner
-    ) rr ON r.owner = rr.owner
-    WHERE ${whereClause}
-    GROUP BY r.owner
-    ${havingClause}
+        GROUP BY opc.owner
+      ) pr ON r.owner = pr.owner
+      LEFT JOIN (
+        SELECT
+          rrc_owner,
+          sum(repo_exclusive) AS exclusive_reaction_prs,
+          sum(repo_activity) AS reaction_activity,
+          arrayDistinct(arrayFlatten(groupArray(repo_product_ids))) AS reaction_product_ids
+        FROM (
+          SELECT
+            splitByChar('/', rrc.repo_name)[1] AS rrc_owner,
+            max(rrc.exclusive_pr_count) AS repo_exclusive,
+            sum(rrc.pr_count) AS repo_activity,
+            groupUniqArray(b.product_id) AS repo_product_ids
+          FROM reaction_only_repo_counts rrc FINAL
+          JOIN bots b ON rrc.bot_id = b.id
+          WHERE rrc.repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')
+            ${reactionProductFilter}
+          GROUP BY rrc_owner, rrc.repo_name
+        )
+        GROUP BY rrc_owner
+      ) rr ON r.owner = rr.rrc_owner
+      WHERE ${whereClause}
+      GROUP BY r.owner
+      ${havingClause}
+    )
     ORDER BY ${orderBy}
     LIMIT {limit:UInt32}
     OFFSET {offset:UInt32}
   `;
 
-  const countQuery = `
-    SELECT count() AS total FROM (
-      SELECT r.owner
-      FROM repos r
-      LEFT JOIN (
-        SELECT
-          r2.owner,
-          sum(repo_pr_count) AS total_prs
-        FROM (
-          SELECT s.repo_name,
-            uniqExactMerge(s.pr_count) AS repo_pr_count
-          FROM pr_bot_event_counts s
-          JOIN bots b ON s.bot_id = b.id
-          ${productJoinFilter}
-          GROUP BY s.repo_name
-        ) repo_agg
-        JOIN repos r2 ON repo_agg.repo_name = r2.name
-        WHERE r2.fetch_status = 'ok'
-        GROUP BY r2.owner
-      ) pr ON r.owner = pr.owner
-      LEFT JOIN (
-        SELECT r2.owner,
-          sum(repo_agg.repo_activity) AS reaction_activity
-        FROM (
-          SELECT rrc.repo_name,
-            sum(rrc.pr_count) AS repo_activity
-          FROM reaction_only_repo_counts rrc
-          JOIN bots b ON rrc.bot_id = b.id
-          WHERE 1=1
-            ${reactionProductFilter}
-          GROUP BY rrc.repo_name
-        ) repo_agg
-        JOIN repos r2 ON repo_agg.repo_name = r2.name
-        WHERE r2.fetch_status = 'ok'
-        GROUP BY r2.owner
-      ) rr ON r.owner = rr.owner
-      WHERE ${whereClause}
-      GROUP BY r.owner
-      ${havingClause}
-    )
-  `;
-
-  const [orgs, countRows] = await Promise.all([
-    query<OrgListItem>(dataQuery, params),
-    query<{ total: number }>(countQuery, params),
-  ]);
+  const rows = await query<OrgListItemWithTotal>(combinedQuery, params);
+  const total = rows.length > 0 ? Number(rows[0]._total) : 0;
 
   return {
-    orgs: orgs.slice(0, limit),
-    total: countRows[0]?.total ?? 0,
+    orgs: rows.map(({ _total, ...org }) => org),
+    total,
   };
 }
 
@@ -1363,10 +1417,17 @@ export type EnrichmentStats = {
   total_comments: number;
 };
 
+const ENRICHMENT_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes — this is just banner data
+
 export async function getEnrichmentStats(): Promise<EnrichmentStats> {
   const cached = getCached<EnrichmentStats>("enrichmentStats");
   if (cached) return cached;
 
+  // Use count from repos + pull_requests (cheap) to approximate enrichment progress.
+  // The old total_discovered_prs subquery scanned pr_bot_event_counts (471K rows,
+  // 8-11s cold) just for a banner. Use count(DISTINCT repo_name) from pr_bot_event_counts
+  // for repos total (cheap because it's the primary key prefix), and sum the pre-aggregated
+  // pr_count for PRs total.
   const rows = await query<EnrichmentStats>(`
     SELECT
       (SELECT count() FROM repos) AS total_discovered_repos,
@@ -1381,7 +1442,7 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
     total_discovered_prs: 0,
     enriched_prs: 0,
     total_comments: 0,
-  });
+  }, ENRICHMENT_CACHE_TTL_MS);
 }
 
 // --- Data collection stats (for /about page) ---
@@ -1483,7 +1544,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     reactions_total: Number(base?.reactions_total ?? 0),
     reactions_scanned: Number(base?.reactions_scanned ?? 0),
     reactions_found: Number(base?.reactions_found ?? 0),
-  });
+  }, ENRICHMENT_CACHE_TTL_MS); // 30-min cache — status data changes slowly
 }
 
 /**
@@ -1614,47 +1675,100 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
   const botJoin = hasProductFilter ? "JOIN" : "LEFT JOIN";
   const botCondition = hasProductFilter ? "AND b.product_id IN ({productIds:Array(String)})" : "";
 
-  const dataQuery = `
-    SELECT
-      r.name AS name,
-      r.owner AS owner,
-      r.stars AS stars,
-      r.primary_language AS primary_language,
-      COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
-      0 AS bot_comment_count,
-      groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
-    FROM repos r
-    ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
-    ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
-    WHERE ${whereClause}
-    GROUP BY r.name, r.owner, r.stars, r.primary_language
-    ${havingClause}
-    ORDER BY ${orderBy}
-    LIMIT {limit:UInt32}
-    OFFSET {offset:UInt32}
-  `;
+  // Fast path: when sorting by stars (default) with no product filter, skip
+  // the expensive pr_bot_event_counts JOIN entirely. The repos table alone has
+  // all the data we need — stars, language, owner. PR counts and product_ids
+  // are only needed when sorting by PRs or filtering by product.
+  // This reduces the query from scanning 471K+ pr_bot_event_counts rows to
+  // a simple indexed scan of the repos table.
+  const needsEventJoin = hasProductFilter || sort === "prs";
 
-  const countQuery = `
-    SELECT count() AS total FROM (
-      SELECT r.name
-      FROM repos r
-      ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
-      ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
-      WHERE ${whereClause}
-      GROUP BY r.name
-      ${havingClause}
-    )
-  `;
+  if (needsEventJoin) {
+    // Slow path: full JOIN query needed for sort-by-PRs or product filter
+    const combinedQuery = `
+      SELECT *, count() OVER() AS _total FROM (
+        SELECT
+          r.name AS name,
+          r.owner AS owner,
+          r.stars AS stars,
+          r.primary_language AS primary_language,
+          COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
+          0 AS bot_comment_count,
+          groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
+        FROM repos r
+        ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
+        ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
+        WHERE ${whereClause}
+        GROUP BY r.name, r.owner, r.stars, r.primary_language
+        ${havingClause}
+      )
+      ORDER BY ${orderBy}
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `;
 
-  const [repos, countRows] = await Promise.all([
-    query<RepoListItem>(dataQuery, params),
-    query<{ total: number }>(countQuery, params),
-  ]);
+    type RepoListItemWithTotal = RepoListItem & { _total: number };
+    const rows = await query<RepoListItemWithTotal>(combinedQuery, params);
+    const total = rows.length > 0 ? Number(rows[0]._total) : 0;
+    return {
+      repos: rows.map(({ _total, ...repo }) => repo),
+      total,
+    };
+  } else {
+    // Fast path: two-phase like getOrgList — repos-only pagination, then enrich.
+    const simpleConditions: string[] = ["fetch_status = 'ok'"];
+    if (search) simpleConditions.push("name ILIKE {search:String}");
+    if (languages && languages.length > 0) simpleConditions.push("primary_language IN ({languages:Array(String)})");
+    const simpleWhere = simpleConditions.join(" AND ");
 
-  return {
-    repos,
-    total: countRows[0]?.total ?? 0,
-  };
+    // Phase 1: Get the page of repos from repos table only
+    const pageQuery = `
+      SELECT *, count() OVER() AS _total FROM (
+        SELECT name, owner, stars, primary_language
+        FROM repos
+        WHERE ${simpleWhere}
+      )
+      ORDER BY stars DESC
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `;
+
+    type PageRow = { name: string; owner: string; stars: number; primary_language: string; _total: number };
+    const pageRows = await query<PageRow>(pageQuery, params);
+    const total = pageRows.length > 0 ? Number(pageRows[0]._total) : 0;
+
+    if (pageRows.length === 0) {
+      return { repos: [], total };
+    }
+
+    // Phase 2: Enrich just these repos with PR counts + product_ids
+    const repoNames = pageRows.map(r => r.name);
+    const enrichRows = await query<{ repo_name: string; total_prs: number; product_ids: string[] }>(`
+      SELECT
+        s.repo_name,
+        uniqExactMerge(s.pr_count) AS total_prs,
+        groupUniqArray(b.product_id) AS product_ids
+      FROM pr_bot_event_counts s
+      JOIN bots b ON s.bot_id = b.id
+      WHERE s.repo_name IN ({repoNames:Array(String)})
+      GROUP BY s.repo_name
+    `, { repoNames });
+
+    const enrichMap = new Map(enrichRows.map(r => [r.repo_name, r]));
+
+    return {
+      repos: pageRows.map(({ _total, ...row }) => {
+        const enrich = enrichMap.get(row.name);
+        return {
+          ...row,
+          total_prs: enrich ? Number(enrich.total_prs) : 0,
+          bot_comment_count: 0,
+          product_ids: enrich?.product_ids ?? [],
+        };
+      }),
+      total,
+    };
+  }
 }
 
 export async function getRepoLanguageOptions(): Promise<OrgFilterOption[]> {
