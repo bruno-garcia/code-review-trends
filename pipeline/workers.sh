@@ -147,8 +147,9 @@ cmd_update() {
   log "Stopping workers..."
   cmd_stop
 
-  log "Pulling latest code..."
+  log "Checking out main and pulling latest..."
   cd "$REPO_DIR"
+  git checkout main
   git pull --ff-only
 
   log "Installing dependencies..."
