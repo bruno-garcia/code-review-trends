@@ -157,6 +157,14 @@ export default async function ProductPage({
           brandColor={product.brand_color}
         />
         <p className="mt-2 text-theme-muted">{product.description}</p>
+        {product.status === "retired" && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-2 text-sm text-amber-400">
+            <span>⚠️</span>
+            <span>
+              <strong>Retired</strong> — this product appears to be no longer available. Historical data is preserved.
+            </span>
+          </div>
+        )}
         <div className="mt-4 flex items-center gap-4 flex-wrap">
           {product.website && (
             <a

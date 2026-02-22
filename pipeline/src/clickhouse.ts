@@ -64,6 +64,11 @@ export async function syncProducts(
     query: `ALTER TABLE products ADD COLUMN IF NOT EXISTS docs_url String DEFAULT ''`,
   });
 
+  // Ensure status column exists (for migration of existing DBs)
+  await client.command({
+    query: `ALTER TABLE products ADD COLUMN IF NOT EXISTS status String DEFAULT 'active'`,
+  });
+
   await client.insert({
     table: "products",
     values: products.map((p) => ({
@@ -74,6 +79,7 @@ export async function syncProducts(
       docs_url: p.docs_url,
       brand_color: p.brand_color,
       avatar_url: p.avatar_url,
+      status: p.status ?? "active",
     })),
     format: "JSONEachRow",
   });

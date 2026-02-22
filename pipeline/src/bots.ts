@@ -28,6 +28,8 @@ export type ProductDefinition = {
   brand_color: string;
   /** Avatar URL */
   avatar_url: string;
+  /** Product status — 'retired' means service is no longer available. Defaults to 'active'. */
+  status?: "active" | "retired";
 };
 
 export type BotDefinition = {
@@ -220,6 +222,17 @@ export const PRODUCTS: ProductDefinition[] = [
     docs_url: "https://docs.bito.ai",
     brand_color: "#94a3b8",
     avatar_url: "https://avatars.githubusercontent.com/in/1061978?v=4",
+  },
+  {
+    id: "korbit",
+    name: "Korbit",
+    website: "https://korbit.ai",
+    description:
+      "AI code review mentor. Goes beyond catching bugs — provides educational feedback that helps developers learn and improve. Focuses on teaching best practices during the review process.",
+    docs_url: "https://docs.korbit.ai",
+    brand_color: "#b07838",
+    avatar_url: "https://avatars.githubusercontent.com/in/322216?v=4",
+    status: "retired",
   },
   {
     id: "claude",
@@ -540,6 +553,18 @@ export const BOTS: BotDefinition[] = [
     description: "AI code review powered by LLMs. Provides PR summaries, security analysis, and performance suggestions.",
     brand_color: "#94a3b8",
     avatar_url: "https://avatars.githubusercontent.com/in/1061978?v=4",
+  },
+  // Korbit
+  {
+    id: "korbit",
+    product_id: "korbit",
+    name: "Korbit",
+    github_login: "korbit-ai[bot]",
+    github_id: 131444098,
+    website: "https://korbit.ai",
+    description: "AI code review mentor. Provides educational feedback that helps developers learn best practices during review.",
+    brand_color: "#b07838",
+    avatar_url: "https://avatars.githubusercontent.com/in/322216?v=4",
   },
   // Claude
   {
