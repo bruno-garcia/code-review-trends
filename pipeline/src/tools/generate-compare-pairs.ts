@@ -15,18 +15,36 @@ import { PRODUCTS } from "../bots.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_PATH = resolve(__dirname, "../../../app/src/lib/generated/compare-pairs.ts");
 
-export async function generateComparePairs(): Promise<void> {
-  // Sort products by ID for deterministic output
-  const sorted = [...PRODUCTS].sort((a, b) => a.id.localeCompare(b.id));
+/** Slugify a product name: lowercase, spaces → hyphens, strip non-alphanumeric. */
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
 
-  // Generate all C(n,2) pairs with idA < idB (alphabetically)
+export async function generateComparePairs(): Promise<void> {
+  // Build slug for each product from its display name (not ID).
+  // e.g. "Cursor Bugbot" → "cursor-bugbot", "GitHub Copilot" → "github-copilot"
+  const withSlugs = PRODUCTS.map((p) => ({ ...p, nameSlug: slugify(p.name) }));
+
+  // Detect slug collisions (would break URL uniqueness)
+  const slugSet = new Set<string>();
+  for (const p of withSlugs) {
+    if (slugSet.has(p.nameSlug)) {
+      throw new Error(`Slug collision: "${p.nameSlug}" from product "${p.name}" (${p.id})`);
+    }
+    slugSet.add(p.nameSlug);
+  }
+
+  // Sort by name-slug for deterministic output
+  const sorted = [...withSlugs].sort((a, b) => a.nameSlug.localeCompare(b.nameSlug));
+
+  // Generate all C(n,2) pairs with slugA < slugB (alphabetically)
   const pairs: { idA: string; idB: string; nameA: string; nameB: string; slug: string; title: string; description: string }[] = [];
 
   for (let i = 0; i < sorted.length; i++) {
     for (let j = i + 1; j < sorted.length; j++) {
       const a = sorted[i];
       const b = sorted[j];
-      const slug = `${a.id}-vs-${b.id}`;
+      const slug = `${a.nameSlug}-vs-${b.nameSlug}`;
       pairs.push({
         idA: a.id,
         idB: b.id,

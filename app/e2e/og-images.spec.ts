@@ -29,7 +29,7 @@ test.describe("OG Images", () => {
 
   test("compare pair OG image returns valid PNG", async ({ request }) => {
     const res = await request.get(
-      "/compare/coderabbit-vs-copilot/opengraph-image",
+      "/compare/coderabbit-vs-github-copilot/opengraph-image",
     );
     expect(res.status()).toBe(200);
     expect(res.headers()["content-type"]).toBe("image/png");

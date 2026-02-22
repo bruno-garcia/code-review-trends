@@ -267,7 +267,8 @@ describe("compare pairs consistency", () => {
     "utf-8",
   );
 
-  // Parse all pair objects from the generated source
+  // Extract the JSON array from the generated TypeScript and parse it.
+  // More robust than regex — survives key reordering and formatting changes.
   type ParsedPair = {
     idA: string;
     idB: string;
@@ -275,19 +276,11 @@ describe("compare pairs consistency", () => {
     nameB: string;
     slug: string;
   };
-  const pairs: ParsedPair[] = [];
-  const pairPattern =
-    /\{\s*"idA":\s*"([^"]+)",\s*"idB":\s*"([^"]+)",\s*"nameA":\s*"([^"]+)",\s*"nameB":\s*"([^"]+)",\s*"slug":\s*"([^"]+)"/g;
-  let m;
-  while ((m = pairPattern.exec(source)) !== null) {
-    pairs.push({
-      idA: m[1],
-      idB: m[2],
-      nameA: m[3],
-      nameB: m[4],
-      slug: m[5],
-    });
-  }
+  const arrayMatch = source.match(
+    /export const COMPARE_PAIRS: ComparePair\[] = (\[[\s\S]*?\n\]);/,
+  );
+  assert.ok(arrayMatch, `Could not find COMPARE_PAIRS array in generated file. ${REGEN_MSG}`);
+  const pairs: ParsedPair[] = JSON.parse(arrayMatch[1]);
 
   const n = PRODUCTS.length;
   const expectedCount = (n * (n - 1)) / 2;
@@ -313,11 +306,13 @@ describe("compare pairs consistency", () => {
     }
   });
 
-  it("every pair has idA < idB alphabetically", () => {
+  it("every pair slug has its two parts in alphabetical order", () => {
     for (const pair of pairs) {
+      const parts = pair.slug.split("-vs-");
+      assert.equal(parts.length, 2, `Slug "${pair.slug}" doesn't contain exactly one "-vs-". ${REGEN_MSG}`);
       assert.ok(
-        pair.idA < pair.idB,
-        `Pair ${pair.slug} has idA="${pair.idA}" >= idB="${pair.idB}". ${REGEN_MSG}`,
+        parts[0] < parts[1],
+        `Pair ${pair.slug} has "${parts[0]}" >= "${parts[1]}" — slug parts not alphabetically ordered. ${REGEN_MSG}`,
       );
     }
   });
@@ -350,12 +345,15 @@ describe("compare pairs consistency", () => {
   });
 
   it("every possible product pair has an entry", () => {
-    const pairKeys = new Set(pairs.map((p) => `${p.idA}:${p.idB}`));
-    const ids = PRODUCTS.map((p) => p.id).sort();
+    // Normalize pair keys so order doesn't matter (pairs are sorted by
+    // name-slug, not by ID, so idA/idB ordering varies).
+    const normalize = (a: string, b: string) => a < b ? `${a}:${b}` : `${b}:${a}`;
+    const pairKeys = new Set(pairs.map((p) => normalize(p.idA, p.idB)));
+    const ids = PRODUCTS.map((p) => p.id);
     const missing: string[] = [];
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
-        const key = `${ids[i]}:${ids[j]}`;
+        const key = normalize(ids[i], ids[j]);
         if (!pairKeys.has(key)) missing.push(key);
       }
     }

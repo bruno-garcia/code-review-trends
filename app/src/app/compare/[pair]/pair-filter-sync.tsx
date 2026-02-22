@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useProductFilter } from "@/lib/product-filter";
 
@@ -17,14 +17,13 @@ export function PairFilterSync({ productIds }: { productIds: [string, string] })
   const { selectedProductIds, setSelectedProductIds } = useProductFilter();
   const router = useRouter();
   const phaseRef = useRef<"init" | "synced" | "watching">("init");
-  const pairSet = new Set(productIds);
+  const pairSet = useMemo(() => new Set(productIds), [productIds]);
 
   // On mount: set filter to the pair products
   useEffect(() => {
     setSelectedProductIds([...productIds]);
     phaseRef.current = "synced";
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [productIds, setSelectedProductIds]);
 
   // Track initialization, then watch for user changes
   useEffect(() => {
@@ -51,8 +50,7 @@ export function PairFilterSync({ productIds }: { productIds: [string, string] })
       );
       router.push(newPath);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProductIds]);
+  }, [selectedProductIds, pairSet, router]);
 
   return null;
 }

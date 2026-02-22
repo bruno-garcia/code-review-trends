@@ -11,7 +11,7 @@ async function expandPicker(page: Page) {
 
 test.describe("Compare pair pages", () => {
   test("pair page renders with both product names", async ({ page }) => {
-    await page.goto("/compare/coderabbit-vs-copilot");
+    await page.goto("/compare/coderabbit-vs-github-copilot");
     await expect(page.getByTestId("compare-pair")).toBeVisible();
     const title = await page.title();
     expect(title).toMatch(/CodeRabbit/i);
@@ -19,15 +19,15 @@ test.describe("Compare pair pages", () => {
   });
 
   test("pair page does not redirect away", async ({ page }) => {
-    await page.goto("/compare/coderabbit-vs-copilot");
+    await page.goto("/compare/coderabbit-vs-github-copilot");
     await expect(page.getByTestId("compare-pair")).toBeVisible();
     // Wait a moment to ensure no redirect fires
     await page.waitForTimeout(1000);
-    expect(page.url()).toContain("/compare/coderabbit-vs-copilot");
+    expect(page.url()).toContain("/compare/coderabbit-vs-github-copilot");
   });
 
   test("filter bar visible on pair page with 2 products selected", async ({ page }) => {
-    await page.goto("/compare/coderabbit-vs-copilot");
+    await page.goto("/compare/coderabbit-vs-github-copilot");
     await expect(page.getByTestId("compare-pair")).toBeVisible();
     const bar = page.getByTestId("product-filter-bar");
     await expect(bar).toBeVisible();
@@ -35,14 +35,14 @@ test.describe("Compare pair pages", () => {
   });
 
   test("compare table shows exactly the 2 pair products", async ({ page }) => {
-    await page.goto("/compare/coderabbit-vs-copilot");
+    await page.goto("/compare/coderabbit-vs-github-copilot");
     const table = page.getByTestId("compare-table");
     await expect(table).toBeVisible();
     await expect(table.locator("tbody tr")).toHaveCount(2);
   });
 
   test("changing filter on pair page navigates to /compare", async ({ page }) => {
-    await page.goto("/compare/coderabbit-vs-copilot");
+    await page.goto("/compare/coderabbit-vs-github-copilot");
     await expect(page.getByTestId("compare-pair")).toBeVisible();
     // Wait for filter to sync
     await expect(

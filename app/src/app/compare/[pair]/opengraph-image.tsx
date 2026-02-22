@@ -33,22 +33,18 @@ export default async function Image({
     const summaryA = summaries.find((s) => s.id === pairData.idA);
     const summaryB = summaries.find((s) => s.id === pairData.idB);
 
-    if (summaryA) {
-      const g = Number(summaryA.growth_pct);
-      statsA = {
-        reviews: formatNumber(Number(summaryA.total_reviews)),
+    const toStats = (summary: typeof summaryA, fallbackColor: string) => {
+      if (!summary) return null;
+      const g = Number(summary.growth_pct);
+      return {
+        reviews: formatNumber(Number(summary.total_reviews)),
         growth: `${g >= 0 ? "+" : ""}${g.toFixed(1)}%`,
-        color: summaryA.brand_color || "#7c3aed",
+        color: summary.brand_color || fallbackColor,
       };
-    }
-    if (summaryB) {
-      const g = Number(summaryB.growth_pct);
-      statsB = {
-        reviews: formatNumber(Number(summaryB.total_reviews)),
-        growth: `${g >= 0 ? "+" : ""}${g.toFixed(1)}%`,
-        color: summaryB.brand_color || "#7c3aed",
-      };
-    }
+    };
+
+    statsA = toStats(summaryA, "#7c3aed");
+    statsB = toStats(summaryB, "#22d3ee");
   } catch (err) {
     Sentry.captureException(err, {
       tags: { route: "compare/[pair]/opengraph-image", pair },
