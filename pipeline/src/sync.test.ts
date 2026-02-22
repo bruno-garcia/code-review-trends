@@ -88,48 +88,80 @@ function toMonday(dateStr: string): string {
 // ── Pure unit tests ─────────────────────────────────────────────────────
 
 describe("monthlyChunks", () => {
-  it("single day produces one chunk", () => {
+  it("single day extends to full week", () => {
+    // 2025-03-15 is Saturday → extends to Mon Mar 10 – Sun Mar 16
     const chunks = monthlyChunks("2025-03-15", "2025-03-15");
     assert.deepEqual(chunks, [
-      { startDate: "2025-03-15", endDate: "2025-03-15" },
+      { startDate: "2025-03-10", endDate: "2025-03-16" },
     ]);
   });
 
-  it("same month produces one chunk", () => {
+  it("same month extends to full weeks at both edges", () => {
+    // Jan 1 2025 = Wed → back to Mon Dec 30; Jan 31 = Fri → forward to Sun Feb 2
     const chunks = monthlyChunks("2025-01-01", "2025-01-31");
     assert.deepEqual(chunks, [
-      { startDate: "2025-01-01", endDate: "2025-01-31" },
+      { startDate: "2024-12-30", endDate: "2025-02-02" },
     ]);
   });
 
-  it("two months produces two chunks", () => {
+  it("two months produces two overlapping chunks", () => {
+    // Jan 15 Wed → Mon Jan 13; Jan 31 Fri → Sun Feb 2
+    // Feb 1 Sat → Mon Jan 27; Feb 20 Thu → Sun Feb 23
     const chunks = monthlyChunks("2025-01-15", "2025-02-20");
     assert.equal(chunks.length, 2);
-    assert.equal(chunks[0].startDate, "2025-01-15");
-    assert.equal(chunks[0].endDate, "2025-01-31");
-    assert.equal(chunks[1].startDate, "2025-02-01");
-    assert.equal(chunks[1].endDate, "2025-02-20");
+    assert.equal(chunks[0].startDate, "2025-01-13");
+    assert.equal(chunks[0].endDate, "2025-02-02");
+    assert.equal(chunks[1].startDate, "2025-01-27");
+    assert.equal(chunks[1].endDate, "2025-02-23");
   });
 
   it("handles year boundary", () => {
+    // Dec 1 2024 = Sun → Mon Nov 25; Dec 31 = Tue → Sun Jan 5
+    // Jan 1 2025 = Wed → Mon Dec 30; Jan 15 = Wed → Sun Jan 19
     const chunks = monthlyChunks("2024-12-01", "2025-01-15");
     assert.equal(chunks.length, 2);
-    assert.equal(chunks[0].endDate, "2024-12-31");
-    assert.equal(chunks[1].startDate, "2025-01-01");
-    assert.equal(chunks[1].endDate, "2025-01-15");
+    assert.equal(chunks[0].startDate, "2024-11-25");
+    assert.equal(chunks[0].endDate, "2025-01-05");
+    assert.equal(chunks[1].startDate, "2024-12-30");
+    assert.equal(chunks[1].endDate, "2025-01-19");
   });
 
   it("full year produces 12 chunks", () => {
+    // Jan 1 2024 = Mon (already aligned); Dec 31 2024 = Tue → Sun Jan 5 2025
     const chunks = monthlyChunks("2024-01-01", "2024-12-31");
     assert.equal(chunks.length, 12);
     assert.equal(chunks[0].startDate, "2024-01-01");
-    assert.equal(chunks[11].endDate, "2024-12-31");
+    assert.equal(chunks[11].endDate, "2025-01-05");
   });
 
   it("feb leap year boundary", () => {
+    // Feb 1 2024 = Thu → Mon Jan 29; Feb 29 = Thu → Sun Mar 3
     const chunks = monthlyChunks("2024-02-01", "2024-02-29");
     assert.equal(chunks.length, 1);
-    assert.equal(chunks[0].endDate, "2024-02-29");
+    assert.equal(chunks[0].startDate, "2024-01-29");
+    assert.equal(chunks[0].endDate, "2024-03-03");
+  });
+
+  it("boundary weeks are fully contained in at least one chunk", () => {
+    // Week of Jan 27 (Mon) → Feb 2 (Sun) 2025 spans the month boundary.
+    // Both chunks must fully contain this week.
+    const chunks = monthlyChunks("2025-01-01", "2025-02-28");
+    assert.equal(chunks.length, 2);
+    // Jan chunk must include Feb 2 (Sunday of boundary week)
+    assert.ok(chunks[0].endDate >= "2025-02-02",
+      `Jan chunk endDate ${chunks[0].endDate} must be >= 2025-02-02`);
+    // Feb chunk must include Jan 27 (Monday of boundary week)
+    assert.ok(chunks[1].startDate <= "2025-01-27",
+      `Feb chunk startDate ${chunks[1].startDate} must be <= 2025-01-27`);
+  });
+
+  it("no overlap needed when month boundary is a week boundary", () => {
+    // Mar 31 2024 = Sun (week end), Apr 1 = Mon (week start)
+    // These chunks should abut without overlap — no week is split.
+    const chunks = monthlyChunks("2024-03-01", "2024-04-30");
+    assert.equal(chunks.length, 2);
+    assert.equal(chunks[0].endDate, "2024-03-31"); // Sun Mar 31
+    assert.equal(chunks[1].startDate, "2024-04-01"); // Mon Apr 1
   });
 });
 
@@ -291,7 +323,6 @@ describe("backfill integration", () => {
     // which may fall before the calendar month boundary.
     const start = "2019-03-01";
     const end = "2019-03-31";
-    const expectedWeek = toMonday(start); // e.g. 2019-02-25
 
     const calls: SyncChunk[] = [];
     const fetcher = fakeFetcher({ calls });
@@ -303,16 +334,21 @@ describe("backfill integration", () => {
       log: quiet,
     });
 
-    // Should have processed exactly 1 chunk (one month)
+    // Should have processed exactly 1 chunk (one month, week-aligned)
+    // Mar 1 2019 = Fri → Mon Feb 25; Mar 31 = Sun (already aligned)
     assert.equal(results.length, 1);
-    assert.equal(results[0].chunk.startDate, "2019-03-01");
+    assert.equal(results[0].chunk.startDate, "2019-02-25");
     assert.equal(results[0].chunk.endDate, "2019-03-31");
     assert.equal(results[0].botRows, 1);
     assert.equal(results[0].humanRows, 1);
 
-    // Verify the fetcher was called with the right range
+    // Verify the fetcher was called with week-aligned range
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].startDate, "2019-03-01");
+    assert.equal(calls[0].startDate, "2019-02-25");
+
+    // The fake fetcher returns data for the Monday of the chunk start,
+    // which is 2019-02-25 (already Monday after alignment)
+    const expectedWeek = toMonday(calls[0].startDate);
 
     // Verify data landed in ClickHouse (query by the actual week Monday)
     const botData = await query<{ cnt: string }>(
@@ -332,7 +368,7 @@ describe("backfill integration", () => {
     assert.ok(Number(humanData[0].cnt) >= 1, "Expected human activity rows in ClickHouse");
   });
 
-  it("backfills multiple months and creates correct chunks", async () => {
+  it("backfills multiple months and creates correct week-aligned chunks", async () => {
     const calls: SyncChunk[] = [];
     const fetcher = fakeFetcher({ calls });
 
@@ -343,15 +379,18 @@ describe("backfill integration", () => {
       log: quiet,
     });
 
-    // June partial, July full, August partial = 3 chunks
+    // June partial, July full, August partial = 3 chunks (week-aligned)
+    // Jun 15 Sat → Mon Jun 10; Jun 30 Sun → Sun Jun 30
+    // Jul 1 Mon → Mon Jul 1; Jul 31 Wed → Sun Aug 4
+    // Aug 1 Thu → Mon Jul 29; Aug 10 Sat → Sun Aug 11
     assert.equal(results.length, 3);
     assert.equal(calls.length, 3);
-    assert.equal(calls[0].startDate, "2019-06-15");
+    assert.equal(calls[0].startDate, "2019-06-10");
     assert.equal(calls[0].endDate, "2019-06-30");
     assert.equal(calls[1].startDate, "2019-07-01");
-    assert.equal(calls[1].endDate, "2019-07-31");
-    assert.equal(calls[2].startDate, "2019-08-01");
-    assert.equal(calls[2].endDate, "2019-08-10");
+    assert.equal(calls[1].endDate, "2019-08-04");
+    assert.equal(calls[2].startDate, "2019-07-29");
+    assert.equal(calls[2].endDate, "2019-08-11");
   });
 
   it("resumes from last completed chunk", async () => {
@@ -363,7 +402,8 @@ describe("backfill integration", () => {
     const calls1: SyncChunk[] = [];
     const fetcher1 = fakeFetcher({ calls: calls1 });
 
-    // First run: backfill Jan–Mar (3 months)
+    // First run: backfill Jan–Mar 2019 (3 months)
+    // Jan 1 2019 = Tue → Mon Dec 31 2018; Mar 31 = Sun → Sun Mar 31
     await backfill(fetcher1, ch, {
       startDate: "2019-01-01",
       endDate: "2019-03-31",
@@ -385,6 +425,7 @@ describe("backfill integration", () => {
     assert.equal(calls2.length, 0, "Should not call fetcher for completed range");
 
     // Third run: extend to April — should only fetch April
+    // Apr 1 2019 = Mon (already aligned); Apr 30 = Tue → Sun May 5
     const calls3: SyncChunk[] = [];
     const fetcher3 = fakeFetcher({ calls: calls3 });
     const results3 = await backfill(fetcher3, ch, {
@@ -407,6 +448,8 @@ describe("backfill integration", () => {
     const fetcher1 = fakeFetcher({ calls: calls1 });
 
     // First run: backfill Jan–Feb 2019
+    // Jan 1 2019 = Tue → week-aligned chunk_start = Mon Dec 31 2018
+    // Feb 1 2019 = Fri → week-aligned chunk_start = Mon Jan 28
     await backfill(fetcher1, ch, {
       startDate: "2019-01-01",
       endDate: "2019-02-28",
@@ -416,13 +459,14 @@ describe("backfill integration", () => {
     assert.equal(calls1.length, 2, "Should process Jan and Feb");
 
     // Simulate a bot set change by overwriting the stored bot_logins
-    // with a different (older) set for January only
+    // with a different (older) set for January only.
+    // Use the week-aligned chunk_start (Mon Dec 31 2018).
     await ch.insert({
       table: "pipeline_state",
       values: [{
         job_name: "backfill",
-        chunk_start: "2019-01-01",
-        chunk_end: "2019-01-31",
+        chunk_start: "2018-12-31",
+        chunk_end: "2019-02-03",
         rows_written: 10,
         bot_logins: "old-bot[bot]",
         // Explicit future timestamp so this row wins in ReplacingMergeTree
@@ -443,7 +487,7 @@ describe("backfill integration", () => {
       log: quiet,
     });
     assert.equal(results2.length, 1, "Should only re-fetch January (stale bot set)");
-    assert.equal(calls2[0].startDate, "2019-01-01");
+    assert.equal(calls2[0].startDate, "2018-12-31");
   });
 
   it("re-fetches chunks when pipeline version changes", async () => {
@@ -456,6 +500,7 @@ describe("backfill integration", () => {
     const fetcher1 = fakeFetcher({ calls: calls1 });
 
     // First run: backfill Jan–Feb 2019
+    // Jan chunk_start (week-aligned) = Mon Dec 31 2018
     await backfill(fetcher1, ch, {
       startDate: "2019-01-01",
       endDate: "2019-02-28",
@@ -464,11 +509,12 @@ describe("backfill integration", () => {
     });
     assert.equal(calls1.length, 2, "Should process Jan and Feb");
 
-    // Read current bot_logins for January so we only change the version
+    // Read current bot_logins for January so we only change the version.
+    // Use the week-aligned chunk_start (Mon Dec 31 2018).
     const [janState] = await query<{ bot_logins: string }>(
       ch,
       `SELECT bot_logins FROM pipeline_state FINAL
-       WHERE job_name = 'backfill' AND chunk_start = '2019-01-01'`,
+       WHERE job_name = 'backfill' AND chunk_start = '2018-12-31'`,
     );
 
     // Simulate an older pipeline version by overwriting January's state
@@ -477,8 +523,8 @@ describe("backfill integration", () => {
       table: "pipeline_state",
       values: [{
         job_name: "backfill",
-        chunk_start: "2019-01-01",
-        chunk_end: "2019-01-31",
+        chunk_start: "2018-12-31",
+        chunk_end: "2019-02-03",
         rows_written: 10,
         bot_logins: janState.bot_logins,
         pipeline_version: PIPELINE_VERSION - 1,
@@ -499,7 +545,7 @@ describe("backfill integration", () => {
       log: quiet,
     });
     assert.equal(results2.length, 1, "Should only re-fetch January (stale pipeline version)");
-    assert.equal(calls2[0].startDate, "2019-01-01");
+    assert.equal(calls2[0].startDate, "2018-12-31");
   });
 
   it("is idempotent — re-running same range overwrites without error", async () => {
