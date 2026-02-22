@@ -247,7 +247,7 @@ Options for discover-bots:
   --bigquery-only      Skip marketplace scan
 
 Options for enrich:
-  --token TOKEN        GitHub PAT (or set GITHUB_TOKEN env var)
+  --gh-token TOKEN        GitHub PAT (or set GITHUB_TOKEN env var)
   --worker-id N        Worker ID for partitioning (default: 0)
   --total-workers N    Total workers (default: 1)
   --limit N            Max items per entity type per run
@@ -258,10 +258,13 @@ Options for enrich:
 Options for validate-bq-prs:
   --sample N           Number of PRs to compare (default: 500)
 
+Connection options (CLI args override env vars):
+  --clickhouse-url URL      ClickHouse HTTP URL (env: CLICKHOUSE_URL, default: http://localhost:8123)
+  --clickhouse-password PW  ClickHouse password (env: CLICKHOUSE_PASSWORD, default: dev)
+  --sentry-dsn DSN          Sentry DSN (env: SENTRY_DSN_CRT_CLI, required unless --no-sentry)
+
 Environment variables:
-  CLICKHOUSE_URL       ClickHouse HTTP URL (default: http://localhost:8123)
   CLICKHOUSE_USER      ClickHouse user (default: default)
-  CLICKHOUSE_PASSWORD  ClickHouse password (default: dev)
   CLICKHOUSE_DB        ClickHouse database (default: code_review_trends)
   GCP_PROJECT_ID       GCP project for BigQuery
   BQ_MAX_BYTES_BILLED  Max bytes BigQuery can scan (default: 15TB)
@@ -822,10 +825,10 @@ async function cmdDiscoverBots() {
 
 async function cmdEnrich() {
   const args = parseArgs();
-  const token = args["--token"] ?? process.env.GITHUB_TOKEN;
+  const token = args["--gh-token"] ?? process.env.GITHUB_TOKEN;
 
   if (!token) {
-    throw new CliError("GitHub token required. Use --token or set GITHUB_TOKEN env var.");
+    throw new CliError("GitHub token required. Use --gh-token or set GITHUB_TOKEN env var.");
   }
 
   const { runEnrichment } = await import("./enrichment/worker.js");
@@ -1159,12 +1162,12 @@ function formatDate(d: Date): string {
 }
 
 /**
- * Get the effective GitHub token from --token arg or GITHUB_TOKEN env var.
+ * Get the effective GitHub token from --gh-token arg or GITHUB_TOKEN env var.
  * Used to resolve token identity for Sentry tagging before command dispatch.
  */
 function getGitHubToken(): string | undefined {
   const args = process.argv;
-  const idx = args.indexOf("--token");
+  const idx = args.indexOf("--gh-token");
   if (idx >= 0 && idx + 1 < args.length && !args[idx + 1].startsWith("--")) {
     return args[idx + 1];
   }
@@ -1173,7 +1176,7 @@ function getGitHubToken(): string | undefined {
 
 /** Redact known sensitive flags from CLI args before sending to Sentry. */
 function redactArgs(args: string): string {
-  return args.replace(/(--token\s+)\S+/g, "$1[REDACTED]");
+  return args.replace(/(--gh-token\s+)\S+/g, "$1[REDACTED]");
 }
 
 /** Strip credentials from a URL (user:pass in authority). */

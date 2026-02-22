@@ -2,18 +2,18 @@
 #
 # Enrichment worker manager for migration-worker VM.
 #
-# Reads GitHub tokens from GCP Secret Manager (JSON array),
-# spawns one tmux worker per token, plus a status window.
+# Fetches ALL config from GCP Secret Manager — no .env.local needed.
+# Spawns one tmux worker per GitHub token, plus a status window.
 #
 # Usage:
-#   ./workers.sh <env> start    # Fetch tokens, start N workers in tmux
+#   ./workers.sh <env> start    # Fetch secrets, start N workers in tmux
 #   ./workers.sh <env> stop     # Kill all workers
 #   ./workers.sh <env> status   # Show tail of each worker log
 #   ./workers.sh <env> update   # Stop → git pull → npm ci → start
 #   ./workers.sh <env> tokens   # Show token count + usernames + expiry
 #
 # <env> is required: staging, production, development
-# Secret name derived from env: crt-<env>-github-tokens
+# Secrets are derived from env: crt-<env>-*
 #
 # Reentrant: start always kills existing session first.
 # Logs: ~/worker-<env>-{1,2,...}.log
@@ -36,7 +36,7 @@ if [[ $# -ne 2 ]]; then
   echo ""
   echo "  <env>     staging | production | development"
   echo ""
-  echo "  start     Fetch tokens from Secret Manager, start N workers in tmux"
+  echo "  start     Fetch secrets from GCP, start N workers in tmux"
   echo "  stop      Kill all workers"
   echo "  status    Show worker logs"
   echo "  update    Stop → git pull → npm ci → start"
@@ -56,35 +56,61 @@ case "$PIPELINE_ENV" in
 esac
 
 REPO_DIR="$HOME/code-review-trends"
-ENV_FILE="$REPO_DIR/.env.local"
 SESSION="enrich-${PIPELINE_ENV}"
-SECRET_NAME="crt-${PIPELINE_ENV}-github-tokens"
+GCP_PROJECT="nuget-trends"
+PREFIX="crt-${PIPELINE_ENV}"
 WORKER_LIMIT="50000"
+
+# ClickHouse URL is infrastructure config (not a secret).
+# The hostname is the same for all environments — only the password differs.
+CLICKHOUSE_URL="https://ch-crt.brunogarcia.com:58432"
+CLICKHOUSE_DB="code_review_trends"
+
+# --- Secret fetching ---
+
+fetch_secret() {
+  local name="$1"
+  local value
+  value=$(gcloud secrets versions access latest --secret="$name" --project="$GCP_PROJECT" 2>/dev/null) || {
+    err "Failed to fetch secret '$name' from GCP Secret Manager"
+    err "Ensure the VM service account has secretmanager.versions.access on this secret"
+    exit 1
+  }
+  echo "$value"
+}
 
 fetch_tokens() {
   local raw
-  raw=$(gcloud secrets versions access latest --secret="$SECRET_NAME" 2>/dev/null) || {
-    err "Failed to fetch secret '$SECRET_NAME' from GCP Secret Manager"
-    exit 1
-  }
+  raw=$(fetch_secret "${PREFIX}-github-tokens")
   # Parse JSON array into bash array
   mapfile -t TOKENS < <(echo "$raw" | python3 -c "import json,sys; [print(t) for t in json.load(sys.stdin)]")
   if [[ ${#TOKENS[@]} -eq 0 ]]; then
-    err "No tokens found in secret '$SECRET_NAME'"
+    err "No tokens found in secret '${PREFIX}-github-tokens'"
     exit 1
   fi
-  log "Found ${#TOKENS[@]} token(s) from $SECRET_NAME"
+  log "Found ${#TOKENS[@]} GitHub token(s)"
+}
+
+fetch_shared_secrets() {
+  log "Fetching secrets from GCP Secret Manager (project: $GCP_PROJECT)..."
+  CLICKHOUSE_PASSWORD=$(fetch_secret "${PREFIX}-clickhouse-password")
+  SENTRY_DSN=$(fetch_secret "${PREFIX}-sentry-dsn-pipeline")
+  log "  ClickHouse: $CLICKHOUSE_URL (password: ***)"
+  log "  Sentry DSN: ${SENTRY_DSN:0:30}..."
+}
+
+# Build the shared CLI args that every worker command needs.
+# These are passed explicitly — no env vars needed.
+shared_cli_args() {
+  echo "--clickhouse-url $(printf %q "$CLICKHOUSE_URL") --clickhouse-password $(printf %q "$CLICKHOUSE_PASSWORD") --sentry-dsn $(printf %q "$SENTRY_DSN")"
 }
 
 cmd_start() {
+  fetch_shared_secrets
   fetch_tokens
   local n=${#TOKENS[@]}
-
-  # Load base env (CLICKHOUSE_URL, etc.)
-  if [[ ! -f "$ENV_FILE" ]]; then
-    err "Missing $ENV_FILE — need CLICKHOUSE_URL and CLICKHOUSE_PASSWORD"
-    exit 1
-  fi
+  local cli_args
+  cli_args=$(shared_cli_args)
 
   # Kill existing session (reentrant)
   tmux kill-session -t "$SESSION" 2>/dev/null && warn "Killed existing tmux session '$SESSION'"
@@ -93,7 +119,7 @@ cmd_start() {
 
   # Window 0: status monitor
   tmux new-session -d -s "$SESSION" -n status
-  tmux send-keys -t "$SESSION:status" "cd $REPO_DIR && watch -n 60 'export \$(grep -v \"^#\" $ENV_FILE | xargs) && npm run pipeline -- enrich-status --env $PIPELINE_ENV --no-sentry 2>&1 | tail -40'" Enter
+  tmux send-keys -t "$SESSION:status" "cd $REPO_DIR && watch -n 60 'npm run pipeline -- enrich-status --env $PIPELINE_ENV ${cli_args} 2>&1 | tail -40'" Enter
 
   # Windows 1..N: workers (staggered 60s apart to avoid ClickHouse overload)
   for i in $(seq 0 $((n - 1))); do
@@ -109,8 +135,9 @@ cmd_start() {
     if [[ $i -gt 0 ]]; then
       sleep_cmd="echo 'Worker ${display_id}/${n}: waiting $((i * 60))s to stagger start...' && sleep $((i * 60)) && "
     fi
-    local escaped_token=$(printf %q "${token}")
-    local cmd="${sleep_cmd}cd $REPO_DIR && export \$(grep -v '^#' $ENV_FILE | xargs) && export GITHUB_TOKEN=${escaped_token} && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --no-sentry 2>&1 | tee $logfile"
+    local escaped_token
+    escaped_token=$(printf %q "${token}")
+    local cmd="${sleep_cmd}cd $REPO_DIR && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --gh-token ${escaped_token} ${cli_args} 2>&1 | tee $logfile"
 
     tmux new-window -t "$SESSION" -n "$wname"
     tmux send-keys -t "$SESSION:$wname" "$cmd" Enter
@@ -170,7 +197,7 @@ cmd_update() {
 cmd_tokens() {
   fetch_tokens
   local n=${#TOKENS[@]}
-  log "$n token(s) in secret '$SECRET_NAME':"
+  log "$n token(s) in secret '${PREFIX}-github-tokens':"
   echo ""
   for i in $(seq 0 $((n - 1))); do
     local token="${TOKENS[$i]}"

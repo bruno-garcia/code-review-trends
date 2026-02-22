@@ -15,6 +15,27 @@
 
 import * as Sentry from "@sentry/node";
 
+// ── CLI arg → process.env promotion ────────────────────────────────────
+// Runs before anything reads process.env so that --clickhouse-url etc.
+// are available to all downstream code (clickhouse.ts, sentry tags, etc.).
+// CLI args take precedence over env vars.
+
+const CLI_TO_ENV: Record<string, string> = {
+  "--clickhouse-url": "CLICKHOUSE_URL",
+  "--clickhouse-password": "CLICKHOUSE_PASSWORD",
+  "--sentry-dsn": "SENTRY_DSN_CRT_CLI",
+};
+
+{
+  const argv = process.argv;
+  for (let i = 0; i < argv.length; i++) {
+    const envKey = CLI_TO_ENV[argv[i]];
+    if (envKey && i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
+      process.env[envKey] = argv[i + 1];
+    }
+  }
+}
+
 const VALID_ENVS = ["development", "staging", "production"] as const;
 type PipelineEnv = (typeof VALID_ENVS)[number];
 
@@ -107,7 +128,7 @@ const isHelp = !command || command === "help" || command === "--help" || command
 
 if (!noSentry && !isHelp && !dsn) {
   console.error(
-    "Error: Sentry DSN not configured. Set SENTRY_DSN_CRT_CLI env var.\n" +
+    "Error: Sentry DSN not configured. Pass --sentry-dsn <DSN> or set SENTRY_DSN_CRT_CLI env var.\n" +
     "       Use --no-sentry to run without observability.",
   );
   process.exit(1);
