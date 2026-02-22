@@ -1580,30 +1580,62 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
   const botJoin = hasProductFilter ? "JOIN" : "LEFT JOIN";
   const botCondition = hasProductFilter ? "AND b.product_id IN ({productIds:Array(String)})" : "";
 
-  // Single query with count() OVER() to get total alongside data rows.
-  // Avoids running two expensive queries (data + count) in parallel — both
-  // scan pr_bot_event_counts (471K rows) JOINed with repos.
-  const combinedQuery = `
-    SELECT *, count() OVER() AS _total FROM (
-      SELECT
-        r.name AS name,
-        r.owner AS owner,
-        r.stars AS stars,
-        r.primary_language AS primary_language,
-        COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
-        0 AS bot_comment_count,
-        groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
-      FROM repos r
-      ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
-      ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
-      WHERE ${whereClause}
-      GROUP BY r.name, r.owner, r.stars, r.primary_language
-      ${havingClause}
-    )
-    ORDER BY ${orderBy}
-    LIMIT {limit:UInt32}
-    OFFSET {offset:UInt32}
-  `;
+  // Fast path: when sorting by stars (default) with no product filter, skip
+  // the expensive pr_bot_event_counts JOIN entirely. The repos table alone has
+  // all the data we need — stars, language, owner. PR counts and product_ids
+  // are only needed when sorting by PRs or filtering by product.
+  // This reduces the query from scanning 471K+ pr_bot_event_counts rows to
+  // a simple indexed scan of the repos table.
+  const needsEventJoin = hasProductFilter || sort === "prs";
+
+  let combinedQuery: string;
+  if (needsEventJoin) {
+    combinedQuery = `
+      SELECT *, count() OVER() AS _total FROM (
+        SELECT
+          r.name AS name,
+          r.owner AS owner,
+          r.stars AS stars,
+          r.primary_language AS primary_language,
+          COALESCE(uniqExactMerge(s.pr_count), 0) AS total_prs,
+          0 AS bot_comment_count,
+          groupArrayIf(DISTINCT b.product_id, b.product_id != '') AS product_ids
+        FROM repos r
+        ${eventJoin} pr_bot_event_counts s ON r.name = s.repo_name
+        ${botJoin} bots b ON s.bot_id = b.id ${botCondition}
+        WHERE ${whereClause}
+        GROUP BY r.name, r.owner, r.stars, r.primary_language
+        ${havingClause}
+      )
+      ORDER BY ${orderBy}
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `;
+  } else {
+    // Build simple conditions without table alias prefix
+    const simpleConditions: string[] = ["fetch_status = 'ok'"];
+    if (search) simpleConditions.push("name ILIKE {search:String}");
+    if (languages && languages.length > 0) simpleConditions.push("primary_language IN ({languages:Array(String)})");
+    const simpleWhere = simpleConditions.join(" AND ");
+
+    combinedQuery = `
+      SELECT *, count() OVER() AS _total FROM (
+        SELECT
+          name,
+          owner,
+          stars,
+          primary_language,
+          0 AS total_prs,
+          0 AS bot_comment_count,
+          CAST([] AS Array(String)) AS product_ids
+        FROM repos
+        WHERE ${simpleWhere}
+      )
+      ORDER BY stars DESC
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `;
+  }
 
   type RepoListItemWithTotal = RepoListItem & { _total: number };
   const rows = await query<RepoListItemWithTotal>(combinedQuery, params);
