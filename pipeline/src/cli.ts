@@ -170,7 +170,6 @@ Options for discover-bots:
   --end YYYY-MM-DD     End date (default: today)
   --marketplace-only   Skip BigQuery [bot] scan
   --bigquery-only      Skip marketplace scan
-  --alert              Capture a Sentry event per new bot (for "new issue" email alerts)
 
 Options for enrich:
   --token TOKEN        GitHub PAT (or set GITHUB_TOKEN env var)
@@ -661,8 +660,6 @@ async function cmdDiscoverBots() {
       .split("T")[0];
   const marketplaceOnly = "--marketplace-only" in args;
   const bigqueryOnly = "--bigquery-only" in args;
-  const alert = "--alert" in args;
-
   if (marketplaceOnly && bigqueryOnly) {
     throw new CliError("Flags --marketplace-only and --bigquery-only are mutually exclusive.");
   }
@@ -686,7 +683,7 @@ async function cmdDiscoverBots() {
   countMetric("pipeline.discover_bots.apps_not_found", summary.apps_not_found);
 
   // Alert: capture one Sentry event per new bot (fingerprinted by login)
-  if (alert && summary.new_bots.length > 0) {
+  if (summary.new_bots.length > 0) {
     for (const bot of summary.new_bots) {
       Sentry.captureMessage(`New bot discovered: ${bot.login}`, {
         level: "info",
@@ -708,6 +705,33 @@ async function cmdDiscoverBots() {
       });
     }
     log(`Sent ${summary.new_bots.length} Sentry alert(s) for new bot(s)`);
+  }
+
+  // Check for stale products (no recent activity)
+  const { checkStaleBots } = await import("./tools/discover-bots.js");
+  const ch = createCHClient();
+  try {
+    const staleProducts = await checkStaleBots(ch);
+    if (staleProducts.length > 0) {
+      log(`Found ${staleProducts.length} stale product(s):`);
+      for (const p of staleProducts) {
+        log(`  - ${p.productName} (${p.productId}): no activity since ${p.lastActivityWeek}`);
+        Sentry.captureMessage(`Stale product: ${p.productName} — no activity since ${p.lastActivityWeek}`, {
+          level: "warning",
+          fingerprint: ["stale-product", p.productId],
+          tags: {
+            "product.id": p.productId,
+            "product.name": p.productName,
+            "product.last_activity_week": p.lastActivityWeek,
+          },
+        });
+      }
+    } else {
+      log("No stale products found.");
+    }
+    countMetric("pipeline.discover_bots.stale_products", staleProducts.length);
+  } finally {
+    await ch.close();
   }
 }
 
