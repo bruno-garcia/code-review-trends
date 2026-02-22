@@ -271,6 +271,16 @@ export const PRODUCTS: ProductDefinition[] = [
     brand_color: "#968CFF",
     avatar_url: "https://avatars.githubusercontent.com/in/1027498?v=4",
   },
+  {
+    id: "kodus",
+    name: "Kodus",
+    website: "https://kodus.io",
+    description:
+      "AI code reviewer that analyzes pull requests like a senior developer. Provides actionable suggestions, identifies bugs, and enforces coding standards. Open-source with cloud and self-hosted options.",
+    docs_url: "https://docs.kodus.io",
+    brand_color: "#6C63FF",
+    avatar_url: "https://avatars.githubusercontent.com/in/413034?v=4",
+  },
 ];
 
 export const BOTS: BotDefinition[] = [
@@ -605,6 +615,19 @@ export const BOTS: BotDefinition[] = [
       "AI coding assistant with codebase-aware PR review. Designed for enterprise teams with private codebases.",
     brand_color: "#968CFF",
     avatar_url: "https://avatars.githubusercontent.com/in/1027498?v=4",
+  },
+  // Kodus
+  {
+    id: "kodus",
+    product_id: "kodus",
+    name: "Kody AI",
+    github_login: "kody-ai[bot]",
+    github_id: 148880201,
+    website: "https://kodus.io",
+    description:
+      "Kodus AI code reviewer. Automatically analyzes PRs with actionable suggestions and bug detection.",
+    brand_color: "#6C63FF",
+    avatar_url: "https://avatars.githubusercontent.com/in/413034?v=4",
   },
 ];
 
