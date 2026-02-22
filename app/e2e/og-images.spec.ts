@@ -26,6 +26,16 @@ test.describe("OG Images", () => {
     const body = await res.body();
     expect(body.length).toBeGreaterThan(5_000);
   });
+
+  test("compare pair OG image returns valid PNG", async ({ request }) => {
+    const res = await request.get(
+      "/compare/coderabbit-vs-copilot/opengraph-image",
+    );
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toBe("image/png");
+    const body = await res.body();
+    expect(body.length).toBeGreaterThan(5_000);
+  });
 });
 
 test.describe("OG meta tags", () => {
