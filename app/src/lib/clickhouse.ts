@@ -1185,7 +1185,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
   const conditions: string[] = ["r.fetch_status = 'ok'"];
   const havingConditions: string[] = [];
   const params: Record<string, unknown> = {
-    limit: limit + 1, // fetch one extra to detect if there are more
+    limit,
     offset,
   };
 
@@ -1229,9 +1229,17 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
   // by owner again. org_bot_pr_counts pre-aggregates at (owner, bot_id) level
   // by extracting owner from repo_name with splitByChar, no repos JOIN needed.
   //
+  // Note: org_bot_pr_counts does NOT filter by repos.fetch_status because the
+  // MV fires on pr_bot_events INSERT (before repos are enriched). The outer
+  // query still JOINs repos with fetch_status='ok', so orgs with only
+  // non-ok repos are excluded. The PR counts may include some PRs from
+  // non-ok repos within an org that also has ok repos — this is acceptable
+  // since the vast majority of repos are fetch_status='ok'.
+  //
   // For reaction_only_repo_counts (small table, refreshable MV), we use
-  // splitByChar inline to extract owner — avoids the repos JOIN without
-  // needing another pre-aggregated table.
+  // splitByChar inline to extract owner and keep the two-level aggregation:
+  // per-repo max(exclusive_pr_count) first (dedup across bots), then sum
+  // across repos per owner. Also filter by fetch_status via repos JOIN.
   const combinedQuery = `
     SELECT *, count() OVER() AS _total FROM (
       SELECT
@@ -1256,15 +1264,26 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
         GROUP BY opc.owner
       ) pr ON r.owner = pr.owner
       LEFT JOIN (
+        -- Two-level aggregation: per-repo first (max deduplicates across bots),
+        -- then per-owner. Prevents double-counting when multiple bots react on
+        -- the same exclusive PR (a PR with no events from any bot).
         SELECT
-          splitByChar('/', rrc.repo_name)[1] AS rrc_owner,
-          sum(rrc.exclusive_pr_count) AS exclusive_reaction_prs,
-          sum(rrc.pr_count) AS reaction_activity,
-          groupUniqArray(b.product_id) AS reaction_product_ids
-        FROM reaction_only_repo_counts rrc FINAL
-        JOIN bots b ON rrc.bot_id = b.id
-        WHERE 1=1
-          ${reactionProductFilter}
+          rrc_owner,
+          sum(repo_exclusive) AS exclusive_reaction_prs,
+          sum(repo_activity) AS reaction_activity,
+          arrayDistinct(arrayFlatten(groupArray(repo_product_ids))) AS reaction_product_ids
+        FROM (
+          SELECT
+            splitByChar('/', rrc.repo_name)[1] AS rrc_owner,
+            max(rrc.exclusive_pr_count) AS repo_exclusive,
+            sum(rrc.pr_count) AS repo_activity,
+            groupUniqArray(b.product_id) AS repo_product_ids
+          FROM reaction_only_repo_counts rrc FINAL
+          JOIN bots b ON rrc.bot_id = b.id
+          WHERE rrc.repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')
+            ${reactionProductFilter}
+          GROUP BY rrc_owner, rrc.repo_name
+        )
         GROUP BY rrc_owner
       ) rr ON r.owner = rr.rrc_owner
       WHERE ${whereClause}
@@ -1281,7 +1300,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
   const total = rows.length > 0 ? Number(rows[0]._total) : 0;
 
   return {
-    orgs: rows.slice(0, limit).map(({ _total, ...org }) => org),
+    orgs: rows.map(({ _total, ...org }) => org),
     total,
   };
 }

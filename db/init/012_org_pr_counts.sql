@@ -17,18 +17,21 @@
 CREATE TABLE IF NOT EXISTS code_review_trends.org_bot_pr_counts (
     owner String,
     bot_id String,
-    pr_count AggregateFunction(uniqExact, UInt32)
+    pr_count AggregateFunction(uniqExact, String, UInt32)
 ) ENGINE = AggregatingMergeTree()
 ORDER BY (owner, bot_id);
 
 -- Materialized view: auto-populates on INSERT to pr_bot_events.
--- Extracts owner from repo_name (e.g., "facebook/react" → "facebook")
+-- Extracts owner from repo_name (e.g., "facebook/react" → "facebook").
+-- Uses uniqExactState(repo_name, pr_number) because PR numbers are only
+-- unique within a repo — uniqExact(pr_number) alone would collapse PRs
+-- from different repos with the same number.
 CREATE MATERIALIZED VIEW IF NOT EXISTS code_review_trends.org_bot_pr_counts_mv
 TO code_review_trends.org_bot_pr_counts
 AS SELECT
     splitByChar('/', repo_name)[1] AS owner,
     bot_id,
-    uniqExactState(pr_number) AS pr_count
+    uniqExactState(repo_name, pr_number) AS pr_count
 FROM code_review_trends.pr_bot_events
 GROUP BY owner, bot_id;
 
@@ -37,6 +40,6 @@ INSERT INTO code_review_trends.org_bot_pr_counts
 SELECT
     splitByChar('/', repo_name)[1] AS owner,
     bot_id,
-    uniqExactState(pr_number) AS pr_count
+    uniqExactState(repo_name, pr_number) AS pr_count
 FROM code_review_trends.pr_bot_events
 GROUP BY owner, bot_id;

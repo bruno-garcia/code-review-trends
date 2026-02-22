@@ -600,7 +600,7 @@ const MIGRATION_011: Migration = {
     `CREATE TABLE IF NOT EXISTS org_bot_pr_counts (
       owner String,
       bot_id String,
-      pr_count AggregateFunction(uniqExact, UInt32)
+      pr_count AggregateFunction(uniqExact, String, UInt32)
     ) ENGINE = AggregatingMergeTree()
     ORDER BY (owner, bot_id)`,
 
@@ -609,7 +609,7 @@ const MIGRATION_011: Migration = {
     AS SELECT
       splitByChar('/', repo_name)[1] AS owner,
       bot_id,
-      uniqExactState(pr_number) AS pr_count
+      uniqExactState(repo_name, pr_number) AS pr_count
     FROM pr_bot_events
     GROUP BY owner, bot_id`,
 
@@ -618,7 +618,7 @@ const MIGRATION_011: Migration = {
     SELECT
       splitByChar('/', repo_name)[1] AS owner,
       bot_id,
-      uniqExactState(pr_number) AS pr_count
+      uniqExactState(repo_name, pr_number) AS pr_count
     FROM pr_bot_events
     GROUP BY owner, bot_id
     SETTINGS max_execution_time = 300`,
