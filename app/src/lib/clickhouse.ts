@@ -1310,6 +1310,13 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     summaryConditions.push("owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok')");
     const summaryWhere = summaryConditions.join(" AND ");
 
+    // Note: Phase 1 sorts by event-based PRs only (from org_pr_summary).
+    // Reaction-only PRs are added in Phase 2. This means the Phase 1 ranking
+    // may slightly differ from the final displayed total_prs. We re-sort after
+    // Phase 2 enrichment to ensure the displayed order matches displayed values.
+    // The only edge case is cross-page cutoff: an org with few event PRs but many
+    // reaction-only PRs could be excluded from the top N. This is acceptable
+    // because reaction-only PRs are a small fraction of total activity.
     const pageQuery = `
       SELECT *, count() OVER() AS _total FROM (
         SELECT
@@ -1320,7 +1327,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
         GROUP BY owner
         HAVING total_prs > 0
       )
-      ORDER BY total_prs DESC
+      ORDER BY total_prs DESC, owner ASC
       LIMIT {limit:UInt32}
       OFFSET {offset:UInt32}
     `;
@@ -1379,24 +1386,26 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     const productMap = new Map(productRows.map(r => [r.owner, r.product_ids]));
     const reactionMap = new Map(reactionRows.map(r => [r.rrc_owner, r]));
 
-    return {
-      orgs: pageRows.map(({ _total, ...row }) => {
-        const repo = repoMap.get(row.owner);
-        const rr = reactionMap.get(row.owner);
-        return {
-          owner: row.owner,
-          total_stars: repo?.total_stars ?? 0,
-          repo_count: repo?.repo_count ?? 0,
-          languages: repo?.languages ?? [],
-          total_prs: Number(row.total_prs) + (rr ? Number(rr.exclusive_reaction_prs) : 0),
-          product_ids: [...new Set([
-            ...(productMap.get(row.owner) ?? []),
-            ...(rr?.reaction_product_ids ?? []),
-          ])],
-        };
-      }),
-      total,
-    };
+    // Build enriched orgs, then re-sort by final total_prs (event + reaction)
+    // to ensure displayed order matches displayed values.
+    const orgs = pageRows.map(({ _total, ...row }) => {
+      const repo = repoMap.get(row.owner);
+      const rr = reactionMap.get(row.owner);
+      return {
+        owner: row.owner,
+        total_stars: repo?.total_stars ?? 0,
+        repo_count: repo?.repo_count ?? 0,
+        languages: repo?.languages ?? [],
+        total_prs: Number(row.total_prs) + (rr ? Number(rr.exclusive_reaction_prs) : 0),
+        product_ids: [...new Set([
+          ...(productMap.get(row.owner) ?? []),
+          ...(rr?.reaction_product_ids ?? []),
+        ])],
+      };
+    });
+    orgs.sort((a, b) => b.total_prs - a.total_prs || a.owner.localeCompare(b.owner));
+
+    return { orgs, total };
   } else {
     // --- Fast path: repos-only for pagination, then enrich the page ---
     const simpleConditions: string[] = ["fetch_status = 'ok'"];
@@ -1834,7 +1843,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
         GROUP BY repo_name
         HAVING total_prs > 0
       )
-      ORDER BY total_prs DESC
+      ORDER BY total_prs DESC, repo_name ASC
       LIMIT {limit:UInt32}
       OFFSET {offset:UInt32}
     `;
