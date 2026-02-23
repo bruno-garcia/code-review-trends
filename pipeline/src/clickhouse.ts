@@ -480,6 +480,8 @@ const TABLES_TO_OPTIMIZE = [
   "pr_comments",
   "pr_bot_reactions",
   "reaction_scan_progress",
+  "pr_product_characteristics",
+  "bot_comment_discovery_summary",
 ] as const;
 
 const VALID_TABLES = new Set<string>(TABLES_TO_OPTIMIZE);
