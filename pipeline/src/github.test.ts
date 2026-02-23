@@ -13,7 +13,7 @@ describe("resolveGitHubTokenInfo", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("returns login and expiry from response", async () => {
+  it("returns login and expiry from classic PAT header", async () => {
     globalThis.fetch = mock.fn(async () => ({
       ok: true,
       json: async () => ({ login: "test-user" }),
@@ -35,6 +35,39 @@ describe("resolveGitHubTokenInfo", () => {
     const [url, options] = calls[0].arguments as [string, RequestInit];
     assert.equal(url, "https://api.github.com/user");
     assert.equal((options.headers as Record<string, string>)["Authorization"], "Bearer ghp_test123");
+  });
+
+  it("returns login and expiry from fine-grained PAT header", async () => {
+    globalThis.fetch = mock.fn(async () => ({
+      ok: true,
+      json: async () => ({ login: "abcd" }),
+      headers: new Headers({
+        "github-authentication-token-expiration": "2026-12-30 00:00:00 -0500",
+      }),
+    })) as unknown as typeof fetch;
+
+    const result = await resolveGitHubTokenInfo("github_pat_test");
+
+    assert.equal(result.login, "abcd");
+    assert.ok(result.expiry instanceof Date);
+    // -0500 offset means 05:00 UTC
+    assert.equal(result.expiry!.toISOString(), "2026-12-30T05:00:00.000Z");
+  });
+
+  it("prefers fine-grained header over classic header", async () => {
+    globalThis.fetch = mock.fn(async () => ({
+      ok: true,
+      json: async () => ({ login: "both-headers" }),
+      headers: new Headers({
+        "github-authentication-token-expiration": "2026-12-30 00:00:00 UTC",
+        "github-token-expiration": "2025-01-01 00:00:00 UTC",
+      }),
+    })) as unknown as typeof fetch;
+
+    const result = await resolveGitHubTokenInfo("ghp_both");
+
+    // Should use the fine-grained header (first in priority)
+    assert.equal(result.expiry!.toISOString(), "2026-12-30T00:00:00.000Z");
   });
 
   it("returns null expiry when header is absent (non-expiring token)", async () => {
