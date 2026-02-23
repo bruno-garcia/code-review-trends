@@ -6,11 +6,13 @@
 # Spawns one tmux worker per GitHub token, plus a status window.
 #
 # Usage:
-#   ./workers.sh <env> start    # Fetch secrets, start N workers in tmux
-#   ./workers.sh <env> stop     # Kill all workers
-#   ./workers.sh <env> status   # Show tail of each worker log
-#   ./workers.sh <env> update   # Stop → git pull → npm ci → start
-#   ./workers.sh <env> tokens   # Show token count + usernames + expiry
+#   ./workers.sh <env> start        # Fetch secrets, start N workers in tmux
+#   ./workers.sh <env> stop         # Kill all workers
+#   ./workers.sh <env> status       # Show tail of each worker log
+#   ./workers.sh <env> update       # Stop → git pull → npm ci → start
+#   ./workers.sh <env> tokens       # Show token count + usernames + expiry
+#   ./workers.sh <env> detach-mv    # Detach expensive MVs for faster bulk writes
+#   ./workers.sh <env> reattach-mv  # Recreate MVs and backfill from existing data
 #
 # <env> is required: staging, production, development
 # Secrets are derived from env: crt-<env>-*
@@ -32,15 +34,17 @@ err()  { echo -e "${RED}[workers]${NC} $*" >&2; }
 # --- Parse env argument ---
 
 if [[ $# -ne 2 ]]; then
-  echo "Usage: $0 <env> {start|stop|status|update|tokens}"
+  echo "Usage: $0 <env> {start|stop|status|update|tokens|detach-mv|reattach-mv}"
   echo ""
-  echo "  <env>     staging | production | development"
+  echo "  <env>          staging | production | development"
   echo ""
-  echo "  start     Fetch secrets from GCP, start N workers in tmux"
-  echo "  stop      Kill all workers"
-  echo "  status    Show worker logs"
-  echo "  update    Stop → git pull → npm ci → start"
-  echo "  tokens    Show token usernames and expiry dates"
+  echo "  start          Fetch secrets from GCP, start N workers in tmux"
+  echo "  stop           Kill all workers"
+  echo "  status         Show worker logs"
+  echo "  update         Stop → git pull → npm ci → start"
+  echo "  tokens         Show token usernames and expiry dates"
+  echo "  detach-mv      Detach expensive MVs for faster bulk enrichment"
+  echo "  reattach-mv    Recreate MVs and backfill from existing data"
   exit 1
 fi
 
@@ -216,17 +220,37 @@ cmd_tokens() {
   done
 }
 
+cmd_detach_mv() {
+  fetch_shared_secrets
+  local cli_args
+  cli_args=$(shared_cli_args)
+  log "Detaching expensive materialized views..."
+  cd "$REPO_DIR"
+  npm run pipeline -- detach-mv --env "$PIPELINE_ENV" $cli_args 2>&1
+}
+
+cmd_reattach_mv() {
+  fetch_shared_secrets
+  local cli_args
+  cli_args=$(shared_cli_args)
+  log "Reattaching materialized views and backfilling..."
+  cd "$REPO_DIR"
+  npm run pipeline -- reattach-mv --env "$PIPELINE_ENV" $cli_args 2>&1
+}
+
 # --- Main ---
 
 case "$COMMAND" in
-  start)  cmd_start  ;;
-  stop)   cmd_stop   ;;
-  status) cmd_status ;;
-  update) cmd_update ;;
-  tokens) cmd_tokens ;;
+  start)       cmd_start       ;;
+  stop)        cmd_stop        ;;
+  status)      cmd_status      ;;
+  update)      cmd_update      ;;
+  tokens)      cmd_tokens      ;;
+  detach-mv)   cmd_detach_mv   ;;
+  reattach-mv) cmd_reattach_mv ;;
   *)
     err "Unknown command: $COMMAND"
-    echo "Usage: $0 <env> {start|stop|status|update|tokens}"
+    echo "Usage: $0 <env> {start|stop|status|update|tokens|detach-mv|reattach-mv}"
     exit 1
     ;;
 esac
