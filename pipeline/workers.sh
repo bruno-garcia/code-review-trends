@@ -137,7 +137,10 @@ cmd_start() {
     fi
     local escaped_token
     escaped_token=$(printf %q "${token}")
-    local cmd="${sleep_cmd}cd $REPO_DIR && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --gh-token ${escaped_token} ${cli_args} 2>&1 | tee $logfile"
+    # Loop continuously: run enrich, pause 30s, repeat.
+    # Exits cleanly when enrich finds nothing left to do (0 items).
+    # The 30s pause lets ClickHouse merges settle between rounds.
+    local cmd="${sleep_cmd}cd $REPO_DIR && while true; do echo '--- Round starting at \$(date -u +%Y-%m-%dT%H:%M:%SZ) ---'; npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --gh-token ${escaped_token} ${cli_args} 2>&1; rc=\$?; echo '--- Round finished (exit \$rc) at \$(date -u +%Y-%m-%dT%H:%M:%SZ) ---'; if [ \$rc -ne 0 ]; then echo 'Non-zero exit, pausing 60s before retry...'; sleep 60; fi; echo 'Pausing 30s before next round...'; sleep 30; done | tee $logfile"
 
     tmux new-window -t "$SESSION" -n "$wname"
     tmux send-keys -t "$SESSION:$wname" "$cmd" Enter
