@@ -1632,16 +1632,14 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
   const cached = getCached<EnrichmentStats>("enrichmentStats");
   if (cached) return cached;
 
-  // Use count from repos + pull_requests (cheap) to approximate enrichment progress.
-  // The old total_discovered_prs subquery scanned pr_bot_event_counts (471K rows,
-  // 8-11s cold) just for a banner. Use count(DISTINCT repo_name) from pr_bot_event_counts
-  // for repos total (cheap because it's the primary key prefix), and sum the pre-aggregated
-  // pr_count for PRs total.
+  // Uses repo_pr_summary (pre-aggregated) for total_discovered_prs instead of
+  // scanning pr_bot_event_counts (471K rows). The summary table has ~200K rows
+  // with a simple GROUP BY repo_name — much faster.
   const rows = await query<EnrichmentStats>(`
     SELECT
       (SELECT count() FROM repos) AS total_discovered_repos,
       (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
-      (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS total_discovered_prs,
+      (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS total_discovered_prs,
       (SELECT count() FROM pull_requests) AS enriched_prs,
       (SELECT sum(comment_count) FROM comment_stats_weekly) AS total_comments
   `);
@@ -1705,14 +1703,14 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       reactions_found: number;
     }>(`
       SELECT
-        (SELECT count(DISTINCT repo_name) FROM pr_bot_event_counts) AS repos_total,
+        (SELECT count() FROM repo_pr_summary) AS repos_total,
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
         (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
-        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS prs_discovered,
+        (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS prs_discovered,
         (SELECT count() FROM pull_requests) AS prs_enriched,
         (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name, bot_id)) AS comments_discovered,
         (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched,
-        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name)) AS reactions_total,
+        (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS reactions_total,
         (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
         (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
     `),
