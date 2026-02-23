@@ -672,7 +672,7 @@ const MIGRATION_012: Migration = {
       splitByChar('/', repo_name)[1] AS owner,
       uniqExactState(repo_name, pr_number) AS total_prs
     FROM pr_bot_events
-    GROUP BY splitByChar('/', repo_name)[1]
+    GROUP BY owner
     SETTINGS max_execution_time = 300`,
   ],
 };

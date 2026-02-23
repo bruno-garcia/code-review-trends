@@ -1304,10 +1304,12 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     const summaryConditions: string[] = [];
     if (search) summaryConditions.push("owner ILIKE {search:String}");
     if (languages && languages.length > 0) {
+      // Language subquery already filters fetch_status='ok'
       summaryConditions.push("owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))");
+    } else {
+      // Only show owners that exist in repos table with fetch_status='ok'
+      summaryConditions.push("owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok')");
     }
-    // Only show owners that exist in repos table with fetch_status='ok'
-    summaryConditions.push("owner IN (SELECT DISTINCT owner FROM repos WHERE fetch_status = 'ok')");
     const summaryWhere = summaryConditions.join(" AND ");
 
     // Note: Phase 1 sorts by event-based PRs only (from org_pr_summary).
@@ -1827,10 +1829,12 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
     const summaryConditions: string[] = [];
     if (search) summaryConditions.push("repo_name ILIKE {search:String}");
     if (languages && languages.length > 0) {
+      // Language subquery already filters fetch_status='ok'
       summaryConditions.push("repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok' AND primary_language IN ({languages:Array(String)}))");
+    } else {
+      // Only show repos that exist in repos table with fetch_status='ok'
+      summaryConditions.push("repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')");
     }
-    // Only show repos that exist in repos table with fetch_status='ok'
-    summaryConditions.push("repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')");
     const summaryWhere = summaryConditions.join(" AND ");
 
     const pageQuery = `
