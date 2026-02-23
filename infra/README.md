@@ -68,8 +68,8 @@ pulumi config set code-review-trends:sentryDsnApp <dsn> --secret
 pulumi config set code-review-trends:sentryDsnPipeline <dsn> --secret
 pulumi config set code-review-trends:sentryAuthToken <token> --secret
 
-# GitHub token for pipeline enrichment (needs repo read access)
-pulumi config set code-review-trends:githubToken <pat> --secret
+# GitHub tokens for parallel pipeline enrichment (JSON array of PATs)
+pulumi config set code-review-trends:githubTokens '["ghp_token1","ghp_token2",...]' --secret
 
 # GitHub repo for Workload Identity Federation (owner/repo format)
 pulumi config set code-review-trends:githubRepo owner/repo
@@ -235,7 +235,7 @@ Per-environment config lives in `Pulumi.<stack>.yaml`:
 | `sentryDsnApp` | Sentry DSN for the Next.js app (secret) | — |
 | `sentryDsnPipeline` | Sentry DSN for the pipeline (secret) | — |
 | `sentryAuthToken` | Sentry auth token for source maps (secret) | — |
-| `githubToken` | GitHub PAT for pipeline enrichment (secret) | — |
+| `githubTokens` | JSON array of GitHub PATs for parallel enrichment (secret) | — |
 | `githubRepo` | GitHub repo for WIF (`owner/repo` format) | — |
 
 To add a new environment (e.g. prod), create `Pulumi.prod.yaml` and run `pulumi stack init prod`.
