@@ -63,8 +63,9 @@ pulumi config set code-review-trends:clickhouseDomain your-ch-domain.example.com
 # App domain (Cloud Run custom domain)
 pulumi config set code-review-trends:appDomain your-app-domain.example.com --secret
 
-# Sentry DSNs (separate projects for app and pipeline)
-pulumi config set code-review-trends:sentryDsnApp <dsn> --secret
+# Sentry DSNs (separate for app frontend, app backend, and pipeline)
+pulumi config set code-review-trends:sentryDsnAppFrontend <dsn> --secret
+pulumi config set code-review-trends:sentryDsnAppBackend <dsn> --secret
 pulumi config set code-review-trends:sentryDsnPipeline <dsn> --secret
 pulumi config set code-review-trends:sentryAuthToken <token> --secret
 
@@ -228,15 +229,23 @@ Per-environment config lives in `Pulumi.<stack>.yaml`:
 | `gcp:zone` | GCP zone | `us-central1-a` |
 | `environment` | Environment name (used in resource naming) | `staging` |
 | `clickhouseMachineType` | GCE machine type | `e2-highmem-2` |
-| `clickhouseDiskSizeGb` | Boot disk size in GB | `20` |
+| `clickhouseDiskSizeGb` | Boot disk size in GB | `40` |
 | `clickhouseDomain` | Domain for ClickHouse TLS (secret) | — |
 | `appDomain` | Domain for Cloud Run app (secret) | — |
 | `artifactRegistryLocation` | GCP region for container registry | `us-central1` |
-| `sentryDsnApp` | Sentry DSN for the Next.js app (secret) | — |
+| `clickhousePublicAccess` | Whether ClickHouse is publicly accessible | `false` |
+| `sentryDsnAppFrontend` | Sentry DSN for Next.js client/browser (secret) | — |
+| `sentryDsnAppBackend` | Sentry DSN for Next.js server (secret) | — |
 | `sentryDsnPipeline` | Sentry DSN for the pipeline (secret) | — |
 | `sentryAuthToken` | Sentry auth token for source maps (secret) | — |
 | `githubTokens` | JSON array of GitHub PATs for parallel enrichment (secret) | — |
 | `githubRepo` | GitHub repo for WIF (`owner/repo` format) | — |
+| `alertEmail` | Email for disk usage alerts (secret) | — |
+| `appMemory` | Cloud Run app memory | `2Gi` |
+| `appCpu` | Cloud Run app CPU | `1` |
+| `appMinInstances` | Cloud Run minimum instances | `1` |
+| `appMaxInstances` | Cloud Run maximum instances | `4` |
+| `appConcurrency` | Max concurrent requests per instance | `40` |
 
 To add a new environment (e.g. prod), create `Pulumi.prod.yaml` and run `pulumi stack init prod`.
 
