@@ -28,7 +28,6 @@ config:
     secure: v1:MKS6H6fY1LXav1fr:LstnaeR3roDbxzvqgdtiPvXw+JEvEwnZzJxAfXnyBk8d96uJb+RzML8VaSkeZ5Kw1NubrquBF8wi3Oz7qS2swfTHB3ewYyoQ1gGKROkmjttIOXbWDSg9b54PQCIGMscotO9nENM=
   code-review-trends:alertEmail:
     secure: v1:Bfh6iTwwF69gV629:Q0e96DLmnVNqXfVWqoo+1Wlu7efCfTiDcl0wd6Di0kawySPmNwc8IHID
-  code-review-trends:githubTokenCount: "4"
   code-review-trends:githubTokens:
     secure: v1:Zl24Eut3XHnxixgx:9SwyxEDgBypmzfTB8O5y5AtMPl3TPApUq5z3A9oXsg2kdN9DJv3UuG+QUE55C+MaLmpReehmkqkhfwkgmuEIqWfUxfIUCB5vv3UV6Duyl1X5rD6czJCEDoC19GhOrJBt0Qgx8/7CDMq+ErfK2ZKsKN9RliXN8Y+DML83/yKjXEizXDcoHZkXcggrdEsRgsy39oTYRA6cxg25PW8jIz/TTwWhgaIMpd2WmGuqnjnWEY0G4qcTwLb0KBjCWZK6gBU2sxBsXV1EWO+bVi6pzWKu5u15kxc3e0C73vyFrABV1tcSydruoHOqK+G7Z9DNQvqd/SleybOQKv1I6/1u/IuMR/ZR+QDT/SawtMZlxUCoY+OwzOA4H9mp7PZG2HnAxVxLZgVPITzG9KqemBbzVugYx3nicXK8Efu2qwLhRTDbMol0RmlUgLaLwfFi2YVHpgr71PseAaIaT1WEYQpx/zRX0Ru2jUeNsi/GNaUlngD6ak0+7aD21W8Gy25W01ekZrf6txMkGGNKFTmQKY24eokUE4szzvs=
 encryptionsalt: v1:AWXWIyh26VY=:v1:Sg6zEq4QvISI5kjW:A7aV13N9kenv/uY9U3IQYM+qiSZTYg==
