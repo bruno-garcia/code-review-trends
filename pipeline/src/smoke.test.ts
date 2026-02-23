@@ -399,6 +399,105 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
       );
       assert.equal(violations.length, 0, `org_count > repo_count: ${JSON.stringify(violations.slice(0, 3))}`);
     });
+
+    // ── /status page queries ────────────────────────────────────────────
+    // These mirror the exact queries from app/src/lib/clickhouse.ts
+    // (getEnrichmentStats + getDataCollectionStats). They caught the
+    // pr_bot_event_counts timeout in #199 — keep them in sync with the app.
+
+    it("getEnrichmentStats: query executes and returns plausible values", async () => {
+      const rows = await query<{
+        total_discovered_repos: string;
+        enriched_repos: string;
+        total_discovered_prs: string;
+        enriched_prs: string;
+        total_comments: string;
+      }>(
+        ch,
+        `SELECT
+          (SELECT count() FROM repos) AS total_discovered_repos,
+          (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
+          (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS total_discovered_prs,
+          (SELECT count() FROM pull_requests) AS enriched_prs,
+          (SELECT sum(comment_count) FROM comment_stats_weekly) AS total_comments`,
+      );
+      assert.equal(rows.length, 1, "Should return exactly one row");
+      // With smoke test data inserted above, discovered PRs should be > 0
+      // (pr_bot_events inserts trigger the repo_pr_summary MV).
+      assert.ok(
+        Number(rows[0].total_discovered_prs) > 0,
+        `total_discovered_prs should be > 0 (got ${rows[0].total_discovered_prs}) — repo_pr_summary MV may not be populating`,
+      );
+    });
+
+    it("getDataCollectionStats: queries execute and return plausible values", async () => {
+      // Mirrors the actual app's getDataCollectionStats which splits into
+      // two parallel queries (repo_pr_summary scan + everything else).
+      const [repoSummaryRows, countRows] = await Promise.all([
+        // Query A: repo_pr_summary — single scan for repos_total + prs_discovered
+        query<{ repos_total: string; prs_discovered: string }>(
+          ch,
+          `SELECT count() AS repos_total, sum(prs) AS prs_discovered
+           FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)`,
+        ),
+        // Query B: everything else (each subquery is cheap)
+        query<{
+          repos_ok: string;
+          repos_not_found: string;
+          prs_enriched: string;
+          comments_discovered: string;
+          comments_enriched: string;
+          reactions_scanned: string;
+          reactions_found: string;
+        }>(
+          ch,
+          `SELECT
+            (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
+            (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
+            (SELECT count() FROM pull_requests) AS prs_enriched,
+            (SELECT sum(x) FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)) AS comments_discovered,
+            (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched,
+            (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
+            (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found`,
+        ),
+      ]);
+      assert.equal(repoSummaryRows.length, 1, "Query A should return exactly one row");
+      assert.equal(countRows.length, 1, "Query B should return exactly one row");
+      // With smoke test data, repos_total and prs_discovered should be > 0
+      assert.ok(
+        Number(repoSummaryRows[0].repos_total) > 0,
+        `repos_total should be > 0 (got ${repoSummaryRows[0].repos_total}) — repo_pr_summary MV may not be populating`,
+      );
+      assert.ok(
+        Number(repoSummaryRows[0].prs_discovered) > 0,
+        `prs_discovered should be > 0 (got ${repoSummaryRows[0].prs_discovered})`,
+      );
+      // comments_discovered comes from bot_comment_discovery_summary MV
+      assert.ok(
+        Number(countRows[0].comments_discovered) > 0,
+        `comments_discovered should be > 0 (got ${countRows[0].comments_discovered}) — bot_comment_discovery_summary MV may not be populating`,
+      );
+    });
+
+    it("bot_comment_discovery_summary matches pr_bot_event_counts", async () => {
+      // Verify the new summary table produces the same total as the old query.
+      // This guards against semantic drift between the two approaches.
+      const [oldResult, newResult] = await Promise.all([
+        query<{ total: string }>(
+          ch,
+          `SELECT sum(x) AS total FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name, bot_id)`,
+        ),
+        query<{ total: string }>(
+          ch,
+          `SELECT sum(x) AS total FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)`,
+        ),
+      ]);
+      assert.equal(
+        oldResult[0].total,
+        newResult[0].total,
+        `bot_comment_discovery_summary total (${newResult[0].total}) should match pr_bot_event_counts total (${oldResult[0].total})`,
+      );
+    });
   });
 });
 
