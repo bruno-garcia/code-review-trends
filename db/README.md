@@ -34,7 +34,7 @@ ClickHouse schema is managed through numbered SQL migration files in `db/init/`.
 1. **Pick the next number.** Check existing files and use the next available 3-digit prefix (e.g., `015_`).
 2. **Create the file:** `db/init/NNN_descriptive_name.sql`
 3. **Write idempotent SQL.** Use `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `DROP TABLE IF EXISTS`, etc. Migrations may be re-run.
-4. **Update `app/src/lib/migrations.ts`.** Increment `EXPECTED_SCHEMA_VERSION` and add the migration to the version list so the app applies it on startup.
+4. **Update `app/src/lib/migrations.ts` (schema changes only).** If your migration creates or alters tables/columns/views, increment `EXPECTED_SCHEMA_VERSION` and add the migration to the version list so the app applies it on startup. Data-only migrations (e.g., `INSERT` statements for a new bot) do not need a `migrations.ts` entry.
 5. **Test locally.** Run `npm run dev:infra` to start ClickHouse, then verify your migration applies cleanly.
 
 ## Naming Convention

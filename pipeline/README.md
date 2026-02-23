@@ -226,7 +226,7 @@ These options apply to all commands:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--env ENV` | — | Runtime environment: `development`, `staging`, or `production` (**required**) |
+| `--env ENV` | — | Runtime environment: `development`, `staging`, or `production`. Required if `NODE_ENV` is not set (falls back to `NODE_ENV` for Cloud Run jobs). |
 | `--no-sentry` | — | Disable Sentry observability (tracing, crons, metrics) |
 | `--clickhouse-url URL` | `http://localhost:8123` | ClickHouse HTTP URL (env: `CLICKHOUSE_URL`) |
 | `--clickhouse-password PW` | `dev` | ClickHouse password (env: `CLICKHOUSE_PASSWORD`) |
@@ -443,10 +443,11 @@ To add a new bot:
 
 1. Add an entry to `src/bots.ts`
 2. Add a new migration file in `db/init/` (e.g., `015_new_bot.sql`) with the product, bot, and bot_login INSERT statements — never edit existing migration files (see Principle #15 in AGENTS.md)
-3. Run `npm run pipeline -- sync-bots` to push to local ClickHouse
+3. Run `npm run pipeline -- sync-bots` to push to local ClickHouse for testing
 4. Run `npm run pipeline -- generate-compare-pairs` to regenerate pair comparisons
 5. For remote databases, run `npm run pipeline -- migrate --stack staging`
-6. Use `npm run discover-bots` to find the correct GitHub login if unsure
+6. Run the pipeline to backfill data for the new bot
+7. Use `npm run pipeline -- discover-bots` to find the correct GitHub login if unsure
 
 ## Tests
 
