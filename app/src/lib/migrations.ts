@@ -500,7 +500,7 @@ const MIGRATION_008: Migration = {
 
 /**
  * Migration 9 — add status column to products table.
- * Matches db/init/010_product_status.sql.
+ * Matches db/init/014_product_status.sql.
  *
  * Allows products to be marked as 'retired' when their service is no longer
  * available, preserving historical data while showing a badge in the UI.
