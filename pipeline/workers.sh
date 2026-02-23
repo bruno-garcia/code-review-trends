@@ -61,9 +61,7 @@ GCP_PROJECT="nuget-trends"
 PREFIX="crt-${PIPELINE_ENV}"
 WORKER_LIMIT="50000"
 
-# ClickHouse URL is infrastructure config (not a secret).
-# The hostname is the same for all environments — only the password differs.
-CLICKHOUSE_URL="https://ch-crt.brunogarcia.com:58432"
+# ClickHouse connection — fetched from GCP like all other config.
 CLICKHOUSE_DB="code_review_trends"
 
 # --- Secret fetching ---
@@ -92,10 +90,11 @@ fetch_tokens() {
 }
 
 fetch_shared_secrets() {
-  log "Fetching secrets from GCP Secret Manager (project: $GCP_PROJECT)..."
+  log "Fetching config from GCP Secret Manager (project: $GCP_PROJECT)..."
+  CLICKHOUSE_URL=$(fetch_secret "${PREFIX}-clickhouse-url")
   CLICKHOUSE_PASSWORD=$(fetch_secret "${PREFIX}-clickhouse-password")
   SENTRY_DSN=$(fetch_secret "${PREFIX}-sentry-dsn-pipeline")
-  log "  ClickHouse: $CLICKHOUSE_URL (password: ***)"
+  log "  ClickHouse: ${CLICKHOUSE_URL%%:*}://*** (password: ***)"
   log "  Sentry DSN: ${SENTRY_DSN:0:30}..."
 }
 
