@@ -1344,7 +1344,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
         FROM org_bot_pr_counts opc
         JOIN bots b ON opc.bot_id = b.id
         WHERE opc.owner IN ({owners:Array(String)})
-          ${productJoinFilter}
+          ${reactionProductFilter}
         GROUP BY opc.owner
       `, enrichParams),
       query<{ rrc_owner: string; exclusive_reaction_prs: number; reaction_product_ids: string[] }>(`
