@@ -1703,7 +1703,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       reactions_found: number;
     }>(`
       SELECT
-        (SELECT count() FROM repo_pr_summary) AS repos_total,
+        (SELECT count() FROM (SELECT repo_name FROM repo_pr_summary GROUP BY repo_name)) AS repos_total,
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
         (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
         (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS prs_discovered,
