@@ -1323,6 +1323,8 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     const owners = pageRows.map(r => r.owner);
     const enrichParams = { ...params, owners };
 
+    // Phase 2: Enrich — apply product filter to PR counts so displayed
+    // values reflect only the selected product(s), not all products.
     const [repoRows, productRows, reactionRows] = await Promise.all([
       query<{ owner: string; total_stars: number; repo_count: number; languages: string[] }>(`
         SELECT
@@ -1342,6 +1344,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
         FROM org_bot_pr_counts opc
         JOIN bots b ON opc.bot_id = b.id
         WHERE opc.owner IN ({owners:Array(String)})
+          ${productJoinFilter}
         GROUP BY opc.owner
       `, enrichParams),
       query<{ rrc_owner: string; exclusive_reaction_prs: number; reaction_product_ids: string[] }>(`
@@ -1952,6 +1955,8 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
     const repoNames = pageRows.map(r => r.repo_name);
     const enrichParams = { ...params, repoNames };
 
+    // Phase 2: Enrich — apply product filter to PR counts so displayed
+    // values reflect only the selected product(s), not all products.
     const [repoRows, eventRows] = await Promise.all([
       query<{ name: string; owner: string; stars: number; primary_language: string }>(`
         SELECT name, owner, stars, primary_language
@@ -1966,6 +1971,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
         FROM pr_bot_event_counts s
         JOIN bots b ON s.bot_id = b.id
         WHERE s.repo_name IN ({repoNames:Array(String)})
+          AND b.product_id IN ({productIds:Array(String)})
         GROUP BY s.repo_name
       `, enrichParams),
     ]);
