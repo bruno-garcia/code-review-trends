@@ -436,6 +436,7 @@ const SCHEMA_MIGRATIONS: { version: number; name: string }[] = [
   { version: 10, name: "pr_product_characteristics" },
   { version: 11, name: "org_bot_pr_counts" },
   { version: 12, name: "pr_summary_tables" },
+  { version: 13, name: "bot_comment_discovery_summary" },
 ];
 
 /** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table. */
@@ -726,7 +727,7 @@ async function cmdDiscover() {
     log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
     countMetric("pipeline.discover.ch_rows", chRows.length);
     log("Optimizing tables...");
-    await optimizeTables(ch, ["pr_bot_events", "org_bot_pr_counts", "repo_pr_summary", "org_pr_summary"]);
+    await optimizeTables(ch, ["pr_bot_events", "org_bot_pr_counts", "repo_pr_summary", "org_pr_summary", "bot_comment_discovery_summary"]);
     log("✓ Tables optimized");
     log("Done!");
   } finally {

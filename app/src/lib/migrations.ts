@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 12;
+export const EXPECTED_SCHEMA_VERSION = 13;
 
 export type SchemaStatus = {
   /**
@@ -677,8 +677,42 @@ const MIGRATION_012: Migration = {
   ],
 };
 
+const MIGRATION_013: Migration = {
+  version: 13,
+  name: "bot_comment_discovery_summary",
+  statements: [
+    // Per-bot comment discovery summary (collapses 471K rows → ~20 rows).
+    // The /status page needs comments_discovered = count of distinct
+    // (repo_name, pr_number, bot_id) triples. Instead of scanning all of
+    // pr_bot_event_counts, this table stores uniqExact(repo_name, pr_number)
+    // per bot_id — only ~20 aggregate states to merge.
+    `CREATE TABLE IF NOT EXISTS bot_comment_discovery_summary (
+      bot_id String,
+      total_combos AggregateFunction(uniqExact, String, UInt32)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY bot_id`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS bot_comment_discovery_summary_mv
+    TO bot_comment_discovery_summary
+    AS SELECT
+      bot_id,
+      uniqExactState(repo_name, pr_number) AS total_combos
+    FROM pr_bot_events
+    GROUP BY bot_id`,
+
+    // Backfill from existing data
+    `INSERT INTO bot_comment_discovery_summary
+    SELECT
+      bot_id,
+      uniqExactState(repo_name, pr_number) AS total_combos
+    FROM pr_bot_events
+    GROUP BY bot_id
+    SETTINGS max_execution_time = 300`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012, MIGRATION_013];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

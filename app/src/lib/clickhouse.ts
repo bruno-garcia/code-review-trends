@@ -1682,35 +1682,40 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
   const cached = getCached<DataCollectionStats>("dataCollectionStats");
   if (cached) return cached;
 
-  // Fetch weeks with data + enrichment counts in parallel
-  const [weekRows, countRows] = await Promise.all([
+  // Split into 3 parallel queries to avoid serializing expensive scans.
+  // Query A (repo_pr_summary) is the heaviest (~4s) — scanning 200K+ rows
+  // with uniqExactMerge. Combining repos_total, prs_discovered, and
+  // reactions_total (which are identical) into one scan avoids 3× the cost.
+  // Query B has the moderate subqueries, Query C is the cheap week listing.
+  const [weekRows, repoSummaryRows, countRows] = await Promise.all([
+    // C: week listing (fast — index scan)
     query<{ w: string }>(`
       SELECT DISTINCT toString(week) AS w
       FROM review_activity
       WHERE week >= toDate('${DATA_EPOCH}')
       ORDER BY w
     `),
+    // A: repo_pr_summary — single scan for repos_total + prs_discovered
+    query<{ repos_total: number; prs_discovered: number }>(`
+      SELECT count() AS repos_total, sum(prs) AS prs_discovered
+      FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)
+    `),
+    // B: everything else (each subquery is cheap — <1s individually)
     query<{
-      repos_total: number;
       repos_ok: number;
       repos_not_found: number;
-      prs_discovered: number;
       prs_enriched: number;
       comments_discovered: number;
       comments_enriched: number;
-      reactions_total: number;
       reactions_scanned: number;
       reactions_found: number;
     }>(`
       SELECT
-        (SELECT count() FROM (SELECT repo_name FROM repo_pr_summary GROUP BY repo_name)) AS repos_total,
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
         (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
-        (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS prs_discovered,
         (SELECT count() FROM pull_requests) AS prs_enriched,
-        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name, bot_id)) AS comments_discovered,
+        (SELECT sum(x) FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)) AS comments_discovered,
         (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched,
-        (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS reactions_total,
         (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
         (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
     `),
@@ -1736,19 +1741,22 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     }
   }
 
+  const repo = repoSummaryRows[0];
   const base = countRows[0];
+  const reposTotal = Number(repo?.repos_total ?? 0);
+  const prsDiscovered = Number(repo?.prs_discovered ?? 0);
   return setCache("dataCollectionStats", {
     weeks_with_data: weekRows.map((r) => r.w),
     last_import: lastImport,
-    repos_total: Number(base?.repos_total ?? 0),
+    repos_total: reposTotal,
     repos_ok: Number(base?.repos_ok ?? 0),
     repos_not_found: Number(base?.repos_not_found ?? 0),
-    repos_pending: Math.max(0, Number(base?.repos_total ?? 0) - Number(base?.repos_ok ?? 0) - Number(base?.repos_not_found ?? 0)),
-    prs_discovered: Number(base?.prs_discovered ?? 0),
+    repos_pending: Math.max(0, reposTotal - Number(base?.repos_ok ?? 0) - Number(base?.repos_not_found ?? 0)),
+    prs_discovered: prsDiscovered,
     prs_enriched: Number(base?.prs_enriched ?? 0),
     comments_discovered: Number(base?.comments_discovered ?? 0),
     comments_enriched: Number(base?.comments_enriched ?? 0),
-    reactions_total: Number(base?.reactions_total ?? 0),
+    reactions_total: prsDiscovered, // same as prs_discovered (total PRs = total to scan for reactions)
     reactions_scanned: Number(base?.reactions_scanned ?? 0),
     reactions_found: Number(base?.reactions_found ?? 0),
   }, ENRICHMENT_CACHE_TTL_MS); // 30-min cache — status data changes slowly
