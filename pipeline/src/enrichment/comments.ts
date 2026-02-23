@@ -121,8 +121,12 @@ export async function enrichComments(
         }
 
         try {
+          const graphqlStart = Date.now();
           const results = await fetchCommentsBatch(octokit, rateLimiter, batchInputs);
+          const graphqlMs = Date.now() - graphqlStart;
 
+          // Collect all rows for bulk insert
+          const allCommentRows: PrCommentRow[] = [];
           for (const result of results) {
             if (result.error === "repo_not_found" || result.error === "pr_not_found") {
               notFound++;
@@ -135,10 +139,10 @@ export async function enrichComments(
             }
 
             if (result.comments.length > 0) {
-              await insertPrComments(ch, result.comments);
+              allCommentRows.push(...result.comments);
             } else {
               // Sentinel row — no bot comments found
-              await insertPrComments(ch, [{
+              allCommentRows.push({
                 repo_name: result.input.repo_name,
                 pr_number: result.input.pr_number,
                 comment_id: "0",
@@ -147,7 +151,7 @@ export async function enrichComments(
                 created_at: new Date().toISOString(),
                 thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
                 heart: 0, hooray: 0, eyes: 0, rocket: 0,
-              }]);
+              });
             }
 
             if (result.hasMore) {
@@ -156,6 +160,14 @@ export async function enrichComments(
 
             fetched++;
           }
+
+          const insertStart = Date.now();
+          await insertPrComments(ch, allCommentRows);
+          const insertMs = Date.now() - insertStart;
+
+          log(
+            `[comments] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allCommentRows.length} rows)`,
+          );
           batchHandled = true;
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
@@ -261,6 +273,10 @@ export async function enrichComments(
     const processed = fetched + notFound + forbidden + rateLimited + unknownBot + errors;
     log(`[comments] Progress: ${processed}/${combos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.comments.batch", 1);
+    // Flush Sentry periodically so spans are visible during long runs
+    if (processed % 100 < adaptive.size) {
+      void Sentry.flush(5000);
+    }
   }
 
   log(`[comments] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);

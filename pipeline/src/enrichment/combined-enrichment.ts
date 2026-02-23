@@ -187,16 +187,25 @@ export async function enrichCombined(
         }
 
         try {
+          const graphqlStart = Date.now();
           const results = await fetchCombinedBatch(
             octokit,
             rateLimiter,
             batchInputs,
           );
+          const graphqlMs = Date.now() - graphqlStart;
+
+          // Collect all rows for bulk insert instead of inserting one-by-one.
+          // This reduces ~75+ sequential HTTP calls to ClickHouse down to 4.
+          const allPrRows: import("../clickhouse.js").PullRequestRow[] = [];
+          const allCommentRows: import("../clickhouse.js").PrCommentRow[] = [];
+          const allReactionRows: import("../clickhouse.js").PrBotReactionRow[] = [];
+          const allScanProgress: { repo_name: string; pr_number: number }[] = [];
 
           for (const result of results) {
-            // Insert PR row
+            // Collect PR row
             if (result.pr) {
-              await insertPullRequests(ch, [result.pr]);
+              allPrRows.push(result.pr);
               prs_fetched++;
             } else if (
               result.prStatus === "not_found" ||
@@ -205,7 +214,7 @@ export async function enrichCombined(
               skipped++;
             }
 
-            // Insert comment rows for each bot — only when PR was actually found.
+            // Collect comment rows for each bot — only when PR was actually found.
             // Skip not_found/forbidden PRs: don't insert sentinels that would
             // permanently prevent retry if the PR was only temporarily unavailable.
             // Also skip if hasMoreThreads is true — there may be bot comments
@@ -215,27 +224,25 @@ export async function enrichCombined(
                 const botComments =
                   result.comments.get(botEntry.bot_id) ?? [];
                 if (botComments.length > 0) {
-                  await insertPrComments(ch, botComments);
+                  allCommentRows.push(...botComments);
                 } else {
                   // Sentinel row — marks this bot/PR combo as enriched with no results
-                  await insertPrComments(ch, [
-                    {
-                      repo_name: result.input.repo_name,
-                      pr_number: result.input.pr_number,
-                      comment_id: "0",
-                      bot_id: botEntry.bot_id,
-                      body_length: 0,
-                      created_at: new Date().toISOString(),
-                      thumbs_up: 0,
-                      thumbs_down: 0,
-                      laugh: 0,
-                      confused: 0,
-                      heart: 0,
-                      hooray: 0,
-                      eyes: 0,
-                      rocket: 0,
-                    },
-                  ]);
+                  allCommentRows.push({
+                    repo_name: result.input.repo_name,
+                    pr_number: result.input.pr_number,
+                    comment_id: "0",
+                    bot_id: botEntry.bot_id,
+                    body_length: 0,
+                    created_at: new Date().toISOString(),
+                    thumbs_up: 0,
+                    thumbs_down: 0,
+                    laugh: 0,
+                    confused: 0,
+                    heart: 0,
+                    hooray: 0,
+                    eyes: 0,
+                    rocket: 0,
+                  });
                 }
                 comments_fetched++;
               }
@@ -246,7 +253,7 @@ export async function enrichCombined(
                 const botComments =
                   result.comments.get(botEntry.bot_id) ?? [];
                 if (botComments.length > 0) {
-                  await insertPrComments(ch, botComments);
+                  allCommentRows.push(...botComments);
                   comments_fetched++;
                 }
                 // No sentinel — leave for individual stage to process fully
@@ -258,31 +265,49 @@ export async function enrichCombined(
               }
             }
 
-            // Insert reaction data — only for successfully fetched PRs
+            // Collect reaction data — only for successfully fetched PRs
             // where the hoorayReactions field was present in the response.
             // Skip if hasMoreReactions (>20 hooray reactions) — leave for
             // the dedicated reaction stage which can paginate.
             if (result.prStatus === "ok" && result.reactionsAvailable && !result.hasMoreReactions) {
               if (result.reactions.length > 0) {
-                await insertPrBotReactions(ch, result.reactions);
+                allReactionRows.push(...result.reactions);
                 reactions_found++;
               }
-              await insertReactionScanProgress(ch, [{
+              allScanProgress.push({
                 repo_name: result.input.repo_name,
                 pr_number: result.input.pr_number,
-              }]);
+              });
               reactions_scanned++;
             } else if (result.prStatus === "ok" && result.reactionsAvailable && result.hasMoreReactions) {
-              // Insert what we have but don't mark as scanned — dedicated
+              // Collect what we have but don't mark as scanned — dedicated
               // reaction stage will do a full scan with pagination.
               if (result.reactions.length > 0) {
-                await insertPrBotReactions(ch, result.reactions);
+                allReactionRows.push(...result.reactions);
               }
               log(
                 `[combined] ${result.input.repo_name}#${result.input.pr_number} has >20 hooray reactions, leaving for reaction stage`,
               );
             }
           }
+
+          // Bulk insert all collected rows (4 calls instead of ~75+)
+          const insertStart = Date.now();
+          await Sentry.startSpan(
+            { op: "db.insert", name: "combined bulk insert" },
+            async () => {
+              await insertPullRequests(ch, allPrRows);
+              await insertPrComments(ch, allCommentRows);
+              await insertPrBotReactions(ch, allReactionRows);
+              await insertReactionScanProgress(ch, allScanProgress);
+            },
+          );
+          const insertMs = Date.now() - insertStart;
+
+          log(
+            `[combined] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allPrRows.length} PRs, ${allCommentRows.length} comments, ${allReactionRows.length} reactions, ${allScanProgress.length} scans)`,
+          );
+
           batchHandled = true;
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
@@ -325,6 +350,9 @@ export async function enrichCombined(
       log(
         `[combined] Progress: ${processed}/${prGroups.length} (${prs_fetched} PRs, ${comments_fetched} comment combos, ${reactions_scanned} reactions scanned, ${skipped} skipped, ${errors} errors)`,
       );
+      // Flush Sentry periodically so spans are visible in the UI during
+      // long-running enrichment (otherwise buffered until root span ends).
+      void Sentry.flush(5000);
     }
     countMetric("pipeline.enrich.combined.batch", 1);
   }
