@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 11;
+export const EXPECTED_SCHEMA_VERSION = 12;
 
 export type SchemaStatus = {
   /**
@@ -625,8 +625,60 @@ const MIGRATION_011: Migration = {
   ],
 };
 
+const MIGRATION_012: Migration = {
+  version: 12,
+  name: "pr_summary_tables",
+  statements: [
+    // Per-repo PR count summary (collapses across bot_id)
+    `CREATE TABLE IF NOT EXISTS repo_pr_summary (
+      repo_name String,
+      total_prs AggregateFunction(uniqExact, UInt32)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY repo_name`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS repo_pr_summary_mv
+    TO repo_pr_summary
+    AS SELECT
+      repo_name,
+      uniqExactState(pr_number) AS total_prs
+    FROM pr_bot_events
+    GROUP BY repo_name`,
+
+    // Backfill repo_pr_summary
+    `INSERT INTO repo_pr_summary
+    SELECT repo_name, uniqExactState(pr_number) AS total_prs
+    FROM pr_bot_events
+    GROUP BY repo_name
+    SETTINGS max_execution_time = 300`,
+
+    // Per-owner PR count summary (collapses across bot_id and repo)
+    `CREATE TABLE IF NOT EXISTS org_pr_summary (
+      owner String,
+      total_prs AggregateFunction(uniqExact, String, UInt32)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY owner`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS org_pr_summary_mv
+    TO org_pr_summary
+    AS SELECT
+      splitByChar('/', repo_name)[1] AS owner,
+      uniqExactState(repo_name, pr_number) AS total_prs
+    FROM pr_bot_events
+    GROUP BY owner`,
+
+    // Backfill org_pr_summary
+    `INSERT INTO org_pr_summary
+    SELECT
+      splitByChar('/', repo_name)[1] AS owner,
+      uniqExactState(repo_name, pr_number) AS total_prs
+    FROM pr_bot_events
+    GROUP BY splitByChar('/', repo_name)[1]
+    SETTINGS max_execution_time = 300`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables
