@@ -1708,7 +1708,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
         (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
         (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS prs_discovered,
         (SELECT count() FROM pull_requests) AS prs_enriched,
-        (SELECT sum(x) FROM (SELECT uniqExactMerge(pr_count) AS x FROM pr_bot_event_counts GROUP BY repo_name, bot_id)) AS comments_discovered,
+        (SELECT sum(x) FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)) AS comments_discovered,
         (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched,
         (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS reactions_total,
         (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
