@@ -37,7 +37,7 @@ Open http://localhost:3000.
 Docker Compose runs ClickHouse and loads `db/init/` (schema + bot data) on first start. Tables start empty; run the pipeline to populate data. To reset the database:
 
 ```bash
-npm run dev:down && docker volume rm code-review-trends-3_clickhouse-data
+npm run dev:down && docker volume rm code-review-trends-2_clickhouse-data
 npm run dev
 ```
 

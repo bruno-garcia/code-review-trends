@@ -10,7 +10,8 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 - **`pipeline/`** — TypeScript data collection service. Pulls data from BigQuery (GH Archive) and GitHub API, writes to ClickHouse. Has CLI tools for dev.
 - **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages ClickHouse VM, Cloud Run (Next.js app), Cloud Run Jobs (pipeline), Artifact Registry, Cloud Scheduler, Workload Identity Federation, and Secret Manager. See `infra/README.md`.
 - **`db/`** — ClickHouse schema and data, split by environment:
-  - `db/init/` — runs on **all** environments: schema (`001_schema.sql`), bot reference data (`002_bot_data.sql`), and additional migrations (`003_pr_bot_reactions.sql`, `004_pr_bot_event_counts.sql`).
+  - `db/init/` — runs on **all** environments: numbered SQL migrations for schema, reference data, and table extensions. See `db/README.md` for the full list.
+- **`coming-soon/`** — Static landing page currently live on codereviewtrends.com. Will be replaced when the full app goes to production.
 - **`docker-compose.yml`** — Local dev services (ClickHouse).
 
 ## Dev Environment
@@ -43,22 +44,11 @@ Ports are printed on startup. ClickHouse defaults to `localhost:8123` / `localho
 ### Pipeline dev tools
 
 ```bash
-# Inspect data in ClickHouse
 npm run inspect                          # overview of all tables
-npm run inspect -- --bot coderabbit      # show data for a specific bot
-npm run inspect -- --weeks 4             # last N weeks of activity
-npm run inspect -- --table bots          # raw table dump
-npm run inspect -- --query "SELECT ..."  # arbitrary query
-
-# Validate schema matches expectations
-npm run validate
-
-# Pipeline CLI
-npm run pipeline -- sync-bots --env development      # push bot definitions to ClickHouse
-npm run pipeline -- fetch-bigquery --env development  # pull data from GH Archive (needs GCP)
-npm run pipeline -- fetch-bigquery --env development --dry-run  # preview without running
-npm run pipeline -- help                              # show all commands (no --env needed)
+npm run pipeline -- help                 # show all commands
 ```
+
+See [pipeline/README.md](pipeline/README.md) for full CLI documentation including all commands, options, and examples.
 
 ### Pipeline tests
 
@@ -145,8 +135,15 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 | `app/src/app/status/page.tsx` | Pipeline status page |
 | `app/src/app/orgs/page.tsx` | Organization listing page |
 | `app/src/app/orgs/[owner]/page.tsx` | Individual organization detail page |
+| `app/src/app/repos/page.tsx` | Repository listing page |
+| `app/src/app/repos/[owner]/[name]/page.tsx` | Individual repository detail page |
+| `app/src/app/repos/opengraph-image.tsx` | Repos OG image |
 | `app/src/app/compare/page.tsx` | Bot comparison page |
+| `app/src/app/compare/[pair]/page.tsx` | Bot comparison pair page |
+| `app/src/app/compare/[pair]/opengraph-image.tsx` | Compare pair OG image |
+| `app/src/app/layout.tsx` | Root layout (nav, theme, metadata) |
 | `app/src/app/error.tsx` | Error boundary page |
+| `app/src/app/global-error.tsx` | Global error boundary |
 | `app/src/app/opengraph-image.tsx` | Homepage OG image (dynamic, queries ClickHouse) |
 | `app/src/app/products/[id]/opengraph-image.tsx` | Per-product OG image (avatar, stats, brand color) |
 | `app/src/app/compare/opengraph-image.tsx` | Compare page OG image (top products bar chart) |
@@ -155,11 +152,8 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 | `app/src/app/robots.ts` | robots.txt generation |
 | `app/src/components/json-ld.tsx` | Reusable JSON-LD structured data component |
 | `app/e2e/` | Playwright e2e tests |
-| `db/init/001_schema.sql` | ClickHouse table definitions (all environments) |
-| `db/init/002_bot_data.sql` | Products, bots, bot_logins reference data (all environments) |
-| `db/init/003_pr_bot_reactions.sql` | Bot reactions table (emoji reactions as reviews) |
-| `db/init/004_pr_bot_event_counts.sql` | Materialized view for pre-aggregated event counts |
-| `db/init-ci.sh` | CI init script — runs db/init/*.sql via HTTP |
+| `db/init/*.sql` | ClickHouse schema migrations — numbered for execution order (see `db/README.md`) |
+| `db/init-ci.sh` | CI init script — runs all db/init/*.sql via HTTP |
 | `pipeline/Dockerfile` | Multi-stage Docker build for pipeline CLI |
 | `pipeline/schedules.json` | Job schedules (shared by Sentry cron + Cloud Scheduler) |
 | `pipeline/src/bots.ts` | Canonical bot registry |
@@ -195,7 +189,7 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 
 1. Add an entry to `pipeline/src/bots.ts`.
 2. Run `npm run pipeline -- sync-bots` to push to ClickHouse.
-3. Add a new migration file in `db/init/` (e.g., `005_new_bot.sql`) with the bot data (validated by `bots.test.ts`).
+3. Add a new migration file in `db/init/` (e.g., `015_new_bot.sql`) with the bot data (validated by `bots.test.ts`).
 4. Run `npm run pipeline -- generate-compare-pairs` to regenerate pair comparisons.
 5. The UI picks it up automatically — no code changes needed.
 6. Run the pipeline to backfill data for the new bot.
@@ -221,42 +215,19 @@ CLICKHOUSE_URL=https://... CLICKHOUSE_PASSWORD=... npm run pipeline -- sync
 
 ## Populating Data (Staging / Prod)
 
-The pipeline has three stages that must run in order. All are idempotent and reentrant — safe to kill and restart.
+Full command reference in [pipeline/README.md](pipeline/README.md).
+
+The pipeline has three stages that must run in order: **backfill** (BigQuery → review counts), **discover** (BigQuery → PR-level events), and **enrich** (GitHub API → repo/PR/comment metadata). All are idempotent and reentrant — safe to kill and restart.
 
 ```bash
-# Set target database (use migrate --stack to read creds from Pulumi)
 export CLICKHOUSE_URL=https://...
 export CLICKHOUSE_PASSWORD=...
-export GITHUB_TOKEN=...   # GitHub PAT for enrichment
+export GITHUB_TOKEN=...
 
-# All commands require --env (development | staging | production).
-# This identifies where the code runs, not which DB it connects to.
-
-# 1. Backfill: BigQuery → review_activity + human_review_activity
-#    Aggregates weekly bot/human review counts from GH Archive.
-npm run pipeline -- backfill --env staging              # resume from last checkpoint
-npm run pipeline -- backfill --env staging --no-resume  # re-fetch everything
-npm run pipeline -- backfill --env staging --all        # full history from 2023-01-01
-
-# 2. Discover: BigQuery → pr_bot_events
-#    Finds individual PR-level bot events (which bot touched which PR).
-npm run pipeline -- discover --env staging              # last 3 months (default)
-npm run pipeline -- discover --env staging --all        # full history from 2023-01-01
-
-# 3. Enrich: GitHub API → repos, pull_requests, pr_comments
-#    Fetches metadata for repos/PRs/comments found by discover.
-#    Processes repos first, then PRs (need repos), then comments (need PRs).
-npm run pipeline -- enrich --env staging --limit 4500   # fetch up to 4500 items per stage
-npm run pipeline -- enrich-status --env staging         # show enrichment progress
-
-# Parallel enrichment with multiple GitHub tokens (doubles throughput):
-GITHUB_TOKEN=$TOKEN_A npm run pipeline -- enrich --env staging --limit 4500 --worker-id 0 --total-workers 2 &
-GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --env staging --limit 4500 --worker-id 1 --total-workers 2 &
+npm run pipeline -- backfill --env staging
+npm run pipeline -- discover --env staging
+npm run pipeline -- enrich --env staging --limit 4500
 ```
-
-**How reentrance works:** Each stage queries ClickHouse for what's NOT yet done (e.g., repos in `pr_bot_events` but not in `repos` table). Workers partition work by hash modulo, so parallel workers don't overlap. `ReplacingMergeTree` deduplicates any accidental re-inserts.
-
-**Rate limits:** Each GitHub token gets 5,000 API calls/hour. The enrichment worker auto-throttles when remaining calls drop below 100, waiting for the reset window. With 2 tokens you get ~10K calls/hour.
 
 ## Deployment
 
@@ -269,9 +240,9 @@ Every merge to `main` triggers the `deploy-staging` CI job:
 
 Uses Workload Identity Federation — no service account keys needed.
 
-### Production (future — manual)
+### Production (not yet set up)
 Will use `workflow_dispatch` to deploy a specific image tag.
-Same infrastructure, different Pulumi stack.
+Same infrastructure, different Pulumi stack. Currently the `coming-soon/` static page is live on codereviewtrends.com.
 
 ### Rollback
 Redeploy with an older git SHA:

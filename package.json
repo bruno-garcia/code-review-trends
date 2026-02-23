@@ -12,7 +12,6 @@
     "lint": "npm run lint --workspace=app && npm run lint --workspace=pipeline && npm run lint --workspace=infra",
     "test": "npm run test --workspace=app",
     "test:e2e": "npm run test:e2e --workspace=app",
-    "db:seed": "npm run db:seed --workspace=app",
     "pipeline": "npm run cli --workspace=pipeline --",
     "inspect": "npm run inspect --workspace=pipeline --",
     "validate": "npm run validate --workspace=pipeline"
