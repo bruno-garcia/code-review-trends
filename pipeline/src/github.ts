@@ -16,8 +16,9 @@ export type GitHubTokenInfo = {
  * Calls `GET /user` — a single lightweight API request that counts against
  * the token's rate limit but does NOT consume a GraphQL point.
  *
- * Fine-grained and classic PATs with an expiry date return a
- * `github-token-expiration` response header (format: "2025-03-15 00:00:00 UTC").
+ * Fine-grained PATs return a `github-authentication-token-expiration` header,
+ * classic PATs return `github-token-expiration`. Both use the format
+ * "2025-03-15 00:00:00 UTC" (or with a timezone offset like "-0500").
  * Tokens without expiry omit the header entirely.
  */
 export async function resolveGitHubTokenInfo(token: string): Promise<GitHubTokenInfo> {
@@ -44,8 +45,13 @@ export async function resolveGitHubTokenInfo(token: string): Promise<GitHubToken
   const data = (await res.json()) as { login: string };
 
   // Parse token expiration from response header (if present).
-  // Format: "2025-03-15 00:00:00 UTC"
-  const expiryHeader = res.headers.get("github-token-expiration");
+  // GitHub uses two different header names depending on token type:
+  //   - "github-authentication-token-expiration" (fine-grained PATs)
+  //   - "github-token-expiration" (classic PATs)
+  // Format: "2025-03-15 00:00:00 UTC" or "2025-03-15 00:00:00 -0500"
+  const expiryHeader =
+    res.headers.get("github-authentication-token-expiration") ??
+    res.headers.get("github-token-expiration");
   const expiry = expiryHeader ? new Date(expiryHeader) : null;
 
   return { login: data.login, expiry };
