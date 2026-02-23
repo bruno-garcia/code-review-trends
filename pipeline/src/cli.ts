@@ -63,6 +63,8 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   "enrich-status": cmdEnrichStatus,
   "validate-bq-prs": cmdValidateBqPrs,
   "generate-compare-pairs": cmdGenerateComparePairs,
+  "detach-mv": cmdDetachMV,
+  "reattach-mv": cmdReattachMV,
   help: cmdHelp,
 };
 
@@ -183,6 +185,83 @@ async function cmdGenerateComparePairs() {
   await generateComparePairs();
 }
 
+/**
+ * Materialized views that are expensive during bulk enrichment.
+ * Each entry has the DETACH statement and the CREATE + backfill to reattach.
+ */
+const EXPENSIVE_MVS = [
+  {
+    name: "pr_product_characteristics_mv",
+    detach: "DETACH VIEW IF EXISTS pr_product_characteristics_mv",
+    create: `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_product_characteristics_mv
+TO pr_product_characteristics
+AS SELECT
+    b.product_id AS product_id,
+    p.repo_name AS repo_name,
+    p.pr_number AS pr_number,
+    p.additions AS additions,
+    p.deletions AS deletions,
+    p.changed_files AS changed_files,
+    p.state AS state,
+    p.created_at AS created_at,
+    p.merged_at AS merged_at
+FROM pull_requests AS p
+INNER JOIN pr_bot_events AS e
+    ON p.repo_name = e.repo_name AND p.pr_number = e.pr_number
+INNER JOIN bots AS b
+    ON e.bot_id = b.id`,
+    backfill: `INSERT INTO pr_product_characteristics
+SELECT
+    b.product_id AS product_id,
+    p.repo_name AS repo_name,
+    p.pr_number AS pr_number,
+    p.additions AS additions,
+    p.deletions AS deletions,
+    p.changed_files AS changed_files,
+    p.state AS state,
+    p.created_at AS created_at,
+    p.merged_at AS merged_at
+FROM pull_requests AS p
+INNER JOIN pr_bot_events AS e
+    ON p.repo_name = e.repo_name AND p.pr_number = e.pr_number
+INNER JOIN bots AS b
+    ON e.bot_id = b.id`,
+  },
+] as const;
+
+async function cmdDetachMV() {
+  const ch = createCHClient();
+  try {
+    for (const mv of EXPENSIVE_MVS) {
+      log(`Detaching ${mv.name}...`);
+      await ch.command({ query: mv.detach });
+      log(`  ✓ ${mv.name} detached`);
+    }
+    log("\nDone. Inserts to pull_requests will be much faster now.");
+    log("Run 'reattach-mv' after enrichment to recreate views and backfill data.");
+  } finally {
+    await ch.close();
+  }
+}
+
+async function cmdReattachMV() {
+  const ch = createCHClient();
+  try {
+    for (const mv of EXPENSIVE_MVS) {
+      log(`Recreating ${mv.name}...`);
+      await ch.command({ query: mv.create });
+      log(`  ✓ ${mv.name} created`);
+
+      log(`Backfilling ${mv.name} from existing data...`);
+      await ch.command({ query: mv.backfill, clickhouse_settings: { max_execution_time: 600 } });
+      log(`  ✓ ${mv.name} backfilled`);
+    }
+    log("\nDone. Materialized views are active and up to date.");
+  } finally {
+    await ch.close();
+  }
+}
+
 async function cmdHelp() {
   console.log(`
 Pipeline CLI — Code Review Trends
@@ -202,6 +281,8 @@ Commands:
   enrich-status      Show enrichment progress
   validate-bq-prs    Compare PR data from BigQuery vs GitHub API
   generate-compare-pairs  Generate compare pair metadata for the app
+  detach-mv          Detach expensive MVs for faster bulk enrichment
+  reattach-mv        Reattach MVs and backfill from existing data
   help               Show this help message
 
 Options for fetch-bigquery:
