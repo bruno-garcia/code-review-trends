@@ -27,14 +27,16 @@ function ProgressBar() {
       clearTimeout(completeTimerRef.current);
       clearTimeout(safetyTimerRef.current);
       setState("loading");
-      // Safety timeout: auto-clear after 10s in case URL never changes
+      // Safety timeout: auto-clear in case URL never changes.
+      // Must exceed ClickHouse max_execution_time (15s) so the spinner
+      // stays visible until the error boundary renders on query timeout.
       safetyTimerRef.current = setTimeout(() => {
         setState((prev) => {
           if (prev !== "loading") return prev;
           completeTimerRef.current = setTimeout(() => setState("idle"), 500);
           return "complete";
         });
-      }, 10_000);
+      }, 20_000);
     }
 
     /** Returns true if href points to the current URL (no navigation needed). */
