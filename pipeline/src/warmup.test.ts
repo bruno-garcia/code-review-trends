@@ -362,10 +362,12 @@ describe("constants", () => {
     assert.ok(PAGES.includes("/products"));
     assert.ok(PAGES.includes("/orgs"));
     assert.ok(PAGES.includes("/repos"));
+    assert.ok(PAGES.includes("/orgs?sort=prs"));
+    assert.ok(PAGES.includes("/repos?sort=prs"));
     assert.ok(PAGES.includes("/compare"));
     assert.ok(PAGES.includes("/about"));
     assert.ok(PAGES.includes("/status"));
-    assert.equal(PAGES.length, 7);
+    assert.equal(PAGES.length, 9);
   });
 
   it("PAGE_NAMES maps every page", () => {
