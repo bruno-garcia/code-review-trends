@@ -36,7 +36,7 @@ npm run pipeline -- fetch-bigquery --dry-run          # preview without running
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--start YYYY-MM-DD` | 4 weeks ago | Start date (inclusive) |
+| `--start YYYY-MM-DD` | 3 months ago | Start date (inclusive) |
 | `--end YYYY-MM-DD` | today | End date (inclusive) |
 | `--dry-run` | — | Show what would be fetched without querying |
 
@@ -52,8 +52,9 @@ npm run pipeline -- backfill --no-resume               # start over, ignore prev
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--start YYYY-MM-DD` | `2023-01-01` | Start date |
+| `--start YYYY-MM-DD` | 3 months ago | Start date |
 | `--end YYYY-MM-DD` | today | End date |
+| `--all` | — | Full history from 2023-01-01 |
 | `--no-resume` | — | Ignore previous progress, re-fetch everything |
 | `--dry-run` | — | List chunks without executing |
 
@@ -197,7 +198,38 @@ npm run pipeline -- discover-bots --marketplace-only
 | `--end YYYY-MM-DD` | today | End date |
 | `--marketplace-only` | — | Skip BigQuery `[bot]` scan |
 | `--bigquery-only` | — | Skip marketplace scan |
-| `--alert` | — | Capture a Sentry event per new bot found |
+
+### `validate-bq-prs`
+
+Compare PR data from BigQuery against GitHub's API to detect discrepancies. Useful for validating pipeline accuracy.
+
+```bash
+npm run pipeline -- validate-bq-prs
+npm run pipeline -- validate-bq-prs --sample 1000
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--sample N` | `500` | Number of PRs to compare |
+
+### `generate-compare-pairs`
+
+Generate compare pair metadata for the app's comparison page. Run this after adding new bots.
+
+```bash
+npm run pipeline -- generate-compare-pairs
+```
+
+## Global Options
+
+These options apply to all commands:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--env ENV` | — | Runtime environment: `development`, `staging`, or `production` (**required**) |
+| `--no-sentry` | — | Disable Sentry observability (tracing, crons, metrics) |
+| `--clickhouse-url URL` | `http://localhost:8123` | ClickHouse HTTP URL (env: `CLICKHOUSE_URL`) |
+| `--clickhouse-password PW` | `dev` | ClickHouse password (env: `CLICKHOUSE_PASSWORD`) |
 
 ## Dev Tools
 
@@ -228,12 +260,23 @@ The pipeline is designed to run as a scheduled job, not a long-running service. 
 
 ### Cron setup
 
-```bash
-# Weekly sync — fetch last 2 weeks of data every Monday at 6am UTC
-0 6 * * 1  cd /path/to/code-review-trends && GCP_PROJECT_ID=your-project npm run pipeline -- sync >> /var/log/pipeline-sync.log 2>&1
+Actual schedules are defined in `pipeline/schedules.json` and used by both Cloud Scheduler and Sentry cron monitors:
 
-# Health check — alert if data is stale (runs daily)
-0 8 * * *  cd /path/to/code-review-trends && npm run pipeline -- status --check --max-age 14 || echo "Pipeline stale!" | mail -s "Alert" ops@example.com
+```bash
+# Daily sync — fetch recent BigQuery data (6am UTC daily)
+0 6 * * *  npm run pipeline -- sync --env production
+
+# Weekly backfill — historical import (2am UTC Mondays)
+0 2 * * 1  npm run pipeline -- backfill --env production
+
+# Daily discover — find PR bot events (4am UTC daily)
+0 4 * * *  npm run pipeline -- discover --env production
+
+# Hourly enrich — GitHub API enrichment (5 min past every hour)
+5 * * * *  npm run pipeline -- enrich --env production
+
+# Monthly discover-bots — find new bot accounts (3am UTC, 1st of month)
+0 3 1 * *  npm run pipeline -- discover-bots --env production
 ```
 
 ### Monitoring
@@ -394,14 +437,16 @@ The canonical bot list lives in `src/bots.ts`. Current bots:
 | gitStream | `gitstream-cm[bot]` |
 | LinearB | `linearb[bot]` |
 | Augment Code | `augmentcode[bot]` |
+| Kodus | `kody-ai[bot]` |
 
 To add a new bot:
 
 1. Add an entry to `src/bots.ts`
-2. Update `db/init/002_bot_data.sql` to match (the `bots.test.ts` validates consistency)
+2. Add a new migration file in `db/init/` (e.g., `015_new_bot.sql`) with the product, bot, and bot_login INSERT statements — never edit existing migration files (see Principle #15 in AGENTS.md)
 3. Run `npm run pipeline -- sync-bots` to push to local ClickHouse
-4. For remote databases, run `npm run pipeline -- migrate --stack staging`
-5. Use `npm run discover-bots` to find the correct GitHub login if unsure
+4. Run `npm run pipeline -- generate-compare-pairs` to regenerate pair comparisons
+5. For remote databases, run `npm run pipeline -- migrate --stack staging`
+6. Use `npm run discover-bots` to find the correct GitHub login if unsure
 
 ## Tests
 
