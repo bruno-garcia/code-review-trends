@@ -96,6 +96,10 @@ export function createCloudRunApp(
             envs: [
               // Plain env vars
               { name: "NODE_ENV", value: cfg.environment },
+              // Sentry environment — explicit, separate from NODE_ENV.
+              // NODE_ENV is inlined by Next.js at build time, so runtime
+              // overrides have no effect. See AGENTS.md principle #20.
+              { name: "SENTRY_ENVIRONMENT", value: cfg.environment },
               {
                 name: "SITE_URL",
                 value: pulumi.interpolate`https://${cfg.appDomain}`,

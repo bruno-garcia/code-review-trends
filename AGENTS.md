@@ -116,6 +116,8 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 
 19. **New ReplacingMergeTree tables must be added to `optimizeTables`.** Without periodic `OPTIMIZE TABLE`, deduplication only happens at merge time, so `FINAL` queries must scan all duplicate parts at read time. When adding a new table or MV target that uses ReplacingMergeTree, add it to the relevant `optimizeTables` call in `pipeline/src/cli.ts`.
 
+20. **Explicit configuration — no silent fallbacks.** Configuration values that affect observability, routing, or identity (e.g., Sentry environment, DSNs, database URLs) must be passed explicitly. Never fall back to generic variables like `NODE_ENV` — Next.js inlines it at build time, making runtime overrides impossible. If a required value is missing, the process must crash at startup with a clear error message. A wrong-but-working default (like `NODE_ENV=production` silently becoming the Sentry environment) is worse than a crash — it pollutes dashboards and hides misconfigurations for weeks. Use dedicated env vars (`SENTRY_ENVIRONMENT`, not `NODE_ENV`) and validate them at init time. When adding a new deployment environment, follow the full checklist in `infra/README.md` § "Adding a new environment" — every layer (Pulumi, CI, DNS, Sentry) must be configured explicitly.
+
 ## Key Files
 
 | Path | Purpose |

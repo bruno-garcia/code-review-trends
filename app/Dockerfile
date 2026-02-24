@@ -15,10 +15,22 @@ COPY . .
 ARG SENTRY_AUTH_TOKEN
 ARG NEXT_PUBLIC_COMMIT_SHA
 ARG SENTRY_DSN_CRT_FRONTEND
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV NEXT_PUBLIC_COMMIT_SHA=$NEXT_PUBLIC_COMMIT_SHA
 ENV SENTRY_DSN_CRT_FRONTEND=$SENTRY_DSN_CRT_FRONTEND
+ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
+# Server-side Sentry config reads SENTRY_ENVIRONMENT at runtime (set by Cloud Run).
+# During build, set it so next build's instrumentation.ts register() doesn't crash.
+ENV SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
 ENV NEXT_TELEMETRY_DISABLED=1
+# Fail fast if NEXT_PUBLIC_SENTRY_ENVIRONMENT was not passed as a build arg.
+# This prevents deploying an image with the wrong (or missing) Sentry environment.
+# See AGENTS.md principle #20.
+RUN if [ -z "$NEXT_PUBLIC_SENTRY_ENVIRONMENT" ]; then \
+      echo "ERROR: --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT is required" >&2; \
+      exit 1; \
+    fi
 # Pages use ISR (revalidate=300). During build, the query() helper detects
 # NEXT_PHASE=phase-production-build and returns empty arrays, so pre-renders
 # succeed without ClickHouse. Real data is fetched on first request.

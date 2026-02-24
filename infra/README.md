@@ -247,7 +247,98 @@ Per-environment config lives in `Pulumi.<stack>.yaml`:
 | `appMaxInstances` | Cloud Run maximum instances | `4` |
 | `appConcurrency` | Max concurrent requests per instance | `40` |
 
-To add a new environment (e.g. prod), create `Pulumi.prod.yaml` and run `pulumi stack init prod`.
+To add a new environment (e.g. prod), see the **Adding a new environment** section below.
+
+## Adding a new environment
+
+When adding a new environment (e.g., `production`), every layer of the stack must know about it. Missing any step causes silent misconfigurations — wrong Sentry environment, missing secrets, broken deploys. Follow this checklist in order:
+
+### 1. Pulumi stack
+
+```bash
+cd infra
+pulumi stack init production
+```
+
+Set all required config values (see **Stack configuration** table above):
+
+```bash
+pulumi config set code-review-trends:environment production
+pulumi config set gcp:project <prod-project-id> --secret
+pulumi config set gcp:region us-central1
+pulumi config set gcp:zone us-central1-a
+pulumi config set code-review-trends:clickhouseDomain <domain> --secret
+pulumi config set code-review-trends:appDomain <domain> --secret
+pulumi config set code-review-trends:sentryDsnAppFrontend <dsn> --secret
+pulumi config set code-review-trends:sentryDsnAppBackend <dsn> --secret
+pulumi config set code-review-trends:sentryDsnPipeline <dsn> --secret
+pulumi config set code-review-trends:sentryAuthToken <token> --secret
+pulumi config set code-review-trends:githubTokens '["ghp_..."]' --secret
+pulumi config set code-review-trends:githubRepo owner/repo
+pulumi config set code-review-trends:artifactRegistryLocation us-central1
+pulumi config set code-review-trends:alertEmail <email> --secret
+# Tune resource limits for production traffic:
+pulumi config set code-review-trends:appMinInstances 2
+pulumi config set code-review-trends:appMaxInstances 10
+```
+
+Then deploy:
+
+```bash
+pulumi up
+```
+
+This creates all resources (VPC, ClickHouse VM, Cloud Run, secrets, etc.) and sets the `SENTRY_ENVIRONMENT` Cloud Run env var to `production` automatically (from `cfg.environment`).
+
+### 2. CI deploy job
+
+Add a `deploy-production` job to `.github/workflows/ci.yml`. Copy `deploy-staging` and change:
+
+- **`DEPLOY_ENV: production`** — this flows into `--build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT` (client bundle) and must match the Pulumi `environment` config. The Dockerfile fails the build if this is missing.
+- **Cloud Run service/job names** — `crt-production-app`, `crt-production-*` (these follow the `crt-{env}-*` naming convention from `cfg.namePrefix`).
+- **GCP auth** — point to production WIF provider and deploy SA (separate GitHub Variables: `WIF_PROVIDER_PROD`, `DEPLOY_SA_EMAIL_PROD`).
+- **Trigger** — use `workflow_dispatch` for manual deploys, not auto-deploy on merge.
+
+### 3. GitHub Variables and Secrets
+
+After `pulumi up`, set the production WIF config:
+
+```bash
+pulumi stack select production
+gh variable set WIF_PROVIDER_PROD --body "$(pulumi stack output workloadIdentityProvider)"
+gh variable set DEPLOY_SA_EMAIL_PROD --body "$(pulumi stack output deployServiceAccountEmail)"
+```
+
+If production uses different Sentry DSNs or tokens, add them as separate GitHub Secrets (e.g., `SENTRY_DSN_CRT_FRONTEND_PROD`).
+
+### 4. DNS
+
+Create CNAME records for the production app domain and ClickHouse domain (if publicly accessible).
+
+### 5. Database schema
+
+Apply migrations to the new environment's ClickHouse:
+
+```bash
+npm run pipeline -- migrate --stack production
+```
+
+### 6. Verify Sentry environment
+
+After the first deploy, check that events appear under the correct environment in Sentry. Both server-side (`SENTRY_ENVIRONMENT`) and client-side (`NEXT_PUBLIC_SENTRY_ENVIRONMENT`) must show the new environment name. If they show `production` when they shouldn't, the `DEPLOY_ENV` or Pulumi `environment` config is wrong. See AGENTS.md principle #20.
+
+### Checklist summary
+
+| Step | What | Where |
+|------|------|-------|
+| Pulumi stack | `pulumi stack init` + all config values | `infra/Pulumi.<env>.yaml` |
+| Pulumi deploy | `pulumi up` (creates resources + sets `SENTRY_ENVIRONMENT`) | `infra/` |
+| CI deploy job | New job with `DEPLOY_ENV: <env>` | `.github/workflows/ci.yml` |
+| GitHub Variables | WIF provider + deploy SA email | GitHub repo settings |
+| GitHub Secrets | Sentry DSNs/tokens if different from staging | GitHub repo settings |
+| DNS | CNAME for app domain | DNS provider |
+| DB schema | `npm run pipeline -- migrate --stack <env>` | CLI |
+| Verify Sentry | Check events show correct environment | Sentry dashboard |
 
 ## Architecture decisions
 

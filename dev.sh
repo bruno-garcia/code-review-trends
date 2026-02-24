@@ -107,6 +107,11 @@ CLICKHOUSE_USER=$CLICKHOUSE_USER
 CLICKHOUSE_PASSWORD=$CLICKHOUSE_PASSWORD
 CLICKHOUSE_DB=$CLICKHOUSE_DB
 NEXT_PORT=$NEXT_PORT
+# Sentry environment — explicit, see AGENTS.md principle #20.
+# SENTRY_ENVIRONMENT is read at runtime by the server-side Sentry config.
+# NEXT_PUBLIC_SENTRY_ENVIRONMENT is baked into the client bundle by Next.js.
+SENTRY_ENVIRONMENT=development
+NEXT_PUBLIC_SENTRY_ENVIRONMENT=development
 EOF
     echo "Generated $ENV_FILE with dynamic ports"
   fi

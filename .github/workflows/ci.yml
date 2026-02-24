@@ -38,6 +38,9 @@ jobs:
 
       - name: Build app
         run: npm run build --workspace=app
+        env:
+          SENTRY_ENVIRONMENT: development
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
 
       - name: Test app (unit)
         run: npm run test --workspace=app
@@ -200,6 +203,8 @@ jobs:
           CLICKHOUSE_USER: default
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
+          SENTRY_ENVIRONMENT: development
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
 
       - name: Run Playwright tests
         run: npm run test:e2e --workspace=app
@@ -208,6 +213,8 @@ jobs:
           CLICKHOUSE_USER: default
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
+          SENTRY_ENVIRONMENT: development
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
@@ -229,6 +236,7 @@ jobs:
       contents: read
     env:
       REGION: us-central1
+      DEPLOY_ENV: staging
       SENTRY_DSN_CRT_CLI: ${{ secrets.SENTRY_DSN_CRT_CLI }}
     steps:
       - uses: actions/checkout@v4
@@ -268,6 +276,7 @@ jobs:
             --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             --build-arg NEXT_PUBLIC_COMMIT_SHA="${{ github.sha }}" \
             --build-arg SENTRY_DSN_CRT_FRONTEND="${{ secrets.SENTRY_DSN_CRT_FRONTEND }}" \
+            --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${DEPLOY_ENV}" \
             --tag ${{ steps.tags.outputs.app }} \
             . &
           APP_PID=$!
