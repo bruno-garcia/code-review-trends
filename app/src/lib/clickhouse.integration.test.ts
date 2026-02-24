@@ -63,12 +63,14 @@ describe("clickhouse query integration tests", () => {
     });
 
     // Insert bots: A has 1 bot, B has 2 bots
+    // Display fields (website, description, brand_color, avatar_url) live on
+    // products — bots only store identity and product linkage.
     await ch.insert({
       table: "bots",
       values: [
-        { id: BOT_A1, name: "Bot A1", product_id: PRODUCT_A, brand_color: "#aaa", avatar_url: "", website: "", description: "" },
-        { id: BOT_B1, name: "Bot B1", product_id: PRODUCT_B, brand_color: "#bbb", avatar_url: "", website: "", description: "" },
-        { id: BOT_B2, name: "Bot B2", product_id: PRODUCT_B, brand_color: "#bbb", avatar_url: "", website: "", description: "" },
+        { id: BOT_A1, name: "Bot A1", product_id: PRODUCT_A },
+        { id: BOT_B1, name: "Bot B1", product_id: PRODUCT_B },
+        { id: BOT_B2, name: "Bot B2", product_id: PRODUCT_B },
       ],
       format: "JSONEachRow",
     });
@@ -438,6 +440,68 @@ describe("clickhouse query integration tests", () => {
             -1) AS thumbs_up_rate
       `);
       assert.equal(Number(rows[0].thumbs_up_rate), -1, "thumbs_up_rate should be -1 (N/A) when < 30 reactions");
+    });
+
+    it("display fields (website, brand_color, avatar_url, description) come from products table", async () => {
+      // getBotSummaries JOINs products — verify display fields are read from products, not bots.
+      // The test setup inserts bots WITHOUT display fields, so only products have the values.
+      const rows = await q<{ id: string; website: string; brand_color: string; description: string; avatar_url: string }>(ch, `
+        SELECT
+          b.id,
+          p.website,
+          p.description,
+          p.brand_color,
+          p.avatar_url
+        FROM bots AS b
+        JOIN products p ON b.product_id = p.id
+        WHERE b.id = '${BOT_A1}'
+      `);
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].website, "https://a.test", "website should come from products table");
+      assert.equal(rows[0].brand_color, "#aaa", "brand_color should come from products table");
+      assert.equal(rows[0].description, "Product A desc", "description should come from products table");
+    });
+  });
+
+  describe("getProductBots", () => {
+    it("brand_color comes from products table, not bots", async () => {
+      // getProductBots JOINs products for brand_color. Bots no longer store display fields.
+      const rows = await q<{ id: string; brand_color: string; github_login: string }>(ch, `
+        SELECT
+          b.id,
+          p.brand_color,
+          bl.github_login
+        FROM bots b
+        JOIN products p ON b.product_id = p.id
+        LEFT JOIN (
+          SELECT bot_id, min(github_login) AS github_login
+          FROM bot_logins
+          GROUP BY bot_id
+        ) bl ON b.id = bl.bot_id
+        WHERE b.product_id = '${PRODUCT_B}'
+        ORDER BY b.id
+      `);
+      assert.equal(rows.length, 2, "Product B should have 2 bots");
+      assert.equal(rows[0].brand_color, "#bbb", "brand_color should come from products table");
+      assert.equal(rows[1].brand_color, "#bbb", "brand_color should come from products table");
+      assert.equal(rows[0].github_login, "test-bot-b1");
+      assert.equal(rows[1].github_login, "test-bot-b2");
+    });
+
+    it("INNER JOIN excludes bots with missing product (data integrity)", async () => {
+      // Insert an orphan bot with no matching product to verify it's excluded
+      await ch.insert({
+        table: "bots",
+        values: [{ id: "__test_orphan_bot", name: "Orphan", product_id: "__test_no_such_product" }],
+        format: "JSONEachRow",
+      });
+      const rows = await q<{ id: string }>(ch, `
+        SELECT b.id
+        FROM bots b
+        JOIN products p ON b.product_id = p.id
+        WHERE b.id = '__test_orphan_bot'
+      `);
+      assert.equal(rows.length, 0, "Orphan bot with no matching product should be excluded by INNER JOIN");
     });
   });
 
