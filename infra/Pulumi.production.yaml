@@ -1,0 +1,35 @@
+# Production stack configuration for Code Review Trends.
+#
+# Sensitive values must be set via `pulumi config set --secret`:
+#
+#   pulumi stack select production
+#
+#   pulumi config set gcp:project <project-id> --secret
+#   pulumi config set code-review-trends:clickhouseDomain <ip-or-domain> --secret
+#   pulumi config set code-review-trends:appDomain <domain> --secret
+#   pulumi config set code-review-trends:sentryDsnAppFrontend <dsn> --secret
+#   pulumi config set code-review-trends:sentryDsnAppBackend <dsn> --secret
+#   pulumi config set code-review-trends:sentryDsnPipeline <dsn> --secret
+#   pulumi config set code-review-trends:sentryAuthToken <token> --secret
+#   pulumi config set code-review-trends:githubTokens '["ghp_..."]' --secret
+#   pulumi config set code-review-trends:alertEmail <email> --secret
+#   pulumi config set code-review-trends:workerVpcNetwork <vpc-name> --secret
+#   pulumi config set code-review-trends:workerIp <ip> --secret
+#
+config:
+  gcp:region: us-central1
+  gcp:zone: us-central1-a
+  code-review-trends:environment: production
+  code-review-trends:clickhouseMachineType: e2-highmem-2
+  code-review-trends:clickhouseDiskSizeGb: "40"
+  code-review-trends:subnetCidr: "10.101.0.0/24"
+  code-review-trends:clickhouseHttpPort: "39847"
+  code-review-trends:clickhousePublicAccess: "false"
+  code-review-trends:skipArtifactRegistry: "true"
+  code-review-trends:appMemory: "4Gi"
+  code-review-trends:appCpu: "2"
+  code-review-trends:appMinInstances: "2"
+  code-review-trends:appMaxInstances: "10"
+  code-review-trends:appConcurrency: "40"
+  code-review-trends:artifactRegistryLocation: us-central1
+  code-review-trends:githubRepo: bruno-garcia/code-review-trends
