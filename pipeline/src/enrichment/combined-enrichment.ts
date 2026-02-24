@@ -277,7 +277,22 @@ export async function enrichCombined(
             // where the hoorayReactions field was present in the response.
             // Skip if hasMoreReactions (>20 hooray reactions) — leave for
             // the dedicated reaction stage which can paginate.
-            if (result.prStatus === "ok" && result.reactionsAvailable && !result.hasMoreReactions) {
+            if (result.prStatus === "not_found" || result.prStatus === "forbidden") {
+              // Repo/PR gone — record sentinel so the dedicated reaction stage
+              // doesn't re-discover the same failure.
+              allScanProgress.push({
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
+                scan_status: "not_found",
+              });
+            } else if (result.prStatus === "ok" && !result.reactionsAvailable) {
+              // PR exists but reactions field missing (SPAMMY content, field-level error)
+              allScanProgress.push({
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
+                scan_status: "unavailable",
+              });
+            } else if (result.prStatus === "ok" && result.reactionsAvailable && !result.hasMoreReactions) {
               if (result.reactions.length > 0) {
                 allReactionRows.push(...result.reactions);
                 batchReactionsFound++;
