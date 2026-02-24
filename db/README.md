@@ -52,7 +52,7 @@ Test data for CI and local development lives in `db/seed/`. Unlike `db/init/`, s
 |------|---------|
 | `e2e-test-data.sql` | Minimal data for 2 products (CodeRabbit + Sentry), 4 repos across 2 orgs, with review activity, PR events, comments, and reaction-only reviews. Exercises code paths unreachable with empty tables (e.g., product-filter JOINs, multi-bot product pages, org/repo listings). |
 
-Seed data is **idempotent** — safe to re-run. It uses `INSERT INTO` (not `TRUNCATE`) so it layers on top of whatever already exists.
+Seed data is **idempotent** — safe to re-run. Each seed file truncates its target tables (including MV targets) before inserting, preventing double-counting in AggregatingMergeTree tables.
 
 To run locally after `npm run dev:infra`:
 ```bash

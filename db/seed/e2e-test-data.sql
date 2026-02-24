@@ -13,6 +13,30 @@
 --
 -- Uses two products (CodeRabbit + Sentry) and a handful of repos spread
 -- across two orgs. All bot_ids and product_ids match db/init/002_bot_data.sql.
+--
+-- IDEMPOTENCY: Truncates all target tables before inserting, including
+-- AggregatingMergeTree MV targets that would otherwise double-count on
+-- re-run. Safe to run repeatedly.
+
+-- ============================================================
+-- 0. Reset — truncate source tables and MV targets for idempotency
+-- ============================================================
+TRUNCATE TABLE code_review_trends.review_activity;
+TRUNCATE TABLE code_review_trends.human_review_activity;
+TRUNCATE TABLE code_review_trends.repos;
+TRUNCATE TABLE code_review_trends.pr_bot_events;
+TRUNCATE TABLE code_review_trends.pull_requests;
+TRUNCATE TABLE code_review_trends.pr_comments;
+TRUNCATE TABLE code_review_trends.reaction_only_review_counts;
+TRUNCATE TABLE code_review_trends.reaction_only_repo_counts;
+-- MV targets (AggregatingMergeTree — would accumulate on re-insert)
+TRUNCATE TABLE code_review_trends.pr_bot_event_counts;
+TRUNCATE TABLE code_review_trends.org_bot_pr_counts;
+TRUNCATE TABLE code_review_trends.repo_pr_summary;
+TRUNCATE TABLE code_review_trends.org_pr_summary;
+TRUNCATE TABLE code_review_trends.bot_comment_discovery_summary;
+TRUNCATE TABLE code_review_trends.comment_stats_weekly;
+TRUNCATE TABLE code_review_trends.pr_product_characteristics;
 
 -- ============================================================
 -- 1. Weekly review activity (4 weeks of data for 3 bots)
