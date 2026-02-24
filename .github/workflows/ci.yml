@@ -213,6 +213,8 @@ jobs:
           CLICKHOUSE_USER: default
           CLICKHOUSE_PASSWORD: dev
           CLICKHOUSE_DB: code_review_trends
+          SENTRY_ENVIRONMENT: development
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
