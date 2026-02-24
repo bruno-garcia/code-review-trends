@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 13;
+export const EXPECTED_SCHEMA_VERSION = 14;
 
 export type SchemaStatus = {
   /**
@@ -711,8 +711,19 @@ const MIGRATION_013: Migration = {
   ],
 };
 
+const MIGRATION_014: Migration = {
+  version: 14,
+  name: "reaction_scan_status",
+  statements: [
+    // Adds scan_status to distinguish successful scans from permanent failures.
+    // Defaults to 'unknown' so pre-existing rows can be identified and retried.
+    `ALTER TABLE reaction_scan_progress
+      ADD COLUMN IF NOT EXISTS scan_status String DEFAULT 'unknown'`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012, MIGRATION_013];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012, MIGRATION_013, MIGRATION_014];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

@@ -200,7 +200,7 @@ export async function enrichCombined(
           const allPrRows: import("../clickhouse.js").PullRequestRow[] = [];
           const allCommentRows: import("../clickhouse.js").PrCommentRow[] = [];
           const allReactionRows: import("../clickhouse.js").PrBotReactionRow[] = [];
-          const allScanProgress: { repo_name: string; pr_number: number }[] = [];
+          const allScanProgress: { repo_name: string; pr_number: number; scan_status: import("../clickhouse.js").ReactionScanStatus }[] = [];
 
           // Track batch-local counters — only merge into outer counters
           // after bulk insert succeeds, so retries don't double-count.
@@ -277,7 +277,22 @@ export async function enrichCombined(
             // where the hoorayReactions field was present in the response.
             // Skip if hasMoreReactions (>20 hooray reactions) — leave for
             // the dedicated reaction stage which can paginate.
-            if (result.prStatus === "ok" && result.reactionsAvailable && !result.hasMoreReactions) {
+            if (result.prStatus === "not_found" || result.prStatus === "forbidden") {
+              // Repo/PR inaccessible — record sentinel with the actual failure reason
+              // so the dedicated reaction stage doesn't re-discover the same failure.
+              allScanProgress.push({
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
+                scan_status: result.prStatus === "forbidden" ? "forbidden" : "not_found",
+              });
+            } else if (result.prStatus === "ok" && !result.reactionsAvailable) {
+              // PR exists but reactions field missing (SPAMMY content, field-level error)
+              allScanProgress.push({
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
+                scan_status: "unavailable",
+              });
+            } else if (result.prStatus === "ok" && result.reactionsAvailable && !result.hasMoreReactions) {
               if (result.reactions.length > 0) {
                 allReactionRows.push(...result.reactions);
                 batchReactionsFound++;
@@ -285,6 +300,7 @@ export async function enrichCombined(
               allScanProgress.push({
                 repo_name: result.input.repo_name,
                 pr_number: result.input.pr_number,
+                scan_status: "ok",
               });
               batchReactionsScanned++;
             } else if (result.prStatus === "ok" && result.reactionsAvailable && result.hasMoreReactions) {
