@@ -163,7 +163,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     only: options.only,
     completion,
   });
-  let { order } = plan;
+  const { order } = plan;
 
   if (options.only) {
     log(`[worker] Running ONLY stage: ${options.only}`);

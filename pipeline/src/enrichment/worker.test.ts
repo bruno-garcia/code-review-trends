@@ -28,7 +28,6 @@ import {
   DEFAULT_ORDER,
   ROUND_ROBIN_THRESHOLD,
   type Step,
-  type ExecutionPlan,
 } from "./worker.js";
 
 /** All stages at 0% completion. */
