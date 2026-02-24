@@ -447,11 +447,11 @@ describe("clickhouse query integration tests", () => {
       // The test setup inserts bots WITHOUT display fields, so only products have the values.
       const rows = await q<{ id: string; website: string; brand_color: string; description: string; avatar_url: string }>(ch, `
         SELECT
-          b.id,
-          p.website,
-          p.description,
-          p.brand_color,
-          p.avatar_url
+          b.id AS id,
+          p.website AS website,
+          p.description AS description,
+          p.brand_color AS brand_color,
+          p.avatar_url AS avatar_url
         FROM bots AS b
         JOIN products p ON b.product_id = p.id
         WHERE b.id = '${BOT_A1}'
@@ -468,9 +468,9 @@ describe("clickhouse query integration tests", () => {
       // getProductBots JOINs products for brand_color. Bots no longer store display fields.
       const rows = await q<{ id: string; brand_color: string; github_login: string }>(ch, `
         SELECT
-          b.id,
-          p.brand_color,
-          bl.github_login
+          b.id AS id,
+          p.brand_color AS brand_color,
+          bl.github_login AS github_login
         FROM bots b
         JOIN products p ON b.product_id = p.id
         LEFT JOIN (
@@ -496,7 +496,7 @@ describe("clickhouse query integration tests", () => {
         format: "JSONEachRow",
       });
       const rows = await q<{ id: string }>(ch, `
-        SELECT b.id
+        SELECT b.id AS id
         FROM bots b
         JOIN products p ON b.product_id = p.id
         WHERE b.id = '__test_orphan_bot'
