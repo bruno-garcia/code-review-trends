@@ -332,6 +332,7 @@ Options for enrich:
   --total-workers N    Total workers (default: 1)
   --limit N            Max items per entity type per run
   --priority TYPE      Start with: repos|prs|comments|reactions (default: repos)
+  --only TYPE          Run ONLY this stage: repos|prs|comments|reactions (skip all others)
   --stale-days N       Repo refresh threshold in days (default: 7)
   --exit-on-rate-limit Exit cleanly (exit 0) when rate-limited instead of sleeping
 
@@ -922,6 +923,16 @@ async function cmdEnrich() {
     return n;
   }
 
+  const VALID_STEPS = ["repos", "prs", "comments", "reactions"] as const;
+  type StepArg = typeof VALID_STEPS[number];
+  function parseStepArg(name: string, value: string | undefined): StepArg | undefined {
+    if (value === undefined) return undefined;
+    if (!VALID_STEPS.includes(value as StepArg)) {
+      throw new CliError(`Invalid ${name} value: "${value}". Must be one of: ${VALID_STEPS.join(", ")}.`);
+    }
+    return value as StepArg;
+  }
+
   // Resolve token + worker partitioning.
   // Priority: GITHUB_TOKENS (JSON array) > GITHUB_TOKEN (single)
   // When GITHUB_TOKENS is set, auto-derive workerId/totalWorkers from the array
@@ -973,7 +984,8 @@ async function cmdEnrich() {
     totalWorkers,
     limit: parseIntArg("--limit", args["--limit"]),
     staleDays: parseIntArg("--stale-days", args["--stale-days"]),
-    priority: args["--priority"] as "repos" | "prs" | "comments" | "reactions" | undefined,
+    priority: parseStepArg("--priority", args["--priority"]),
+    only: parseStepArg("--only", args["--only"]),
     exitOnRateLimit: args["--exit-on-rate-limit"] !== undefined,
   });
 

@@ -17,7 +17,71 @@ import type { WorkerConfig } from "./partitioner.js";
 import { createOctokitAgent } from "./octokit-agent.js";
 import { enrichCombined, type CombinedResult } from "./combined-enrichment.js";
 
-const ROUND_ROBIN_THRESHOLD = 0.70;
+export const ROUND_ROBIN_THRESHOLD = 0.70;
+
+export type Step = "repos" | "prs" | "comments" | "reactions";
+
+/** The default stage execution order (no flags). */
+export const DEFAULT_ORDER: readonly Step[] = ["repos", "reactions", "comments", "prs"];
+
+export type ExecutionPlan = {
+  /** Stages to run, in order. */
+  order: Step[];
+  /** Whether to run combined PR+Comments enrichment before individual stages. */
+  runCombined: boolean;
+  /** Whether to refresh stale repos after enrichment. */
+  runStaleRefresh: boolean;
+};
+
+/**
+ * Pure function: determines which stages to run, in what order,
+ * and whether combined enrichment and stale refresh should execute.
+ *
+ * Rules:
+ * - `--only`: run exactly one stage; skip combined and stale refresh; ignore threshold.
+ * - `--priority`: move one stage to front; run all stages; skip threshold filtering.
+ *   Combined runs only when priority is prs or comments (or unset).
+ * - Default: run all stages in DEFAULT_ORDER; skip stages above ROUND_ROBIN_THRESHOLD
+ *   (unless ALL are above it, in which case run all).
+ */
+export function planExecution(options: {
+  priority?: Step;
+  only?: Step;
+  completion: Record<Step, number>;
+}): ExecutionPlan {
+  const { priority, only, completion } = options;
+
+  // --only: exclusive single-stage execution
+  if (only) {
+    return {
+      order: [only],
+      runCombined: false,
+      runStaleRefresh: false,
+    };
+  }
+
+  // Determine base order
+  let order: Step[];
+  if (priority && priority !== "repos") {
+    const rest = DEFAULT_ORDER.filter((s) => s !== priority);
+    order = [priority, ...rest];
+  } else {
+    order = [...DEFAULT_ORDER];
+  }
+
+  // Threshold-based skipping: only in default mode (no --priority, no --only)
+  if (!priority) {
+    const belowThreshold = order.filter((s) => completion[s] < ROUND_ROBIN_THRESHOLD);
+    if (belowThreshold.length > 0 && belowThreshold.length < order.length) {
+      order = belowThreshold;
+    }
+  }
+
+  // Combined enrichment runs when no priority is set, or priority targets prs/comments
+  const runCombined = !priority || priority === "prs" || priority === "comments";
+
+  return { order, runCombined, runStaleRefresh: true };
+}
 
 export type EnrichmentOptions = {
   githubToken: string;
@@ -26,6 +90,7 @@ export type EnrichmentOptions = {
   limit?: number;
   staleDays?: number;
   priority?: "repos" | "prs" | "comments" | "reactions";
+  only?: "repos" | "prs" | "comments" | "reactions";
   exitOnRateLimit?: boolean;
 };
 
@@ -68,21 +133,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     gaugeMetric("pipeline.enrich.limit", limit);
   }
 
-  // Determine execution order based on priority
-  type Step = "repos" | "prs" | "comments" | "reactions";
-  // Reactions before comments/PRs: reaction scans are cheap (50 PRs/call)
-  // and critical for crediting bots that signal reviews via 🎉 emoji.
-  const defaultOrder: Step[] = ["repos", "reactions", "comments", "prs"];
-  let order: Step[];
-  if (options.priority && options.priority !== "repos") {
-    // Move priority step to front, keep others in default relative order
-    const rest = defaultOrder.filter((s) => s !== options.priority);
-    order = [options.priority as Step, ...rest];
-  } else {
-    order = defaultOrder;
-  }
-
-  // Check stage completion percentages and skip stages above threshold
+  // Check stage completion percentages
   const completionRows = await query<{
     repos_total: string; repos_done: string;
     comments_total: string; comments_done: string;
@@ -106,18 +157,30 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     prs: Number(c.prs_total) > 0 ? Number(c.prs_done) / Number(c.prs_total) : 0,
   };
 
+  // Plan execution: which stages, what order, combined/stale refresh
+  const plan = planExecution({
+    priority: options.priority,
+    only: options.only,
+    completion,
+  });
+  const { order } = plan;
+
+  if (options.only) {
+    log(`[worker] Running ONLY stage: ${options.only}`);
+  }
+
   log(`[worker] Stage completion: ${order.map((s) => `${s} ${Math.round(completion[s] * 100)}%`).join(", ")}`);
 
-  if (!options.priority) {
-    const belowThreshold = order.filter((s) => completion[s] < ROUND_ROBIN_THRESHOLD);
-    if (belowThreshold.length > 0 && belowThreshold.length < order.length) {
-      const skipped = order.filter((s) => completion[s] >= ROUND_ROBIN_THRESHOLD);
+  // Log threshold skipping (only happens in default mode)
+  if (!options.priority && !options.only) {
+    const allStages: Step[] = [...DEFAULT_ORDER];
+    const skipped = allStages.filter((s) => !order.includes(s));
+    if (skipped.length > 0) {
       log(`[worker] Skipping stages above ${Math.round(ROUND_ROBIN_THRESHOLD * 100)}% complete: ${skipped.join(", ")}`);
       for (const s of skipped) {
         const pct = Math.round(completion[s] * 100);
         sentryLogger.info(sentryLogger.fmt`Skipping stage=${s} completion=${pct}% above threshold=${Math.round(ROUND_ROBIN_THRESHOLD * 100)}%`);
       }
-      order = belowThreshold;
     }
   }
 
@@ -132,7 +195,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     // Combined PR+Comments enrichment — handles items needing BOTH, reducing total API calls.
     // Runs first so individual stages only handle leftovers.
     let combinedResult: CombinedResult = { prs_fetched: 0, comments_fetched: 0, reactions_scanned: 0, reactions_found: 0, skipped: 0, errors: 0 };
-    if (!options.priority || options.priority === "prs" || options.priority === "comments") {
+    if (plan.runCombined) {
       try {
         combinedResult = await Sentry.startSpan(
           { op: "enrichment", name: "enrich.combined" },
@@ -191,9 +254,9 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
       }
     }
 
-    // Refresh stale repos (skip if we already hit the rate limit)
+    // Refresh stale repos (skip if we already hit the rate limit or running single stage)
     let refreshResult = { refreshed: 0 };
-    if (!rateLimitExit) {
+    if (!rateLimitExit && plan.runStaleRefresh) {
       log("[worker] Refreshing stale repos...");
       try {
         refreshResult = await Sentry.startSpan(
