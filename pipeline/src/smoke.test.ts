@@ -519,6 +519,30 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
     await ch?.close();
   });
 
+  /** Retry an enrichment call up to {@link maxAttempts} times when GitHub
+   *  returns transient 500s (errors > 0, fetched === 0). Waits
+   *  {@link delayMs} between attempts with linear back-off. */
+  async function enrichWithRetry<T extends { fetched: number; errors: number }>(
+    fn: () => Promise<T>,
+    context: string,
+    { maxAttempts = 3, delayMs = 5_000 } = {},
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const result = await fn();
+      if (result.fetched > 0 || result.errors === 0) return result;
+      // All items errored — transient GitHub 500
+      if (attempt < maxAttempts) {
+        const wait = delayMs * attempt;
+        console.log(`[smoke] ${context}: all ${result.errors} items hit GitHub API errors (attempt ${attempt}/${maxAttempts}), retrying in ${wait}ms…`);
+        await new Promise((r) => setTimeout(r, wait));
+      } else {
+        console.log(`[smoke] ${context}: all ${result.errors} items hit GitHub API errors after ${maxAttempts} attempts`);
+        return result;
+      }
+    }
+    throw new Error("unreachable");
+  }
+
   describe("repo metadata", () => {
     let repoData: Awaited<ReturnType<typeof octokit.rest.repos.get>>["data"];
 
@@ -882,12 +906,9 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
 
       it("enrichPullRequests() fetches and inserts discovered PRs", async () => {
         const rateLimiter = new RateLimiter();
-        const result = await enrichPullRequests(
-          octokit,
-          ch,
-          rateLimiter,
-          { workerId: 0, totalWorkers: 1 },
-          { limit: 10 },
+        const result = await enrichWithRetry(
+          () => enrichPullRequests(octokit, ch, rateLimiter, { workerId: 0, totalWorkers: 1 }, { limit: 10 }),
+          "enrichPullRequests",
         );
 
         assert.ok(result.fetched > 0, "Should fetch at least one PR");
@@ -1021,12 +1042,9 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
 
       it("enrichComments() fetches and inserts discovered comments", async () => {
         const rateLimiter = new RateLimiter();
-        const result = await enrichComments(
-          octokit,
-          ch,
-          rateLimiter,
-          { workerId: 0, totalWorkers: 1 },
-          { limit: 10 },
+        const result = await enrichWithRetry(
+          () => enrichComments(octokit, ch, rateLimiter, { workerId: 0, totalWorkers: 1 }, { limit: 10 }),
+          "enrichComments",
         );
 
         assert.ok(result.fetched > 0, "Should fetch at least one PR/bot combo");
