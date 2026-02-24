@@ -51,14 +51,6 @@ export type BotDefinition = {
   additional_logins?: string[];
   /** GitHub user ID for cross-referencing */
   github_id: number;
-  /** Website URL */
-  website: string;
-  /** Short description for the profile page */
-  description: string;
-  /** Brand color (hex) */
-  brand_color: string;
-  /** Avatar URL */
-  avatar_url: string;
 };
 
 export const PRODUCTS: ProductDefinition[] = [
@@ -354,11 +346,6 @@ export const BOTS: BotDefinition[] = [
     name: "CodeRabbit",
     github_login: "coderabbitai[bot]",
     github_id: 136622811,
-    website: "https://coderabbit.ai",
-    description:
-      "AI-first code review agent. Auto-summarizes PRs, provides line-by-line feedback, and learns from your preferences over time.",
-    brand_color: "#f97316",
-    avatar_url: "https://avatars.githubusercontent.com/in/347564?v=4",
   },
   // GitHub Copilot
   {
@@ -368,11 +355,6 @@ export const BOTS: BotDefinition[] = [
     github_login: "copilot-pull-request-reviewer[bot]",
     additional_logins: ["Copilot"],
     github_id: 175728472,
-    website: "https://github.com/features/copilot",
-    description:
-      "GitHub's native AI pair programmer. Provides inline code review suggestions directly in the PR UI.",
-    brand_color: "#58a6ff",
-    avatar_url: "https://avatars.githubusercontent.com/in/946600?v=4",
   },
   // CodeScene
   {
@@ -381,10 +363,6 @@ export const BOTS: BotDefinition[] = [
     name: "CodeScene",
     github_login: "codescene-delta-analysis[bot]",
     github_id: 61000666,
-    website: "https://codescene.com",
-    description: "Behavioral code analysis platform. Identifies code health, complexity hotspots, and technical debt.",
-    brand_color: "#5f72ee",
-    avatar_url: "https://avatars.githubusercontent.com/in/53921?v=4",
   },
   // Sourcery
   {
@@ -393,10 +371,6 @@ export const BOTS: BotDefinition[] = [
     name: "Sourcery",
     github_login: "sourcery-ai[bot]",
     github_id: 58596630,
-    website: "https://sourcery.ai",
-    description: "AI code reviewer focused on code quality, refactoring suggestions, and coding standards enforcement.",
-    brand_color: "#65a30d",
-    avatar_url: "https://avatars.githubusercontent.com/in/48477?v=4",
   },
   // Ellipsis
   {
@@ -405,10 +379,6 @@ export const BOTS: BotDefinition[] = [
     name: "Ellipsis",
     github_login: "ellipsis-dev[bot]",
     github_id: 65095814,
-    website: "https://ellipsis.dev",
-    description: "AI-powered code review and bug detection with configurable rules and custom prompts.",
-    brand_color: "#06b6d4",
-    avatar_url: "https://avatars.githubusercontent.com/in/64358?v=4",
   },
   // Qodo (3 bots)
   {
@@ -417,11 +387,6 @@ export const BOTS: BotDefinition[] = [
     name: "Qodo (CodiumAI PR Agent)",
     github_login: "codium-pr-agent[bot]",
     github_id: 139473635,
-    website: "https://qodo.ai",
-    description:
-      "Legacy CodiumAI PR agent, now part of Qodo. Generates tests and reviews PRs for code integrity.",
-    brand_color: "#9d75f8",
-    avatar_url: "https://avatars.githubusercontent.com/u/54746889?v=4",
   },
   {
     id: "qodo-merge",
@@ -429,10 +394,6 @@ export const BOTS: BotDefinition[] = [
     name: "Qodo Merge",
     github_login: "qodo-merge[bot]",
     github_id: 185363710,
-    website: "https://qodo.ai",
-    description: "Qodo's AI-powered pull request merge assistant with test generation and code integrity checks.",
-    brand_color: "#9d75f8",
-    avatar_url: "https://avatars.githubusercontent.com/u/104026966?v=4",
   },
   {
     id: "qodo-merge-pro",
@@ -440,11 +401,6 @@ export const BOTS: BotDefinition[] = [
     name: "Qodo Merge Pro",
     github_login: "qodo-merge-pro[bot]",
     github_id: 151058649,
-    website: "https://qodo.ai",
-    description:
-      "Qodo's premium AI agent for code integrity — reviews, tests, and suggestions.",
-    brand_color: "#9d75f8",
-    avatar_url: "https://avatars.githubusercontent.com/in/484649?v=4",
   },
   {
     id: "qodo-ai",
@@ -452,11 +408,6 @@ export const BOTS: BotDefinition[] = [
     name: "Qodo AI",
     github_login: "qodo-ai[bot]",
     github_id: 216754087,
-    website: "https://qodo.ai",
-    description:
-      "Qodo's latest AI code review bot. Successor to qodo-merge and qodo-merge-pro.",
-    brand_color: "#9d75f8",
-    avatar_url: "https://avatars.githubusercontent.com/in/1420315?v=4",
   },
   // Greptile
   {
@@ -465,10 +416,6 @@ export const BOTS: BotDefinition[] = [
     name: "Greptile",
     github_login: "greptile-apps[bot]",
     github_id: 165735046,
-    website: "https://greptile.com",
-    description: "Codebase-aware AI code review. Indexes your entire repo for context-rich feedback.",
-    brand_color: "#22c55e",
-    avatar_url: "https://avatars.githubusercontent.com/in/867647?v=4",
   },
   // Sentry (3 bots)
   {
@@ -477,11 +424,6 @@ export const BOTS: BotDefinition[] = [
     name: "Sentry",
     github_login: "sentry[bot]",
     github_id: 39604003,
-    website: "https://sentry.io",
-    description:
-      "Sentry's GitHub bot for issue linking, error tracking, and code review integration.",
-    brand_color: "#9589c4",
-    avatar_url: "https://avatars.githubusercontent.com/u/1396951?v=4",
   },
   {
     id: "seer-by-sentry",
@@ -489,10 +431,6 @@ export const BOTS: BotDefinition[] = [
     name: "Seer by Sentry",
     github_login: "seer-by-sentry[bot]",
     github_id: 157164994,
-    website: "https://sentry.io",
-    description: "Sentry's AI agent for automated root cause analysis and error triage on PRs.",
-    brand_color: "#9589c4",
-    avatar_url: "https://avatars.githubusercontent.com/in/801464?v=4",
   },
   {
     id: "codecov-ai",
@@ -500,11 +438,6 @@ export const BOTS: BotDefinition[] = [
     name: "Codecov AI",
     github_login: "codecov-ai[bot]",
     github_id: 156709835,
-    website: "https://codecov.io",
-    description:
-      "Codecov's AI-powered code review for test coverage insights and regression detection.",
-    brand_color: "#9589c4",
-    avatar_url: "https://avatars.githubusercontent.com/in/797565?v=4",
   },
   // Baz
   {
@@ -513,10 +446,6 @@ export const BOTS: BotDefinition[] = [
     name: "Baz",
     github_login: "baz-reviewer[bot]",
     github_id: 174234987,
-    website: "https://baz.co",
-    description: "AI code reviewer focused on catching real bugs before merge with minimal noise.",
-    brand_color: "#39FF14",
-    avatar_url: "https://avatars.githubusercontent.com/in/933528?s=60&v=4",
   },
   // Graphite
   {
@@ -525,11 +454,6 @@ export const BOTS: BotDefinition[] = [
     name: "Graphite",
     github_login: "graphite-app[bot]",
     github_id: 96075541,
-    website: "https://graphite.dev",
-    description:
-      "Developer productivity platform with stacked PRs, merge queues, and AI-assisted code review.",
-    brand_color: "#5b8ef0",
-    avatar_url: "https://avatars.githubusercontent.com/in/158384?v=4",
   },
   // CodeAnt
   {
@@ -538,10 +462,6 @@ export const BOTS: BotDefinition[] = [
     name: "CodeAnt",
     github_login: "codeant-ai[bot]",
     github_id: 151821869,
-    website: "https://codeant.ai",
-    description: "AI code review and static analysis. Catches bugs, anti-patterns, and security issues across 30+ languages.",
-    brand_color: "#a855f7",
-    avatar_url: "https://avatars.githubusercontent.com/in/646884?v=4",
   },
   // Windsurf
   {
@@ -550,10 +470,6 @@ export const BOTS: BotDefinition[] = [
     name: "Windsurf",
     github_login: "windsurf-bot[bot]",
     github_id: 189301087,
-    website: "https://windsurf.com",
-    description: "AI-powered development platform (formerly Codeium). IDE-first with deep codebase-aware PR reviews.",
-    brand_color: "#0d9488",
-    avatar_url: "https://avatars.githubusercontent.com/in/1066231?v=4",
   },
   // Cubic
   {
@@ -562,10 +478,6 @@ export const BOTS: BotDefinition[] = [
     name: "Cubic",
     github_login: "cubic-dev-ai[bot]",
     github_id: 191113872,
-    website: "https://cubic.dev",
-    description: "AI development assistant with automated code review and improvement suggestions.",
-    brand_color: "#edc00c",
-    avatar_url: "https://avatars.githubusercontent.com/in/1082092?v=4",
   },
   // Cursor Bugbot
   {
@@ -574,10 +486,6 @@ export const BOTS: BotDefinition[] = [
     name: "Cursor Bugbot",
     github_login: "cursor[bot]",
     github_id: 206951365,
-    website: "https://cursor.com",
-    description: "PR review feature from Cursor AI editor. Scans PRs for potential bugs and suggests fixes.",
-    brand_color: "#e84e4e",
-    avatar_url: "https://avatars.githubusercontent.com/in/1210556?v=4",
   },
   // Gemini Code Assist
   {
@@ -586,11 +494,6 @@ export const BOTS: BotDefinition[] = [
     name: "Gemini Code Assist",
     github_login: "gemini-code-assist[bot]",
     github_id: 176961590,
-    website: "https://cloud.google.com/gemini/docs/codeassist/overview",
-    description:
-      "Google's AI code assistant. Reviews PRs with suggestions for improvements, security fixes, and best practices.",
-    brand_color: "#ec4899",
-    avatar_url: "https://avatars.githubusercontent.com/in/956858?v=4",
   },
   // Bito
   {
@@ -599,10 +502,6 @@ export const BOTS: BotDefinition[] = [
     name: "Bito",
     github_login: "bito-code-review[bot]",
     github_id: 188872107,
-    website: "https://bito.ai",
-    description: "AI code review powered by LLMs. Provides PR summaries, security analysis, and performance suggestions.",
-    brand_color: "#94a3b8",
-    avatar_url: "https://avatars.githubusercontent.com/in/1061978?v=4",
   },
   // Korbit
   {
@@ -611,10 +510,6 @@ export const BOTS: BotDefinition[] = [
     name: "Korbit",
     github_login: "korbit-ai[bot]",
     github_id: 131444098,
-    website: "https://korbit.ai",
-    description: "AI code review mentor. Provides educational feedback that helps developers learn best practices during review.",
-    brand_color: "#b07838",
-    avatar_url: "https://avatars.githubusercontent.com/in/322216?v=4",
   },
   // Claude
   {
@@ -623,11 +518,6 @@ export const BOTS: BotDefinition[] = [
     name: "Claude",
     github_login: "claude[bot]",
     github_id: 209825114,
-    website: "https://claude.ai",
-    description:
-      "Anthropic's AI assistant with GitHub integration. Provides in-depth code review with strong reasoning capabilities.",
-    brand_color: "#FF9F1C",
-    avatar_url: "https://avatars.githubusercontent.com/in/1236702?v=4",
   },
   // OpenAI Codex
   {
@@ -636,10 +526,6 @@ export const BOTS: BotDefinition[] = [
     name: "OpenAI Codex",
     github_login: "chatgpt-codex-connector[bot]",
     github_id: 199175422,
-    website: "https://openai.com/codex",
-    description: "OpenAI's cloud-based coding agent. Runs in a sandbox to write code, fix bugs, and review PRs asynchronously.",
-    brand_color: "#808080",
-    avatar_url: "https://avatars.githubusercontent.com/in/1144995?s=60&v=4",
   },
   // Mesa
   {
@@ -648,10 +534,6 @@ export const BOTS: BotDefinition[] = [
     name: "Mesa",
     github_login: "mesa-dot-dev[bot]",
     github_id: 187716431,
-    website: "https://mesa.dev",
-    description: "AI-powered development workflow platform with integrated code review and CI/CD automation.",
-    brand_color: "#c06a33",
-    avatar_url: "https://avatars.githubusercontent.com/in/1050077?v=4",
   },
   // LinearB (2 bots)
   {
@@ -660,11 +542,6 @@ export const BOTS: BotDefinition[] = [
     name: "gitStream",
     github_login: "gitstream-cm[bot]",
     github_id: 111687743,
-    website: "https://linearb.io",
-    description:
-      "LinearB's gitStream workflow automation bot. Automates PR routing and continuous merge management.",
-    brand_color: "#a37ce2",
-    avatar_url: "https://avatars.githubusercontent.com/ml/13414?v=4",
   },
   {
     id: "linearb",
@@ -672,11 +549,6 @@ export const BOTS: BotDefinition[] = [
     name: "LinearB",
     github_login: "linearb[bot]",
     github_id: 5890272,
-    website: "https://linearb.io",
-    description:
-      "LinearB's GitHub bot for dev workflow insights, metrics, and AI-powered code review.",
-    brand_color: "#a37ce2",
-    avatar_url: "https://avatars.githubusercontent.com/in/1658443?v=4",
   },
   // Augment Code
   {
@@ -685,11 +557,6 @@ export const BOTS: BotDefinition[] = [
     name: "Augment Code",
     github_login: "augmentcode[bot]",
     github_id: 185243770,
-    website: "https://augmentcode.com",
-    description:
-      "AI coding assistant with codebase-aware PR review. Designed for enterprise teams with private codebases.",
-    brand_color: "#968CFF",
-    avatar_url: "https://avatars.githubusercontent.com/in/1027498?v=4",
   },
   // Kodus
   {
@@ -698,11 +565,6 @@ export const BOTS: BotDefinition[] = [
     name: "Kody AI",
     github_login: "kody-ai[bot]",
     github_id: 148880201,
-    website: "https://kodus.io",
-    description:
-      "Kodus AI code reviewer. Automatically analyzes PRs with actionable suggestions and bug detection.",
-    brand_color: "#6C63FF",
-    avatar_url: "https://avatars.githubusercontent.com/in/413034?v=4",
   },
   // Amazon Q Developer
   {
@@ -711,11 +573,6 @@ export const BOTS: BotDefinition[] = [
     name: "Amazon Q Developer",
     github_login: "amazon-q-developer[bot]",
     github_id: 208079219,
-    website: "https://aws.amazon.com/q/developer/",
-    description:
-      "AWS's AI assistant for software development. Reviews PRs for bugs, security issues, and AWS best practices.",
-    brand_color: "#232F3E",
-    avatar_url: "https://avatars.githubusercontent.com/in/1220912?v=4",
   },
   // Codacy
   {
@@ -724,11 +581,6 @@ export const BOTS: BotDefinition[] = [
     name: "Codacy",
     github_login: "codacy-production[bot]",
     github_id: 61871480,
-    website: "https://www.codacy.com",
-    description:
-      "Automated code quality and security platform. Analyzes PRs for bugs, vulnerabilities, and style across 40+ languages.",
-    brand_color: "#242C33",
-    avatar_url: "https://avatars.githubusercontent.com/in/56611?v=4",
   },
   // Qlty
   {
@@ -737,11 +589,6 @@ export const BOTS: BotDefinition[] = [
     name: "Qlty",
     github_login: "qltysh[bot]",
     github_id: 168846912,
-    website: "https://qlty.sh",
-    description:
-      "Code quality platform (spun out from Code Climate). Automated linting, security, and AI autofix on every PR.",
-    brand_color: "#6366F1",
-    avatar_url: "https://avatars.githubusercontent.com/in/890766?v=4",
   },
   // Code Climate
   {
@@ -750,11 +597,6 @@ export const BOTS: BotDefinition[] = [
     name: "Code Climate",
     github_login: "codeclimate[bot]",
     github_id: 789641,
-    website: "https://codeclimate.com",
-    description:
-      "Pioneering code review platform (est. 2011). Quality product spun out as Qlty in 2024; now focused on engineering intelligence.",
-    brand_color: "#1E293B",
-    avatar_url: "https://avatars.githubusercontent.com/u/789641?v=4",
   },
   // Kilo Review
   {
@@ -763,11 +605,6 @@ export const BOTS: BotDefinition[] = [
     name: "Kilo Review",
     github_login: "kiloconnect[bot]",
     github_id: 240665456,
-    website: "https://kilocode.ai",
-    description:
-      "AI code review bot from Kilo Code. Fast-growing newcomer reviewing PRs for bugs and code quality.",
-    brand_color: "#000000",
-    avatar_url: "https://avatars.githubusercontent.com/in/2193792?v=4",
   },
 ];
 

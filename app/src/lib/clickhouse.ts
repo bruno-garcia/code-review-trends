@@ -501,13 +501,14 @@ export async function getProductBots(productId: string, since?: string): Promise
         b.id,
         b.name,
         bl.github_login,
-        b.brand_color,
+        p.brand_color,
         COALESCE(sum(ra.review_count), 0) AS total_reviews,
         COALESCE(sum(ra.review_comment_count), 0) AS total_comments,
         COALESCE(sum(ra.pr_comment_count), 0) AS total_pr_comments,
         toString(min(ra.week)) AS first_week,
         toString(max(ra.week)) AS last_week
       FROM bots b
+      JOIN products p ON b.product_id = p.id
       LEFT JOIN (
         SELECT bot_id, min(github_login) AS github_login
         FROM bot_logins
@@ -522,7 +523,7 @@ export async function getProductBots(productId: string, since?: string): Promise
         FROM reaction_only_review_counts
       ) ra ON b.id = ra.bot_id ${sinceFilter}
       WHERE b.product_id = {productId:String}
-      GROUP BY b.id, b.name, bl.github_login, b.brand_color
+      GROUP BY b.id, b.name, bl.github_login, p.brand_color
       HAVING total_reviews > 0
       ORDER BY total_reviews DESC
     `,
@@ -609,10 +610,10 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     SELECT
       b.id,
       b.name,
-      b.website,
-      b.description,
-      b.brand_color,
-      b.avatar_url,
+      p.website,
+      p.description,
+      p.brand_color,
+      p.avatar_url,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
@@ -638,6 +639,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
     FROM bots AS b
+    JOIN products p ON b.product_id = p.id
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC

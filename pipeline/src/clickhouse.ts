@@ -146,18 +146,16 @@ export async function syncBots(
     query: `ALTER TABLE human_review_activity ADD COLUMN IF NOT EXISTS pr_comment_count UInt64 DEFAULT 0`,
   });
 
-  // Write display info to bots table
+  // Write bot identity info to bots table
+  // Display fields (website, description, brand_color, avatar_url) live on the
+  // products table — bots only store identity and product linkage.
   await client.insert({
     table: "bots",
     values: bots.map((b) => ({
       id: b.id,
       name: b.name,
-      website: b.website,
-      description: b.description,
       github_id: b.github_id,
       product_id: b.product_id,
-      brand_color: b.brand_color,
-      avatar_url: b.avatar_url,
     })),
     format: "JSONEachRow",
   });
