@@ -97,18 +97,46 @@ test.describe("Product detail page", () => {
     expect(response?.status()).toBe(200);
     await expect(page.getByTestId("bot-name")).toHaveText("Sentry");
     await expect(page.getByTestId("bot-stats")).toBeVisible();
-    // Bot history section only appears when there are multiple bots with activity data
-    // In CI/local dev with empty tables, this section won't be visible
+    // With seed data, the stats should show non-zero values
+    const statsText = await page.getByTestId("bot-stats").textContent();
+    // At minimum, total reviews should be > 0 from seed data
+    expect(statsText).not.toBe("");
+  });
+
+  test("multi-bot product shows top organizations (product filter)", async ({ page }) => {
+    // Regression: getOrgList Phase 2 crashed with double-WHERE when product
+    // filter was applied and Phase 1 returned results. This test requires
+    // seed data in repos + pr_bot_events + org_bot_pr_counts.
+    const response = await page.goto("/products/sentry");
+    expect(response?.status()).toBe(200);
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
+    // With seed data, the top-orgs section should be visible
+    const orgsSection = page.getByTestId("bot-top-orgs");
+    await expect(orgsSection).toBeVisible({ timeout: 10_000 });
+    await expect(orgsSection.getByText("Top Organizations")).toBeVisible();
+    const orgLinks = orgsSection.locator("a[href^='/orgs/']");
+    const count = await orgLinks.count();
+    expect(count).toBeGreaterThan(0);
+  });
+
+  test("multi-bot product shows top repositories", async ({ page }) => {
+    // Requires seed data in repos + pr_bot_events + pr_bot_event_counts.
+    const response = await page.goto("/products/sentry");
+    expect(response?.status()).toBe(200);
+    await expect(page.getByTestId("bot-stats")).toBeVisible();
+    const reposSection = page.getByTestId("bot-top-repos");
+    await expect(reposSection).toBeVisible({ timeout: 10_000 });
+    await expect(reposSection.getByText("Top Repositories")).toBeVisible();
+    const repoLinks = reposSection.locator("a[href^='/repos/']");
+    const count = await repoLinks.count();
+    expect(count).toBeGreaterThan(0);
   });
 
   test("bot history shows raw bot login names", async ({ page }) => {
     await page.goto("/products/sentry");
+    // With seed data, bot history should always be visible for multi-bot Sentry
     const historySection = page.getByTestId("bot-history-section");
-    // Section only appears with activity data — skip in empty-DB environments
-    if (!(await historySection.isVisible().catch(() => false))) {
-      test.skip(true, "Bot history section not visible, likely due to empty activity data.");
-      return;
-    }
+    await expect(historySection).toBeVisible({ timeout: 10_000 });
     // Each bot row should show the raw bot login or bot id
     const loginCells = historySection.locator("[data-testid^='bot-history-login-']");
     const count = await loginCells.count();

@@ -42,4 +42,15 @@ echo "Recording schema version ${SCHEMA_VERSION}..."
 run_statement "INSERT INTO code_review_trends.schema_migrations (version, name) VALUES (${SCHEMA_VERSION}, 'ci_init')"
 echo "  Done."
 
+# 3. Run seed data (db/seed/*.sql) — test data for CI and local dev, never on staging/prod
+for f in db/seed/*.sql; do
+  [ -f "$f" ] || continue
+  echo "Seeding $f..."
+  statements=$(sed 's/--.*$//' "$f" | tr '\n' ' ' | sed 's/;/;\n/g')
+  while IFS= read -r stmt; do
+    run_statement "$stmt"
+  done <<< "$statements"
+  echo "  Done."
+done
+
 echo "All init scripts completed."

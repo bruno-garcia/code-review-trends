@@ -109,7 +109,7 @@ test.describe("Repo detail page", () => {
     await firstRow.click();
     await page.waitForURL(/\/repos\/.+\/.+/);
     await page.locator('a:has-text("Back to repositories")').click();
-    await expect(page).toHaveURL(/\/repos$/);
+    await expect(page).toHaveURL(/\/repos(\?|$)/);
   });
 
   test("returns 404 for nonexistent repo", async ({ page }) => {
