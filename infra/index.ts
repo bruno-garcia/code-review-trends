@@ -1,3 +1,4 @@
+import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
 import { loadConfig, CADDY_HTTPS_PORT, CLICKHOUSE_HTTP_PORT } from "./config";
 import { createNetwork } from "./network";
@@ -64,6 +65,24 @@ const chAccess: ClickHouseAccess = cfg.clickhousePublicAccess
         subnetwork: network.subnet.id,
       },
     };
+
+// ClickHouse URL in Secret Manager — used by workers.sh on the migration VM.
+// Cloud Run gets it as a direct env var, but the VM fetches from Secret Manager.
+const clickhouseUrlSecret = new gcp.secretmanager.Secret(
+  `${cfg.namePrefix}-clickhouse-url`,
+  {
+    secretId: `${cfg.namePrefix}-clickhouse-url`,
+    replication: { auto: {} },
+  },
+);
+
+new gcp.secretmanager.SecretVersion(
+  `${cfg.namePrefix}-clickhouse-url-version`,
+  {
+    secret: clickhouseUrlSecret.id,
+    secretData: chAccess.url,
+  },
+);
 
 // Service accounts: runtime (Cloud Run) and deploy (CI/CD)
 const serviceAccounts = createServiceAccounts(cfg);
