@@ -362,8 +362,9 @@ describe("isAbortError", () => {
     assert.equal(isAbortError(err), true);
   });
 
-  it("detects error message containing 'aborted'", () => {
-    assert.equal(isAbortError(new Error("The request was aborted")), true);
+  it("does NOT match on message alone (avoids ClickHouse 'Query was aborted')", () => {
+    assert.equal(isAbortError(new Error("The request was aborted")), false);
+    assert.equal(isAbortError(new Error("Query was aborted")), false);
   });
 
   it("returns false for non-abort errors", () => {

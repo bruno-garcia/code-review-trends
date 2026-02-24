@@ -120,23 +120,33 @@ export async function enrichPullRequests(
           const results = await fetchPRsBatch(octokit, rateLimiter, batchInputs);
           const graphqlMs = Date.now() - graphqlStart;
 
-          // Collect all rows for bulk insert
+          // Collect all rows for bulk insert.
+          // Track batch-local counters — only merge after insert succeeds
+          // to avoid double-counting on adaptive batch retries.
           const allPrRows: import("../clickhouse.js").PullRequestRow[] = [];
+          let batchFetched = 0;
+          let batchNotFound = 0;
+          let batchForbidden = 0;
           for (let i = 0; i < results.length; i++) {
             const result = results[i];
             if (result.row) {
               allPrRows.push(result.row);
-              fetched++;
+              batchFetched++;
             } else if (result.status === "not_found") {
-              notFound++;
+              batchNotFound++;
             } else if (result.status === "forbidden") {
-              forbidden++;
+              batchForbidden++;
             }
           }
 
           const insertStart = Date.now();
           await insertPullRequests(ch, allPrRows);
           const insertMs = Date.now() - insertStart;
+
+          // Merge counters after successful insert
+          fetched += batchFetched;
+          notFound += batchNotFound;
+          forbidden += batchForbidden;
 
           log(
             `[pull-requests] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allPrRows.length} rows)`,

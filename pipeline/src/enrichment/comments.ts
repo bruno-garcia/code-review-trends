@@ -125,16 +125,21 @@ export async function enrichComments(
           const results = await fetchCommentsBatch(octokit, rateLimiter, batchInputs);
           const graphqlMs = Date.now() - graphqlStart;
 
-          // Collect all rows for bulk insert
+          // Collect all rows for bulk insert.
+          // Track batch-local counters — only merge after insert succeeds
+          // to avoid double-counting on adaptive batch retries.
           const allCommentRows: PrCommentRow[] = [];
+          let batchFetched = 0;
+          let batchNotFound = 0;
+          let batchErrors = 0;
           for (const result of results) {
             if (result.error === "repo_not_found" || result.error === "pr_not_found") {
-              notFound++;
+              batchNotFound++;
               continue;
             }
             if (result.error === "partial_error") {
               // Skip — don't insert sentinel, let REST fallback or next run handle it
-              errors++;
+              batchErrors++;
               continue;
             }
 
@@ -158,12 +163,17 @@ export async function enrichComments(
               log(`[comments] ${result.input.repo_name}#${result.input.pr_number} has >100 review threads, saved partial`);
             }
 
-            fetched++;
+            batchFetched++;
           }
 
           const insertStart = Date.now();
           await insertPrComments(ch, allCommentRows);
           const insertMs = Date.now() - insertStart;
+
+          // Merge counters after successful insert
+          fetched += batchFetched;
+          notFound += batchNotFound;
+          errors += batchErrors;
 
           log(
             `[comments] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allCommentRows.length} rows)`,

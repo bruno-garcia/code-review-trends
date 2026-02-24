@@ -202,16 +202,24 @@ export async function enrichCombined(
           const allReactionRows: import("../clickhouse.js").PrBotReactionRow[] = [];
           const allScanProgress: { repo_name: string; pr_number: number }[] = [];
 
+          // Track batch-local counters — only merge into outer counters
+          // after bulk insert succeeds, so retries don't double-count.
+          let batchPrs = 0;
+          let batchComments = 0;
+          let batchSkipped = 0;
+          let batchReactionsScanned = 0;
+          let batchReactionsFound = 0;
+
           for (const result of results) {
             // Collect PR row
             if (result.pr) {
               allPrRows.push(result.pr);
-              prs_fetched++;
+              batchPrs++;
             } else if (
               result.prStatus === "not_found" ||
               result.prStatus === "forbidden"
             ) {
-              skipped++;
+              batchSkipped++;
             }
 
             // Collect comment rows for each bot — only when PR was actually found.
@@ -244,7 +252,7 @@ export async function enrichCombined(
                     rocket: 0,
                   });
                 }
-                comments_fetched++;
+                batchComments++;
               }
             } else if (result.prStatus === "ok" && result.hasMoreThreads) {
               // PR has >100 review threads — insert found comments but skip
@@ -254,7 +262,7 @@ export async function enrichCombined(
                   result.comments.get(botEntry.bot_id) ?? [];
                 if (botComments.length > 0) {
                   allCommentRows.push(...botComments);
-                  comments_fetched++;
+                  batchComments++;
                 }
                 // No sentinel — leave for individual stage to process fully
               }
@@ -272,13 +280,13 @@ export async function enrichCombined(
             if (result.prStatus === "ok" && result.reactionsAvailable && !result.hasMoreReactions) {
               if (result.reactions.length > 0) {
                 allReactionRows.push(...result.reactions);
-                reactions_found++;
+                batchReactionsFound++;
               }
               allScanProgress.push({
                 repo_name: result.input.repo_name,
                 pr_number: result.input.pr_number,
               });
-              reactions_scanned++;
+              batchReactionsScanned++;
             } else if (result.prStatus === "ok" && result.reactionsAvailable && result.hasMoreReactions) {
               // Collect what we have but don't mark as scanned — dedicated
               // reaction stage will do a full scan with pagination.
@@ -303,6 +311,14 @@ export async function enrichCombined(
             },
           );
           const insertMs = Date.now() - insertStart;
+
+          // Merge counters only after successful insert to avoid
+          // double-counting when adaptive batch reduction retries.
+          prs_fetched += batchPrs;
+          comments_fetched += batchComments;
+          skipped += batchSkipped;
+          reactions_scanned += batchReactionsScanned;
+          reactions_found += batchReactionsFound;
 
           log(
             `[combined] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allPrRows.length} PRs, ${allCommentRows.length} comments, ${allReactionRows.length} reactions, ${allScanProgress.length} scans)`,

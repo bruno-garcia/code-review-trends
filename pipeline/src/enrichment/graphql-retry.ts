@@ -68,7 +68,9 @@ export function isAbortError(err: unknown): boolean {
   if (err instanceof DOMException && err.name === "AbortError") return true;
   if (err && typeof err === "object" && "name" in err &&
       (err as { name: string }).name === "AbortError") return true;
-  if (err instanceof Error && err.message.includes("aborted")) return true;
+  // Intentionally no broad message check — "aborted" appears in unrelated
+  // errors (e.g. ClickHouse "Query was aborted") that shouldn't trigger
+  // adaptive batch reduction or GraphQL retry.
   return false;
 }
 

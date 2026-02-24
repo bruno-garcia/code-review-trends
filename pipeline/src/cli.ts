@@ -192,7 +192,7 @@ async function cmdGenerateComparePairs() {
 const EXPENSIVE_MVS = [
   {
     name: "pr_product_characteristics_mv",
-    detach: "DETACH VIEW IF EXISTS pr_product_characteristics_mv",
+    detach: "DROP VIEW IF EXISTS pr_product_characteristics_mv",
     create: `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_product_characteristics_mv
 TO pr_product_characteristics
 AS SELECT
