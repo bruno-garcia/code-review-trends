@@ -149,7 +149,16 @@ export function loadConfig(): EnvironmentConfig {
 
     // VPC peering
     workerVpcNetwork: config.get("workerVpcNetwork"),
-    workerIp: config.get("workerIp"),
+    workerIp: (() => {
+      const ip = config.get("workerIp");
+      if (ip && ip.includes("/")) {
+        throw new Error(
+          `workerIp must be a single IP address without CIDR notation, got: ${ip}. ` +
+          `The /32 mask is appended automatically in firewall rules.`,
+        );
+      }
+      return ip;
+    })(),
 
     sentryDsnAppFrontend: config.requireSecret("sentryDsnAppFrontend"),
     sentryDsnAppBackend: config.requireSecret("sentryDsnAppBackend"),

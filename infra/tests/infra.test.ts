@@ -98,6 +98,12 @@ describe("config", () => {
     expect(cfg.workerIp).toBe("10.0.0.100");
     expect(cfg.skipArtifactRegistry).toBe(true);
   });
+
+  it("rejects workerIp with CIDR notation", async () => {
+    setTestConfig({ workerIp: "10.0.0.0/24" });
+    const { loadConfig } = await import("../config");
+    expect(() => loadConfig()).toThrow("workerIp must be a single IP address without CIDR notation");
+  });
 });
 
 describe("network", () => {
