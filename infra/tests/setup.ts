@@ -47,6 +47,13 @@ pulumi.runtime.setMocks({
         ],
       };
     }
+    // Network.get for VPC peering — return a realistic network resource
+    if (args.token === "gcp:compute/getNetwork:getNetwork") {
+      return {
+        ...args.inputs,
+        selfLink: `https://www.googleapis.com/compute/v1/projects/test-project/global/networks/${args.inputs.name || "test-vpc"}`,
+      };
+    }
     return args.inputs;
   },
 });
@@ -64,27 +71,52 @@ vi.mock("@pulumi/gcp", async (importOriginal) => {
   };
 });
 
+/**
+ * Config values for tests. Tests can override these before importing modules
+ * by calling `setTestConfig(overrides)`.
+ *
+ * The default set matches the staging environment (clickhousePublicAccess: true).
+ */
+const defaultConfig: Record<string, string> = {
+  environment: "test",
+  clickhouseMachineType: "e2-medium",
+  clickhouseDiskSizeGb: "20",
+  clickhouseDomain: "ch-test.example.com",
+  appDomain: "staging-test.example.com",
+  artifactRegistryLocation: "us-central1",
+  clickhousePublicAccess: "true",
+  sentryDsnAppFrontend: "https://test-fe@sentry.io/app",
+  sentryDsnAppBackend: "https://test-be@sentry.io/app",
+  sentryDsnPipeline: "https://test@sentry.io/pipeline",
+  sentryAuthToken: "sntrys_test_token",
+  githubTokens: '["ghp_test_token_1","ghp_test_token_2","ghp_test_token_3","ghp_test_token_4"]',
+  githubRepo: "test-owner/test-repo",
+  alertEmail: "alerts@example.com",
+};
+
+let configOverrides: Record<string, string> = {};
+
+/**
+ * Override config values for the next module import. Call before importing
+ * any infra modules that use loadConfig(). Merges with defaults.
+ */
+export function setTestConfig(overrides: Record<string, string>): void {
+  configOverrides = overrides;
+}
+
+/** Reset config overrides to defaults. */
+export function resetTestConfig(): void {
+  configOverrides = {};
+}
+
 // Mock Pulumi config
 vi.mock("@pulumi/pulumi", async (importOriginal) => {
   const actual = (await importOriginal()) as typeof pulumi;
 
   class MockConfig {
-    private values: Record<string, string> = {
-      environment: "test",
-      clickhouseMachineType: "e2-medium",
-      clickhouseDiskSizeGb: "20",
-      clickhouseDomain: "ch-test.example.com",
-      appDomain: "staging-test.example.com",
-      artifactRegistryLocation: "us-central1",
-      clickhousePublicAccess: "true",
-      sentryDsnAppFrontend: "https://test-fe@sentry.io/app",
-      sentryDsnAppBackend: "https://test-be@sentry.io/app",
-      sentryDsnPipeline: "https://test@sentry.io/pipeline",
-      sentryAuthToken: "sntrys_test_token",
-      githubTokens: '["ghp_test_token_1","ghp_test_token_2","ghp_test_token_3","ghp_test_token_4"]',
-      githubRepo: "test-owner/test-repo",
-      alertEmail: "alerts@example.com",
-    };
+    private get values(): Record<string, string> {
+      return { ...defaultConfig, ...configOverrides };
+    }
 
     get(key: string): string | undefined {
       return this.values[key];
@@ -106,6 +138,12 @@ vi.mock("@pulumi/pulumi", async (importOriginal) => {
         throw new Error(`Configuration for '${key}' is not a valid number: '${val}'`);
       }
       return num;
+    }
+
+    getSecret(key: string): pulumi.Output<string> | undefined {
+      const val = this.values[key];
+      if (val === undefined) return undefined;
+      return pulumi.output(val);
     }
 
     require(key: string): string {

@@ -34,11 +34,7 @@ export function createClickHouseVM(
   // Resolve domain + password so we have concrete string values for the
   // startup script. JS template literals handle all interpolation — no shell
   // variable expansion needed except for $CH_PASSWORD in the password heredoc.
-  const startupInputs: [pulumi.Output<string>, string | undefined] = [
-    clickhousePassword,
-    undefined,
-  ];
-
+  //
   // Only resolve domain if we need Caddy (public access)
   const startupScript = (
     cfg.clickhousePublicAccess && cfg.clickhouseDomain
