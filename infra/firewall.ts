@@ -1,11 +1,6 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import {
-  EnvironmentConfig,
-  CADDY_HTTPS_PORT,
-  CLICKHOUSE_HTTP_PORT,
-  SUBNET_CIDR,
-} from "./config";
+import { EnvironmentConfig, CADDY_HTTPS_PORT } from "./config";
 
 export function createFirewallRules(
   cfg: EnvironmentConfig,
@@ -57,8 +52,8 @@ export function createFirewallRules(
     {
       name: `${prefix}-clickhouse-http-internal`,
       network: vpcName,
-      allows: [{ protocol: "tcp", ports: [String(CLICKHOUSE_HTTP_PORT)] }],
-      sourceRanges: [SUBNET_CIDR],
+      allows: [{ protocol: "tcp", ports: [String(cfg.clickhouseHttpPort)] }],
+      sourceRanges: [cfg.subnetCidr],
       targetTags: ["clickhouse"],
     },
     { parent },
@@ -72,9 +67,26 @@ export function createFirewallRules(
       name: `${prefix}-clickhouse-native`,
       network: vpcName,
       allows: [{ protocol: "tcp", ports: ["9000"] }],
-      sourceRanges: [SUBNET_CIDR],
+      sourceRanges: [cfg.subnetCidr],
       targetTags: ["clickhouse"],
     },
     { parent },
   );
+
+  // Worker VM access — allow a specific external VM (e.g., migration-worker)
+  // to reach ClickHouse HTTP port via VPC peering. Scoped to a single IP
+  // rather than the entire peered subnet for tighter security.
+  if (cfg.workerIp) {
+    new gcp.compute.Firewall(
+      `${prefix}-clickhouse-worker`,
+      {
+        name: `${prefix}-clickhouse-worker`,
+        network: vpcName,
+        allows: [{ protocol: "tcp", ports: [String(cfg.clickhouseHttpPort)] }],
+        sourceRanges: [`${cfg.workerIp}/32`],
+        targetTags: ["clickhouse"],
+      },
+      { parent },
+    );
+  }
 }

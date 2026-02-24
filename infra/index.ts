@@ -1,9 +1,8 @@
-import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { loadConfig, CADDY_HTTPS_PORT, CLICKHOUSE_HTTP_PORT } from "./config";
+import { loadConfig, CADDY_HTTPS_PORT } from "./config";
 import { createNetwork } from "./network";
 import { createFirewallRules } from "./firewall";
-import { createSecrets } from "./secrets";
+import { createSecrets, createManagedSecret } from "./secrets";
 import { createClickHouseVM } from "./clickhouse";
 import { createServiceAccounts } from "./service-accounts";
 import { createWorkloadIdentity } from "./workload-identity";
@@ -12,6 +11,7 @@ import { createCloudRunApp } from "./cloud-run-app";
 import { createCloudRunJobs } from "./cloud-run-jobs";
 import { createBackups } from "./backups";
 import { createDiskMonitoring } from "./monitoring";
+import { createVpcPeering } from "./vpc-peering";
 
 /**
  * How Cloud Run connects to ClickHouse.
@@ -52,36 +52,27 @@ const clickhouse = createClickHouseVM(
 );
 
 // Build ClickHouse access config based on environment
-const chAccess: ClickHouseAccess = cfg.clickhousePublicAccess
+const chAccess: ClickHouseAccess = cfg.clickhousePublicAccess && cfg.clickhouseDomain
   ? {
       // Staging: public Caddy HTTPS endpoint
       url: pulumi.interpolate`https://${cfg.clickhouseDomain}:${CADDY_HTTPS_PORT}`,
     }
   : {
       // Prod: internal HTTP via VPC — no internet exposure
-      url: pulumi.interpolate`http://${clickhouse.internalIp}:${CLICKHOUSE_HTTP_PORT}`,
+      url: pulumi.interpolate`http://${clickhouse.internalIp}:${cfg.clickhouseHttpPort}`,
       vpcAccess: {
         network: network.vpc.id,
         subnetwork: network.subnet.id,
       },
     };
 
-// ClickHouse URL in Secret Manager — used by workers.sh on the migration VM.
-// Cloud Run gets it as a direct env var, but the VM fetches from Secret Manager.
-const clickhouseUrlSecret = new gcp.secretmanager.Secret(
-  `${cfg.namePrefix}-clickhouse-url`,
-  {
-    secretId: `${cfg.namePrefix}-clickhouse-url`,
-    replication: { auto: {} },
-  },
-);
-
-new gcp.secretmanager.SecretVersion(
-  `${cfg.namePrefix}-clickhouse-url-version`,
-  {
-    secret: clickhouseUrlSecret.id,
-    secretData: chAccess.url,
-  },
+// ClickHouse URL secret — used by workers.sh to connect without local config.
+// Created after the VM so we have the actual URL (internal IP or domain).
+const prefix = cfg.namePrefix;
+createManagedSecret(
+  `${prefix}-clickhouse-url`,
+  `${prefix}-clickhouse-url`,
+  chAccess.url,
 );
 
 // Service accounts: runtime (Cloud Run) and deploy (CI/CD)
@@ -90,8 +81,10 @@ const serviceAccounts = createServiceAccounts(cfg);
 // Workload Identity Federation: GitHub Actions → deploy SA
 const workloadIdentity = createWorkloadIdentity(cfg, serviceAccounts.deploySa);
 
-// Artifact Registry: Docker container images
-const artifactRegistry = createArtifactRegistry(cfg);
+// Artifact Registry: Docker container images (shared — production reuses staging's)
+const artifactRegistry = cfg.skipArtifactRegistry
+  ? undefined
+  : createArtifactRegistry(cfg);
 
 // Cloud Run: web application service
 const cloudRunApp = createCloudRunApp(cfg, serviceAccounts.runtimeSa, secrets, chAccess);
@@ -107,6 +100,12 @@ if (cfg.environment === "production") {
 // Monitoring: disk usage alerting (all environments)
 createDiskMonitoring(cfg, cfg.alertEmail);
 
+// VPC peering: allow external worker VM to reach ClickHouse via internal IP.
+// Only created when workerVpcNetwork is configured (e.g., production).
+if (cfg.workerVpcNetwork) {
+  createVpcPeering(cfg, network.vpc);
+}
+
 // Outputs — used by the app and pipeline
 export const clickhouseExternalIp = network.clickhouseExternalIp.address;
 export const clickhouseInternalIp = clickhouse.internalIp;
@@ -117,8 +116,8 @@ export const clickhousePassword = pulumi.secret(secrets.clickhousePassword);
 // App hosting
 export const appUrl = cloudRunApp.serviceUrl;
 
-// Container registry
-export const artifactRegistryUrl = artifactRegistry.registryUrl;
+// Container registry (only available when not skipped)
+export const artifactRegistryUrl = artifactRegistry?.registryUrl;
 
 // CI auth (Workload Identity Federation)
 // These are resource identifiers, not credentials — useless without the WIF trust.

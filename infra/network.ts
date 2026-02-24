@@ -1,6 +1,6 @@
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
-import { EnvironmentConfig, SUBNET_CIDR } from "./config";
+import { EnvironmentConfig } from "./config";
 
 export interface NetworkResult {
   vpc: gcp.compute.Network;
@@ -27,7 +27,7 @@ export function createNetwork(
     `${prefix}-subnet`,
     {
       name: `${prefix}-subnet`,
-      ipCidrRange: SUBNET_CIDR,
+      ipCidrRange: cfg.subnetCidr,
       network: vpc.id,
       region: gcp.config.region!,
     },
