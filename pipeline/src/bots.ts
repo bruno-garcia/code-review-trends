@@ -294,6 +294,56 @@ export const PRODUCTS: ProductDefinition[] = [
     brand_color: "#6C63FF",
     avatar_url: "https://avatars.githubusercontent.com/in/413034?v=4",
   },
+  {
+    id: "amazon-q",
+    name: "Amazon Q Developer",
+    website: "https://aws.amazon.com/q/developer/",
+    description:
+      "AWS's generative AI assistant for software development, spanning code generation, debugging, optimization, and pull request review. Reviews PRs for bugs, security vulnerabilities, and best practices as part of the broader Amazon Q suite. Deeply integrated with the AWS ecosystem — understands IAM policies, CloudFormation templates, and AWS SDK patterns in addition to general code quality. Available in IDEs, the AWS Console, and as a GitHub App.",
+    docs_url: "https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/what-is.html",
+    brand_color: "#232F3E",
+    avatar_url: "https://avatars.githubusercontent.com/in/1220912?v=4",
+  },
+  {
+    id: "codacy",
+    name: "Codacy",
+    website: "https://www.codacy.com",
+    description:
+      "Automated code quality and security platform that has been analyzing pull requests since 2012 — one of the longest-running code review automation tools. Combines static analysis, security scanning (SAST/DAST), and AI-powered review across 40+ languages. Differentiates through end-to-end DevSecOps coverage: from IDE integration through CI/CD to production monitoring, with centralized rules and policies that enforce standards consistently across an organization's entire codebase.",
+    docs_url: "https://docs.codacy.com",
+    brand_color: "#242C33",
+    avatar_url: "https://avatars.githubusercontent.com/in/56611?v=4",
+  },
+  {
+    id: "qlty",
+    name: "Qlty",
+    website: "https://qlty.sh",
+    description:
+      "Code quality platform spun out from Code Climate in 2024, led by Code Climate's original founder. Automates PR review with linting, formatting, duplication detection, security scanning, and complexity analysis — plus AI-generated autofix suggestions for 90% of issues. Runs analysis in the cloud with no CI setup required, providing consistent pass/fail quality gates on every pull request. Also offers code coverage tracking with diff-aware coverage gates.",
+    docs_url: "https://qlty.sh/docs",
+    brand_color: "#6366F1",
+    avatar_url: "https://avatars.githubusercontent.com/in/890766?v=4",
+  },
+  {
+    id: "codeclimate",
+    name: "Code Climate",
+    website: "https://codeclimate.com",
+    description:
+      "Pioneering automated code review platform founded in 2011 that helped define the category. Now focused on Software Engineering Intelligence (SEI) and Velocity — providing engineering leaders with metrics on delivery performance, cycle time, and team productivity. The original Code Climate Quality product was spun out as Qlty Software in 2024. Legacy code review bot activity reflects the pre-spinout era.",
+    docs_url: "https://codeclimate.com/quality/docs",
+    brand_color: "#1E293B",
+    avatar_url: "https://avatars.githubusercontent.com/u/789641?v=4",
+  },
+  {
+    id: "kilo",
+    name: "Kilo Review",
+    website: "https://kilocode.ai",
+    description:
+      "AI code review bot from Kilo Code, a fast-growing newcomer to the automated review space. Reviews pull requests for bugs, code quality issues, and improvement opportunities. Emerged in late 2025 with rapidly accelerating adoption — doubling its review volume and repo count month over month across public GitHub repositories.",
+    docs_url: "https://kilocode.ai/docs",
+    brand_color: "#000000",
+    avatar_url: "https://avatars.githubusercontent.com/in/2193792?v=4",
+  },
 ];
 
 export const BOTS: BotDefinition[] = [
@@ -653,6 +703,71 @@ export const BOTS: BotDefinition[] = [
       "Kodus AI code reviewer. Automatically analyzes PRs with actionable suggestions and bug detection.",
     brand_color: "#6C63FF",
     avatar_url: "https://avatars.githubusercontent.com/in/413034?v=4",
+  },
+  // Amazon Q Developer
+  {
+    id: "amazon-q",
+    product_id: "amazon-q",
+    name: "Amazon Q Developer",
+    github_login: "amazon-q-developer[bot]",
+    github_id: 208079219,
+    website: "https://aws.amazon.com/q/developer/",
+    description:
+      "AWS's AI assistant for software development. Reviews PRs for bugs, security issues, and AWS best practices.",
+    brand_color: "#232F3E",
+    avatar_url: "https://avatars.githubusercontent.com/in/1220912?v=4",
+  },
+  // Codacy
+  {
+    id: "codacy",
+    product_id: "codacy",
+    name: "Codacy",
+    github_login: "codacy-production[bot]",
+    github_id: 61871480,
+    website: "https://www.codacy.com",
+    description:
+      "Automated code quality and security platform. Analyzes PRs for bugs, vulnerabilities, and style across 40+ languages.",
+    brand_color: "#242C33",
+    avatar_url: "https://avatars.githubusercontent.com/in/56611?v=4",
+  },
+  // Qlty
+  {
+    id: "qlty",
+    product_id: "qlty",
+    name: "Qlty",
+    github_login: "qltysh[bot]",
+    github_id: 168846912,
+    website: "https://qlty.sh",
+    description:
+      "Code quality platform (spun out from Code Climate). Automated linting, security, and AI autofix on every PR.",
+    brand_color: "#6366F1",
+    avatar_url: "https://avatars.githubusercontent.com/in/890766?v=4",
+  },
+  // Code Climate
+  {
+    id: "codeclimate",
+    product_id: "codeclimate",
+    name: "Code Climate",
+    github_login: "codeclimate[bot]",
+    github_id: 789641,
+    website: "https://codeclimate.com",
+    description:
+      "Pioneering code review platform (est. 2011). Quality product spun out as Qlty in 2024; now focused on engineering intelligence.",
+    brand_color: "#1E293B",
+    avatar_url: "https://avatars.githubusercontent.com/u/789641?v=4",
+  },
+  // Kilo Review
+  {
+    id: "kilo",
+    product_id: "kilo",
+    name: "Kilo Review",
+    github_login: "kiloconnect[bot]",
+    github_id: 240665456,
+    website: "https://kilocode.ai",
+    description:
+      "AI code review bot from Kilo Code. Fast-growing newcomer reviewing PRs for bugs and code quality.",
+    brand_color: "#000000",
+    avatar_url: "https://avatars.githubusercontent.com/in/2193792?v=4",
   },
 ];
 

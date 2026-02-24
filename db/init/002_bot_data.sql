@@ -32,7 +32,12 @@ INSERT INTO code_review_trends.products (id, name, website, description, docs_ur
     ('mesa', 'Mesa', 'https://mesa.dev', 'AI-powered development workflow platform. Automates code review as part of a broader CI/CD integration, providing feedback on code quality, testing, and deployment readiness.', 'https://docs.mesa.dev', '#c06a33', 'https://avatars.githubusercontent.com/in/1050077?v=4'),
     ('linearb', 'LinearB', 'https://linearb.io', 'Developer workflow platform with gitStream automation and AI-powered code review. Automates PR routing, reviewer assignment, and provides workflow metrics for engineering teams.', 'https://linearb.io/docs', '#a37ce2', 'https://avatars.githubusercontent.com/in/1658443?v=4'),
     ('augment', 'Augment Code', 'https://augmentcode.com', 'AI coding assistant with automated PR review. Understands your codebase context to provide relevant feedback. Designed for enterprise teams with support for private codebases and custom guidelines.', 'https://docs.augmentcode.com', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4'),
-    ('kodus', 'Kodus', 'https://kodus.io', 'AI code reviewer that analyzes pull requests like a senior developer. Provides actionable suggestions, identifies bugs, and enforces coding standards. Open-source with cloud and self-hosted options.', 'https://docs.kodus.io', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4');
+    ('kodus', 'Kodus', 'https://kodus.io', 'AI code reviewer that analyzes pull requests like a senior developer. Provides actionable suggestions, identifies bugs, and enforces coding standards. Open-source with cloud and self-hosted options.', 'https://docs.kodus.io', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4'),
+    ('amazon-q', 'Amazon Q Developer', 'https://aws.amazon.com/q/developer/', 'AWS''s generative AI assistant for software development. Reviews PRs for bugs, security vulnerabilities, and best practices. Deeply integrated with the AWS ecosystem — understands IAM policies, CloudFormation templates, and AWS SDK patterns.', 'https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/what-is.html', '#232F3E', 'https://avatars.githubusercontent.com/in/1220912?v=4'),
+    ('codacy', 'Codacy', 'https://www.codacy.com', 'Automated code quality and security platform analyzing PRs since 2012. Combines static analysis, security scanning (SAST/DAST), and AI-powered review across 40+ languages with end-to-end DevSecOps coverage.', 'https://docs.codacy.com', '#242C33', 'https://avatars.githubusercontent.com/in/56611?v=4'),
+    ('qlty', 'Qlty', 'https://qlty.sh', 'Code quality platform spun out from Code Climate in 2024. Automates PR review with linting, formatting, security scanning, complexity analysis, and AI-generated autofix suggestions. No CI setup required.', 'https://qlty.sh/docs', '#6366F1', 'https://avatars.githubusercontent.com/in/890766?v=4'),
+    ('codeclimate', 'Code Climate', 'https://codeclimate.com', 'Pioneering automated code review platform founded in 2011. Now focused on Software Engineering Intelligence (SEI). Original quality product was spun out as Qlty Software in 2024.', 'https://codeclimate.com/quality/docs', '#1E293B', 'https://avatars.githubusercontent.com/u/789641?v=4'),
+    ('kilo', 'Kilo Review', 'https://kilocode.ai', 'AI code review bot from Kilo Code. Fast-growing newcomer reviewing PRs for bugs and code quality issues with rapidly accelerating adoption since late 2025.', 'https://kilocode.ai/docs', '#000000', 'https://avatars.githubusercontent.com/in/2193792?v=4');
 
 -- Bots
 
@@ -67,7 +72,12 @@ INSERT INTO code_review_trends.bots (id, name, product_id, website, description,
     ('gitstream', 'gitStream', 'linearb', 'https://linearb.io', 'LinearB''s gitStream workflow automation bot. Automates PR routing and continuous merge management.', '#a37ce2', 'https://avatars.githubusercontent.com/ml/13414?v=4'),
     ('linearb', 'LinearB', 'linearb', 'https://linearb.io', 'LinearB''s GitHub bot for dev workflow insights, metrics, and AI-powered code review.', '#a37ce2', 'https://avatars.githubusercontent.com/in/1658443?v=4'),
     ('augment', 'Augment Code', 'augment', 'https://augmentcode.com', 'AI coding assistant with codebase-aware PR review. Designed for enterprise teams with private codebases.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4'),
-    ('kodus', 'Kody AI', 'kodus', 'https://kodus.io', 'Kodus AI code reviewer. Automatically analyzes PRs with actionable suggestions and bug detection.', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4');
+    ('kodus', 'Kody AI', 'kodus', 'https://kodus.io', 'Kodus AI code reviewer. Automatically analyzes PRs with actionable suggestions and bug detection.', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4'),
+    ('amazon-q', 'Amazon Q Developer', 'amazon-q', 'https://aws.amazon.com/q/developer/', 'AWS''s AI assistant for software development. Reviews PRs for bugs, security issues, and AWS best practices.', '#232F3E', 'https://avatars.githubusercontent.com/in/1220912?v=4'),
+    ('codacy', 'Codacy', 'codacy', 'https://www.codacy.com', 'Automated code quality and security platform. Analyzes PRs for bugs, vulnerabilities, and style across 40+ languages.', '#242C33', 'https://avatars.githubusercontent.com/in/56611?v=4'),
+    ('qlty', 'Qlty', 'qlty', 'https://qlty.sh', 'Code quality platform (spun out from Code Climate). Automated linting, security, and AI autofix on every PR.', '#6366F1', 'https://avatars.githubusercontent.com/in/890766?v=4'),
+    ('codeclimate', 'Code Climate', 'codeclimate', 'https://codeclimate.com', 'Pioneering code review platform (est. 2011). Quality product spun out as Qlty in 2024, now focused on engineering intelligence.', '#1E293B', 'https://avatars.githubusercontent.com/u/789641?v=4'),
+    ('kilo', 'Kilo Review', 'kilo', 'https://kilocode.ai', 'AI code review bot from Kilo Code. Fast-growing newcomer reviewing PRs for bugs and code quality.', '#000000', 'https://avatars.githubusercontent.com/in/2193792?v=4');
 
 -- Bot logins (GitHub usernames)
 
@@ -103,5 +113,10 @@ INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
     ('gitstream', 'gitstream-cm[bot]'),
     ('linearb', 'linearb[bot]'),
     ('augment', 'augmentcode[bot]'),
-    ('kodus', 'kody-ai[bot]');
+    ('kodus', 'kody-ai[bot]'),
+    ('amazon-q', 'amazon-q-developer[bot]'),
+    ('codacy', 'codacy-production[bot]'),
+    ('qlty', 'qltysh[bot]'),
+    ('codeclimate', 'codeclimate[bot]'),
+    ('kilo', 'kiloconnect[bot]');
 
