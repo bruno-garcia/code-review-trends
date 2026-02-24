@@ -76,6 +76,17 @@ export function isRetryableError(err: unknown): boolean {
   return isTransientNetworkError(err) || isServerError(err);
 }
 
+/**
+ * Clean up error messages for logging. GitHub 502/503 responses often
+ * contain full HTML pages with \r carriage returns that garble log output.
+ */
+function sanitizeErrorMessage(msg: string): string {
+  // Strip HTML tags, collapse whitespace, remove carriage returns
+  const cleaned = msg.replace(/<[^>]*>/g, " ").replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+  // Truncate to something readable
+  return cleaned.length > 120 ? cleaned.slice(0, 120) + "…" : cleaned;
+}
+
 export type GraphQLResponse = {
   data: {
     data?: Record<string, unknown>;
@@ -145,7 +156,7 @@ export async function graphqlWithRetry(
         const isTimeout = isAbortError(err);
         const errMsg = isTimeout
           ? `Response timeout (${timeoutMs}ms)`
-          : (err instanceof Error ? err.message.split("\n")[0] : String(err));
+          : sanitizeErrorMessage(err instanceof Error ? err.message : String(err));
 
         // Log + breadcrumb + metric for visibility into retry behavior
         log(`[${label}] ${isTimeout ? "Response timeout" : "Transient network error"} (${errMsg}), retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
