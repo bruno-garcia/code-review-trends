@@ -923,6 +923,16 @@ async function cmdEnrich() {
     return n;
   }
 
+  const VALID_STEPS = ["repos", "prs", "comments", "reactions"] as const;
+  type StepArg = typeof VALID_STEPS[number];
+  function parseStepArg(name: string, value: string | undefined): StepArg | undefined {
+    if (value === undefined) return undefined;
+    if (!VALID_STEPS.includes(value as StepArg)) {
+      throw new CliError(`Invalid ${name} value: "${value}". Must be one of: ${VALID_STEPS.join(", ")}.`);
+    }
+    return value as StepArg;
+  }
+
   // Resolve token + worker partitioning.
   // Priority: GITHUB_TOKENS (JSON array) > GITHUB_TOKEN (single)
   // When GITHUB_TOKENS is set, auto-derive workerId/totalWorkers from the array
@@ -974,8 +984,8 @@ async function cmdEnrich() {
     totalWorkers,
     limit: parseIntArg("--limit", args["--limit"]),
     staleDays: parseIntArg("--stale-days", args["--stale-days"]),
-    priority: args["--priority"] as "repos" | "prs" | "comments" | "reactions" | undefined,
-    only: args["--only"] as "repos" | "prs" | "comments" | "reactions" | undefined,
+    priority: parseStepArg("--priority", args["--priority"]),
+    only: parseStepArg("--only", args["--only"]),
     exitOnRateLimit: args["--exit-on-rate-limit"] !== undefined,
   });
 
