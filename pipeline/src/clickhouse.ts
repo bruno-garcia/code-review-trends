@@ -446,13 +446,14 @@ export async function insertPrBotReactions(
  * Insert sentinel rows marking PRs as scanned for reactions.
  * scan_status distinguishes successful scans from permanent failures:
  *   'ok'          — scanned successfully (may or may not have found reactions)
- *   'not_found'   — repo deleted/private, GraphQL returned null
+ *   'not_found'   — repo deleted or renamed, GraphQL returned null
+ *   'forbidden'   — repo is private/access denied (combined enrichment only)
  *   'unavailable' — PR exists but reactions field missing (SPAMMY content, etc.)
  *
  * Column defaults to 'unknown' in the DB (for pre-existing rows), but pipeline
  * code must always pass an explicit status — never rely on the default.
  */
-export type ReactionScanStatus = "ok" | "not_found" | "unavailable";
+export type ReactionScanStatus = "ok" | "not_found" | "forbidden" | "unavailable";
 
 export async function insertReactionScanProgress(
   client: ClickHouseClient,

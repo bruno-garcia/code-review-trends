@@ -278,12 +278,12 @@ export async function enrichCombined(
             // Skip if hasMoreReactions (>20 hooray reactions) — leave for
             // the dedicated reaction stage which can paginate.
             if (result.prStatus === "not_found" || result.prStatus === "forbidden") {
-              // Repo/PR gone — record sentinel so the dedicated reaction stage
-              // doesn't re-discover the same failure.
+              // Repo/PR inaccessible — record sentinel with the actual failure reason
+              // so the dedicated reaction stage doesn't re-discover the same failure.
               allScanProgress.push({
                 repo_name: result.input.repo_name,
                 pr_number: result.input.pr_number,
-                scan_status: "not_found",
+                scan_status: result.prStatus === "forbidden" ? "forbidden" : "not_found",
               });
             } else if (result.prStatus === "ok" && !result.reactionsAvailable) {
               // PR exists but reactions field missing (SPAMMY content, field-level error)
