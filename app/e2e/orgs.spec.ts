@@ -8,6 +8,18 @@ test.describe("Organization listing page", () => {
     await expect(page.getByTestId("org-list")).toBeVisible();
   });
 
+  test("product filter returns orgs for that product", async ({ page }) => {
+    // Regression: getOrgList with productIds crashed with double-WHERE SQL error.
+    // This test exercises the product-filter code path (Phase 1 + Phase 2).
+    const response = await page.goto("/orgs?products=sentry");
+    expect(response?.status()).toBe(200);
+    await expect(page.getByTestId("org-list")).toBeVisible();
+    // With seed data, at least one org should appear for Sentry
+    const orgRows = page.locator("[data-testid='org-list'] a[href^='/orgs/']");
+    const count = await orgRows.count();
+    expect(count).toBeGreaterThan(0);
+  });
+
   test("sort buttons are present", async ({ page }) => {
     await page.goto("/orgs");
     await expect(page.getByTestId("sort-stars")).toBeVisible();

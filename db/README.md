@@ -44,6 +44,21 @@ ClickHouse schema is managed through numbered SQL migration files in `db/init/`.
 - **Example:** `015_add_review_sources.sql`
 - Each number must be unique
 
+## Seed Data (`db/seed/`)
+
+Test data for CI and local development lives in `db/seed/`. Unlike `db/init/`, seed files are **never applied to staging or production** — they only run via `db/init-ci.sh` (CI) or manually during local dev.
+
+| File | Purpose |
+|------|---------|
+| `e2e-test-data.sql` | Minimal data for 2 products (CodeRabbit + Sentry), 4 repos across 2 orgs, with review activity, PR events, comments, and reaction-only reviews. Exercises code paths unreachable with empty tables (e.g., product-filter JOINs, multi-bot product pages, org/repo listings). |
+
+Seed data is **idempotent** — safe to re-run. It uses `INSERT INTO` (not `TRUNCATE`) so it layers on top of whatever already exists.
+
+To run locally after `npm run dev:infra`:
+```bash
+CLICKHOUSE_URL=http://localhost:$PORT CLICKHOUSE_PASSWORD=dev bash db/init-ci.sh
+```
+
 ## Important Rules
 
 - **Never edit existing migration files.** Files committed to `main` are immutable. Make schema changes in new numbered files. (See Principle #15 in AGENTS.md.)
