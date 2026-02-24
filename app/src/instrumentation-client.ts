@@ -1,5 +1,22 @@
 import * as Sentry from "@sentry/nextjs";
 
+// NEXT_PUBLIC_SENTRY_ENVIRONMENT is baked into the client bundle at build time.
+// Do NOT use NODE_ENV — Next.js inlines it to "production" at build time,
+// making it useless for distinguishing staging from production.
+// See AGENTS.md principle #20.
+//
+// Set via:
+//   Docker build: --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging
+//   Local dev:    add NEXT_PUBLIC_SENTRY_ENVIRONMENT=development to .env.local
+const environment = process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT;
+if (!environment) {
+  throw new Error(
+    "NEXT_PUBLIC_SENTRY_ENVIRONMENT is required.\n" +
+    "  Docker build: pass --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT=<env>\n" +
+    "  Local dev: add NEXT_PUBLIC_SENTRY_ENVIRONMENT=development to .env.local",
+  );
+}
+
 Sentry.init({
   // Frontend DSN — baked into the client bundle at build time.
   // Set via SENTRY_DSN_CRT_FRONTEND build arg (see Dockerfile / CI).
@@ -32,8 +49,8 @@ Sentry.init({
     Sentry.browserTracingIntegration(),
   ],
 
-  // Environment
-  environment: process.env.NODE_ENV,
+  // Environment — explicit, never derived from NODE_ENV
+  environment,
 
   // Release tracking — matches the commit SHA from next.config.ts
   release: process.env.NEXT_PUBLIC_COMMIT_SHA,

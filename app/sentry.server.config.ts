@@ -1,5 +1,17 @@
 import * as Sentry from "@sentry/nextjs";
 
+// SENTRY_ENVIRONMENT is a runtime env var set by Cloud Run (via Pulumi).
+// Do NOT use NODE_ENV — Next.js inlines it to "production" at build time,
+// making runtime overrides impossible. See AGENTS.md principle #20.
+const environment = process.env.SENTRY_ENVIRONMENT;
+if (!environment) {
+  throw new Error(
+    "SENTRY_ENVIRONMENT is required. Set it as an environment variable.\n" +
+    "  Cloud Run: set via Pulumi config\n" +
+    "  Local dev: add SENTRY_ENVIRONMENT=development to .env.local",
+  );
+}
+
 Sentry.init({
   // Backend DSN — private, injected at runtime via Secret Manager.
   // Separate from the frontend DSN so it can be rotated independently.
@@ -8,14 +20,16 @@ Sentry.init({
   // Performance — sample 100% of traces
   tracesSampleRate: 1.0,
 
-  // Environment
-  environment: process.env.NODE_ENV,
+  // Environment — explicit, never derived from NODE_ENV
+  environment,
 
   // Release tracking
   release: process.env.NEXT_PUBLIC_COMMIT_SHA,
 
-  // Spotlight for local dev (Sentry dev toolbar)
-  spotlight: process.env.NODE_ENV === "development",
+  // Spotlight for local dev (Sentry dev toolbar).
+  // Uses SENTRY_ENVIRONMENT instead of NODE_ENV because NODE_ENV is
+  // inlined to "production" at build time by Next.js.
+  spotlight: environment === "development",
 
   // Logs
   _experiments: {
