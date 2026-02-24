@@ -325,6 +325,180 @@ npm run pipeline -- backfill --start 2023-01-01
 npm run pipeline -- status
 ```
 
+## Initial Data Load Guide
+
+Loading data from scratch into a new environment. This is a multi-day process due to
+GitHub API rate limits. All steps are idempotent — safe to interrupt and resume.
+
+### Prerequisites
+
+- ClickHouse running and accessible
+- GCP credentials for BigQuery (GH Archive is a public dataset)
+- One or more GitHub fine-grained PATs with public repo read access
+- For VM-based loading: SSH access to the worker VM
+
+### Step 1: Apply schema and reference data
+
+```bash
+# Remote database (reads creds from Pulumi)
+npm run pipeline -- migrate --stack staging
+
+# Local database
+npm run pipeline -- migrate --local
+
+# Preview what would be applied
+npm run pipeline -- migrate --stack staging --dry-run
+```
+
+This runs all `db/init/*.sql` files (schema, bot data, materialized views) and
+syncs the bot registry from `bots.ts`.
+
+### Step 2: Detach expensive materialized views
+
+The `pr_product_characteristics_mv` joins `pull_requests` × `pr_bot_events` × `bots`
+on every INSERT to `pull_requests`. During bulk loading this causes 15–33s per batch
+and OOM errors. Detach it before loading data:
+
+```bash
+# Via workers.sh (fetches secrets from GCP automatically)
+./pipeline/workers.sh staging detach-mv
+
+# Or directly
+npm run pipeline -- detach-mv --env staging --clickhouse-url ... --clickhouse-password ...
+```
+
+The app continues to work — it reads from the `pr_product_characteristics` table,
+which retains existing data. New PRs just won't appear in the PR characteristics
+queries until the view is reattached.
+
+### Step 3: Backfill aggregate review counts (BigQuery → ClickHouse)
+
+This imports weekly bot/human review counts from GH Archive. Takes ~30 minutes for
+full history.
+
+```bash
+npm run pipeline -- backfill --all --env staging
+```
+
+### Step 4: Sync bot reference data
+
+Push the bot registry to ClickHouse (in case `migrate` was run before adding new bots):
+
+```bash
+npm run pipeline -- sync-bots --env staging
+```
+
+### Step 5: Discover PR-level bot events (BigQuery → ClickHouse)
+
+Find which bots touched which PRs. This populates `pr_bot_events` — the source of
+truth for what needs enrichment.
+
+```bash
+npm run pipeline -- discover --all --env staging
+```
+
+Full history takes ~15–20 minutes. Produces ~5–8M rows (as of early 2026).
+
+### Step 6: Enrich via GitHub API (the slow part)
+
+This is where most time is spent. The enrichment stage calls GitHub's GraphQL API
+to fetch metadata for every repo, PR, comment thread, and reaction discovered in
+step 5. With ~5M unique PRs to enrich:
+
+| Tokens | Items/hour | Estimated time |
+|--------|-----------|----------------|
+| 1 | ~14K | ~15 days |
+| 4 | ~55K | ~4 days |
+| 8 | ~110K | ~2 days |
+| 12 | ~165K | ~1.3 days |
+
+Each GitHub token provides 5,000 API calls/hour. Each combined-stage GraphQL call
+processes ~25 items. Throughput is limited by API response time (~1s per call), not
+just rate limits.
+
+**Using `workers.sh` on a VM (recommended for bulk loading):**
+
+Store GitHub tokens as a JSON array in GCP Secret Manager (`crt-<env>-github-tokens`).
+The worker script fetches all secrets automatically:
+
+```bash
+# Start all workers (one per token) in a tmux session
+./pipeline/workers.sh staging start
+
+# Monitor progress
+./pipeline/workers.sh staging status
+
+# Watch the enrichment dashboard (auto-refreshes every 60s)
+# (This runs in the tmux session's status window)
+tmux attach -t enrich-staging
+
+# Check enrichment progress
+npm run pipeline -- enrich-status --env staging
+```
+
+Workers loop continuously with 30s pauses between rounds. They process stages in
+priority order (repos → reactions → combined → comments → PRs) and automatically
+skip stages above 70% complete to focus effort where it's most needed.
+
+**Using CLI directly:**
+
+```bash
+# Single worker
+GITHUB_TOKEN=... npm run pipeline -- enrich --env staging --limit 50000
+
+# Parallel workers (each needs a different token)
+GITHUB_TOKEN=$TOKEN_A npm run pipeline -- enrich --env staging --limit 50000 --worker-id 0 --total-workers 4 &
+GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --env staging --limit 50000 --worker-id 1 --total-workers 4 &
+GITHUB_TOKEN=$TOKEN_C npm run pipeline -- enrich --env staging --limit 50000 --worker-id 2 --total-workers 4 &
+GITHUB_TOKEN=$TOKEN_D npm run pipeline -- enrich --env staging --limit 50000 --worker-id 3 --total-workers 4 &
+```
+
+**Scaling tips:**
+- You can safely run 10–12 tokens from one IP without hitting GitHub's secondary rate limits.
+- Create GitHub accounts, generate a fine-grained PAT on each with public repo read access.
+- Workers partition work by hash modulo, so they never overlap.
+
+### Step 7: Reattach materialized views
+
+Once enrichment is mostly complete (PRs and comments >50%), stop workers and
+reattach the MV:
+
+```bash
+./pipeline/workers.sh staging stop
+./pipeline/workers.sh staging reattach-mv
+```
+
+This recreates the `pr_product_characteristics_mv` and backfills it with an
+`INSERT ... SELECT` joining all existing data. Takes 2–5 minutes depending on
+table sizes. Run it when no workers are active to avoid memory contention.
+
+### Step 8: Switch to scheduled jobs
+
+Once the initial load is complete, the scheduled Cloud Run Jobs keep data current.
+The jobs run on the following schedule (defined in `pipeline/schedules.json`):
+
+| Job | Schedule | Timeout | What it does |
+|-----|----------|---------|--------------|
+| `sync` | Daily 6am UTC | 30 min | Fetches last 2 weeks of review counts from BigQuery |
+| `backfill` | Weekly Mon 2am UTC | 2 hours | Full historical backfill (resumes from checkpoint) |
+| `discover` | Daily 4am UTC | 30 min | Discovers new PR-level bot events from BigQuery |
+| `enrich` | Hourly at :05 | 1 hour | Enriches repos/PRs/comments/reactions via GitHub API |
+| `discover-bots` | Monthly 1st at 3am | 30 min | Finds new bot accounts in GH Archive + Marketplace |
+
+**Can the hourly enrich job keep up?**
+
+Yes — comfortably. The incoming volume is ~100K new unique PRs per week (~600/hour).
+Each combined-stage GraphQL call handles 25 items, so processing 600 new items
+needs ~24 API calls — well within the 5,000 calls/hour rate limit per token.
+The enrich job runs with `--exit-on-rate-limit` so it exits cleanly if a rate
+limit is hit, and the next hourly run picks up where it left off. With 4 tokens
+running as parallel Cloud Run tasks, steady-state enrichment uses <1% of available
+API budget.
+
+The MV is also fine in steady state: the per-batch insert overhead is negligible
+(~50–100ms) when processing a few hundred items per hour rather than thousands per
+minute.
+
 ## Environment Variables
 
 | Variable | Default | Description |
