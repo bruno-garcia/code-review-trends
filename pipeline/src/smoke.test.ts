@@ -519,6 +519,20 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
     await ch?.close();
   });
 
+  /** Tolerate transient GitHub API 500s: when all items in a batch error,
+   *  skip the fetched assertion instead of failing the smoke test. */
+  function assertFetchedOrTransient(
+    result: { fetched: number; errors: number },
+    context: string,
+    message: string,
+  ) {
+    if (result.errors > 0 && result.fetched === 0) {
+      console.log(`[smoke] ${context}: all ${result.errors} items hit GitHub API errors — skipping fetched assertion (transient)`);
+    } else {
+      assert.ok(result.fetched > 0, message);
+    }
+  }
+
   describe("repo metadata", () => {
     let repoData: Awaited<ReturnType<typeof octokit.rest.repos.get>>["data"];
 
@@ -890,13 +904,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
           { limit: 10 },
         );
 
-        // Tolerate transient GitHub API 500s: if all items errored,
-        // skip the assertion rather than failing the smoke test.
-        if (result.errors > 0 && result.fetched === 0) {
-          console.log(`[smoke] enrichPullRequests: all ${result.errors} items hit GitHub API errors — skipping fetched assertion (transient)`);
-        } else {
-          assert.ok(result.fetched > 0, "Should fetch at least one PR");
-        }
+        assertFetchedOrTransient(result, "enrichPullRequests", "Should fetch at least one PR");
 
         // The test PR may not be in this batch if other pending PRs
         // (from BigQuery discover tests) took the limited slots.
@@ -1035,13 +1043,7 @@ describe("GitHub API smoke tests", { skip: skipGitHub ? "No GITHUB_TOKEN" : fals
           { limit: 10 },
         );
 
-        // Tolerate transient GitHub API 500s: if all items errored,
-        // skip the assertion rather than failing the smoke test.
-        if (result.errors > 0 && result.fetched === 0) {
-          console.log(`[smoke] enrichComments: all ${result.errors} items hit GitHub API errors — skipping fetched assertion (transient)`);
-        } else {
-          assert.ok(result.fetched > 0, "Should fetch at least one PR/bot combo");
-        }
+        assertFetchedOrTransient(result, "enrichComments", "Should fetch at least one PR/bot combo");
 
         // The test PR/bot combo may not be in this batch if other pending
         // combos (from BigQuery discover tests) took the limited slots.
