@@ -6,11 +6,13 @@
 # Spawns one tmux worker per GitHub token, plus a status window.
 #
 # Usage:
-#   ./workers.sh <env> start    # Fetch secrets, start N workers in tmux
-#   ./workers.sh <env> stop     # Kill all workers
-#   ./workers.sh <env> status   # Show tail of each worker log
-#   ./workers.sh <env> update   # Stop → git pull → npm ci → start
-#   ./workers.sh <env> tokens   # Show token count + usernames + expiry
+#   ./workers.sh <env> start        # Fetch secrets, start N workers in tmux
+#   ./workers.sh <env> stop         # Kill all workers
+#   ./workers.sh <env> status       # Show tail of each worker log
+#   ./workers.sh <env> update       # Stop → git pull → npm ci → start
+#   ./workers.sh <env> tokens       # Show token count + usernames + expiry
+#   ./workers.sh <env> detach-mv    # Detach expensive MVs for faster bulk writes
+#   ./workers.sh <env> reattach-mv  # Recreate MVs and backfill from existing data
 #
 # <env> is required: staging, production, development
 # Secrets are derived from env: crt-<env>-*
@@ -32,15 +34,17 @@ err()  { echo -e "${RED}[workers]${NC} $*" >&2; }
 # --- Parse env argument ---
 
 if [[ $# -ne 2 ]]; then
-  echo "Usage: $0 <env> {start|stop|status|update|tokens}"
+  echo "Usage: $0 <env> {start|stop|status|update|tokens|detach-mv|reattach-mv}"
   echo ""
-  echo "  <env>     staging | production | development"
+  echo "  <env>          staging | production | development"
   echo ""
-  echo "  start     Fetch secrets from GCP, start N workers in tmux"
-  echo "  stop      Kill all workers"
-  echo "  status    Show worker logs"
-  echo "  update    Stop → git pull → npm ci → start"
-  echo "  tokens    Show token usernames and expiry dates"
+  echo "  start          Fetch secrets from GCP, start N workers in tmux"
+  echo "  stop           Kill all workers"
+  echo "  status         Show worker logs"
+  echo "  update         Stop → git pull → npm ci → start"
+  echo "  tokens         Show token usernames and expiry dates"
+  echo "  detach-mv      Detach expensive MVs for faster bulk enrichment"
+  echo "  reattach-mv    Recreate MVs and backfill from existing data"
   exit 1
 fi
 
@@ -136,7 +140,10 @@ cmd_start() {
     fi
     local escaped_token
     escaped_token=$(printf %q "${token}")
-    local cmd="${sleep_cmd}cd $REPO_DIR && npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --gh-token ${escaped_token} ${cli_args} 2>&1 | tee $logfile"
+    # Loop continuously: run enrich, pause 30s, repeat.
+    # The 30s pause lets ClickHouse merges settle between rounds.
+    # Uses printf with %()T for timestamp (bash builtin, no subshell needed in single quotes).
+    local cmd="${sleep_cmd}cd $REPO_DIR && while true; do echo \"--- Round starting at \$(date -u +%Y-%m-%dT%H:%M:%SZ) ---\"; npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --gh-token ${escaped_token} ${cli_args} 2>&1; rc=\$?; echo \"--- Round finished (exit \$rc) at \$(date -u +%Y-%m-%dT%H:%M:%SZ) ---\"; if [ \$rc -ne 0 ]; then echo 'Non-zero exit, pausing 60s before retry...'; sleep 60; fi; echo 'Pausing 30s before next round...'; sleep 30; done | tee $logfile"
 
     tmux new-window -t "$SESSION" -n "$wname"
     tmux send-keys -t "$SESSION:$wname" "$cmd" Enter
@@ -212,17 +219,37 @@ cmd_tokens() {
   done
 }
 
+cmd_detach_mv() {
+  fetch_shared_secrets
+  local cli_args
+  cli_args=$(shared_cli_args)
+  log "Detaching expensive materialized views..."
+  cd "$REPO_DIR"
+  npm run pipeline -- detach-mv --env "$PIPELINE_ENV" $cli_args 2>&1
+}
+
+cmd_reattach_mv() {
+  fetch_shared_secrets
+  local cli_args
+  cli_args=$(shared_cli_args)
+  log "Reattaching materialized views and backfilling..."
+  cd "$REPO_DIR"
+  npm run pipeline -- reattach-mv --env "$PIPELINE_ENV" $cli_args 2>&1
+}
+
 # --- Main ---
 
 case "$COMMAND" in
-  start)  cmd_start  ;;
-  stop)   cmd_stop   ;;
-  status) cmd_status ;;
-  update) cmd_update ;;
-  tokens) cmd_tokens ;;
+  start)       cmd_start       ;;
+  stop)        cmd_stop        ;;
+  status)      cmd_status      ;;
+  update)      cmd_update      ;;
+  tokens)      cmd_tokens      ;;
+  detach-mv)   cmd_detach_mv   ;;
+  reattach-mv) cmd_reattach_mv ;;
   *)
     err "Unknown command: $COMMAND"
-    echo "Usage: $0 <env> {start|stop|status|update|tokens}"
+    echo "Usage: $0 <env> {start|stop|status|update|tokens|detach-mv|reattach-mv}"
     exit 1
     ;;
 esac

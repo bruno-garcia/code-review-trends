@@ -116,19 +116,41 @@ export async function enrichPullRequests(
         }));
 
         try {
+          const graphqlStart = Date.now();
           const results = await fetchPRsBatch(octokit, rateLimiter, batchInputs);
+          const graphqlMs = Date.now() - graphqlStart;
 
+          // Collect all rows for bulk insert.
+          // Track batch-local counters — only merge after insert succeeds
+          // to avoid double-counting on adaptive batch retries.
+          const allPrRows: import("../clickhouse.js").PullRequestRow[] = [];
+          let batchFetched = 0;
+          let batchNotFound = 0;
+          let batchForbidden = 0;
           for (let i = 0; i < results.length; i++) {
             const result = results[i];
             if (result.row) {
-              await insertPullRequests(ch, [result.row]);
-              fetched++;
+              allPrRows.push(result.row);
+              batchFetched++;
             } else if (result.status === "not_found") {
-              notFound++;
+              batchNotFound++;
             } else if (result.status === "forbidden") {
-              forbidden++;
+              batchForbidden++;
             }
           }
+
+          const insertStart = Date.now();
+          await insertPullRequests(ch, allPrRows);
+          const insertMs = Date.now() - insertStart;
+
+          // Merge counters after successful insert
+          fetched += batchFetched;
+          notFound += batchNotFound;
+          forbidden += batchForbidden;
+
+          log(
+            `[pull-requests] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allPrRows.length} rows)`,
+          );
           batchHandled = true;
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
@@ -227,6 +249,10 @@ export async function enrichPullRequests(
     const processed = fetched + notFound + forbidden + rateLimited + errors;
     log(`[pull-requests] Progress: ${processed}/${validPrs.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.prs.batch", 1);
+    // Flush Sentry periodically so spans are visible during long runs
+    if (processed % 100 < adaptive.size) {
+      void Sentry.flush(5000);
+    }
   }
 
   log(`[pull-requests] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);

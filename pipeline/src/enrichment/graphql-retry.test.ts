@@ -12,7 +12,7 @@
 
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { graphqlWithRetry, isTransientNetworkError, isServerError, isRetryableError, TRANSIENT_ERROR_PATTERNS, type GraphQLResponse } from "./graphql-retry.js";
+import { graphqlWithRetry, isTransientNetworkError, isServerError, isRetryableError, isAbortError, TRANSIENT_ERROR_PATTERNS, RESPONSE_TIMEOUT_MS, type GraphQLResponse } from "./graphql-retry.js";
 import type { Octokit } from "@octokit/rest";
 
 /** Build a minimal Octokit-like object with a stubbed request method. */
@@ -24,6 +24,12 @@ const OK_RESPONSE: GraphQLResponse = {
   data: { data: { repo0: { stargazerCount: 42 } } },
   headers: { "x-ratelimit-remaining": "4999" },
 };
+
+describe("RESPONSE_TIMEOUT_MS", () => {
+  it("is set to 60 seconds", () => {
+    assert.equal(RESPONSE_TIMEOUT_MS, 60_000);
+  });
+});
 
 describe("isTransientNetworkError", () => {
   for (const pattern of TRANSIENT_ERROR_PATTERNS) {
@@ -152,6 +158,74 @@ describe("graphqlWithRetry", () => {
     assert.equal(requestFn.mock.callCount(), 3);
   });
 
+  it("aborts and retries when response exceeds timeout", async () => {
+    let calls = 0;
+    const requestFn = mock.fn(async (...args: unknown[]) => {
+      calls++;
+      if (calls === 1) {
+        const options = args[1] as { request?: { signal?: AbortSignal } } | undefined;
+        // Simulate a slow response — wait until the signal aborts
+        return new Promise((_resolve, reject) => {
+          const signal = options?.request?.signal;
+          if (signal) {
+            signal.addEventListener("abort", () => {
+              reject(new DOMException("The operation was aborted", "AbortError"));
+            });
+          }
+        });
+      }
+      return OK_RESPONSE;
+    });
+    const octokit = makeOctokit(requestFn);
+
+    // Use a very short timeout (50ms) for testing
+    const result = await graphqlWithRetry(octokit, "query {}", "test-timeout", 50);
+
+    assert.deepStrictEqual(result.data, OK_RESPONSE.data);
+    assert.equal(requestFn.mock.callCount(), 2);
+  });
+
+  it("exhausts retries on persistent timeout", async () => {
+    const requestFn = mock.fn(async (...args: unknown[]) => {
+      const options = args[1] as { request?: { signal?: AbortSignal } } | undefined;
+      return new Promise((_resolve, reject) => {
+        const signal = options?.request?.signal;
+        if (signal) {
+          signal.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted", "AbortError"));
+          });
+        }
+      });
+    });
+    const octokit = makeOctokit(requestFn);
+
+    await assert.rejects(
+      () => graphqlWithRetry(octokit, "query {}", "test-timeout-exhaust", 50),
+      (err: unknown) => {
+        assert.equal(isAbortError(err), true);
+        return true;
+      },
+    );
+
+    // 3 attempts total
+    assert.equal(requestFn.mock.callCount(), 3);
+  });
+
+  it("passes signal to octokit request options", async () => {
+    let receivedSignal: AbortSignal | undefined;
+    const requestFn = mock.fn(async (...args: unknown[]) => {
+      const options = args[1] as { request?: { signal?: AbortSignal } } | undefined;
+      receivedSignal = options?.request?.signal;
+      return OK_RESPONSE;
+    });
+    const octokit = makeOctokit(requestFn);
+
+    await graphqlWithRetry(octokit, "query {}", "test-signal");
+
+    assert.ok(receivedSignal, "Signal should be passed to request");
+    assert.ok(receivedSignal instanceof AbortSignal, "Should be an AbortSignal");
+  });
+
   it("retries different transient errors across attempts", async () => {
     const errors = ["ECONNRESET", "ETIMEDOUT"];
     let calls = 0;
@@ -276,6 +350,36 @@ describe("isServerError", () => {
   });
 });
 
+describe("isAbortError", () => {
+  it("detects DOMException with AbortError name", () => {
+    const err = new DOMException("The operation was aborted", "AbortError");
+    assert.equal(isAbortError(err), true);
+  });
+
+  it("detects Error with AbortError name", () => {
+    const err = new Error("aborted");
+    err.name = "AbortError";
+    assert.equal(isAbortError(err), true);
+  });
+
+  it("does NOT match on message alone (avoids ClickHouse 'Query was aborted')", () => {
+    assert.equal(isAbortError(new Error("The request was aborted")), false);
+    assert.equal(isAbortError(new Error("Query was aborted")), false);
+  });
+
+  it("returns false for non-abort errors", () => {
+    assert.equal(isAbortError(new Error("ECONNRESET")), false);
+    assert.equal(isAbortError(new Error("Bad credentials")), false);
+  });
+});
+
+describe("isServerError with abort errors", () => {
+  it("treats abort errors as server errors (for adaptive batch reduction)", () => {
+    const err = new DOMException("The operation was aborted", "AbortError");
+    assert.equal(isServerError(err), true);
+  });
+});
+
 describe("isRetryableError", () => {
   it("returns true for transient network errors", () => {
     assert.equal(isRetryableError(new Error("read ECONNRESET")), true);
@@ -283,6 +387,11 @@ describe("isRetryableError", () => {
 
   it("returns true for server errors", () => {
     assert.equal(isRetryableError(Object.assign(new Error("Bad Gateway"), { status: 502 })), true);
+  });
+
+  it("returns true for abort errors", () => {
+    const err = new DOMException("The operation was aborted", "AbortError");
+    assert.equal(isRetryableError(err), true);
   });
 
   it("returns false for other errors", () => {
