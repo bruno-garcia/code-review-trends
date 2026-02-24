@@ -106,7 +106,7 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 
 14. **Separate data sourcing from rendering.** The app reads from ClickHouse and never talks to BigQuery or GitHub directly. The pipeline writes to ClickHouse and never serves web requests. This clean boundary lets each part be developed and tested independently.
 
-15. **Never edit existing migration files.** Files in `db/init/` that have been committed to `main` are immutable. Schema changes or new reference data must be introduced as new numbered files (e.g., `003_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged.
+15. **Never edit existing migration files.** Files in `db/init/` that have been committed to `main` are immutable. Schema changes or new reference data must be introduced as new numbered files (e.g., `003_add_column.sql`). This ensures migrations are safe to replay and that remote databases already running earlier files aren't silently diverged. **One exception:** `002_bot_data.sql` uses TRUNCATE + INSERT and is designed to be edited in place when adding new bots — it's reference data, not a schema migration.
 
 16. **GH Archive has known data gaps.** Two upstream issues affect our data: (a) Since May 24, 2025, GH Archive captures ~35% fewer events due to a server-side change at GitHub ([gharchive.org#310](https://github.com/igrigorik/gharchive.org/issues/310), open). (b) Oct 9–14, 2025 was a near-total outage (~99% event loss) caused by a GitHub Events API caching bug ([gharchive.org#312](https://github.com/igrigorik/gharchive.org/issues/312), closed). Both affect bot and human counts proportionally, so AI Share percentages remain approximately correct, but absolute volume charts show visible dips. We do not interpolate or estimate missing data. See the [Methodology page](/about#data-gaps) for details.
 
@@ -189,13 +189,33 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 
 ## Adding a New Bot
 
-1. Add an entry to `pipeline/src/bots.ts`.
-2. Add a new migration file in `db/init/` (e.g., `015_new_bot.sql`) with the product, bot, and bot_login INSERT statements.
-3. Run `npm run pipeline -- sync-bots` to push to local ClickHouse for testing.
-4. Run `npm run pipeline -- generate-compare-pairs` to regenerate pair comparisons.
-5. For remote databases, run `npm run pipeline -- migrate --stack staging`.
-6. The UI picks it up automatically — no app code changes needed.
-7. Run the pipeline to backfill data for the new bot.
+### Research
+1. **Verify activity in BigQuery.** Use `queryReviewActivityByLogins` or `discover-bots` to confirm the bot has meaningful review activity in GH Archive. Check monthly trends to see if activity is growing or declining.
+2. **Research the product.** Visit the product website and docs. Write descriptions based on what makes the product's approach to code review distinctive (see the About page — descriptions are AI-generated based on public research).
+3. **Get GitHub bot details.** Use `gh api /users/<login>` to get the `id`, `login`, and `avatar_url`. For GitHub Apps, the avatar URL format is `https://avatars.githubusercontent.com/in/<app_id>?v=4`.
+
+### Code changes (all must stay in sync — the test suite validates consistency)
+4. **Add product + bot entries to `pipeline/src/bots.ts`.** This is the source of truth. Add a `ProductDefinition` (if new product) and `BotDefinition`. For products with multiple bot accounts, add multiple bot entries with the same `product_id`, or use `additional_logins` for alternate logins of the same bot.
+5. **Add `PRODUCT_FOCUS` entry in `pipeline/src/tools/generate-compare-pairs.ts`.** A concise phrase (not a sentence) describing what makes this product's code review approach distinctive. Required for every product — the generator validates this.
+6. **Update `db/init/002_bot_data.sql`.** Add the new product/bot/bot_login INSERT rows. This file uses TRUNCATE + INSERT so it's idempotent. Must exactly match `bots.ts` — the test suite checks this.
+7. **Update test assertions in `pipeline/src/bots.test.ts`.** Update the bot count (`has N bots`), product count (`has N products`), and if applicable, multi-bot product counts.
+
+### Generate, sync, and verify
+8. **Generate compare pairs:** `npm run pipeline -- generate-compare-pairs` — regenerates `app/src/lib/generated/compare-pairs.ts` with all C(n,2) product pair combinations.
+9. **Run tests:** `npm test --workspace=pipeline` — validates bots.ts ↔ SQL consistency, compare pairs, and registry integrity.
+10. **Sync to local ClickHouse:** `npm run pipeline -- sync-bots` — pushes product/bot/bot_login data to your local DB.
+
+### Data population
+11. **Backfill historical data:** `npm run pipeline -- backfill` — fetches weekly review counts from BigQuery.
+12. **Discover PR events:** `npm run pipeline -- discover` — finds individual PRs the bot touched.
+13. **Enrich metadata:** `npm run pipeline -- enrich` — fetches repo/PR/comment details from GitHub API.
+14. **For remote databases:** `npm run pipeline -- migrate --stack staging` (or `--stack prod`).
+
+### What's automatic (no manual steps needed)
+- **OG images** — dynamically generated at request time from ClickHouse data. New products get OG images automatically once data exists.
+- **Sitemap** — auto-generates from products table.
+- **Product pages** — rendered from ClickHouse, no app code changes needed.
+- **Compare pages** — all pairs generated in step 8.
 
 ## Managing Remote Databases
 

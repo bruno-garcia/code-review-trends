@@ -32,42 +32,54 @@ INSERT INTO code_review_trends.products (id, name, website, description, docs_ur
     ('mesa', 'Mesa', 'https://mesa.dev', 'AI-powered development workflow platform. Automates code review as part of a broader CI/CD integration, providing feedback on code quality, testing, and deployment readiness.', 'https://docs.mesa.dev', '#c06a33', 'https://avatars.githubusercontent.com/in/1050077?v=4'),
     ('linearb', 'LinearB', 'https://linearb.io', 'Developer workflow platform with gitStream automation and AI-powered code review. Automates PR routing, reviewer assignment, and provides workflow metrics for engineering teams.', 'https://linearb.io/docs', '#a37ce2', 'https://avatars.githubusercontent.com/in/1658443?v=4'),
     ('augment', 'Augment Code', 'https://augmentcode.com', 'AI coding assistant with automated PR review. Understands your codebase context to provide relevant feedback. Designed for enterprise teams with support for private codebases and custom guidelines.', 'https://docs.augmentcode.com', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4'),
-    ('kodus', 'Kodus', 'https://kodus.io', 'AI code reviewer that analyzes pull requests like a senior developer. Provides actionable suggestions, identifies bugs, and enforces coding standards. Open-source with cloud and self-hosted options.', 'https://docs.kodus.io', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4');
+    ('kodus', 'Kodus', 'https://kodus.io', 'AI code reviewer that analyzes pull requests like a senior developer. Provides actionable suggestions, identifies bugs, and enforces coding standards. Open-source with cloud and self-hosted options.', 'https://docs.kodus.io', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4'),
+    ('amazon-q', 'Amazon Q Developer', 'https://aws.amazon.com/q/developer/', 'AWS''s generative AI assistant for software development. Reviews PRs for bugs, security vulnerabilities, and best practices. Deeply integrated with the AWS ecosystem — understands IAM policies, CloudFormation templates, and AWS SDK patterns.', 'https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/what-is.html', '#232F3E', 'https://avatars.githubusercontent.com/in/1220912?v=4'),
+    ('codacy', 'Codacy', 'https://www.codacy.com', 'Automated code quality and security platform analyzing PRs since 2012. Combines static analysis, security scanning (SAST/DAST), and AI-powered review across 40+ languages with end-to-end DevSecOps coverage.', 'https://docs.codacy.com', '#242C33', 'https://avatars.githubusercontent.com/in/56611?v=4'),
+    ('qlty', 'Qlty', 'https://qlty.sh', 'Code quality platform spun out from Code Climate in 2024. Automates PR review with linting, formatting, security scanning, complexity analysis, and AI-generated autofix suggestions. No CI setup required.', 'https://qlty.sh/docs', '#6366F1', 'https://avatars.githubusercontent.com/in/890766?v=4'),
+    ('codeclimate', 'Code Climate', 'https://codeclimate.com', 'Pioneering automated code review platform founded in 2011. Now focused on Software Engineering Intelligence (SEI). Original quality product was spun out as Qlty Software in 2024.', 'https://codeclimate.com/quality/docs', '#1E293B', 'https://avatars.githubusercontent.com/u/789641?v=4'),
+    ('kilo', 'Kilo Review', 'https://kilocode.ai', 'AI code review bot from Kilo Code. Fast-growing newcomer reviewing PRs for bugs and code quality issues with rapidly accelerating adoption since late 2025.', 'https://kilocode.ai/docs', '#000000', 'https://avatars.githubusercontent.com/in/2193792?v=4');
 
 -- Bots
 
 TRUNCATE TABLE IF EXISTS code_review_trends.bots;
 
-INSERT INTO code_review_trends.bots (id, name, product_id, website, description, brand_color, avatar_url) VALUES
-    ('coderabbit', 'CodeRabbit', 'coderabbit', 'https://coderabbit.ai', 'AI-first code review agent. Auto-summarizes PRs, provides line-by-line feedback, and learns from your preferences over time.', '#f97316', 'https://avatars.githubusercontent.com/in/347564?v=4'),
-    ('copilot', 'GitHub Copilot', 'copilot', 'https://github.com/features/copilot', 'GitHub''s native AI pair programmer. Provides inline code review suggestions directly in the PR UI.', '#58a6ff', 'https://avatars.githubusercontent.com/in/946600?v=4'),
-    ('codescene', 'CodeScene', 'codescene', 'https://codescene.com', 'Behavioral code analysis platform. Identifies code health, complexity hotspots, and technical debt.', '#5f72ee', 'https://avatars.githubusercontent.com/in/53921?v=4'),
-    ('sourcery', 'Sourcery', 'sourcery', 'https://sourcery.ai', 'AI code reviewer focused on code quality, refactoring suggestions, and coding standards enforcement.', '#65a30d', 'https://avatars.githubusercontent.com/in/48477?v=4'),
-    ('ellipsis', 'Ellipsis', 'ellipsis', 'https://ellipsis.dev', 'AI-powered code review and bug detection with configurable rules and custom prompts.', '#06b6d4', 'https://avatars.githubusercontent.com/in/64358?v=4'),
-    ('codium-pr-agent', 'Qodo (CodiumAI PR Agent)', 'qodo', 'https://qodo.ai', 'Legacy CodiumAI PR agent, now part of Qodo. Generates tests and reviews PRs for code integrity.', '#9d75f8', 'https://avatars.githubusercontent.com/u/54746889?v=4'),
-    ('qodo-merge', 'Qodo Merge', 'qodo', 'https://qodo.ai', 'Qodo''s AI-powered pull request merge assistant with test generation and code integrity checks.', '#9d75f8', 'https://avatars.githubusercontent.com/u/104026966?v=4'),
-    ('qodo-merge-pro', 'Qodo Merge Pro', 'qodo', 'https://qodo.ai', 'Qodo''s premium AI agent for code integrity — reviews, tests, and suggestions.', '#9d75f8', 'https://avatars.githubusercontent.com/in/484649?v=4'),
-    ('qodo-ai', 'Qodo AI', 'qodo', 'https://qodo.ai', 'Qodo''s latest AI code review bot. Successor to qodo-merge and qodo-merge-pro.', '#9d75f8', 'https://avatars.githubusercontent.com/in/1420315?v=4'),
-    ('greptile', 'Greptile', 'greptile', 'https://greptile.com', 'Codebase-aware AI code review. Indexes your entire repo for context-rich feedback.', '#22c55e', 'https://avatars.githubusercontent.com/in/867647?v=4'),
-    ('sentry', 'Sentry', 'sentry', 'https://sentry.io', 'Sentry''s GitHub bot for issue linking, error tracking, and code review integration.', '#9589c4', 'https://avatars.githubusercontent.com/u/1396951?v=4'),
-    ('seer-by-sentry', 'Seer by Sentry', 'sentry', 'https://sentry.io', 'Sentry''s AI agent for automated root cause analysis and error triage on PRs.', '#9589c4', 'https://avatars.githubusercontent.com/in/801464?v=4'),
-    ('codecov-ai', 'Codecov AI', 'sentry', 'https://codecov.io', 'Codecov''s AI-powered code review for test coverage insights and regression detection.', '#9589c4', 'https://avatars.githubusercontent.com/in/797565?v=4'),
-    ('baz', 'Baz', 'baz', 'https://baz.co', 'AI code reviewer focused on catching real bugs before merge with minimal noise.', '#39FF14', 'https://avatars.githubusercontent.com/in/933528?s=60&v=4'),
-    ('graphite', 'Graphite', 'graphite', 'https://graphite.dev', 'Developer productivity platform with stacked PRs, merge queues, and AI-assisted code review.', '#5b8ef0', 'https://avatars.githubusercontent.com/in/158384?v=4'),
-    ('codeant', 'CodeAnt', 'codeant', 'https://codeant.ai', 'AI code review and static analysis. Catches bugs, anti-patterns, and security issues across 30+ languages.', '#a855f7', 'https://avatars.githubusercontent.com/in/646884?v=4'),
-    ('windsurf', 'Windsurf', 'windsurf', 'https://windsurf.com', 'AI-powered development platform (formerly Codeium). IDE-first with deep codebase-aware PR reviews.', '#0d9488', 'https://avatars.githubusercontent.com/in/1066231?v=4'),
-    ('cubic', 'Cubic', 'cubic', 'https://cubic.dev', 'AI development assistant with automated code review and improvement suggestions.', '#edc00c', 'https://avatars.githubusercontent.com/in/1082092?v=4'),
-    ('cursor', 'Cursor Bugbot', 'cursor', 'https://cursor.com', 'PR review feature from Cursor AI editor. Scans PRs for potential bugs and suggests fixes.', '#e84e4e', 'https://avatars.githubusercontent.com/in/1210556?v=4'),
-    ('gemini', 'Gemini Code Assist', 'gemini', 'https://cloud.google.com/gemini/docs/codeassist/overview', 'Google''s AI code assistant. Reviews PRs with suggestions for improvements, security fixes, and best practices.', '#ec4899', 'https://avatars.githubusercontent.com/in/956858?v=4'),
-    ('bito', 'Bito', 'bito', 'https://bito.ai', 'AI code review powered by LLMs. Provides PR summaries, security analysis, and performance suggestions.', '#94a3b8', 'https://avatars.githubusercontent.com/in/1061978?v=4'),
-    ('korbit', 'Korbit', 'korbit', 'https://korbit.ai', 'AI code review mentor. Provides educational feedback that helps developers learn best practices during review.', '#b07838', 'https://avatars.githubusercontent.com/in/322216?v=4'),
-    ('claude', 'Claude', 'claude', 'https://claude.ai', 'Anthropic''s AI assistant with GitHub integration. Provides in-depth code review with strong reasoning capabilities.', '#FF9F1C', 'https://avatars.githubusercontent.com/in/1236702?v=4'),
-    ('openai-codex', 'OpenAI Codex', 'openai-codex', 'https://openai.com/codex', 'OpenAI''s cloud-based coding agent. Runs in a sandbox to write code, fix bugs, and review PRs asynchronously.', '#808080', 'https://avatars.githubusercontent.com/in/1144995?s=60&v=4'),
-    ('mesa', 'Mesa', 'mesa', 'https://mesa.dev', 'AI-powered development workflow platform with integrated code review and CI/CD automation.', '#c06a33', 'https://avatars.githubusercontent.com/in/1050077?v=4'),
-    ('gitstream', 'gitStream', 'linearb', 'https://linearb.io', 'LinearB''s gitStream workflow automation bot. Automates PR routing and continuous merge management.', '#a37ce2', 'https://avatars.githubusercontent.com/ml/13414?v=4'),
-    ('linearb', 'LinearB', 'linearb', 'https://linearb.io', 'LinearB''s GitHub bot for dev workflow insights, metrics, and AI-powered code review.', '#a37ce2', 'https://avatars.githubusercontent.com/in/1658443?v=4'),
-    ('augment', 'Augment Code', 'augment', 'https://augmentcode.com', 'AI coding assistant with codebase-aware PR review. Designed for enterprise teams with private codebases.', '#968CFF', 'https://avatars.githubusercontent.com/in/1027498?v=4'),
-    ('kodus', 'Kody AI', 'kodus', 'https://kodus.io', 'Kodus AI code reviewer. Automatically analyzes PRs with actionable suggestions and bug detection.', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4');
+-- Display fields (website, description, brand_color, avatar_url) live on the products table.
+-- Bots only store identity and product linkage.
+INSERT INTO code_review_trends.bots (id, name, product_id) VALUES
+    ('coderabbit', 'CodeRabbit', 'coderabbit'),
+    ('copilot', 'GitHub Copilot', 'copilot'),
+    ('codescene', 'CodeScene', 'codescene'),
+    ('sourcery', 'Sourcery', 'sourcery'),
+    ('ellipsis', 'Ellipsis', 'ellipsis'),
+    ('codium-pr-agent', 'Qodo (CodiumAI PR Agent)', 'qodo'),
+    ('qodo-merge', 'Qodo Merge', 'qodo'),
+    ('qodo-merge-pro', 'Qodo Merge Pro', 'qodo'),
+    ('qodo-ai', 'Qodo AI', 'qodo'),
+    ('greptile', 'Greptile', 'greptile'),
+    ('sentry', 'Sentry', 'sentry'),
+    ('seer-by-sentry', 'Seer by Sentry', 'sentry'),
+    ('codecov-ai', 'Codecov AI', 'sentry'),
+    ('baz', 'Baz', 'baz'),
+    ('graphite', 'Graphite', 'graphite'),
+    ('codeant', 'CodeAnt', 'codeant'),
+    ('windsurf', 'Windsurf', 'windsurf'),
+    ('cubic', 'Cubic', 'cubic'),
+    ('cursor', 'Cursor Bugbot', 'cursor'),
+    ('gemini', 'Gemini Code Assist', 'gemini'),
+    ('bito', 'Bito', 'bito'),
+    ('korbit', 'Korbit', 'korbit'),
+    ('claude', 'Claude', 'claude'),
+    ('openai-codex', 'OpenAI Codex', 'openai-codex'),
+    ('mesa', 'Mesa', 'mesa'),
+    ('gitstream', 'gitStream', 'linearb'),
+    ('linearb', 'LinearB', 'linearb'),
+    ('augment', 'Augment Code', 'augment'),
+    ('kodus', 'Kody AI', 'kodus'),
+    ('amazon-q', 'Amazon Q Developer', 'amazon-q'),
+    ('codacy', 'Codacy', 'codacy'),
+    ('qlty', 'Qlty', 'qlty'),
+    ('codeclimate', 'Code Climate', 'codeclimate'),
+    ('kilo', 'Kilo Review', 'kilo');
 
 -- Bot logins (GitHub usernames)
 
@@ -103,5 +115,10 @@ INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
     ('gitstream', 'gitstream-cm[bot]'),
     ('linearb', 'linearb[bot]'),
     ('augment', 'augmentcode[bot]'),
-    ('kodus', 'kody-ai[bot]');
+    ('kodus', 'kody-ai[bot]'),
+    ('amazon-q', 'amazon-q-developer[bot]'),
+    ('codacy', 'codacy-production[bot]'),
+    ('qlty', 'qltysh[bot]'),
+    ('codeclimate', 'codeclimate[bot]'),
+    ('kilo', 'kiloconnect[bot]');
 
