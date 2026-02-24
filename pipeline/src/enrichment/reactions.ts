@@ -105,17 +105,26 @@ export async function enrichReactions(
     try {
       const results = await fetchReactionsBatch(octokit, rateLimiter, batch);
 
-      const sentinels: { repo_name: string; pr_number: number }[] = [];
+      const sentinels: { repo_name: string; pr_number: number; scan_status: string }[] = [];
       const reactionRows: PrBotReactionRow[] = [];
 
       for (const result of results) {
         if (!result.scanned) {
-          if (result.error === "repo_not_found") skipped++;
-          else errors++;
+          if (result.error === "repo_not_found") {
+            // Repo is gone/private — this is permanent, record sentinel so we don't retry forever
+            sentinels.push({ repo_name: result.input.repo_name, pr_number: result.input.pr_number, scan_status: "not_found" });
+            skipped++;
+          } else if (result.error === "reactions_unavailable") {
+            // PR exists but reactions field missing (SPAMMY content, field-level error) — permanent
+            sentinels.push({ repo_name: result.input.repo_name, pr_number: result.input.pr_number, scan_status: "unavailable" });
+            errors++;
+          } else {
+            errors++;
+          }
           continue;
         }
 
-        sentinels.push({ repo_name: result.input.repo_name, pr_number: result.input.pr_number });
+        sentinels.push({ repo_name: result.input.repo_name, pr_number: result.input.pr_number, scan_status: "ok" });
         scanned++;
 
         if (result.hasMore) {

@@ -164,7 +164,7 @@ describe("buildResults", () => {
     assert.equal(results[0].scanned, true);
     assert.equal(results[0].error, undefined);
 
-    // PR 2: marked as not scanned with specific error (will be retried)
+    // PR 2: marked as not scanned with specific error (sentinel still written to avoid infinite retry)
     assert.equal(results[1].scanned, false);
     assert.equal(results[1].error, "reactions_unavailable");
     assert.equal(results[1].reactions.length, 0);
