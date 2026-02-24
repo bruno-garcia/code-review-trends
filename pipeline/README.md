@@ -339,15 +339,18 @@ GitHub API rate limits. All steps are idempotent — safe to interrupt and resum
 
 ### Step 1: Apply schema and reference data
 
+All commands require `--env` (the runtime environment: `development`, `staging`, or
+`production`). For commands that don't need Sentry observability, add `--no-sentry`.
+
 ```bash
 # Remote database (reads creds from Pulumi)
-npm run pipeline -- migrate --stack staging
+npm run pipeline -- migrate --env staging --stack staging --no-sentry
 
 # Local database
-npm run pipeline -- migrate --local
+npm run pipeline -- migrate --env development --local --no-sentry
 
 # Preview what would be applied
-npm run pipeline -- migrate --stack staging --dry-run
+npm run pipeline -- migrate --env staging --stack staging --no-sentry --dry-run
 ```
 
 This runs all `db/init/*.sql` files (schema, bot data, materialized views) and
@@ -442,15 +445,18 @@ skip stages above 70% complete to focus effort where it's most needed.
 
 **Using CLI directly:**
 
+When running outside `workers.sh`, you need to provide a Sentry DSN (via
+`--sentry-dsn` or `SENTRY_DSN_CRT_CLI` env var) or disable it with `--no-sentry`:
+
 ```bash
 # Single worker
-GITHUB_TOKEN=... npm run pipeline -- enrich --env staging --limit 50000
+GITHUB_TOKEN=... npm run pipeline -- enrich --env staging --limit 50000 --no-sentry
 
 # Parallel workers (each needs a different token)
-GITHUB_TOKEN=$TOKEN_A npm run pipeline -- enrich --env staging --limit 50000 --worker-id 0 --total-workers 4 &
-GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --env staging --limit 50000 --worker-id 1 --total-workers 4 &
-GITHUB_TOKEN=$TOKEN_C npm run pipeline -- enrich --env staging --limit 50000 --worker-id 2 --total-workers 4 &
-GITHUB_TOKEN=$TOKEN_D npm run pipeline -- enrich --env staging --limit 50000 --worker-id 3 --total-workers 4 &
+GITHUB_TOKEN=$TOKEN_A npm run pipeline -- enrich --env staging --limit 50000 --no-sentry --worker-id 0 --total-workers 4 &
+GITHUB_TOKEN=$TOKEN_B npm run pipeline -- enrich --env staging --limit 50000 --no-sentry --worker-id 1 --total-workers 4 &
+GITHUB_TOKEN=$TOKEN_C npm run pipeline -- enrich --env staging --limit 50000 --no-sentry --worker-id 2 --total-workers 4 &
+GITHUB_TOKEN=$TOKEN_D npm run pipeline -- enrich --env staging --limit 50000 --no-sentry --worker-id 3 --total-workers 4 &
 ```
 
 **Scaling tips:**
