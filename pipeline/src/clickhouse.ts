@@ -452,9 +452,11 @@ export async function insertPrBotReactions(
  * Column defaults to 'unknown' in the DB (for pre-existing rows), but pipeline
  * code must always pass an explicit status — never rely on the default.
  */
+export type ReactionScanStatus = "ok" | "not_found" | "unavailable";
+
 export async function insertReactionScanProgress(
   client: ClickHouseClient,
-  rows: { repo_name: string; pr_number: number; scan_status: string }[],
+  rows: { repo_name: string; pr_number: number; scan_status: ReactionScanStatus }[],
 ): Promise<void> {
   if (rows.length === 0) return;
   await client.insert({

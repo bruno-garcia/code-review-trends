@@ -15,6 +15,7 @@ import {
   insertReactionScanProgress,
   query,
   type PrBotReactionRow,
+  type ReactionScanStatus,
 } from "../clickhouse.js";
 import { log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
@@ -105,7 +106,7 @@ export async function enrichReactions(
     try {
       const results = await fetchReactionsBatch(octokit, rateLimiter, batch);
 
-      const sentinels: { repo_name: string; pr_number: number; scan_status: string }[] = [];
+      const sentinels: { repo_name: string; pr_number: number; scan_status: ReactionScanStatus }[] = [];
       const reactionRows: PrBotReactionRow[] = [];
 
       for (const result of results) {

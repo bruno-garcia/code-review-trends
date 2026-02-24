@@ -200,7 +200,7 @@ export async function enrichCombined(
           const allPrRows: import("../clickhouse.js").PullRequestRow[] = [];
           const allCommentRows: import("../clickhouse.js").PrCommentRow[] = [];
           const allReactionRows: import("../clickhouse.js").PrBotReactionRow[] = [];
-          const allScanProgress: { repo_name: string; pr_number: number; scan_status: string }[] = [];
+          const allScanProgress: { repo_name: string; pr_number: number; scan_status: import("../clickhouse.js").ReactionScanStatus }[] = [];
 
           // Track batch-local counters — only merge into outer counters
           // after bulk insert succeeds, so retries don't double-count.
