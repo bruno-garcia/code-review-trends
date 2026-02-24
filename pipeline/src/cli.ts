@@ -332,6 +332,7 @@ Options for enrich:
   --total-workers N    Total workers (default: 1)
   --limit N            Max items per entity type per run
   --priority TYPE      Start with: repos|prs|comments|reactions (default: repos)
+  --only TYPE          Run ONLY this stage: repos|prs|comments|reactions (skip all others)
   --stale-days N       Repo refresh threshold in days (default: 7)
   --exit-on-rate-limit Exit cleanly (exit 0) when rate-limited instead of sleeping
 
@@ -974,6 +975,7 @@ async function cmdEnrich() {
     limit: parseIntArg("--limit", args["--limit"]),
     staleDays: parseIntArg("--stale-days", args["--stale-days"]),
     priority: args["--priority"] as "repos" | "prs" | "comments" | "reactions" | undefined,
+    only: args["--only"] as "repos" | "prs" | "comments" | "reactions" | undefined,
     exitOnRateLimit: args["--exit-on-rate-limit"] !== undefined,
   });
 
