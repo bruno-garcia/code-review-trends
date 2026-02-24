@@ -89,13 +89,13 @@ describe("config", () => {
   it("loads worker config when set", async () => {
     setTestConfig({
       workerVpcNetwork: "external-vpc",
-      workerIp: "10.0.0.234",
+      workerIp: "10.0.0.100",
       skipArtifactRegistry: "true",
     });
     const { loadConfig } = await import("../config");
     const cfg = loadConfig();
     expect(cfg.workerVpcNetwork).toBe("external-vpc");
-    expect(cfg.workerIp).toBe("10.0.0.234");
+    expect(cfg.workerIp).toBe("10.0.0.100");
     expect(cfg.skipArtifactRegistry).toBe(true);
   });
 });
@@ -167,7 +167,7 @@ describe("firewall", () => {
   });
 
   it("creates worker firewall rule when workerIp is set", async () => {
-    setTestConfig({ workerIp: "10.0.0.234" });
+    setTestConfig({ workerIp: "10.0.0.100" });
     const { loadConfig } = await import("../config");
     const { createFirewallRules } = await import("../firewall");
     const cfg = loadConfig();
@@ -393,7 +393,7 @@ describe("clickhouse VM", () => {
   });
 
   it("startup script includes worker IP in networks when set", async () => {
-    setTestConfig({ workerIp: "10.0.0.234" });
+    setTestConfig({ workerIp: "10.0.0.100" });
     const { loadConfig } = await import("../config");
     const { createClickHouseVM } = await import("../clickhouse");
     const cfg = loadConfig();
@@ -409,7 +409,7 @@ describe("clickhouse VM", () => {
     const script = await outputValue(result.vm.metadataStartupScript);
     const s = script as string;
 
-    expect(s).toContain("<ip>10.0.0.234</ip>");
+    expect(s).toContain("<ip>10.0.0.100</ip>");
     expect(s).toContain("<ip>10.100.0.0/24</ip>");
     expect(s).toContain("<ip>127.0.0.1</ip>");
   });
