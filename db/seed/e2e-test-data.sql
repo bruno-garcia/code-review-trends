@@ -98,7 +98,20 @@ VALUES
     ('test-org/frontend', 'test-org', 5200, 'TypeScript', false, false, 'ok'),
     ('test-org/backend', 'test-org', 3100, 'Python', false, false, 'ok'),
     ('acme-corp/webapp', 'acme-corp', 8500, 'TypeScript', false, false, 'ok'),
-    ('acme-corp/api', 'acme-corp', 4200, 'Go', false, false, 'ok');
+    ('acme-corp/api', 'acme-corp', 4200, 'Go', false, false, 'ok'),
+    -- mega-org: 12 repos so it passes the ≥10 repo filter on the overview page
+    ('mega-org/repo-01', 'mega-org', 15000, 'TypeScript', false, false, 'ok'),
+    ('mega-org/repo-02', 'mega-org', 8000, 'Python', false, false, 'ok'),
+    ('mega-org/repo-03', 'mega-org', 6000, 'Go', false, false, 'ok'),
+    ('mega-org/repo-04', 'mega-org', 4500, 'Rust', false, false, 'ok'),
+    ('mega-org/repo-05', 'mega-org', 3200, 'Java', false, false, 'ok'),
+    ('mega-org/repo-06', 'mega-org', 2800, 'TypeScript', false, false, 'ok'),
+    ('mega-org/repo-07', 'mega-org', 2100, 'Python', false, false, 'ok'),
+    ('mega-org/repo-08', 'mega-org', 1500, 'Go', false, false, 'ok'),
+    ('mega-org/repo-09', 'mega-org', 1200, 'Rust', false, false, 'ok'),
+    ('mega-org/repo-10', 'mega-org', 900, 'Java', false, false, 'ok'),
+    ('mega-org/repo-11', 'mega-org', 700, 'TypeScript', false, false, 'ok'),
+    ('mega-org/repo-12', 'mega-org', 500, 'Python', false, false, 'ok');
 
 -- ============================================================
 -- 4. PR bot events (triggers MVs: pr_bot_event_counts,
