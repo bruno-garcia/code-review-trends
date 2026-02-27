@@ -225,49 +225,11 @@ describe("clickhouse query integration tests", () => {
       format: "JSONEachRow",
     });
 
-    // ClickHouse rejects OPTIMIZE TABLE FINAL with "Cancelled merging parts"
-    // when background merges are in progress. In CI, the init scripts create
-    // materialized views that trigger long-running merges, so we need to:
-    // 1. Wait for active merges to drain (up to 120s)
-    // 2. Retry each OPTIMIZE individually (merges can restart between tables)
-    async function waitForMerges(maxSeconds: number): Promise<void> {
-      for (let i = 0; i < maxSeconds; i++) {
-        const result = await ch.query({
-          query: `SELECT count() as c FROM system.merges WHERE database = currentDatabase()`,
-          format: "JSONEachRow",
-        });
-        const rows = await result.json<{ c: string }>();
-        if (rows.length === 0 || rows[0].c === "0") return;
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-    }
-
-    async function optimizeWithRetry(table: string): Promise<void> {
-      for (let attempt = 1; attempt <= 5; attempt++) {
-        try {
-          await ch.command({ query: `OPTIMIZE TABLE ${table} FINAL` });
-          return;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (attempt < 5 && msg.includes("merging")) {
-            await waitForMerges(10);
-            continue;
-          }
-          throw err;
-        }
-      }
-    }
-
-    await waitForMerges(120);
-
-    for (const table of [
-      "products", "bots", "bot_logins", "review_activity",
-      "human_review_activity", "pr_comments", "reaction_only_review_counts",
-      "repos", "pr_bot_events", "pr_bot_event_counts",
-      "pr_bot_reactions", "reaction_only_repo_counts", "pull_requests",
-    ]) {
-      await optimizeWithRetry(table);
-    }
+    // No OPTIMIZE needed: test data uses unique __test_ prefixed keys with
+    // no duplicates to deduplicate, and ClickHouse inserts are immediately
+    // visible for reads. OPTIMIZE TABLE FINAL is unreliable in CI because
+    // background merges from init-script MVs conflict with it ("Cancelled
+    // merging parts").
   });
 
   after(async () => {
