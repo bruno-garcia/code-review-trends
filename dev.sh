@@ -60,6 +60,9 @@ ensure_ports() {
         [[ -n "$caller_clickhouse_user" ]] && CLICKHOUSE_USER="$caller_clickhouse_user"
         [[ -n "$caller_clickhouse_password" ]] && CLICKHOUSE_PASSWORD="$caller_clickhouse_password"
         [[ -n "$caller_clickhouse_db" ]] && CLICKHOUSE_DB="$caller_clickhouse_db"
+        # Export Sentry vars so the Next.js child process sees them.
+        # .env.local lives at the repo root but Next.js reads from app/.
+        export SENTRY_ENVIRONMENT=development NEXT_PUBLIC_SENTRY_ENVIRONMENT=development
         export CLICKHOUSE_HTTP_PORT CLICKHOUSE_NATIVE_PORT CLICKHOUSE_URL CLICKHOUSE_USER CLICKHOUSE_PASSWORD CLICKHOUSE_DB NEXT_PORT
         return
       fi
@@ -116,6 +119,9 @@ EOF
     echo "Generated $ENV_FILE with dynamic ports"
   fi
 
+  # Export Sentry vars so the Next.js child process sees them.
+  # .env.local lives at the repo root but Next.js reads from app/.
+  export SENTRY_ENVIRONMENT=development NEXT_PUBLIC_SENTRY_ENVIRONMENT=development
   export CLICKHOUSE_HTTP_PORT CLICKHOUSE_NATIVE_PORT CLICKHOUSE_URL CLICKHOUSE_USER CLICKHOUSE_PASSWORD CLICKHOUSE_DB NEXT_PORT
 }
 
