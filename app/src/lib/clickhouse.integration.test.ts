@@ -225,23 +225,18 @@ describe("clickhouse query integration tests", () => {
       format: "JSONEachRow",
     });
 
-    // OPTIMIZE all tables (with retry — ClickHouse can transiently fail
-    // with "Cancelled merging parts" when background merges are in progress,
-    // especially in CI right after bulk inserts).
-    async function optimizeWithRetry(table: string, retries = 5): Promise<void> {
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          await ch.command({ query: `OPTIMIZE TABLE ${table} FINAL` });
-          return;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (attempt < retries && msg.includes("merging")) {
-            await new Promise((r) => setTimeout(r, 500 * attempt));
-            continue;
-          }
-          throw err;
-        }
-      }
+    // Wait for background merges to finish before OPTIMIZE.
+    // ClickHouse rejects OPTIMIZE TABLE FINAL with "Cancelled merging parts"
+    // if background merges are still in progress — common in CI right after
+    // bulk inserts into ReplacingMergeTree tables.
+    for (let i = 0; i < 30; i++) {
+      const result = await ch.query({
+        query: `SELECT count() as c FROM system.merges WHERE database = currentDatabase()`,
+        format: "JSONEachRow",
+      });
+      const rows = await result.json<{ c: string }>();
+      if (rows.length === 0 || rows[0].c === "0") break;
+      await new Promise((r) => setTimeout(r, 1000));
     }
 
     for (const table of [
@@ -250,7 +245,7 @@ describe("clickhouse query integration tests", () => {
       "repos", "pr_bot_events", "pr_bot_event_counts",
       "pr_bot_reactions", "reaction_only_repo_counts", "pull_requests",
     ]) {
-      await optimizeWithRetry(table);
+      await ch.command({ query: `OPTIMIZE TABLE ${table} FINAL` });
     }
   });
 
