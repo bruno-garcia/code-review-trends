@@ -26,7 +26,7 @@ export default async function Home() {
   const [totals, totalVolume, topOrgs, products] = await Promise.all([
     getWeeklyTotals(),
     getWeeklyTotalVolume(),
-    getTopOrgsByStars(20),
+    getTopOrgsByStars(20, 10),
     getProductSummaries(),
   ]);
 
