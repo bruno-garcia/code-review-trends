@@ -728,6 +728,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
             <Link
               key={org.owner}
               href={`/orgs/${org.owner}`}
+              data-testid={`top-org-row-${org.owner}`}
               className="flex items-center gap-2 sm:gap-4 group"
             >
               <span className="text-theme-muted text-sm w-6 text-right shrink-0 tabular-nums">
@@ -753,7 +754,7 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
                 <span className="text-sm text-theme-muted tabular-nums shrink-0 whitespace-nowrap text-right w-20">
                   ⭐ {formatNumber(stars)}
                 </span>
-                <span className="hidden sm:inline text-sm text-theme-muted/70 tabular-nums shrink-0 w-20 text-right">
+                <span className="hidden sm:inline text-sm text-theme-muted/70 tabular-nums shrink-0 w-20 text-right" data-repo-count={Number(org.repo_count)}>
                   {Number(org.repo_count)} {Number(org.repo_count) === 1 ? "repo" : "repos"}
                 </span>
               </div>

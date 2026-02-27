@@ -61,6 +61,24 @@ test.describe("Home page", () => {
     await expect(page.getByTestId("top-orgs-chart")).toBeVisible();
   });
 
+  test("top organizations all have at least 10 repos", async ({ page }) => {
+    await page.goto("/");
+    const chart = page.getByTestId("top-orgs-chart");
+    await expect(chart).toBeVisible();
+
+    // Each org row has a data-repo-count attribute with the numeric count
+    const repoCounts = chart.locator("[data-repo-count]");
+    const count = await repoCounts.count();
+    expect(count).toBeGreaterThan(0);
+
+    for (let i = 0; i < count; i++) {
+      const repoCount = Number(
+        await repoCounts.nth(i).getAttribute("data-repo-count"),
+      );
+      expect(repoCount).toBeGreaterThanOrEqual(10);
+    }
+  });
+
   test("shows data import status when enrichment is incomplete", async ({ page }) => {
     await page.goto("/");
     // data-import-status is conditionally rendered in the layout footer

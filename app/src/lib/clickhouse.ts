@@ -656,15 +656,16 @@ export type OrgByStars = {
   repo_count: number;
 };
 
-export async function getTopOrgsByStars(limit?: number): Promise<OrgByStars[]> {
+export async function getTopOrgsByStars(limit?: number, minRepos?: number): Promise<OrgByStars[]> {
   return query<OrgByStars>(
     `SELECT owner, sum(stars) AS total_stars, count() AS repo_count
      FROM repos
      WHERE fetch_status = 'ok'
      GROUP BY owner
+     HAVING repo_count >= {minRepos:UInt32}
      ORDER BY total_stars DESC
      LIMIT {limit:UInt32}`,
-    { limit: limit ?? 50 },
+    { limit: limit ?? 50, minRepos: minRepos ?? 1 },
   );
 }
 
