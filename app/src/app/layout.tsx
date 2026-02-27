@@ -130,8 +130,12 @@ export default async function RootLayout({
                     <ThemeToggle />
                   </div>
                   {/* Nav links: w-full forces row 2 on mobile, inline on desktop */}
-                  <div className="flex items-center gap-3 sm:gap-6 text-sm text-nav-link overflow-x-auto w-full sm:w-auto sm:ml-auto">
-                    <NavLinks />
+                  <div className="relative w-full sm:w-auto sm:ml-auto">
+                    <div className="flex items-center gap-3 sm:gap-6 text-sm text-nav-link overflow-x-auto scrollbar-none pr-8 sm:pr-0">
+                      <NavLinks />
+                    </div>
+                    {/* Fade hint on right edge — mobile only */}
+                    <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-theme-nav to-transparent sm:hidden" aria-hidden="true" />
                   </div>
                 </div>
               </div>

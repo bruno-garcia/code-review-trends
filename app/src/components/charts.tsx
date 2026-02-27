@@ -88,13 +88,13 @@ function ToggleGroup({
   testId?: string;
 }) {
   return (
-    <div className="flex gap-1 mb-4" data-testid={testId}>
+    <div className="flex flex-wrap gap-1 mb-4" data-testid={testId}>
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+          className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
             value === opt.value
               ? "bg-violet-600 text-white"
               : "bg-theme-border text-theme-muted hover:text-theme-text"

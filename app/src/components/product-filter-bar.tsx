@@ -202,8 +202,8 @@ export function ProductFilterBar() {
 
         {/* Expanded picker */}
         <div
-          className={`overflow-hidden transition-all duration-200 ${
-            expanded ? "max-h-[500px] opacity-100 pb-4" : "max-h-0 opacity-0"
+          className={`transition-all duration-200 ${
+            expanded ? "max-h-[80vh] overflow-y-auto opacity-100 pb-4" : "max-h-0 overflow-hidden opacity-0"
           }`}
         >
           <div data-testid="product-filter-picker">
