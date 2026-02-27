@@ -225,15 +225,11 @@ describe("clickhouse query integration tests", () => {
       format: "JSONEachRow",
     });
 
-    // OPTIMIZE all tables
-    for (const table of [
-      "products", "bots", "bot_logins", "review_activity",
-      "human_review_activity", "pr_comments", "reaction_only_review_counts",
-      "repos", "pr_bot_events", "pr_bot_event_counts",
-      "pr_bot_reactions", "reaction_only_repo_counts", "pull_requests",
-    ]) {
-      await ch.command({ query: `OPTIMIZE TABLE ${table} FINAL` });
-    }
+    // No OPTIMIZE needed: test data uses unique __test_ prefixed keys with
+    // no duplicates to deduplicate, and ClickHouse inserts are immediately
+    // visible for reads. OPTIMIZE TABLE FINAL is unreliable in CI because
+    // background merges from init-script MVs conflict with it ("Cancelled
+    // merging parts").
   });
 
   after(async () => {
