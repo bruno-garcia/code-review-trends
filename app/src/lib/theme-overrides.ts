@@ -19,6 +19,30 @@ type ThemeOverride = {
 };
 
 const THEME_OVERRIDES: Record<string, ThemeOverride> = {
+  "amazon-q": {
+    // Default #232F3E (AWS navy) is invisible on dark backgrounds
+    brand_color_dark: "#5da0c8",
+  },
+  codacy: {
+    // Default #242C33 is nearly black — invisible on dark backgrounds
+    brand_color_dark: "#78a0a8",
+  },
+  codeclimate: {
+    // Default #1E293B (dark slate) is invisible on dark backgrounds
+    brand_color_dark: "#6b8baf",
+  },
+  kilo: {
+    // Default #000000 is pure black — invisible on dark backgrounds
+    brand_color_dark: "#b0b0b0",
+  },
+  kodus: {
+    // Default #6C63FF is borderline readable on dark backgrounds
+    brand_color_dark: "#6570ff",
+  },
+  qlty: {
+    // Default #6366F1 lacks contrast on dark backgrounds
+    brand_color_dark: "#5085fa",
+  },
   copilot: {
     // DB may still have old #e5e7eb (invisible on white). Force GitHub blue on light.
     brand_color_light: "#58a6ff",

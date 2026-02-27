@@ -29,4 +29,10 @@ export const BRAND_COLORS: { name: string; color: string }[] = [
   { name: "Mesa", color: "#c06a33" },
   { name: "LinearB", color: "#a37ce2" },
   { name: "Augment Code", color: "#968CFF" },
+  { name: "Kodus", color: "#6570ff" },
+  { name: "Amazon Q Developer", color: "#5da0c8" },
+  { name: "Codacy", color: "#78a0a8" },
+  { name: "Qlty", color: "#5085fa" },
+  { name: "Code Climate", color: "#6b8baf" },
+  { name: "Kilo Review", color: "#b0b0b0" },
 ];
