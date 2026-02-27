@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { COLORS } from "./colors.js";
 import { THEME_COLORS, TEXT_BACKGROUND_COLORS } from "./theme.js";
 import { BRAND_COLORS } from "./brand-colors.js";
+import { getThemedBrandColor } from "./theme-overrides.js";
 
 // --- sRGB → CIELAB conversion ---
 
@@ -131,16 +132,21 @@ describe("Chart color conflicts", () => {
 });
 
 describe("Brand color text readability", () => {
-  for (const { name, color } of BRAND_COLORS) {
+  // The dark-theme backgrounds are the primary concern for readability.
+  // Apply getThemedBrandColor() so the test validates the full pipeline:
+  // raw bots.ts color → theme override → displayed color → readable on screen.
+  // This catches products with dark brand colors that lack a theme override.
+  for (const { id, name, color } of BRAND_COLORS) {
     for (const bgColor of TEXT_BACKGROUND_COLORS) {
-      it(`${name} (${color}) is readable on ${bgColor}`, () => {
-        const ratio = contrastRatio(color, bgColor);
+      const displayed = getThemedBrandColor(id, color, "dark");
+      it(`${name} (${displayed}) is readable on ${bgColor}`, () => {
+        const ratio = contrastRatio(displayed, bgColor);
         assert.ok(
           ratio >= MIN_CONTRAST_RATIO,
-          `${name}'s brand color ${color} has insufficient contrast against ` +
+          `${name}'s brand color ${displayed} (raw: ${color}, id: ${id}) has insufficient contrast against ` +
           `background ${bgColor} (ratio = ${ratio.toFixed(2)}, ` +
           `minimum = ${MIN_CONTRAST_RATIO}). ` +
-          `Choose a lighter/brighter color that maintains WCAG AA readability.`,
+          `Add a brand_color_dark override in theme-overrides.ts.`,
         );
       });
     }
@@ -149,11 +155,13 @@ describe("Brand color text readability", () => {
   it("brand colors are mutually distinguishable", () => {
     for (let i = 0; i < BRAND_COLORS.length; i++) {
       for (let j = i + 1; j < BRAND_COLORS.length; j++) {
-        const dist = deltaE(BRAND_COLORS[i].color, BRAND_COLORS[j].color);
+        const ci = getThemedBrandColor(BRAND_COLORS[i].id, BRAND_COLORS[i].color, "dark");
+        const cj = getThemedBrandColor(BRAND_COLORS[j].id, BRAND_COLORS[j].color, "dark");
+        const dist = deltaE(ci, cj);
         assert.ok(
           dist >= 10,
-          `Brand colors for ${BRAND_COLORS[i].name} (${BRAND_COLORS[i].color}) and ` +
-          `${BRAND_COLORS[j].name} (${BRAND_COLORS[j].color}) are too similar ` +
+          `Brand colors for ${BRAND_COLORS[i].name} (${ci}) and ` +
+          `${BRAND_COLORS[j].name} (${cj}) are too similar ` +
           `(ΔE = ${dist.toFixed(1)}, minimum = 10). ` +
           `Pick more distinct brand colors.`,
         );
