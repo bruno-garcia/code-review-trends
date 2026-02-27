@@ -32,8 +32,9 @@ const THEME_OVERRIDES: Record<string, ThemeOverride> = {
     brand_color_dark: "#6b8baf",
   },
   kilo: {
-    // Default #000000 is pure black — invisible on dark backgrounds
-    brand_color_dark: "#b0b0b0",
+    // Default #000000 is pure black — invisible on dark backgrounds.
+    // Warm sandy tone to stay distinct from OpenAI Codex (#b0b0b0).
+    brand_color_dark: "#c4a882",
   },
   kodus: {
     // Default #6C63FF is borderline readable on dark backgrounds
@@ -60,8 +61,7 @@ const THEME_OVERRIDES: Record<string, ThemeOverride> = {
     brand_color_light: "#6c5d99",
   },
   bito: {
-    // Default #94a3b8 (slate-400) is too muted, especially on light
-    brand_color_dark: "#b0bec5",
+    // Default #94a3b8 (slate-400) is readable on dark but too muted on light
     brand_color_light: "#546e7a",
   },
   augment: {

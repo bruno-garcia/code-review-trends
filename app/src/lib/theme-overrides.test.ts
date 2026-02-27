@@ -28,8 +28,8 @@ describe("getThemedBrandColor", () => {
     expect(getThemedBrandColor("sentry", "#9589c4", "light")).toBe("#6c5d99");
   });
 
-  test("bito: overrides both themes", () => {
-    expect(getThemedBrandColor("bito", "#94a3b8", "dark")).toBe("#b0bec5");
+  test("bito: overrides light only (dark passes WCAG with raw color)", () => {
+    expect(getThemedBrandColor("bito", "#94a3b8", "dark")).toBe("#94a3b8");
     expect(getThemedBrandColor("bito", "#94a3b8", "light")).toBe("#546e7a");
   });
 
