@@ -52,7 +52,7 @@ import { backfill, syncRecent, monthlyChunks, bigQueryFetcher, mapBotActivityRow
 
 /**
  * Split SQL text into individual statements, respecting comments.
- * Handles `--` line comments and `/* ... *​/` block comments so that
+ * Handles `--` line comments and block comments so that
  * semicolons inside comments don't produce spurious splits.
  */
 function splitSqlStatements(sql: string): string[] {
