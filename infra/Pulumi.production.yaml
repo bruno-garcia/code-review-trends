@@ -33,3 +33,24 @@ config:
   code-review-trends:appConcurrency: "40"
   code-review-trends:artifactRegistryLocation: us-central1
   code-review-trends:githubRepo: bruno-garcia/code-review-trends
+  gcp:project:
+    secure: v1:gUd7ilKJAdyoXeBZ:JtDlZs1wlLW1fvzajxems6px1F2urzuZD4qTDA==
+  code-review-trends:sentryDsnAppFrontend:
+    secure: v1:/C5vZMVgJwNXfWgm:eeLt66F/HdhHvFxuEg5o8q1gpWAtXFC1KipGIqp6rwLXkXS/Zlj3+De19XjPVkT0bbUxYsojgJcGeauoFWURe4Zasl5TQd7oY+w+2Lq5wnQH6KSr0z0FHxTokUqK0RwhzFzAsl0=
+  code-review-trends:sentryDsnAppBackend:
+    secure: v1:QTJjgAAScGt1xaz4:b8272xlp7TbDyhCTgGxMxt5zOnUHiqx5lTvBobinhW6iedlV/ohAyqeqgDxxW7JZgcdFJaQOofDJ6ys84wH04i3Vcku5/P9oMLyJwqZciYkzG2YPg6mmH3iu05Lvwm5RInfG7mQ=
+  code-review-trends:sentryDsnPipeline:
+    secure: v1:1F4RYGawLVphiTkt:7OfFm6aTpVVMCjN3xDhJMBuX3AkuJ8fEAIpltrDqDV6sxBopzneTwBCv63paNUPyE67wszB9j8/nsb2pOoZj8bNitKHkDYPA56IVidtortoqLGFkSeQjUcmT6GIGP80SMu9aVM0=
+  code-review-trends:sentryAuthToken:
+    secure: v1:bdRZvv1dRcGYGMc6:hrfrBV9NsgjTGIWVnrs0AbU6BQqNblMghC6idLzZI2eceTNxkk19Cfu0idIkE9HrFqcnqIVMcXzcwzLawUFSEAiwAPBD8h0PAzmT6sg9sMZWgKe9lgEKpuw+FJSJplxUYvUFzL1GBB0N/DmDHWGOz8hBPWIVOFGWLVKE/CUzChZ3/MCwJs0YtsAio4p2MMhGDhEtP3C0D6S4GFyi3tGWXDvBvHee/iPSgY8R87gjH1xI9cptkdG27qbBFAbJcEocRcxeeC3lxeSKYDKAInOEOklh5Q==
+  code-review-trends:githubTokens:
+    secure: v1:o/eVs0YfIlAxUmSQ:SLa1fMu/QePJW0Sk4SaxKz7ZCr34N0tAL2NEgQP4BbJgxyxaBZzNuFJnoiCZnS3ltsV42Rfx/f3HzyjXU319da2g85xOM0fthNTNO6CSEWlKkd3n5nfpO6BrvKBDlkg3E27qmag3hQZ6z4KAW+FhlqanwtC2FXXl0rMifQOiYxtb0d/1W/eIUvt1Gcn9UU7xJE5/otQLOWvDByxf1TvE2R6GHmqWdxoZmzAkLTi2SseKM2LKw8uEm8MBPgBiQIFywYe0rqVAJg/laRYw/maqBk5xDBfFRZgGY7SXBbPDev/4btFsO6Izg/GJILebPEx7XrfYGtpklhzKsdNz67PP0ebrMz1bjL7KGZJTNQnYLi9gHYRUNdeOnaQo7bsb4qfmnrz2MGfJfA7F08liEhA48bef7IbXFPvJBndxt5JsB1RQwvtiyBR6glYJFg5MNWm62AwlnKBqMkUz5jMsPCjE2gGhEVBxX8AdxccM+d4UCP7/Fgt2aBLCF68DzuOytiQeTqMsc45wukjj5YJj+MDjteqwjkY=
+  code-review-trends:alertEmail:
+    secure: v1:4ZOWS+ZMbhrquItw:+lp4J9/7s8JOvQG89x+nKVUU26NBOkYKF0H2v+8S5eQQGRkIWVoFVWne
+  code-review-trends:appDomain:
+    secure: v1:cSufIl2/uBpxfD9W:vjpMH94S8Uve8yTMkJtzeXEWLPbybNz2UtqcPZTNq3kubDTeM5edGg==
+  code-review-trends:workerVpcNetwork:
+    secure: v1:3c+PLoUeEp11aQBM:ZWTJn/MAajWXS9fHZ4mZe3hTDU8nw9IH74TX3JcFKZm8joCfDg==
+  code-review-trends:workerIp:
+    secure: v1:ROZUzU11hf4B3Gz8:tlUMPXRoUqWtXmGSApIeca0is7Z/V9OWjCk=
+encryptionsalt: v1:iDjZ4Fjkne8=:v1:uVWQlqiGgeGovORW:WLD3JoVz1Pm88b3eKw07L8uJrHx1fQ==
