@@ -97,7 +97,12 @@ export async function fetchPRsBatch(
     rateLimiter.update(response.headers);
     const data = response.data.data;
     if (!data) {
-      throw new Error("GraphQL response contained no data field");
+      const errors = response.data.errors
+        ?.map((e: { message?: string }) => e.message)
+        .join("; ");
+      throw new Error(
+        `GraphQL response contained no data field: ${errors || "unknown"}`,
+      );
     }
 
     return buildResults(byRepo, repoIndex, data);

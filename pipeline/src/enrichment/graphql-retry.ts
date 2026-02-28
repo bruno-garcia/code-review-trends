@@ -46,7 +46,10 @@ export function isTransientNetworkError(err: unknown): boolean {
 }
 
 const SERVER_ERROR_STATUSES = [502, 503];
-const SERVER_ERROR_MESSAGE_PATTERNS = ["<html>", "<!doctype", "bad gateway", "service unavailable"];
+const SERVER_ERROR_MESSAGE_PATTERNS = [
+  "<html>", "<!doctype", "bad gateway", "service unavailable",
+  "graphql errors-only response",
+];
 
 export function isServerError(err: unknown): boolean {
   if (isAbortError(err)) return true;
@@ -137,13 +140,37 @@ export async function graphqlWithRetry(
               query,
               request: { signal: controller.signal },
             });
+
+            // Check for errors-only responses (HTTP 200 but no data field).
+            // GitHub returns these for server-side timeouts like "We couldn't
+            // respond to your request in time." Treat as retryable server errors.
+            const gqlRes = res as unknown as GraphQLResponse;
+            if (!gqlRes.data?.data && gqlRes.data?.errors?.length) {
+              const errMsgs = gqlRes.data.errors
+                .map((e) => e.message || "unknown")
+                .join("; ");
+              const err = new Error(
+                `GraphQL errors-only response (no data field): ${errMsgs}`,
+              );
+              // Attach response so callers can inspect errors if needed
+              (err as unknown as Record<string, unknown>).response = {
+                data: gqlRes.data,
+                headers: gqlRes.headers,
+                status: 200,
+              };
+              span.setStatus({ code: 2, message: "GraphQL errors-only response" });
+              throw err;
+            }
+
             span.setStatus({ code: 1 }); // OK
             return res;
           } catch (err) {
-            const statusMsg = isAbortError(err)
-              ? `timeout after ${timeoutMs}ms`
-              : (err instanceof Error ? err.message.split("\n")[0] : "unknown");
-            span.setStatus({ code: 2, message: statusMsg });
+            if (!(err instanceof Error && err.message.startsWith("GraphQL errors-only"))) {
+              const statusMsg = isAbortError(err)
+                ? `timeout after ${timeoutMs}ms`
+                : (err instanceof Error ? err.message.split("\n")[0] : "unknown");
+              span.setStatus({ code: 2, message: statusMsg });
+            }
             throw err;
           }
         },
