@@ -211,7 +211,7 @@ INNER JOIN pr_bot_events AS e
     ON p.repo_name = e.repo_name AND p.pr_number = e.pr_number
 INNER JOIN bots AS b
     ON e.bot_id = b.id`,
-    backfill: `INSERT INTO pr_product_characteristics
+    backfill: `INSERT INTO pr_product_characteristics (product_id, repo_name, pr_number, additions, deletions, changed_files, state, created_at, merged_at)
 SELECT
     b.product_id AS product_id,
     p.repo_name AS repo_name,
