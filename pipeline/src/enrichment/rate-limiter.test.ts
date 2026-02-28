@@ -11,7 +11,7 @@
  * - Integration scenario: continuous pacing over multiple calls
  */
 
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 
@@ -75,14 +75,16 @@ describe("RateLimiter pacingDelay", () => {
     assert.equal(delay, 0, "first call should not be delayed (no previous request)");
   });
 
-  it("returns interval minus elapsed since last request", () => {
+  it("returns interval minus elapsed since last request", async () => {
     const { rl } = createLimiter({ minRemaining: 100 });
-    const now = Date.now();
-    setRateLimit(rl, 5000, 3600_000); // 4900 usable, 3600s window
+    setRateLimit(rl, 1000, 60_000); // 900 usable, interval ≈ 66.7ms
 
-    // Simulate a previous request 200ms ago
-    // We need to call waitIfNeeded to set lastRequestAt
-    // Instead, let's test the formula directly by calling pacingDelay after waitIfNeeded
+    // First call sets lastRequestAt
+    await rl.waitIfNeeded();
+
+    // Immediately after, delay should be close to the full interval
+    const delay = rl.pacingDelay();
+    assert.ok(delay > 50, `expected delay ~67ms, got ${delay}ms`);
   });
 
   it("calculates correct delay for steady-state pacing", async () => {
@@ -103,7 +105,6 @@ describe("RateLimiter pacingDelay", () => {
 
   it("returns 0 when enough time has passed since last request", async () => {
     const { rl } = createLimiter({ minRemaining: 100 });
-    const now = Date.now();
     setRateLimit(rl, 1000, 60_000); // interval ≈ 66.7ms
 
     // First call sets lastRequestAt
@@ -116,7 +117,6 @@ describe("RateLimiter pacingDelay", () => {
 
   it("pacing delay decreases as budget depletes", () => {
     const { rl } = createLimiter({ minRemaining: 100 });
-    const now = Date.now();
 
     // Large budget: interval is small
     setRateLimit(rl, 5000, 3600_000);
@@ -168,7 +168,7 @@ describe("RateLimiter waitIfNeeded pacing", () => {
   });
 
   it("pacing metrics are tracked", async () => {
-    const { rl, sleepCalls } = createLimiter({ minRemaining: 100 });
+    const { rl } = createLimiter({ minRemaining: 100 });
     setRateLimit(rl, 500, 60_000); // 400 usable, interval = 150ms
 
     // First call: no pacing
@@ -185,13 +185,13 @@ describe("RateLimiter waitIfNeeded pacing", () => {
   });
 
   it("skips pacing delays under 10ms", async () => {
-    const { rl, sleepCalls } = createLimiter({ minRemaining: 100 });
+    const { rl, sleepCalls: sleeps } = createLimiter({ minRemaining: 100 });
     // Very large budget: interval ≈ 0.7ms — below 10ms threshold
     setRateLimit(rl, 5000, 3_000); // 4900 usable, 3s window, interval ≈ 0.6ms
 
     await rl.waitIfNeeded();
     await rl.waitIfNeeded();
-    assert.equal(sleepCalls.length, 0, "should skip tiny pacing delays");
+    assert.equal(sleeps.length, 0, "should skip tiny pacing delays");
   });
 });
 
