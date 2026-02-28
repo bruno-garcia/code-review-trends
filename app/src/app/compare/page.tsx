@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { getProductComparisons, getPrCommentSyncPct, getAllPrCharacteristics, getWeeklyActivityByProduct, getWeeklyReactionsByProduct } from "@/lib/clickhouse";
+import { getProductComparisons, getPrCommentSyncPct, getAllPrCharacteristics, getWeeklyActivityByProduct, getWeeklyReactionsByProduct, getMonthlyReactionsByProduct } from "@/lib/clickhouse";
 import { parseTimeRange, computeCutoffDate } from "@/lib/time-range";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import { CompareChartsAbove } from "./compare-charts-above";
@@ -60,12 +60,13 @@ export default async function ComparePage({
   // These block the initial HTML response but use fast pre-aggregated tables.
   // getAllPrCharacteristics uses the pr_product_characteristics MV — no more
   // DISTINCT over millions of pr_bot_events rows.
-  const [products, prCommentSyncPct, prCharacteristics, weeklyActivity, weeklyReactions] = await Promise.all([
+  const [products, prCommentSyncPct, prCharacteristics, weeklyActivity, weeklyReactions, monthlyReactions] = await Promise.all([
     getProductComparisons(since),
     getPrCommentSyncPct(),
     getAllPrCharacteristics(since),
     getWeeklyActivityByProduct(undefined, since),
     getWeeklyReactionsByProduct(since),
+    getMonthlyReactionsByProduct(since),
   ]);
 
   return (
@@ -85,6 +86,7 @@ export default async function ComparePage({
         prCharacteristics={prCharacteristics}
         weeklyActivity={weeklyActivity}
         weeklyReactions={weeklyReactions}
+        monthlyReactions={monthlyReactions}
       />
 
       {/* Below fold: comments per PR + bot sentiment — streamed via Suspense */}

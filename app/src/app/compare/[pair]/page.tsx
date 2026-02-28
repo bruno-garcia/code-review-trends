@@ -8,6 +8,7 @@ import {
   getAllPrCharacteristics,
   getWeeklyActivityByProduct,
   getWeeklyReactionsByProduct,
+  getMonthlyReactionsByProduct,
 } from "@/lib/clickhouse";
 import { PAIR_BY_SLUG } from "@/lib/generated/compare-pairs";
 import { OG_DEFAULTS } from "@/lib/constants";
@@ -54,13 +55,14 @@ export default async function ComparePairPage({ params }: Props) {
   const overrideIds: [string, string] = [pair.idA, pair.idB];
 
   // Critical: above-fold data
-  const [allProducts, prCommentSyncPct, allCharacteristics, weeklyActivity, weeklyReactions] =
+  const [allProducts, prCommentSyncPct, allCharacteristics, weeklyActivity, weeklyReactions, monthlyReactions] =
     await Promise.all([
       getProductComparisons(),
       getPrCommentSyncPct(),
       getAllPrCharacteristics(),
       getWeeklyActivityByProduct(),
       getWeeklyReactionsByProduct(),
+      getMonthlyReactionsByProduct(),
     ]);
 
   const products = allProducts.filter((p) => ids.has(p.id));
@@ -83,6 +85,7 @@ export default async function ComparePairPage({ params }: Props) {
         prCharacteristics={prCharacteristics}
         weeklyActivity={weeklyActivity}
         weeklyReactions={weeklyReactions}
+        monthlyReactions={monthlyReactions}
         overrideProductIds={overrideIds}
       />
 

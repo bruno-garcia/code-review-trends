@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import type { ProductComparison, ProductPrCharacteristics, WeeklyActivityByProduct, WeeklyReactionsByProduct } from "@/lib/clickhouse";
+import type { ProductComparison, ProductPrCharacteristics, WeeklyActivityByProduct, WeeklyReactionsByProduct, MonthlyReactionsByProduct } from "@/lib/clickhouse";
 import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
 import { BotRadarChart, CompareTrendsChart, COLORS } from "@/components/charts";
@@ -13,11 +13,6 @@ import Link from "next/link";
 
 /** Minimum 👍 + 👎 reactions in a period to compute a meaningful rate. */
 const MIN_REACTIONS = 30;
-
-/** Convert a date string (YYYY-MM-DD) to the first day of its month. */
-function toMonthKey(week: string): string {
-  return week.slice(0, 7) + "-01";
-}
 
 type CompareRow = ProductComparison & {
   sampled_prs: number;
@@ -217,12 +212,14 @@ export function CompareChartsAbove({
   prCharacteristics,
   weeklyActivity,
   weeklyReactions,
+  monthlyReactions,
   overrideProductIds,
 }: {
   products: ProductComparison[];
   prCharacteristics: ProductPrCharacteristics[];
   weeklyActivity: WeeklyActivityByProduct[];
   weeklyReactions: WeeklyReactionsByProduct[];
+  monthlyReactions: MonthlyReactionsByProduct[];
   /** When set, bypass the global product filter and show exactly these products. */
   overrideProductIds?: string[];
 }) {
@@ -413,25 +410,30 @@ export function CompareChartsAbove({
       }
     }
 
-    // Monthly aggregation for thumbs_up_rate — pools weekly reactions into
-    // calendar months so rates are computed from larger samples (less noise).
-    type MonthlyReactions = { thumbs_up: number; thumbs_down: number };
-    const monthlyReactions = new Map<string, MonthlyReactions>();
-    for (const [key, rx] of reactionIndex) {
-      const [week, pid] = key.split("|");
-      const month = toMonthKey(week);
-      const mKey = `${month}|${pid}`;
-      const existing = monthlyReactions.get(mKey);
+    return weeklyMetrics;
+  }, [weeklyActivity, weeklyReactions, selectedProductIds, idToName]);
+
+  // thumbs_up_rate uses server-side monthly aggregation (ClickHouse groups
+  // weekly reactions into calendar months for larger sample sizes / less noise).
+  const thumbsUpRateData = useMemo(() => {
+    const selectedSet = new Set(selectedProductIds);
+
+    // Index monthly reactions by month|product_id
+    const monthIndex = new Map<string, { thumbs_up: number; thumbs_down: number }>();
+    for (const r of monthlyReactions) {
+      if (!selectedSet.has(r.product_id)) continue;
+      const key = `${r.month}|${r.product_id}`;
+      const existing = monthIndex.get(key);
       if (existing) {
-        existing.thumbs_up += rx.thumbs_up;
-        existing.thumbs_down += rx.thumbs_down;
+        existing.thumbs_up += Number(r.thumbs_up);
+        existing.thumbs_down += Number(r.thumbs_down);
       } else {
-        monthlyReactions.set(mKey, { thumbs_up: rx.thumbs_up, thumbs_down: rx.thumbs_down });
+        monthIndex.set(key, { thumbs_up: Number(r.thumbs_up), thumbs_down: Number(r.thumbs_down) });
       }
     }
 
     const allMonths = new Set<string>();
-    for (const key of monthlyReactions.keys()) {
+    for (const key of monthIndex.keys()) {
       allMonths.add(key.split("|")[0]);
     }
     const sortedMonths = [...allMonths].sort();
@@ -445,7 +447,7 @@ export function CompareChartsAbove({
         const name = idToName.get(pid);
         if (!name) continue;
         const mKey = `${month}|${pid}`;
-        const rx = monthlyReactions.get(mKey);
+        const rx = monthIndex.get(mKey);
         if (rx) {
           const total = rx.thumbs_up + rx.thumbs_down;
           if (total >= MIN_REACTIONS) {
@@ -455,8 +457,14 @@ export function CompareChartsAbove({
       }
     }
 
-    return { ...weeklyMetrics, thumbs_up_rate: thumbsUpRate };
-  }, [weeklyActivity, weeklyReactions, selectedProductIds, idToName]);
+    return thumbsUpRate;
+  }, [monthlyReactions, selectedProductIds, idToName]);
+
+  // Combine weekly metrics + monthly thumbs_up_rate into a single object for the chart
+  const allTrendData = useMemo(() => ({
+    ...trendData,
+    thumbs_up_rate: thumbsUpRateData,
+  }), [trendData, thumbsUpRateData]);
 
   const productNames = products.map((p) => p.name);
 
@@ -620,7 +628,7 @@ export function CompareChartsAbove({
           Compare how products evolve week by week. Pick a metric to explore.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <CompareTrendsChart dataByMetric={trendData} products={productNames} colors={nameColorMap} />
+          <CompareTrendsChart dataByMetric={allTrendData} products={productNames} colors={nameColorMap} />
         </div>
       </section>
       )}

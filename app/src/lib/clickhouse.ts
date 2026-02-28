@@ -798,6 +798,40 @@ export async function getWeeklyReactionsByProduct(
   );
 }
 
+// --- Monthly reactions by product (for thumbs-up rate trend chart) ---
+// Aggregates weekly reaction data into calendar months so rates are computed
+// from larger samples (less noise than weekly granularity).
+
+export type MonthlyReactionsByProduct = {
+  month: string;
+  product_id: string;
+  thumbs_up: number;
+  thumbs_down: number;
+};
+
+export async function getMonthlyReactionsByProduct(
+  since?: string,
+): Promise<MonthlyReactionsByProduct[]> {
+  const sinceFilter = since
+    ? "WHERE cs.week >= toDate({since:String})"
+    : "";
+  return query<MonthlyReactionsByProduct>(
+    `
+    SELECT
+      formatDateTime(toStartOfMonth(cs.week), '%Y-%m-%d') AS month,
+      b.product_id AS product_id,
+      sum(cs.thumbs_up) AS thumbs_up,
+      sum(cs.thumbs_down) AS thumbs_down
+    FROM comment_stats_weekly cs
+    JOIN bots b ON cs.bot_id = b.id
+    ${sinceFilter}
+    GROUP BY toStartOfMonth(cs.week), b.product_id
+    ORDER BY month ASC
+    `,
+    since ? { since } : {},
+  );
+}
+
 // --- PR Characteristics (from enriched pull_requests table) ---
 
 export type PrCharacteristics = {
