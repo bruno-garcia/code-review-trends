@@ -23,12 +23,7 @@ export function MobileNav() {
   const buildUrl = useFilterUrl();
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close on route change
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
-
-  // Close on click outside
+  // Close on click outside or Escape
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
@@ -54,6 +49,7 @@ export function MobileNav() {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-label={open ? "Close menu" : "Open menu"}
+        data-testid="mobile-nav-toggle"
         className="flex items-center justify-center w-9 h-9 text-nav-link hover:text-nav-link-active transition-colors"
       >
         {open ? (
@@ -69,35 +65,37 @@ export function MobileNav() {
         )}
       </button>
 
-      {/* Dropdown panel — fixed to viewport edges so it spans full width */}
-      <div
-        className={`fixed left-0 right-0 bg-theme-nav border-b border-theme-border shadow-lg transition-all duration-200 ${
-          open ? "opacity-100 visible" : "opacity-0 invisible"
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1">
-          {navItems.map(({ href, label }) => {
-            const isActive =
-              href === "/" ? pathname === "/" : pathname.startsWith(href);
-            const finalHref = FILTER_PAGES.has(href) ? buildUrl(href) : href;
+      {/* Dropdown panel — only rendered when open to avoid duplicate links in DOM */}
+      {open && (
+        <div
+          className="fixed left-0 right-0 bg-theme-nav border-b border-theme-border shadow-lg"
+          data-testid="mobile-nav-menu"
+        >
+          <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1">
+            {navItems.map(({ href, label }) => {
+              const isActive =
+                href === "/" ? pathname === "/" : pathname.startsWith(href);
+              const finalHref = FILTER_PAGES.has(href) ? buildUrl(href) : href;
 
-            return (
-              <Link
-                key={href}
-                href={finalHref}
-                aria-current={isActive ? "page" : undefined}
-                className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? "text-nav-link-active font-medium bg-theme-surface"
-                    : "text-nav-link hover:text-nav-link-active hover:bg-theme-surface/50"
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
+              return (
+                <Link
+                  key={href}
+                  href={finalHref}
+                  onClick={() => setOpen(false)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isActive
+                      ? "text-nav-link-active font-medium bg-theme-surface"
+                      : "text-nav-link hover:text-nav-link-active hover:bg-theme-surface/50"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

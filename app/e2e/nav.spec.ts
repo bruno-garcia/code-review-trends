@@ -44,45 +44,36 @@ test.describe("Navigation active state", () => {
 });
 
 test.describe("Navigation on mobile viewport", () => {
-  test("all nav links are accessible on 375px viewport", async ({ page }) => {
+  test("hamburger menu opens and shows all nav links on 375px viewport", async ({ page }) => {
     // Set mobile viewport (iPhone SE dimensions)
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
 
-    // Get the nav element to scope queries
-    const nav = page.locator("nav");
+    // Desktop nav links should be hidden on mobile
+    const desktopNav = page.locator("nav .hidden.sm\\:flex");
+    await expect(desktopNav).toBeHidden();
+
+    // Hamburger button should be visible
+    const hamburger = page.getByTestId("mobile-nav-toggle");
+    await expect(hamburger).toBeVisible();
+
+    // Open the menu
+    await hamburger.click();
+    const menu = page.getByTestId("mobile-nav-menu");
+    await expect(menu).toBeVisible();
 
     // Verify all nav links are present and accessible
-    const overviewLink = nav.getByRole("link", { name: "Overview" });
-    await expect(overviewLink).toBeVisible();
-
-    const productsLink = nav.getByRole("link", { name: "Products", exact: true });
-    await expect(productsLink).toBeVisible();
-
-    const compareLink = nav.getByRole("link", { name: "Compare" });
-    await expect(compareLink).toBeVisible();
-
-    const aboutLink = nav.getByRole("link", { name: "About" });
-    await expect(aboutLink).toBeVisible();
-
-    const statusLink = nav.getByRole("link", { name: "Status" });
-    await expect(statusLink).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Overview" })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Products", exact: true })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Compare" })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Repos" })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Orgs" })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Status" })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "About" })).toBeVisible();
 
     // Verify theme toggle is accessible
-    const themeToggle = nav.getByTestId("theme-toggle");
+    const themeToggle = page.locator("nav").getByTestId("theme-toggle");
     await expect(themeToggle).toBeVisible();
-
-    // Verify we can click on the theme toggle buttons
-    const lightTheme = nav.getByTestId("theme-light");
-    await expect(lightTheme).toBeVisible();
-    await lightTheme.click();
-
-    const darkTheme = nav.getByTestId("theme-dark");
-    await expect(darkTheme).toBeVisible();
-    await darkTheme.click();
-
-    const systemTheme = nav.getByTestId("theme-system");
-    await expect(systemTheme).toBeVisible();
   });
 
   test("no horizontal page overflow on mobile", async ({ page }) => {
@@ -96,31 +87,30 @@ test.describe("Navigation on mobile viewport", () => {
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  test("navigation links work on mobile", async ({ page }) => {
+  test("navigation links work on mobile via hamburger", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
 
-    // Get the nav element to scope queries
-    const nav = page.locator("nav");
+    const hamburger = page.getByTestId("mobile-nav-toggle");
 
-    // Click on Products link
-    const productsLink = nav.getByRole("link", { name: "Products", exact: true });
-    await productsLink.click();
+    // Open menu and click Products
+    await hamburger.click();
+    await page.getByTestId("mobile-nav-menu").getByRole("link", { name: "Products", exact: true }).click();
     await expect(page).toHaveURL("/products");
 
-    // Click on Compare link
-    const compareLink = nav.getByRole("link", { name: "Compare" });
-    await compareLink.click();
+    // Menu should close after navigation, open again for Compare
+    await hamburger.click();
+    await page.getByTestId("mobile-nav-menu").getByRole("link", { name: "Compare" }).click();
     await expect(page).toHaveURL("/compare");
 
-    // Click on About link
-    const aboutLink = nav.getByRole("link", { name: "About" });
-    await aboutLink.click();
+    // Open again for About
+    await hamburger.click();
+    await page.getByTestId("mobile-nav-menu").getByRole("link", { name: "About" }).click();
     await expect(page).toHaveURL("/about");
 
-    // Click on Overview link
-    const overviewLink = nav.getByRole("link", { name: "Overview" });
-    await overviewLink.click();
+    // Open again for Overview
+    await hamburger.click();
+    await page.getByTestId("mobile-nav-menu").getByRole("link", { name: "Overview" }).click();
     await expect(page).toHaveURL("/");
   });
 });
