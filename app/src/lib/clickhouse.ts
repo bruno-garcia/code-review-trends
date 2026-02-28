@@ -370,9 +370,9 @@ export async function getWeeklyActivityByProduct(
     `
       SELECT
         formatDateTime(ra.week, '%Y-%m-%d') AS week,
-        b.product_id,
+        b.product_id AS product_id,
         p.name AS product_name,
-        p.brand_color,
+        p.brand_color AS brand_color,
         sum(ra.review_count) AS review_count,
         sum(ra.review_comment_count) AS review_comment_count,
         sum(ra.pr_comment_count) AS pr_comment_count,
@@ -498,10 +498,10 @@ export async function getProductBots(productId: string, since?: string): Promise
   return query<ProductBot>(
     `
       SELECT
-        b.id,
-        b.name,
-        bl.github_login,
-        p.brand_color,
+        b.id AS id,
+        b.name AS name,
+        bl.github_login AS github_login,
+        p.brand_color AS brand_color,
         COALESCE(sum(ra.review_count), 0) AS total_reviews,
         COALESCE(sum(ra.review_comment_count), 0) AS total_comments,
         COALESCE(sum(ra.pr_comment_count), 0) AS total_pr_comments,
@@ -608,12 +608,12 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
         GROUP BY cs.bot_id
       )
     SELECT
-      b.id,
-      b.name,
-      p.website,
-      p.description,
-      p.brand_color,
-      p.avatar_url,
+      b.id AS id,
+      b.name AS name,
+      p.website AS website,
+      p.description AS description,
+      p.brand_color AS brand_color,
+      p.avatar_url AS avatar_url,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
@@ -778,9 +778,9 @@ export async function getWeeklyReactionsByProduct(
     `
     SELECT
       formatDateTime(cs.week, '%Y-%m-%d') AS week,
-      b.product_id,
+      b.product_id AS product_id,
       p.name AS product_name,
-      p.brand_color,
+      p.brand_color AS brand_color,
       sum(cs.thumbs_up) AS thumbs_up,
       sum(cs.thumbs_down) AS thumbs_down,
       sum(cs.heart) AS heart,
