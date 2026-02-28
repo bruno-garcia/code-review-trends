@@ -62,6 +62,10 @@ esac
 REPO_DIR="$HOME/code-review-trends"
 SESSION="enrich-${PIPELINE_ENV}"
 # GCP project must be configured on the VM (gcloud config set project <id>)
+if ! command -v gcloud &> /dev/null; then
+  err "gcloud command not found. Please install the Google Cloud SDK."
+  exit 1
+fi
 GCP_PROJECT=$(gcloud config get-value project 2>/dev/null)
 if [[ -z "$GCP_PROJECT" ]]; then
   err "No GCP project configured. Run: gcloud config set project <project-id>"

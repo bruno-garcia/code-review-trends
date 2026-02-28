@@ -156,20 +156,20 @@ gcloud compute ssh crt-staging-clickhouse --zone=us-central1-a --tunnel-through-
 ```
 </details>
 
-### Set up GitHub Variables
+### Set up GitHub Secrets for CI
 
-After `pulumi up`, retrieve WIF outputs and configure them as GitHub repository Variables (not Secrets — resource IDs aren't sensitive):
+After `pulumi up`, retrieve WIF outputs and configure them as GitHub repository Secrets (masked in CI logs on public repos):
 
 ```bash
 # Get the values from Pulumi
 pulumi stack output workloadIdentityProvider
 pulumi stack output deployServiceAccountEmail
 
-# Set as GitHub repo Variables (used by CI deploy workflow)
-gh variable set WIF_PROVIDER --body "$(pulumi stack output workloadIdentityProvider)"
-gh variable set DEPLOY_SA_EMAIL --body "$(pulumi stack output deployServiceAccountEmail)"
+# Set as GitHub repo Secrets (used by CI deploy workflow)
+gh secret set WIF_PROVIDER --body "$(pulumi stack output workloadIdentityProvider)"
+gh secret set DEPLOY_SA_EMAIL --body "$(pulumi stack output deployServiceAccountEmail)"
 
-# Set Sentry auth token as a GitHub Secret (this one IS sensitive)
+# Set Sentry auth token as a GitHub Secret
 gh secret set SENTRY_AUTH_TOKEN --body "<your-sentry-auth-token>"
 ```
 
@@ -322,14 +322,14 @@ The production deploy workflow is in `.github/workflows/deploy-production.yml`:
 - App image tagged as `app:<sha>-production`; pipeline image reused as `pipeline:<sha>`
 - Deploys to `crt-production-*` Cloud Run resources with warmup
 
-### 3. GitHub Variables and Secrets
+### 3. GitHub Secrets
 
-After `pulumi up`, set the production WIF config:
+After `pulumi up`, set the production WIF config as GitHub Secrets:
 
 ```bash
 pulumi stack select production
-gh variable set WIF_PROVIDER_PROD --body "$(pulumi stack output workloadIdentityProvider)"
-gh variable set DEPLOY_SA_EMAIL_PROD --body "$(pulumi stack output deployServiceAccountEmail)"
+gh secret set WIF_PROVIDER_PROD --body "$(pulumi stack output workloadIdentityProvider)"
+gh secret set DEPLOY_SA_EMAIL_PROD --body "$(pulumi stack output deployServiceAccountEmail)"
 ```
 
 Sentry DSNs are shared across staging and production — the same GitHub Secrets are used. Only `SENTRY_ENVIRONMENT` (set by Pulumi at runtime) and `NEXT_PUBLIC_SENTRY_ENVIRONMENT` (baked at build time by CI) differ.
@@ -359,7 +359,7 @@ After the first deploy, check that events appear under the correct environment i
 | Pulumi stack | `pulumi stack init` + all config values | `infra/Pulumi.<env>.yaml` |
 | Pulumi deploy | `pulumi up` (creates resources + sets `SENTRY_ENVIRONMENT`) | `infra/` |
 | CI deploy workflow | `deploy-production.yml` (manual trigger) | `.github/workflows/` |
-| GitHub Variables | `WIF_PROVIDER_PROD` + `DEPLOY_SA_EMAIL_PROD` | GitHub repo settings |
+| GitHub Secrets | `WIF_PROVIDER_PROD` + `DEPLOY_SA_EMAIL_PROD` | GitHub repo settings |
 | DNS | CNAME for app domain | DNS provider |
 | DB schema | `npm run pipeline -- migrate --stack <env>` | CLI |
 | Verify Sentry | Check events show correct environment | Sentry dashboard |
@@ -372,7 +372,7 @@ After the first deploy, check that events appear under the correct environment i
 - **Cloud Run Jobs over Cloud Functions**: Same container as local dev. No rewrite needed, same CLI commands.
 - **Artifact Registry over GHCR**: Native GCP auth — Cloud Run pulls without extra credentials or mirror config.
 - **WIF over service account keys**: No long-lived secrets. GitHub OIDC tokens are short-lived and scoped to the repo.
-- **GitHub Variables for WIF config**: `WIF_PROVIDER` and `DEPLOY_SA_EMAIL` are resource IDs, not secrets. Using Variables (not Secrets) makes them visible in CI logs for easier debugging.
+- **GitHub Secrets for WIF config**: `WIF_PROVIDER` and `DEPLOY_SA_EMAIL` are stored as Secrets so they're masked in CI logs. This is important for public repos where workflow logs are visible to everyone.
 - **Shared `schedules.json`**: Single source of truth for job cadences, imported by both Cloud Scheduler (Pulumi) and Sentry cron monitors (pipeline CLI). Prevents drift.
 - **Placeholder images with `ignoreChanges`**: Pulumi creates Cloud Run services with a placeholder image. CI deploys real images. `ignoreChanges` on the image field prevents Pulumi from reverting CI deployments.
 - **Enrich exits on rate limit**: The `--exit-on-rate-limit` flag makes the enrich job exit cleanly instead of sleeping when GitHub API rate limit is exhausted. Avoids wasting Cloud Run vCPU-seconds. The job runs again next hour and picks up where it left off.

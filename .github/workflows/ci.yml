@@ -368,6 +368,10 @@ jobs:
               | .revisionName' | xargs -I{} gcloud run revisions describe {} \
                 --region=${REGION} \
                 --format='value(spec.containers[0].image)')
+          if [[ -z "${SERVING_IMAGE}" ]]; then
+            echo "::error::Deploy verification failed — could not determine serving image"
+            exit 1
+          fi
           if [[ "${SERVING_IMAGE}" == *"cloudrun/container/hello"* ]]; then
             echo "::error::Deploy verification failed — still serving the GCP placeholder image"
             exit 1
