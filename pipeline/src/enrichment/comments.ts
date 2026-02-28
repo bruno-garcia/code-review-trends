@@ -143,10 +143,20 @@ export async function enrichComments(
               continue;
             }
 
-            if (result.comments.length > 0) {
+            if (result.hasMore) {
+              // PR has more review threads than REVIEW_THREADS_PAGE_SIZE —
+              // save any bot comments we found, but do NOT insert a sentinel.
+              // Bot comments may exist beyond the fetched threads, so marking
+              // this combo as "done" would permanently mask unfetched data
+              // (AGENTS.md principle 17). REST fallback or next run handles it.
+              if (result.comments.length > 0) {
+                allCommentRows.push(...result.comments);
+              }
+              log(`[comments] ${result.input.repo_name}#${result.input.pr_number} has >${REVIEW_THREADS_PAGE_SIZE} review threads, saved partial (no sentinel)`);
+            } else if (result.comments.length > 0) {
               allCommentRows.push(...result.comments);
             } else {
-              // Sentinel row — no bot comments found
+              // Sentinel row — all threads fetched, no bot comments found
               allCommentRows.push({
                 repo_name: result.input.repo_name,
                 pr_number: result.input.pr_number,
@@ -157,10 +167,6 @@ export async function enrichComments(
                 thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
                 heart: 0, hooray: 0, eyes: 0, rocket: 0,
               });
-            }
-
-            if (result.hasMore) {
-              log(`[comments] ${result.input.repo_name}#${result.input.pr_number} has >${REVIEW_THREADS_PAGE_SIZE} review threads, saved partial`);
             }
 
             batchFetched++;

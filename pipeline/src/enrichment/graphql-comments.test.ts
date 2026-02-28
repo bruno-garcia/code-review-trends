@@ -270,6 +270,87 @@ describe("graphql-comments parseResults", () => {
     assert.equal(results[0].hasMore, true);
   });
 
+  it("hasMore true with zero comments — caller must not insert sentinel", () => {
+    // When hasMore is true, there may be bot comments in unfetched threads.
+    // The caller (comments.ts) must NOT insert a sentinel row in this case,
+    // or it will permanently mask the unfetched data (AGENTS.md principle 17).
+    // This test documents the contract: parseResults sets hasMore=true and
+    // returns empty comments — the caller is responsible for checking hasMore.
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 1 })];
+    const byRepo = makeByRepo(inputs);
+    const repoIndex = makeRepoIndex(byRepo);
+
+    const data = {
+      repo0: {
+        pr0: {
+          reviewThreads: {
+            nodes: [
+              {
+                comments: {
+                  nodes: [
+                    {
+                      databaseId: 999,
+                      author: { login: "human-reviewer" },
+                      bodyText: "Human comment only in first 30 threads",
+                      createdAt: "2024-01-01T10:00:00Z",
+                      reactionGroups: [],
+                    },
+                  ],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: true }, // more threads exist
+          },
+        },
+      },
+    };
+
+    const results = parseResults(byRepo, repoIndex, data);
+    assert.equal(results[0].hasMore, true, "hasMore should be true");
+    assert.equal(results[0].comments.length, 0, "no bot comments in first page");
+    // The caller must check hasMore before inserting a sentinel.
+    // If it inserts a sentinel here, bot comments in threads 31+ are lost forever.
+  });
+
+  it("hasMore true with some bot comments — caller should save comments but no sentinel", () => {
+    // When hasMore is true AND there are some bot comments, the caller should
+    // save the found comments but still not insert a sentinel for missing bots,
+    // since more comments may exist in unfetched threads.
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 1 })];
+    const byRepo = makeByRepo(inputs);
+    const repoIndex = makeRepoIndex(byRepo);
+
+    const data = {
+      repo0: {
+        pr0: {
+          reviewThreads: {
+            nodes: [
+              {
+                comments: {
+                  nodes: [
+                    {
+                      databaseId: 888,
+                      author: { login: "bot-login" },
+                      bodyText: "Bot found in first 30 threads",
+                      createdAt: "2024-01-01T10:00:00Z",
+                      reactionGroups: [],
+                    },
+                  ],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: true },
+          },
+        },
+      },
+    };
+
+    const results = parseResults(byRepo, repoIndex, data);
+    assert.equal(results[0].hasMore, true);
+    assert.equal(results[0].comments.length, 1, "found bot comment should be returned");
+    assert.equal(results[0].comments[0].comment_id, "888");
+  });
+
   it("handles multiple repos with multiple PRs", () => {
     const inputs = [
       makeInput({ repo_name: "org/repo-a", pr_number: 1 }),
