@@ -555,11 +555,11 @@ describe("clickhouse query integration tests", () => {
       const keys = Object.keys(rows[0]);
       const expected = ["id", "name", "github_login", "brand_color", "total_reviews", "total_comments", "total_pr_comments", "first_week", "last_week"];
       assert.deepEqual(keys.sort(), expected.sort(), "Column names must match ProductBot type (no table prefixes like 'b.id' or 'p.brand_color')");
-      // Verify values are actually populated (not undefined from wrong column name)
-      assert.ok(rows[0].id, "id should be defined");
-      assert.ok(rows[0].name, "name should be defined");
-      assert.ok(rows[0].github_login, "github_login should be defined");
-      assert.ok(rows[0].brand_color, "brand_color should be defined");
+      // Verify values are defined (not undefined from wrong column name).
+      // Use notStrictEqual instead of ok() so valid falsy values (0, "") don't fail.
+      for (const key of expected) {
+        assert.notStrictEqual(rows[0][key], undefined, `${key} should be defined (not prefixed as p.${key} or b.${key})`);
+      }
     });
 
     it("INNER JOIN excludes bots with missing product (data integrity)", async () => {
