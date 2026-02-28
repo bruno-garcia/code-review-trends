@@ -327,7 +327,7 @@ OG image routes are tested in Playwright (`app/e2e/og-images.spec.ts`) — CI ve
 - **Imports (pipeline)** — use `.js` extension in imports (ESM requirement).
 - **Test IDs** — `data-testid="section-name"` on key sections for Playwright.
 - **No `.env` in git** — use `.env.local` for local dev. CI sets env vars directly.
-- **ClickHouse queries** — use `toString()` to cast `Date` columns in SELECT (not `formatDateTime`), and never alias a column with the same name as the source column when filtering on it.
+- **ClickHouse queries** — use `toString()` to cast `Date` columns in SELECT (not `formatDateTime`), and never alias a column with the same name as the source column when filtering on it. **Every column in a SELECT must have an explicit `AS` alias** (e.g., `p.brand_color AS brand_color`, not `p.brand_color`). ClickHouse silently prefixes column names with table aliases when JOINed tables share a column name (e.g., `b.id` → JSON key `"b.id"` instead of `"id"`), which causes `undefined` in TypeScript. This applies to all SELECT levels — outer queries, CTEs, and subqueries.
 - **Docker images** — tagged with git SHA, built from repo root context.
 - **Secrets** — stored in GCP Secret Manager, encrypted in Pulumi config. Never in source.
 - **Job schedules** — defined in `pipeline/schedules.json`, the single source of truth.

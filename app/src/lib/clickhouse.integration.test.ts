@@ -457,6 +457,33 @@ describe("clickhouse query integration tests", () => {
       assert.equal(rows[0].brand_color, "#aaa", "brand_color should come from products table");
       assert.equal(rows[0].description, "Product A desc", "description should come from products table");
     });
+
+    it("column names match TypeScript BotSummary type (AS aliases required)", async () => {
+      // Regression test: ClickHouse prefixes column names with table aliases
+      // when ambiguous columns exist (e.g. both bots and products have
+      // brand_color). Without explicit AS aliases, p.brand_color → "p.brand_color"
+      // instead of "brand_color", causing undefined in TypeScript.
+      const rows = await q<Record<string, unknown>>(ch, `
+        SELECT
+          b.id AS id,
+          b.name AS name,
+          p.website AS website,
+          p.description AS description,
+          p.brand_color AS brand_color,
+          p.avatar_url AS avatar_url
+        FROM bots AS b
+        JOIN products p ON b.product_id = p.id
+        WHERE b.id = '${BOT_A1}'
+      `);
+      assert.equal(rows.length, 1);
+      const keys = Object.keys(rows[0]);
+      const expected = ["id", "name", "website", "description", "brand_color", "avatar_url"];
+      assert.deepEqual(keys.sort(), expected.sort(), "Column names must match BotSummary type (no table prefixes like 'p.brand_color')");
+      // Verify values are defined
+      for (const key of expected) {
+        assert.ok(rows[0][key] !== undefined, `${key} should be defined (not prefixed as p.${key} or b.${key})`);
+      }
+    });
   });
 
   describe("getProductBots", () => {
@@ -482,6 +509,57 @@ describe("clickhouse query integration tests", () => {
       assert.equal(rows[1].brand_color, "#bbb", "brand_color should come from products table");
       assert.equal(rows[0].github_login, "test-bot-b1");
       assert.equal(rows[1].github_login, "test-bot-b2");
+    });
+
+    it("column names match TypeScript ProductBot type (AS aliases required)", async () => {
+      // Regression test: when JOINing bots + products + inline subqueries,
+      // ClickHouse prefixes column names with table aliases (e.g. "b.id" instead
+      // of "id") if there's ambiguity. Explicit AS aliases are required to ensure
+      // the JSON keys match the TypeScript type properties.
+      //
+      // This uses the exact SELECT/FROM/JOIN structure from getProductBots in
+      // clickhouse.ts. If someone removes an AS alias, this test catches it.
+      const rows = await q<Record<string, unknown>>(ch, `
+        SELECT
+          b.id AS id,
+          b.name AS name,
+          bl.github_login AS github_login,
+          p.brand_color AS brand_color,
+          COALESCE(sum(ra.review_count), 0) AS total_reviews,
+          COALESCE(sum(ra.review_comment_count), 0) AS total_comments,
+          COALESCE(sum(ra.pr_comment_count), 0) AS total_pr_comments,
+          toString(min(ra.week)) AS first_week,
+          toString(max(ra.week)) AS last_week
+        FROM bots b
+        JOIN products p ON b.product_id = p.id
+        LEFT JOIN (
+          SELECT bot_id, min(github_login) AS github_login
+          FROM bot_logins
+          GROUP BY bot_id
+        ) bl ON b.id = bl.bot_id
+        LEFT JOIN (
+          SELECT bot_id, week, review_count, review_comment_count, pr_comment_count
+          FROM review_activity
+          UNION ALL
+          SELECT bot_id, week, reaction_reviews AS review_count,
+            0 AS review_comment_count, 0 AS pr_comment_count
+          FROM reaction_only_review_counts
+        ) ra ON b.id = ra.bot_id
+        WHERE b.product_id = '${PRODUCT_B}'
+        GROUP BY b.id, b.name, bl.github_login, p.brand_color
+        HAVING total_reviews > 0
+        ORDER BY total_reviews DESC
+      `);
+      assert.ok(rows.length > 0, "Should return at least one bot");
+      // Verify all column names match ProductBot type — no table-prefixed keys.
+      const keys = Object.keys(rows[0]);
+      const expected = ["id", "name", "github_login", "brand_color", "total_reviews", "total_comments", "total_pr_comments", "first_week", "last_week"];
+      assert.deepEqual(keys.sort(), expected.sort(), "Column names must match ProductBot type (no table prefixes like 'b.id' or 'p.brand_color')");
+      // Verify values are defined (not undefined from wrong column name).
+      // Use notStrictEqual instead of ok() so valid falsy values (0, "") don't fail.
+      for (const key of expected) {
+        assert.notStrictEqual(rows[0][key], undefined, `${key} should be defined (not prefixed as p.${key} or b.${key})`);
+      }
     });
 
     it("INNER JOIN excludes bots with missing product (data integrity)", async () => {
@@ -538,6 +616,33 @@ describe("clickhouse query integration tests", () => {
       assert.equal(Number(w2.bot_reviews), 550);
       assert.equal(Number(w2.human_reviews), 1200);
       assert.equal(Number(w2.bot_share_pct), 31.43);
+    });
+  });
+
+  describe("getWeeklyActivityByProduct — column alias regression", () => {
+    it("returns 'brand_color' and 'product_id' keys (not 'p.brand_color')", async () => {
+      // Regression: bots and products both have brand_color. Without AS alias,
+      // ClickHouse returns "p.brand_color" which doesn't match the TypeScript type.
+      const rows = await q<Record<string, unknown>>(ch, `
+        SELECT
+          formatDateTime(ra.week, '%Y-%m-%d') AS week,
+          b.product_id AS product_id,
+          p.name AS product_name,
+          p.brand_color AS brand_color,
+          sum(ra.review_count) AS review_count
+        FROM review_activity ra
+        JOIN bots b ON ra.bot_id = b.id
+        JOIN products p ON b.product_id = p.id
+        WHERE b.product_id = '${PRODUCT_A}'
+        GROUP BY ra.week, b.product_id, p.name, p.brand_color
+        ORDER BY ra.week ASC
+        LIMIT 1
+      `);
+      assert.ok(rows.length > 0, "Should return at least one week of activity");
+      const keys = Object.keys(rows[0]);
+      assert.ok(keys.includes("brand_color"), "brand_color must not be prefixed as p.brand_color");
+      assert.ok(keys.includes("product_id"), "product_id must not be prefixed as b.product_id");
+      assert.ok(!keys.some(k => k.includes(".")), `No column should have a table prefix, got: ${keys.join(", ")}`);
     });
   });
 

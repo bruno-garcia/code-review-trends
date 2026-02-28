@@ -132,7 +132,7 @@ test.describe("Product detail page", () => {
     expect(count).toBeGreaterThan(0);
   });
 
-  test("bot history shows raw bot login names", async ({ page }) => {
+  test("bot history shows GitHub login names from bot_logins table", async ({ page }) => {
     await page.goto("/products/sentry");
     // With seed data, bot history should always be visible for multi-bot Sentry
     const historySection = page.getByTestId("bot-history-section");
@@ -141,10 +141,12 @@ test.describe("Product detail page", () => {
     const loginCells = historySection.locator("[data-testid^='bot-history-login-']");
     const count = await loginCells.count();
     expect(count).toBeGreaterThan(0);
-    // Verify known Sentry bot identifiers are present
+    // Verify GitHub login names include [bot] suffix (from bot_logins table, not bot.id).
+    // This catches regressions where ClickHouse column aliasing causes github_login
+    // to be undefined, falling back to the internal bot id (e.g. "sentry" vs "sentry[bot]").
     const allText = await historySection.textContent();
-    expect(allText).toContain("sentry");
-    expect(allText).toContain("seer-by-sentry");
+    expect(allText).toContain("sentry[bot]");
+    expect(allText).toContain("seer-by-sentry[bot]");
   });
 
   test("returns 404 for unknown product", async ({ page }) => {
