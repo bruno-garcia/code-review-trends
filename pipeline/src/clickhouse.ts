@@ -33,6 +33,12 @@ export function createCHClient(config?: ClickHouseConfig): ClickHouseClient {
     password: c.password,
     database: c.database,
     request_timeout: 120_000,
+    clickhouse_settings: {
+      // Server default is 60s (set in infra/clickhouse.ts) which is too
+      // tight for pipeline operations like OPTIMIZE TABLE FINAL and bulk
+      // INSERT...SELECT. Match the client-side request_timeout.
+      max_execution_time: 120,
+    },
   });
 }
 
