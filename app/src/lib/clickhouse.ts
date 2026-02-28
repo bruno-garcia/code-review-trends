@@ -302,7 +302,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       ),
       reaction_agg AS (
         SELECT
-          b.product_id,
+          b.product_id AS product_id,
           sum(cs.thumbs_up) AS thumbs_up,
           sum(cs.thumbs_down) AS thumbs_down,
           sum(cs.heart) AS heart,
@@ -314,14 +314,14 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         GROUP BY b.product_id
       )
     SELECT
-      p.id,
-      p.name,
-      p.website,
-      p.description,
-      p.docs_url,
-      p.brand_color,
-      p.avatar_url,
-      p.status,
+      p.id AS id,
+      p.name AS name,
+      p.website AS website,
+      p.description AS description,
+      p.docs_url AS docs_url,
+      p.brand_color AS brand_color,
+      p.avatar_url AS avatar_url,
+      p.status AS status,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
@@ -440,7 +440,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
       ),
       reaction_agg AS (
         SELECT
-          b.product_id,
+          b.product_id AS product_id,
           sum(cs.thumbs_up) AS thumbs_up,
           sum(cs.thumbs_down) AS thumbs_down,
           sum(cs.heart) AS heart,
@@ -452,9 +452,9 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         GROUP BY b.product_id
       )
     SELECT
-      p.id,
-      p.name,
-      p.brand_color,
+      p.id AS id,
+      p.name AS name,
+      p.brand_color AS brand_color,
       COALESCE(ra.total_reviews, 0) AS total_reviews,
       COALESCE(ra.total_comments, 0) AS total_comments,
       COALESCE(ra.total_pr_comments, 0) AS total_pr_comments,
@@ -597,7 +597,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       ),
       reaction_agg AS (
         SELECT
-          cs.bot_id,
+          cs.bot_id AS bot_id,
           sum(cs.thumbs_up) AS thumbs_up,
           sum(cs.thumbs_down) AS thumbs_down,
           sum(cs.heart) AS heart,
@@ -688,9 +688,9 @@ export async function getBotReactionLeaderboard(since?: string): Promise<BotReac
   return query<BotReactions>(
     `
     SELECT
-      cs.bot_id,
+      cs.bot_id AS bot_id,
       b.name AS bot_name,
-      b.product_id,
+      b.product_id AS product_id,
       sum(cs.thumbs_up) AS total_thumbs_up,
       sum(cs.thumbs_down) AS total_thumbs_down,
       sum(cs.heart) AS total_heart,
@@ -738,9 +738,9 @@ export async function getAvgCommentsPerPR(botId?: string, since?: string): Promi
       total_comments
     FROM (
       SELECT
-        cs.bot_id,
+        cs.bot_id AS bot_id,
         b.name AS bot_name,
-        b.product_id,
+        b.product_id AS product_id,
         uniqExactMerge(cs.pr_count) AS total_prs,
         sum(cs.comment_count) AS total_comments
       FROM comment_stats_weekly cs
@@ -869,7 +869,7 @@ export async function getAllPrCharacteristics(
   // for the default (unfiltered) case — the common path on the compare page.
   const sql = since
     ? `SELECT
-        de.product_id,
+        de.product_id AS product_id,
         count() AS sampled_prs,
         round(avg(p.additions), 0) AS avg_additions,
         round(avg(p.deletions), 0) AS avg_deletions,
@@ -920,7 +920,7 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
   return query<BotByLanguage>(
     `
     SELECT
-      e.bot_id,
+      e.bot_id AS bot_id,
       b.name AS bot_name,
       r.primary_language AS language,
       countDistinct(e.repo_name, e.pr_number) AS pr_count,
@@ -991,7 +991,7 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
     ) rr ON r.owner = rr.owner
     LEFT JOIN (
       SELECT
-        r3.owner,
+        r3.owner AS owner,
         countIf(c.comment_id > 0) AS total_bot_comments,
         sumIf(c.thumbs_up, c.comment_id > 0) AS thumbs_up,
         sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
@@ -1341,7 +1341,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       `, enrichParams),
       query<{ owner: string; total_prs: number; product_ids: string[] }>(`
         SELECT
-          opc.owner,
+          opc.owner AS owner,
           uniqExactMerge(opc.pr_count) AS total_prs,
           groupUniqArray(b.product_id) AS product_ids
         FROM org_bot_pr_counts opc
@@ -1459,7 +1459,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
         GROUP BY owner
       `, enrichParams),
       query<{ owner: string; product_ids: string[] }>(`
-        SELECT opc.owner, groupUniqArray(b.product_id) AS product_ids
+        SELECT opc.owner AS owner, groupUniqArray(b.product_id) AS product_ids
         FROM org_bot_pr_counts opc
         JOIN bots b ON opc.bot_id = b.id
         WHERE opc.owner IN ({owners:Array(String)})
@@ -1556,7 +1556,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
     const [eventRows, reactionRows] = await Promise.all([
       query<{ owner: string; total_prs: number; product_ids: string[] }>(`
         SELECT
-          opc.owner,
+          opc.owner AS owner,
           uniqExactMerge(opc.pr_count) AS total_prs,
           groupUniqArray(b.product_id) AS product_ids
         FROM org_bot_pr_counts opc
@@ -1974,7 +1974,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
       `, enrichParams),
       query<{ repo_name: string; total_prs: number; product_ids: string[] }>(`
         SELECT
-          s.repo_name,
+          s.repo_name AS repo_name,
           uniqExactMerge(s.pr_count) AS total_prs,
           groupUniqArray(b.product_id) AS product_ids
         FROM pr_bot_event_counts s
@@ -2052,7 +2052,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
         WHERE name IN ({repoNames:Array(String)})
       `, enrichParams),
       query<{ repo_name: string; product_ids: string[] }>(`
-        SELECT s.repo_name, groupUniqArray(b.product_id) AS product_ids
+        SELECT s.repo_name AS repo_name, groupUniqArray(b.product_id) AS product_ids
         FROM pr_bot_event_counts s
         JOIN bots b ON s.bot_id = b.id
         WHERE s.repo_name IN ({repoNames:Array(String)})
@@ -2109,7 +2109,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
     const repoNames = pageRows.map(r => r.name);
     const enrichRows = await query<{ repo_name: string; total_prs: number; product_ids: string[] }>(`
       SELECT
-        s.repo_name,
+        s.repo_name AS repo_name,
         uniqExactMerge(s.pr_count) AS total_prs,
         groupUniqArray(b.product_id) AS product_ids
       FROM pr_bot_event_counts s
@@ -2167,7 +2167,7 @@ export async function getRepoDetail(repoName: string): Promise<RepoDetail | null
     FROM repos r
     LEFT JOIN (
       SELECT
-        s.repo_name,
+        s.repo_name AS repo_name,
         uniqExactMerge(s.pr_count) AS total_prs,
         0 AS bot_comment_count
       FROM pr_bot_event_counts s
@@ -2176,7 +2176,7 @@ export async function getRepoDetail(repoName: string): Promise<RepoDetail | null
     ) ev ON r.name = ev.repo_name
     LEFT JOIN (
       SELECT
-        p.repo_name,
+        p.repo_name AS repo_name,
         round(countIf(p.merged_at IS NOT NULL) * 100.0 / count(), 1) AS merge_rate,
         round(avg(if(p.merged_at IS NOT NULL, dateDiff('second', p.created_at, p.merged_at) / 3600, NULL)), 1) AS avg_hours_to_merge,
         round(avg(p.additions), 0) AS avg_additions,
