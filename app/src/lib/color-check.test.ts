@@ -132,27 +132,27 @@ describe("Chart color conflicts", () => {
 });
 
 describe("Brand color text readability", () => {
-  // The dark-theme backgrounds are the primary concern for readability.
-  // Apply getThemedBrandColor() so the test validates the full pipeline:
+  // Test brand colors against BOTH dark and light theme backgrounds.
+  // Apply getThemedBrandColor() per theme so the test validates the full pipeline:
   // raw bots.ts color → theme override → displayed color → readable on screen.
-  // This catches products with dark brand colors that lack a theme override.
+  // This catches products missing a theme override for either theme.
   for (const { id, name, color } of BRAND_COLORS) {
-    for (const bgColor of TEXT_BACKGROUND_COLORS) {
-      const displayed = getThemedBrandColor(id, color, "dark");
-      it(`${name} (${displayed}) is readable on ${bgColor}`, () => {
+    for (const { color: bgColor, theme } of TEXT_BACKGROUND_COLORS) {
+      const displayed = getThemedBrandColor(id, color, theme);
+      it(`${name} (${displayed}) is readable on ${theme} ${bgColor}`, () => {
         const ratio = contrastRatio(displayed, bgColor);
         assert.ok(
           ratio >= MIN_CONTRAST_RATIO,
           `${name}'s brand color ${displayed} (raw: ${color}, id: ${id}) has insufficient contrast against ` +
-          `background ${bgColor} (ratio = ${ratio.toFixed(2)}, ` +
+          `${theme} background ${bgColor} (ratio = ${ratio.toFixed(2)}, ` +
           `minimum = ${MIN_CONTRAST_RATIO}). ` +
-          `Add a brand_color_dark override in theme-overrides.ts.`,
+          `Add a brand_color_${theme} override in theme-overrides.ts.`,
         );
       });
     }
   }
 
-  it("brand colors are mutually distinguishable", () => {
+  it("brand colors are mutually distinguishable (dark)", () => {
     for (let i = 0; i < BRAND_COLORS.length; i++) {
       for (let j = i + 1; j < BRAND_COLORS.length; j++) {
         const ci = getThemedBrandColor(BRAND_COLORS[i].id, BRAND_COLORS[i].color, "dark");
@@ -161,7 +161,24 @@ describe("Brand color text readability", () => {
         assert.ok(
           dist >= 10,
           `Brand colors for ${BRAND_COLORS[i].name} (${ci}) and ` +
-          `${BRAND_COLORS[j].name} (${cj}) are too similar ` +
+          `${BRAND_COLORS[j].name} (${cj}) are too similar on dark ` +
+          `(ΔE = ${dist.toFixed(1)}, minimum = 10). ` +
+          `Pick more distinct brand colors.`,
+        );
+      }
+    }
+  });
+
+  it("brand colors are mutually distinguishable (light)", () => {
+    for (let i = 0; i < BRAND_COLORS.length; i++) {
+      for (let j = i + 1; j < BRAND_COLORS.length; j++) {
+        const ci = getThemedBrandColor(BRAND_COLORS[i].id, BRAND_COLORS[i].color, "light");
+        const cj = getThemedBrandColor(BRAND_COLORS[j].id, BRAND_COLORS[j].color, "light");
+        const dist = deltaE(ci, cj);
+        assert.ok(
+          dist >= 10,
+          `Brand colors for ${BRAND_COLORS[i].name} (${ci}) and ` +
+          `${BRAND_COLORS[j].name} (${cj}) are too similar on light ` +
           `(ΔE = ${dist.toFixed(1)}, minimum = 10). ` +
           `Pick more distinct brand colors.`,
         );

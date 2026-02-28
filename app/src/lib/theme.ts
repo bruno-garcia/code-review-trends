@@ -71,10 +71,23 @@ export const THEME = {
 /** All unique theme colors for conflict checking */
 export const THEME_COLORS = [...new Set(Object.values(THEME))];
 
+/** Light theme background values (from globals.css :root) */
+export const LIGHT_THEME = {
+  bg: "#ffffff",
+  surface: "#f9fafb",
+  nav: "#f9fafb",
+} as const;
+
 /**
  * Background colors that brand colors (used as text) must be readable against.
- * WCAG AA requires contrast ratio ≥ 4.5 for normal text.
+ * Includes both dark and light theme backgrounds with their theme name,
+ * so the test can apply the correct getThemedBrandColor override per theme.
  */
-export const TEXT_BACKGROUND_COLORS = [
-  ...new Set([THEME.bg, THEME.surface, THEME.nav]),
-] as const;
+export const TEXT_BACKGROUND_COLORS: { color: string; theme: "dark" | "light" }[] = [
+  ...([...new Set([THEME.bg, THEME.surface, THEME.nav])] as string[]).map(
+    (color) => ({ color, theme: "dark" as const }),
+  ),
+  ...([...new Set([LIGHT_THEME.bg, LIGHT_THEME.surface, LIGHT_THEME.nav])] as string[]).map(
+    (color) => ({ color, theme: "light" as const }),
+  ),
+];

@@ -14,7 +14,7 @@ describe("getThemedBrandColor", () => {
   });
 
   test("copilot: overrides light, uses default for dark", () => {
-    expect(getThemedBrandColor("copilot", "#e5e7eb", "light")).toBe("#58a6ff");
+    expect(getThemedBrandColor("copilot", "#e5e7eb", "light")).toBe("#3e74b2");
     expect(getThemedBrandColor("copilot", "#e5e7eb", "dark")).toBe("#e5e7eb");
   });
 
@@ -34,7 +34,7 @@ describe("getThemedBrandColor", () => {
   });
 
   test("augment: overrides light only", () => {
-    expect(getThemedBrandColor("augment", "#968CFF", "light")).toBe("#6c5ce7");
+    expect(getThemedBrandColor("augment", "#968CFF", "light")).toBe("#5040c0");
     expect(getThemedBrandColor("augment", "#968CFF", "dark")).toBe("#968CFF");
   });
 
@@ -44,12 +44,12 @@ describe("getThemedBrandColor", () => {
   });
 
   test("cubic: overrides light only", () => {
-    expect(getThemedBrandColor("cubic", "#edc00c", "light")).toBe("#b8960a");
+    expect(getThemedBrandColor("cubic", "#edc00c", "light")).toBe("#896f07");
     expect(getThemedBrandColor("cubic", "#edc00c", "dark")).toBe("#edc00c");
   });
 
   test("baz: overrides light only", () => {
-    expect(getThemedBrandColor("baz", "#39FF14", "light")).toBe("#1a8f0a");
+    expect(getThemedBrandColor("baz", "#39FF14", "light")).toBe("#1d820a");
     expect(getThemedBrandColor("baz", "#39FF14", "dark")).toBe("#39FF14");
   });
 });
