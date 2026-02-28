@@ -61,11 +61,13 @@ export function ProductFilterBar() {
   const isSelectionEmpty = selectedProducts.length === 0;
 
   // Only show filter on pages that use it
+  const isProductDetail = /^\/products\/[^/]+$/.test(pathname);
   const isFilterPage =
     pathname === "/products" ||
     pathname === "/repos" ||
     pathname === "/orgs" ||
-    pathname.startsWith("/compare");
+    pathname.startsWith("/compare") ||
+    isProductDetail;
   if (!isFilterPage) {
     return null;
   }
@@ -77,7 +79,10 @@ export function ProductFilterBar() {
 
   // Time range only works on pages that query weekly activity data.
   // /repos and /orgs use all-time aggregated data with no time dimension.
-  const showTimeRange = pathname === "/products" || pathname === "/compare";
+  const showTimeRange = pathname === "/products" || pathname === "/compare" || isProductDetail;
+
+  // Product detail pages only need the time range — no product picker.
+  const showProductFilter = !isProductDetail;
 
   function signalNavigation() {
     if (isServerSyncPage) {
@@ -119,7 +124,8 @@ export function ProductFilterBar() {
   return (
     <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg sticky top-[60px] sm:top-16 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Compact row — entire bar is clickable to toggle the picker */}
+        {/* Compact row — clickable to toggle picker (only when product filter is shown) */}
+        {showProductFilter ? (
         <div
           role="button"
           tabIndex={0}
@@ -199,9 +205,16 @@ export function ProductFilterBar() {
             </span>
           </div>
         </div>
+        ) : (
+        /* Time-range-only bar (e.g. product detail pages) */
+        <div className="min-h-12 py-2 flex items-center gap-3">
+          <span className="text-sm text-theme-muted shrink-0">Time range:</span>
+          <TimeRangeSelector />
+        </div>
+        )}
 
-        {/* Expanded picker */}
-        <div
+        {/* Expanded picker (only for pages with product filter) */}
+        {showProductFilter && <div
           className={`transition-all duration-200 ${
             expanded ? "max-h-[80vh] overflow-y-auto opacity-100 pb-4" : "max-h-0 overflow-hidden opacity-0"
           }`}
@@ -279,7 +292,7 @@ export function ProductFilterBar() {
               })}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
