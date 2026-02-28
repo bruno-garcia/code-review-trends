@@ -1,55 +1,5 @@
 import { describe, it, expect } from "vitest";
-
-// Re-export the function for testing by importing the module
-// Since splitSqlStatements is not exported, we test it indirectly via a copy.
-// TODO: extract to a shared module if this grows.
-
-function splitSqlStatements(sql: string): string[] {
-  const statements: string[] = [];
-  let current = "";
-  let i = 0;
-  while (i < sql.length) {
-    if (sql[i] === "-" && sql[i + 1] === "-") {
-      const eol = sql.indexOf("\n", i);
-      if (eol === -1) break;
-      current += sql.slice(i, eol + 1);
-      i = eol + 1;
-      continue;
-    }
-    if (sql[i] === "/" && sql[i + 1] === "*") {
-      const end = sql.indexOf("*/", i + 2);
-      if (end === -1) { current += sql.slice(i); break; }
-      current += sql.slice(i, end + 2);
-      i = end + 2;
-      continue;
-    }
-    if (sql[i] === "'") {
-      let j = i + 1;
-      while (j < sql.length) {
-        if (sql[j] === "'" && sql[j + 1] === "'") j += 2;
-        else if (sql[j] === "'") break;
-        else j++;
-      }
-      current += sql.slice(i, j + 1);
-      i = j + 1;
-      continue;
-    }
-    if (sql[i] === ";") {
-      const trimmed = current.trim();
-      const withoutComments = trimmed.replace(/--[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "").trim();
-      if (withoutComments.length > 0) statements.push(trimmed);
-      current = "";
-      i++;
-      continue;
-    }
-    current += sql[i];
-    i++;
-  }
-  const trimmed = current.trim();
-  const withoutComments = trimmed.replace(/--[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "").trim();
-  if (withoutComments.length > 0) statements.push(trimmed);
-  return statements;
-}
+import { splitSqlStatements } from "./sql-splitter.js";
 
 describe("splitSqlStatements", () => {
   it("splits basic statements", () => {
