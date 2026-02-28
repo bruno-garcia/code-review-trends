@@ -23,6 +23,107 @@ import { fetchCommentsBatch, GRAPHQL_COMMENT_BATCH_MAX, GRAPHQL_COMMENT_BATCH_MI
 import { AdaptiveBatch } from "./adaptive-batch.js";
 import { isServerError } from "./graphql-retry.js";
 
+/** Counters mutated by REST fallback processing. */
+interface RestCounters {
+  fetched: number;
+  notFound: number;
+  forbidden: number;
+  rateLimited: number;
+  unknownBot: number;
+  repliesFiltered: number;
+  errors: number;
+}
+
+/**
+ * Fetch comments for a single combo via REST API.
+ *
+ * REST `pulls.listReviewComments` returns a flat list of ALL review comments
+ * across all threads, so it works for PRs with any number of threads (unlike
+ * GraphQL which is limited to REVIEW_THREADS_PAGE_SIZE).
+ *
+ * Inserts a sentinel (comment_id=0) when no bot comments are found, so the
+ * combo is marked as "done" and not re-fetched on subsequent runs.
+ */
+async function fetchComboViaRest(
+  octokit: Octokit,
+  ch: ClickHouseClient,
+  rateLimiter: RateLimiter,
+  combo: { repo_name: string; pr_number: number; bot_id: string },
+  counters: RestCounters,
+): Promise<void> {
+  const { repo_name, pr_number, bot_id } = combo;
+  const [owner, repo] = repo_name.split("/");
+  if (!owner || !repo) return;
+  const bot = BOT_BY_ID.get(bot_id);
+  if (!bot) { counters.unknownBot++; return; }
+  const loginSet = new Set([bot.github_login, ...(bot.additional_logins ?? [])]);
+
+  await rateLimiter.waitIfNeeded();
+  try {
+    const rows: PrCommentRow[] = [];
+    let page = 1;
+    while (true) {
+      const { data, headers } = await octokit.rest.pulls.listReviewComments({
+        owner, repo, pull_number: pr_number, per_page: 100, page,
+      });
+      rateLimiter.update(headers as Record<string, string>);
+      for (const comment of data) {
+        const login = comment.user?.login;
+        if (!login || !loginSet.has(login)) continue;
+        if (comment.in_reply_to_id) { counters.repliesFiltered++; continue; }
+        const reactions = comment.reactions;
+        rows.push({
+          repo_name, pr_number, comment_id: String(comment.id), bot_id,
+          body_length: comment.body?.length ?? 0, created_at: comment.created_at,
+          thumbs_up: reactions?.["+1"] ?? 0, thumbs_down: reactions?.["-1"] ?? 0,
+          laugh: reactions?.laugh ?? 0, confused: reactions?.confused ?? 0,
+          heart: reactions?.heart ?? 0, hooray: reactions?.hooray ?? 0,
+          eyes: reactions?.eyes ?? 0, rocket: reactions?.rocket ?? 0,
+        });
+      }
+      if (data.length < 100) break;
+      page++;
+      await rateLimiter.waitIfNeeded();
+    }
+    if (rows.length > 0) {
+      await insertPrComments(ch, rows);
+    } else {
+      await insertPrComments(ch, [{
+        repo_name, pr_number, comment_id: "0", bot_id,
+        body_length: 0, created_at: new Date().toISOString(),
+        thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+        heart: 0, hooray: 0, eyes: 0, rocket: 0,
+      }]);
+    }
+    counters.fetched++;
+  } catch (innerErr: unknown) {
+    const status = (innerErr as { status?: number }).status;
+    if (status === 404) {
+      counters.notFound++;
+    } else if (status === 403) {
+      const headers = (innerErr as { response?: { headers?: Record<string, string> } }).response?.headers;
+      if (headers) {
+        rateLimiter.update(headers);
+        const retryAfter = headers["retry-after"];
+        if (retryAfter) {
+          await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
+          counters.rateLimited++;
+        } else if (headers["x-ratelimit-remaining"] === "0") {
+          counters.rateLimited++;
+        } else {
+          counters.forbidden++;
+        }
+      } else {
+        counters.forbidden++;
+      }
+    } else {
+      captureEnrichmentError(innerErr, "comments", { repo: repo_name, pr_number, bot_id });
+      logError(`[comments] REST fallback error: ${repo_name}#${pr_number}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
+      counters.errors++;
+    }
+  }
+}
+
 /**
  * Fetch and insert bot review comments with reactions for PRs
  * discovered in pr_bot_events that don't yet exist in pr_comments.
@@ -93,13 +194,10 @@ export async function enrichComments(
     log(`[comments] ${summarizeRepos(combos)}`);
   }
 
-  let fetched = 0;
-  let notFound = 0;
-  let forbidden = 0;
-  let rateLimited = 0;
-  let unknownBot = 0;
-  let repliesFiltered = 0;
-  let errors = 0;
+  const counters: RestCounters = {
+    fetched: 0, notFound: 0, forbidden: 0,
+    rateLimited: 0, unknownBot: 0, repliesFiltered: 0, errors: 0,
+  };
   const adaptive = new AdaptiveBatch({ max: GRAPHQL_COMMENT_BATCH_MAX, min: GRAPHQL_COMMENT_BATCH_MIN });
 
   let batchStart = 0;
@@ -115,7 +213,7 @@ export async function enrichComments(
         const batchInputs: CommentBatchInput[] = [];
         for (const { repo_name, pr_number, bot_id } of batch) {
           const bot = BOT_BY_ID.get(bot_id);
-          if (!bot) { unknownBot++; continue; }
+          if (!bot) { counters.unknownBot++; continue; }
           const botLogins = new Set([bot.github_login, ...(bot.additional_logins ?? [])]);
           batchInputs.push({ repo_name, pr_number, bot_id, bot_login: bot.github_login, bot_logins: botLogins });
         }
@@ -129,6 +227,7 @@ export async function enrichComments(
           // Track batch-local counters — only merge after insert succeeds
           // to avoid double-counting on adaptive batch retries.
           const allCommentRows: PrCommentRow[] = [];
+          const restFallbackCombos: { repo_name: string; pr_number: number; bot_id: string }[] = [];
           let batchFetched = 0;
           let batchNotFound = 0;
           let batchErrors = 0;
@@ -144,17 +243,22 @@ export async function enrichComments(
             }
 
             if (result.hasMore) {
-              // PR has more review threads than REVIEW_THREADS_PAGE_SIZE —
-              // save any bot comments we found, but do NOT insert a sentinel.
-              // Bot comments may exist beyond the fetched threads, so marking
-              // this combo as "done" would permanently mask unfetched data
-              // (AGENTS.md principle 17). REST fallback or next run handles it.
-              if (result.comments.length > 0) {
-                allCommentRows.push(...result.comments);
-              }
-              log(`[comments] ${result.input.repo_name}#${result.input.pr_number} has >${REVIEW_THREADS_PAGE_SIZE} review threads, saved partial (no sentinel)`);
+              // PR has more review threads than REVIEW_THREADS_PAGE_SIZE.
+              // Don't insert GraphQL results — they're incomplete. Bots post
+              // new review threads on each push, so comments from threads beyond
+              // the first page are common and would be permanently lost if we
+              // inserted partial results (the LEFT JOIN would mark the combo as
+              // "done"). Instead, fall back to REST which returns a flat list
+              // of ALL comments without thread pagination limits.
+              restFallbackCombos.push({
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
+                bot_id: result.input.bot_id,
+              });
+              log(`[comments] ${result.input.repo_name}#${result.input.pr_number} has >${REVIEW_THREADS_PAGE_SIZE} review threads, falling back to REST`);
             } else if (result.comments.length > 0) {
               allCommentRows.push(...result.comments);
+              batchFetched++;
             } else {
               // Sentinel row — all threads fetched, no bot comments found
               allCommentRows.push({
@@ -167,9 +271,8 @@ export async function enrichComments(
                 thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
                 heart: 0, hooray: 0, eyes: 0, rocket: 0,
               });
+              batchFetched++;
             }
-
-            batchFetched++;
           }
 
           const insertStart = Date.now();
@@ -177,13 +280,21 @@ export async function enrichComments(
           const insertMs = Date.now() - insertStart;
 
           // Merge counters after successful insert
-          fetched += batchFetched;
-          notFound += batchNotFound;
-          errors += batchErrors;
+          counters.fetched += batchFetched;
+          counters.notFound += batchNotFound;
+          counters.errors += batchErrors;
 
           log(
             `[comments] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allCommentRows.length} rows)`,
           );
+
+          // Process hasMore combos via REST — fetches ALL comments without
+          // thread pagination limits. Must happen after the GraphQL insert
+          // so we don't mix partial and complete data for the same combo.
+          for (const combo of restFallbackCombos) {
+            await fetchComboViaRest(octokit, ch, rateLimiter, combo, counters);
+          }
+
           adaptive.onSuccess();
           batchHandled = true;
         } catch (err: unknown) {
@@ -205,77 +316,8 @@ export async function enrichComments(
           sentryLogger.warn(sentryLogger.fmt`REST fallback triggered phase=comments batchSize=${batch.length} error=${errMsg}`);
 
           // Fall back to REST for this batch
-          for (const { repo_name, pr_number, bot_id } of batch) {
-            const [owner, repo] = repo_name.split("/");
-            if (!owner || !repo) continue;
-            const bot = BOT_BY_ID.get(bot_id);
-            if (!bot) { unknownBot++; continue; }
-            const loginSet = new Set([bot.github_login, ...(bot.additional_logins ?? [])]);
-
-            await rateLimiter.waitIfNeeded();
-            try {
-              const rows: PrCommentRow[] = [];
-              let page = 1;
-              while (true) {
-                const { data, headers } = await octokit.rest.pulls.listReviewComments({
-                  owner, repo, pull_number: pr_number, per_page: 100, page,
-                });
-                rateLimiter.update(headers as Record<string, string>);
-                for (const comment of data) {
-                  const login = comment.user?.login;
-                  if (!login || !loginSet.has(login)) continue;
-                  if (comment.in_reply_to_id) { repliesFiltered++; continue; }
-                  const reactions = comment.reactions;
-                  rows.push({
-                    repo_name, pr_number, comment_id: String(comment.id), bot_id,
-                    body_length: comment.body?.length ?? 0, created_at: comment.created_at,
-                    thumbs_up: reactions?.["+1"] ?? 0, thumbs_down: reactions?.["-1"] ?? 0,
-                    laugh: reactions?.laugh ?? 0, confused: reactions?.confused ?? 0,
-                    heart: reactions?.heart ?? 0, hooray: reactions?.hooray ?? 0,
-                    eyes: reactions?.eyes ?? 0, rocket: reactions?.rocket ?? 0,
-                  });
-                }
-                if (data.length < 100) break;
-                page++;
-                await rateLimiter.waitIfNeeded();
-              }
-              if (rows.length > 0) {
-                await insertPrComments(ch, rows);
-              } else {
-                await insertPrComments(ch, [{
-                  repo_name, pr_number, comment_id: "0", bot_id,
-                  body_length: 0, created_at: new Date().toISOString(),
-                  thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
-                  heart: 0, hooray: 0, eyes: 0, rocket: 0,
-                }]);
-              }
-              fetched++;
-            } catch (innerErr: unknown) {
-              const status = (innerErr as { status?: number }).status;
-              if (status === 404) {
-                notFound++;
-              } else if (status === 403) {
-                const headers = (innerErr as { response?: { headers?: Record<string, string> } }).response?.headers;
-                if (headers) {
-                  rateLimiter.update(headers);
-                  const retryAfter = headers["retry-after"];
-                  if (retryAfter) {
-                    await rateLimiter.handleRetryAfter(parseInt(retryAfter, 10));
-                    rateLimited++;
-                  } else if (headers["x-ratelimit-remaining"] === "0") {
-                    rateLimited++;
-                  } else {
-                    forbidden++;
-                  }
-                } else {
-                  forbidden++;
-                }
-              } else {
-                captureEnrichmentError(innerErr, "comments", { repo: repo_name, pr_number, bot_id });
-                logError(`[comments] REST fallback error: ${repo_name}#${pr_number}: ${innerErr instanceof Error ? innerErr.message : innerErr}`);
-                errors++;
-              }
-            }
+          for (const combo of batch) {
+            await fetchComboViaRest(octokit, ch, rateLimiter, combo, counters);
           }
           batchHandled = true;
         }
@@ -287,8 +329,8 @@ export async function enrichComments(
     }
     // else: adaptive reduced size, retry same batchStart
 
-    const processed = fetched + notFound + forbidden + rateLimited + unknownBot + errors;
-    log(`[comments] Progress: ${processed}/${combos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
+    const processed = counters.fetched + counters.notFound + counters.forbidden + counters.rateLimited + counters.unknownBot + counters.errors;
+    log(`[comments] Progress: ${processed}/${combos.length} (${counters.fetched} ok, ${counters.notFound} not_found, ${counters.forbidden} forbidden, ${counters.errors} errors)`);
     countMetric("pipeline.enrich.comments.batch", 1);
     // Flush Sentry periodically so spans are visible during long runs
     if (processed % 100 < adaptive.size) {
@@ -297,11 +339,11 @@ export async function enrichComments(
   }
 
   log(`[comments] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}, recoveries=${adaptive.summary().recoveries}`);
-  log(`[comments] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${unknownBot} unknown_bot, ${repliesFiltered} replies_filtered, ${errors} errors`);
+  log(`[comments] Done: ${counters.fetched} fetched, ${counters.notFound} not_found, ${counters.forbidden} forbidden, ${counters.rateLimited} rate_limited, ${counters.unknownBot} unknown_bot, ${counters.repliesFiltered} replies_filtered, ${counters.errors} errors`);
   return {
-    fetched,
-    skipped: notFound + forbidden + rateLimited + unknownBot,
-    replies_filtered: repliesFiltered,
-    errors,
+    fetched: counters.fetched,
+    skipped: counters.notFound + counters.forbidden + counters.rateLimited + counters.unknownBot,
+    replies_filtered: counters.repliesFiltered,
+    errors: counters.errors,
   };
 }

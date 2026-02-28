@@ -256,23 +256,16 @@ export async function enrichCombined(
                 batchComments++;
               }
             } else if (result.prStatus === "ok" && result.hasMoreThreads) {
-              // PR has more review threads than REVIEW_THREADS_PAGE_SIZE — insert
-              // found comments but skip sentinels. The individual enrichComments
-              // stage will handle the rest.
-              for (const botEntry of result.input.bot_entries) {
-                const botComments =
-                  result.comments.get(botEntry.bot_id) ?? [];
-                if (botComments.length > 0) {
-                  allCommentRows.push(...botComments);
-                  batchComments++;
-                }
-                // No sentinel — leave for individual stage to process fully
-              }
-              if (result.hasMoreThreads) {
-                log(
-                  `[combined] ${result.input.repo_name}#${result.input.pr_number} has >${REVIEW_THREADS_PAGE_SIZE} review threads, skipping sentinels`,
-                );
-              }
+              // PR has more review threads than REVIEW_THREADS_PAGE_SIZE.
+              // Don't insert ANY comment data (not even partial results) —
+              // bots post new threads on each push, so comments beyond the
+              // first page are common. Inserting partial results would satisfy
+              // the LEFT JOIN in enrichComments, preventing REST fallback from
+              // ever fetching the complete set. Leave entirely for the
+              // individual comments stage which falls back to REST.
+              log(
+                `[combined] ${result.input.repo_name}#${result.input.pr_number} has >${REVIEW_THREADS_PAGE_SIZE} review threads, deferring to comments stage`,
+              );
             }
 
             // Collect reaction data — only for successfully fetched PRs
