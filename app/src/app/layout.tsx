@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { VersionStamp } from "@/components/version-stamp";
 import { Logo } from "@/components/logo";
 import { NavLinks } from "@/components/nav-links";
+import { MobileNav } from "@/components/mobile-nav";
 import { ThemeProvider, themeScript } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getProductSummaries, getEnrichmentStats } from "@/lib/clickhouse";
@@ -118,24 +119,22 @@ export default async function RootLayout({
             <SchemaBanner status={schemaStatus} />
             <NavigationProgress />
             <nav className="border-b border-theme-border bg-theme-nav sticky top-0 z-50">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-wrap sm:flex-nowrap items-center py-3 sm:py-0 sm:h-16 gap-x-4 gap-y-2">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                <div className="flex items-center py-3 sm:py-0 sm:h-16 gap-x-4">
                   <Link href="/" className="flex items-center flex-shrink-0">
                     <Logo />
                   </Link>
-                  {/* Mobile spacer: pushes theme toggle to the right in row 1 */}
+                  {/* Mobile spacer: pushes hamburger + theme toggle to the right */}
                   <div className="flex-1 sm:hidden" />
-                  {/* Single instance — row 1 right on mobile, after nav links on desktop */}
+                  {/* Mobile: hamburger menu */}
+                  <MobileNav />
+                  {/* Theme toggle — always visible */}
                   <div className="sm:order-last">
                     <ThemeToggle />
                   </div>
-                  {/* Nav links: w-full forces row 2 on mobile, inline on desktop */}
-                  <div className="relative w-full sm:w-auto sm:ml-auto">
-                    <div className="flex items-center gap-3 sm:gap-6 text-sm text-nav-link overflow-x-auto scrollbar-none pr-8 sm:pr-0">
-                      <NavLinks />
-                    </div>
-                    {/* Fade hint on right edge — mobile only */}
-                    <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-theme-nav to-transparent sm:hidden" aria-hidden="true" />
+                  {/* Desktop nav links — hidden on mobile */}
+                  <div className="hidden sm:flex items-center gap-6 text-sm text-nav-link ml-auto">
+                    <NavLinks />
                   </div>
                 </div>
               </div>

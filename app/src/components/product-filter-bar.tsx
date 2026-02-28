@@ -114,10 +114,10 @@ export function ProductFilterBar() {
     setSelectedProductIds(top10);
   }
 
-  // Mobile nav is ~85px tall (py-3 + logo row + gap-y-2 + nav links row).
-  // Desktop nav is h-16 (64px). Keep top-[85px]/top-16 in sync with layout.tsx nav.
+  // Mobile nav is single row with hamburger (~52px: py-3 + content).
+  // Desktop nav is h-16 (64px). Keep top values in sync with layout.tsx nav.
   return (
-    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg sticky top-[85px] sm:top-16 z-40">
+    <div ref={barRef} data-testid="product-filter-bar" className="border-b border-theme-border bg-theme-bg sticky top-[52px] sm:top-16 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Compact row — entire bar is clickable to toggle the picker */}
         <div
