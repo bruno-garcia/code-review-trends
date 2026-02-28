@@ -19,9 +19,29 @@ type ThemeOverride = {
 };
 
 const THEME_OVERRIDES: Record<string, ThemeOverride> = {
-  copilot: {
-    // DB may still have old #e5e7eb (invisible on white). Force GitHub blue on light.
-    brand_color_light: "#58a6ff",
+  // ── Products that need dark-theme overrides (dark brand color on dark bg) ──
+  "amazon-q": {
+    // Default #232F3E (AWS navy) is invisible on dark backgrounds
+    brand_color_dark: "#5da0c8",
+    // AWS orange, darkened for WCAG AA contrast on white
+    brand_color_light: "#7d4a00",
+  },
+  codacy: {
+    // Default #242C33 is nearly black — invisible on dark backgrounds
+    brand_color_dark: "#78a0a8",
+    // Codacy teal accent, darkened to stay distinct from Windsurf
+    brand_color_light: "#0e6058",
+  },
+  codeclimate: {
+    // Default #1E293B (dark slate) is invisible on dark backgrounds
+    brand_color_dark: "#6b8baf",
+    // Slate blue — distinct from the raw dark navy
+    brand_color_light: "#2d4a6f",
+  },
+  kilo: {
+    // Default #000000 is pure black — invisible on dark backgrounds.
+    // Warm sandy tone to stay distinct from OpenAI Codex (#b0b0b0).
+    brand_color_dark: "#c4a882",
   },
   "openai-codex": {
     // Default #808080 is too muted on both themes
@@ -30,31 +50,106 @@ const THEME_OVERRIDES: Record<string, ThemeOverride> = {
     // The GitHub avatar is a dark logo on a near-black background
     invert_avatar_dark: true,
   },
+
+  // ── Products that need light-theme overrides (bright brand color on white bg) ──
+  coderabbit: {
+    // Default #f97316 orange washes out on white
+    brand_color_light: "#b85510",
+  },
+  copilot: {
+    // Default #58a6ff is too bright on white
+    brand_color_light: "#3e74b2",
+  },
+  codescene: {
+    // Default #5f72ee washes out on white
+    brand_color_light: "#5567d6",
+  },
+  sourcery: {
+    // Default #65a30d green is too bright on white
+    brand_color_light: "#4e7e0a",
+  },
+  ellipsis: {
+    // Default #06b6d4 cyan is too bright on white
+    brand_color_light: "#047c90",
+  },
+  gemini: {
+    // Default #ec4899 pink washes out on white
+    brand_color_light: "#c63c81",
+  },
+  graphite: {
+    // Default #5b8ef0 blue washes out on white
+    brand_color_light: "#4870be",
+  },
+  greptile: {
+    // Default #22c55e green is too bright on white
+    brand_color_light: "#16823e",
+  },
+  jazzberry: {
+    // Default #d44d7f washes out on white
+    brand_color_light: "#bf4572",
+  },
+  kodus: {
+    // Default #6C63FF is borderline on both themes. Light shifted blue to stay distinct from Qlty (#5e61e5).
+    brand_color_dark: "#6570ff",
+    brand_color_light: "#5048e8",
+  },
+  korbit: {
+    // Default #b07838 washes out on white
+    brand_color_light: "#976730",
+  },
+  mesa: {
+    // Default #c06a33 washes out on white
+    brand_color_light: "#a95d2d",
+  },
+  qlty: {
+    // Default #6366F1 lacks contrast on both themes
+    brand_color_dark: "#5085fa",
+    brand_color_light: "#5e61e5",
+  },
+  qodo: {
+    // Default #9d75f8 washes out on white. Shifted magenta to stay distinct from LinearB (#7c4dbd).
+    brand_color_light: "#9838a8",
+  },
+  windsurf: {
+    // Default #0d9488 teal washes out on white
+    brand_color_light: "#0b7f75",
+  },
+  cursor: {
+    // Default #e84e4e red washes out on white
+    brand_color_light: "#c84343",
+  },
+  codeant: {
+    // Default #a855f7 purple washes out on white
+    brand_color_light: "#964cdc",
+  },
+  claude: {
+    // Default #FF9F1C orange is too bright on white
+    brand_color_light: "#a16412",
+  },
   sentry: {
-    // Default #9589c4 is a washed-out lavender — poor contrast on both themes
+    // Default #9589c4 is washed-out lavender — poor contrast on both themes
     brand_color_dark: "#b8a9e0",
     brand_color_light: "#6c5d99",
   },
   bito: {
-    // Default #94a3b8 (slate-400) is too muted, especially on light
-    brand_color_dark: "#b0bec5",
+    // Default #94a3b8 (slate-400) is readable on dark but too muted on light
     brand_color_light: "#546e7a",
   },
   augment: {
-    // Default #968CFF is pastel purple — faded on light
-    brand_color_light: "#6c5ce7",
+    // Default #968CFF is pastel purple — faded on light. Shifted to indigo to stay distinct from Kodus (#645ced).
+    brand_color_light: "#5040c0",
   },
   linearb: {
     // Default #a37ce2 is light purple — faded on light
     brand_color_light: "#7c4dbd",
   },
   cubic: {
-    // Default #edc00c yellow is harsh on white — darken for light
-    brand_color_light: "#b8960a",
+    // Default #edc00c yellow washes out on white
+    brand_color_light: "#896f07",
   },
   baz: {
     // Default #39FF14 neon green is harsh on white
-    brand_color_light: "#1a8f0a",
+    brand_color_light: "#1d820a",
   },
 };
 
