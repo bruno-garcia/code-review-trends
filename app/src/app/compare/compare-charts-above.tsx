@@ -11,8 +11,13 @@ import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
 import { SectionHeading } from "@/components/section-heading";
 import Link from "next/link";
 
-/** Minimum 👍 + 👎 reactions in a single week to compute a meaningful rate. */
-const MIN_WEEKLY_REACTIONS = 10;
+/** Minimum 👍 + 👎 reactions in a period to compute a meaningful rate. */
+const MIN_REACTIONS = 30;
+
+/** Convert a date string (YYYY-MM-DD) to the first day of its month. */
+function toMonthKey(week: string): string {
+  return week.slice(0, 7) + "-01";
+}
 
 type CompareRow = ProductComparison & {
   sampled_prs: number;
@@ -368,19 +373,19 @@ export function CompareChartsAbove({
 
     const sortedWeeks = [...allWeeks].sort();
 
-    const metrics: Record<string, Record<string, Record<string, string | number>>> = {
+    // Weekly metrics (all except thumbs_up_rate, which uses monthly aggregation)
+    const weeklyMetrics: Record<string, Record<string, Record<string, string | number>>> = {
       reviews: {},
       review_comments: {},
       pr_comments: {},
       repos: {},
       orgs: {},
-      thumbs_up_rate: {},
       comments_per_pr: {},
     };
 
     for (const week of sortedWeeks) {
-      for (const key of Object.keys(metrics)) {
-        metrics[key][week] = { week };
+      for (const key of Object.keys(weeklyMetrics)) {
+        weeklyMetrics[key][week] = { week };
       }
     }
 
@@ -391,28 +396,66 @@ export function CompareChartsAbove({
         if (!name) continue;
         const act = weekMap?.get(pid);
         if (act) {
-          metrics.reviews[week][name] = Number(act.review_count);
-          metrics.review_comments[week][name] = Number(act.review_comment_count);
-          metrics.pr_comments[week][name] = Number(act.pr_comment_count);
-          metrics.repos[week][name] = Number(act.repo_count);
-          metrics.orgs[week][name] = Number(act.org_count);
+          weeklyMetrics.reviews[week][name] = Number(act.review_count);
+          weeklyMetrics.review_comments[week][name] = Number(act.review_comment_count);
+          weeklyMetrics.pr_comments[week][name] = Number(act.pr_comment_count);
+          weeklyMetrics.repos[week][name] = Number(act.repo_count);
+          weeklyMetrics.orgs[week][name] = Number(act.org_count);
         }
 
         const rKey = `${week}|${pid}`;
         const rx = reactionIndex.get(rKey);
         if (rx) {
-          const total = rx.thumbs_up + rx.thumbs_down;
-          metrics.thumbs_up_rate[week][name] = total >= MIN_WEEKLY_REACTIONS
-            ? Math.round(rx.thumbs_up * 1000 / total) / 10
-            : 0;
-          metrics.comments_per_pr[week][name] = rx.pr_count > 0
+          weeklyMetrics.comments_per_pr[week][name] = rx.pr_count > 0
             ? Math.round(rx.comment_count * 100 / rx.pr_count) / 100
             : 0;
         }
       }
     }
 
-    return metrics;
+    // Monthly aggregation for thumbs_up_rate — pools weekly reactions into
+    // calendar months so rates are computed from larger samples (less noise).
+    type MonthlyReactions = { thumbs_up: number; thumbs_down: number };
+    const monthlyReactions = new Map<string, MonthlyReactions>();
+    for (const [key, rx] of reactionIndex) {
+      const [week, pid] = key.split("|");
+      const month = toMonthKey(week);
+      const mKey = `${month}|${pid}`;
+      const existing = monthlyReactions.get(mKey);
+      if (existing) {
+        existing.thumbs_up += rx.thumbs_up;
+        existing.thumbs_down += rx.thumbs_down;
+      } else {
+        monthlyReactions.set(mKey, { thumbs_up: rx.thumbs_up, thumbs_down: rx.thumbs_down });
+      }
+    }
+
+    const allMonths = new Set<string>();
+    for (const key of monthlyReactions.keys()) {
+      allMonths.add(key.split("|")[0]);
+    }
+    const sortedMonths = [...allMonths].sort();
+
+    const thumbsUpRate: Record<string, Record<string, string | number>> = {};
+    for (const month of sortedMonths) {
+      thumbsUpRate[month] = { week: month }; // "week" key kept for chart compatibility
+    }
+    for (const month of sortedMonths) {
+      for (const pid of selectedProductIds) {
+        const name = idToName.get(pid);
+        if (!name) continue;
+        const mKey = `${month}|${pid}`;
+        const rx = monthlyReactions.get(mKey);
+        if (rx) {
+          const total = rx.thumbs_up + rx.thumbs_down;
+          if (total >= MIN_REACTIONS) {
+            thumbsUpRate[month][name] = Math.round(rx.thumbs_up * 1000 / total) / 10;
+          }
+        }
+      }
+    }
+
+    return { ...weeklyMetrics, thumbs_up_rate: thumbsUpRate };
   }, [weeklyActivity, weeklyReactions, selectedProductIds, idToName]);
 
   const productNames = products.map((p) => p.name);
