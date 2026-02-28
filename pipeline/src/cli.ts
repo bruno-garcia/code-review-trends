@@ -49,6 +49,7 @@ import {
   queryHumanReviewActivity,
 } from "./bigquery.js";
 import { backfill, syncRecent, monthlyChunks, bigQueryFetcher, mapBotActivityRows, mapHumanActivityRows } from "./sync.js";
+import { splitSqlStatements } from "./sql-splitter.js";
 
 const COMMANDS: Record<string, () => Promise<void>> = {
   "sync-bots": cmdSyncBots,
@@ -574,10 +575,7 @@ async function cmdMigrate() {
   // Collect all statements from all SQL files
   const allStatements: { file: string; sql: string }[] = [];
   for (const file of sqlFiles) {
-    const stmts = file.content
-      .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    const stmts = splitSqlStatements(file.content);
     for (const sql of stmts) {
       allStatements.push({ file: file.name, sql });
     }
