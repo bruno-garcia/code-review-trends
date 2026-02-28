@@ -505,7 +505,7 @@ export function CompareTrendsChart({
       for (const [key, val] of Object.entries(row)) {
         if (key === "week") continue;
         const n = Number(val);
-        if (!isNaN(n) && n > 0) {
+        if (!isNaN(n) && n >= 0) {
           if (n < min) min = n;
           if (n > max) max = n;
         }
