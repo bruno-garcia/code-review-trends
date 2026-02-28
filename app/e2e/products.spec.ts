@@ -244,4 +244,88 @@ test.describe("Product detail page", () => {
     expect(bodyText).not.toMatch(/\bInfinity\b/);
     expect(bodyText).not.toMatch(/\bundefined\b/);
   });
+
+  // Product detail page with remote ClickHouse can take 5-8s per page load.
+  // Time range tests involve navigation + server re-render, so need extra time.
+  test.describe("time range on detail page", () => {
+    test.setTimeout(60_000);
+
+  test("shows time range selector", async ({ page }) => {
+    await page.goto("/products/coderabbit");
+    await expect(page.getByTestId("time-range-selector")).toBeVisible();
+    // All five options should be present
+    await expect(page.getByTestId("time-range-all")).toBeVisible();
+    await expect(page.getByTestId("time-range-1m")).toBeVisible();
+    await expect(page.getByTestId("time-range-3m")).toBeVisible();
+    await expect(page.getByTestId("time-range-6m")).toBeVisible();
+    await expect(page.getByTestId("time-range-1y")).toBeVisible();
+    // Default is "All Time"
+    await expect(page.getByTestId("time-range-all")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  test("clicking time range updates URL with ?range=", async ({ page }) => {
+    await page.goto("/products/coderabbit");
+    await page.getByTestId("time-range-1m").click();
+    await expect(page).toHaveURL(/range=1m/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/products\/coderabbit/);
+  });
+
+  test("time range is restored from URL on load", async ({ page }) => {
+    await page.goto("/products/coderabbit?range=6m", { timeout: 30_000 });
+    await expect(page.getByTestId("time-range-6m")).toHaveAttribute(
+      "aria-checked",
+      "true",
+      { timeout: 10_000 },
+    );
+    await expect(page.getByTestId("time-range-all")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  test("selecting All Time removes ?range= from URL", async ({ page }) => {
+    await page.goto("/products/coderabbit?range=3m");
+    await page.getByTestId("time-range-all").click();
+    await page.waitForURL((url) => !url.search.includes("range="), { timeout: 10_000 });
+    const url = new URL(page.url());
+    expect(url.searchParams.has("range")).toBe(false);
+  });
+
+  test("time range filters stat values", async ({ page }) => {
+    // Load with all-time data and capture "Total Reviews"
+    await page.goto("/products/coderabbit", { waitUntil: "networkidle" });
+    await expect(page.getByTestId("bot-stats")).toBeVisible({ timeout: 15_000 });
+    const allTimeText = await page.getByTestId("bot-stats").textContent();
+    const allTimeMatch = allTimeText?.match(/Total Reviews([\d,]+)/);
+    expect(allTimeMatch).toBeTruthy();
+    const allTimeReviews = Number(allTimeMatch![1].replace(/,/g, ""));
+
+    // Switch to 1M — reviews should be less than all-time
+    await page.getByTestId("time-range-1m").click();
+    await expect(page).toHaveURL(/range=1m/, { timeout: 10_000 });
+    // Wait for the server re-render to complete — stats text must change
+    await expect(async () => {
+      const text = await page.getByTestId("bot-stats").textContent();
+      const match = text?.match(/Total Reviews([\d,]+)/);
+      expect(match).toBeTruthy();
+      const reviews = Number(match![1].replace(/,/g, ""));
+      expect(reviews).toBeLessThan(allTimeReviews);
+      expect(reviews).toBeGreaterThan(0);
+    }).toPass({ timeout: 15_000 });
+  });
+
+  test("time range does not show product picker", async ({ page }) => {
+    await page.goto("/products/coderabbit");
+    // The filter bar should exist (for time range)
+    await expect(page.getByTestId("time-range-selector")).toBeVisible();
+    // But the product picker should not be present
+    await expect(page.getByTestId("product-filter-picker")).not.toBeVisible();
+    // No expand/collapse button
+    await expect(page.getByLabel("Expand filter")).not.toBeVisible();
+  });
+
+  }); // end time range on detail page
 });
