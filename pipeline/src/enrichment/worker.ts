@@ -291,6 +291,9 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     log(`[worker]   Items processed: ${totalItems} (${itemsPerSec} items/s effective)`);
     log(`[worker]   Combined: ${combinedResult.prs_fetched} PRs + ${combinedResult.comments_fetched} comment combos + ${combinedResult.reactions_scanned} reactions scanned (${combinedResult.reactions_found} with bot reactions, ${combinedResult.errors} errors)`);
     log(`[worker]   Rate-limit waits: ${rl.waitCount} pauses, ${Math.ceil(rl.totalWaitMs / 1000)}s total (${rlPct}% of wall time)`);
+    if (rl.pacingCount > 0) {
+      log(`[worker]   Pacing delays: ${rl.pacingCount} pauses, ${Math.ceil(rl.totalPacingMs / 1000)}s total`);
+    }
     if (rl.secondaryHits > 0) {
       log(`[worker]   Secondary rate limits: ${rl.secondaryHits}`);
     }

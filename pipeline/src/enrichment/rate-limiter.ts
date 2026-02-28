@@ -1,8 +1,16 @@
 /**
  * GitHub API rate limiter.
  *
- * Tracks rate-limit headers from GitHub responses and pauses requests
- * when the remaining quota drops below a safety threshold.
+ * Tracks rate-limit headers from GitHub responses and:
+ * 1. **Paces requests** — spreads API calls evenly across the rate limit
+ *    window to maintain continuous throughput instead of burst-then-wait.
+ * 2. **Hard stops** — pauses when the remaining quota drops below a safety
+ *    threshold, waiting for the window to reset.
+ *
+ * Pacing ensures workers with different tokens stay out of phase:
+ * while one approaches its limit and slows down, others with more budget
+ * continue at higher rates. The staggered starts from workers.sh amplify
+ * this effect — there's always at least some workers making progress.
  *
  * Also accumulates wait-time metrics so callers can understand how much
  * time is spent blocked on rate limits vs doing real work.
@@ -24,20 +32,44 @@ export class RateLimitExitError extends Error {
   }
 }
 
+/** Options to inject a custom sleep for testing. */
+export interface RateLimiterOptions {
+  minRemaining?: number;
+  exitOnRateLimit?: boolean;
+  /** Override the sleep function (for testing). Default: real setTimeout. */
+  sleep?: (ms: number) => Promise<void>;
+}
+
 export class RateLimiter {
   private remaining: number = 5000;
   private resetAt: Date = new Date(0);
   private readonly minRemaining: number;
   private readonly exitOnRateLimit: boolean;
+  private lastRequestAt: number = 0;
+  private readonly _sleep: (ms: number) => Promise<void>;
 
   // Accumulated metrics
   private _totalWaitMs: number = 0;
   private _waitCount: number = 0;
   private _secondaryHits: number = 0;
+  private _totalPacingMs: number = 0;
+  private _pacingCount: number = 0;
 
-  constructor(minRemaining: number = 100, exitOnRateLimit: boolean = false) {
-    this.minRemaining = minRemaining;
-    this.exitOnRateLimit = exitOnRateLimit;
+  constructor(minRemaining?: number, exitOnRateLimit?: boolean);
+  constructor(options: RateLimiterOptions);
+  constructor(
+    minRemainingOrOptions: number | RateLimiterOptions = 100,
+    exitOnRateLimit: boolean = false,
+  ) {
+    if (typeof minRemainingOrOptions === "object") {
+      this.minRemaining = minRemainingOrOptions.minRemaining ?? 100;
+      this.exitOnRateLimit = minRemainingOrOptions.exitOnRateLimit ?? false;
+      this._sleep = minRemainingOrOptions.sleep ?? defaultSleep;
+    } else {
+      this.minRemaining = minRemainingOrOptions;
+      this.exitOnRateLimit = exitOnRateLimit;
+      this._sleep = defaultSleep;
+    }
   }
 
   /** Update state from GitHub response headers. */
@@ -55,37 +87,86 @@ export class RateLimiter {
     }
   }
 
-  /** Wait if rate limit is low. Returns ms waited (0 if no wait needed). */
+  /**
+   * Calculate the ideal delay to pace requests across the rate limit window.
+   *
+   * Pure calculation — no side effects, no sleeping. Exported for testing.
+   *
+   * @param now - current timestamp in ms (default: Date.now())
+   * @returns milliseconds to wait before the next request
+   */
+  pacingDelay(now?: number): number {
+    const ts = now ?? Date.now();
+    const msUntilReset = this.resetAt.getTime() - ts;
+
+    // No pacing if no valid rate limit data (first request or window expired)
+    if (msUntilReset <= 0) return 0;
+
+    const usableBudget = this.remaining - this.minRemaining;
+    if (usableBudget <= 0) return 0;
+
+    // Ideal interval: spread remaining budget evenly over the window
+    const intervalMs = msUntilReset / usableBudget;
+
+    // Time since last request — if never called, treat as "long enough"
+    const elapsed = this.lastRequestAt > 0 ? ts - this.lastRequestAt : Infinity;
+
+    return Math.max(0, intervalMs - elapsed);
+  }
+
+  /**
+   * Wait if needed before making an API request.
+   *
+   * First checks the hard stop (remaining < minRemaining), then applies
+   * pacing to spread requests across the rate limit window.
+   *
+   * Returns total ms waited (0 if no wait needed).
+   */
   async waitIfNeeded(): Promise<number> {
-    if (this.remaining >= this.minRemaining) {
-      return 0;
+    // Hard stop: if below minimum threshold, wait for full reset
+    if (this.remaining < this.minRemaining) {
+      if (this.exitOnRateLimit) {
+        throw new RateLimitExitError(this.remaining, this.resetAt);
+      }
+
+      const now = Date.now();
+      const waitMs = Math.max(0, this.resetAt.getTime() - now) + 1000; // 1s buffer
+
+      log(
+        `[rate-limiter] Throttled: ${this.remaining} remaining, waiting ${Math.ceil(waitMs / 1000)}s until reset`,
+      );
+      sentryLogger.warn(sentryLogger.fmt`Rate limit throttle remaining=${this.remaining} waitMs=${waitMs}`);
+
+      await this._sleep(waitMs);
+
+      // Track metrics
+      this._totalWaitMs += waitMs;
+      this._waitCount++;
+      distributionMetric("pipeline.ratelimit.wait", waitMs, "millisecond", { trigger: "primary" });
+      countMetric("pipeline.ratelimit.pauses", 1, { trigger: "primary" });
+
+      // Reset remaining so we don't immediately throttle again
+      this.remaining = this.minRemaining;
+
+      log(`[rate-limiter] Resuming after ${Math.ceil(waitMs / 1000)}s`);
+      this.lastRequestAt = Date.now();
+      return waitMs;
     }
 
-    if (this.exitOnRateLimit) {
-      throw new RateLimitExitError(this.remaining, this.resetAt);
+    // Pacing: spread requests evenly across the rate limit window.
+    // Skip pacing in exitOnRateLimit mode — those workers should go
+    // as fast as possible within their limited runtime.
+    if (!this.exitOnRateLimit) {
+      const pacingMs = this.pacingDelay();
+      if (pacingMs > 10) {
+        await this._sleep(pacingMs);
+        this._totalPacingMs += pacingMs;
+        this._pacingCount++;
+      }
     }
 
-    const now = Date.now();
-    const waitMs = Math.max(0, this.resetAt.getTime() - now) + 1000; // 1s buffer
-
-    log(
-      `[rate-limiter] Throttled: ${this.remaining} remaining, waiting ${Math.ceil(waitMs / 1000)}s until reset`,
-    );
-    sentryLogger.warn(sentryLogger.fmt`Rate limit throttle remaining=${this.remaining} waitMs=${waitMs}`);
-
-    await sleep(waitMs);
-
-    // Track metrics
-    this._totalWaitMs += waitMs;
-    this._waitCount++;
-    distributionMetric("pipeline.ratelimit.wait", waitMs, "millisecond", { trigger: "primary" });
-    countMetric("pipeline.ratelimit.pauses", 1, { trigger: "primary" });
-
-    // Reset remaining so we don't immediately throttle again
-    this.remaining = this.minRemaining;
-
-    log(`[rate-limiter] Resuming after ${Math.ceil(waitMs / 1000)}s`);
-    return waitMs;
+    this.lastRequestAt = Date.now();
+    return 0;
   }
 
   /**
@@ -105,7 +186,7 @@ export class RateLimiter {
     );
     sentryLogger.warn(sentryLogger.fmt`Secondary rate limit hit attempt=${attempt + 1} waitMs=${waitMs}`);
 
-    await sleep(waitMs);
+    await this._sleep(waitMs);
 
     // Track metrics
     this._totalWaitMs += waitMs;
@@ -130,15 +211,23 @@ export class RateLimiter {
   }
 
   /** Accumulated rate-limit wait summary for the lifetime of this instance. */
-  waitSummary(): { totalWaitMs: number; waitCount: number; secondaryHits: number } {
+  waitSummary(): {
+    totalWaitMs: number;
+    waitCount: number;
+    secondaryHits: number;
+    totalPacingMs: number;
+    pacingCount: number;
+  } {
     return {
       totalWaitMs: this._totalWaitMs,
       waitCount: this._waitCount,
       secondaryHits: this._secondaryHits,
+      totalPacingMs: this._totalPacingMs,
+      pacingCount: this._pacingCount,
     };
   }
 }
 
-function sleep(ms: number): Promise<void> {
+function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
