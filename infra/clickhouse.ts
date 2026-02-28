@@ -232,7 +232,7 @@ sed -i "s/PLACEHOLDER_HASH/$CH_PASSWORD_HASH/" /etc/clickhouse-server/users.d/de
 # Remove the empty <password></password> from users.xml — ClickHouse 26+ rejects
 # having both 'password' and 'password_sha256_hex' for the same user, even when
 # the override is in users.d/. The override file supplies password_sha256_hex.
-sed -i '/<password><\/password>/d' /etc/clickhouse-server/users.xml
+sed -i -E '/^[[:space:]]*<password>[[:space:]]*<[/]password>[[:space:]]*$/d' /etc/clickhouse-server/users.xml
 
 systemctl enable clickhouse-server
 systemctl restart clickhouse-server
