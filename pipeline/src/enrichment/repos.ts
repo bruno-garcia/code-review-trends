@@ -111,6 +111,7 @@ export async function enrichRepos(
               forbidden++;
             }
           }
+          adaptive.onSuccess();
           batchHandled = true;
         } catch (err: unknown) {
           // If the whole batch fails, fall back to individual REST processing
@@ -205,7 +206,7 @@ export async function enrichRepos(
     countMetric("pipeline.enrich.repos.batch", 1);
   }
 
-  log(`[repos] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);
+  log(`[repos] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}, recoveries=${adaptive.summary().recoveries}`);
   log(`[repos] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${errors} errors`);
   return { fetched, skipped: notFound + forbidden + rateLimited, errors };
 }
@@ -262,6 +263,7 @@ export async function refreshStaleRepos(
         if (result.status === "ok") refreshed++;
       }
 
+      adaptive.onSuccess();
       batchStart += batch.length;
     } catch (err: unknown) {
       if (err instanceof RateLimitExitError) throw err;
@@ -340,6 +342,6 @@ export async function refreshStaleRepos(
     }
   }
 
-  log(`[repos] Refresh done: ${refreshed} refreshed (batch size: ${adaptive.summary().current}, reductions: ${adaptive.summary().reductions})`);
+  log(`[repos] Refresh done: ${refreshed} refreshed (batch size: ${adaptive.summary().current}, reductions: ${adaptive.summary().reductions}, recoveries: ${adaptive.summary().recoveries})`);
   return { refreshed };
 }

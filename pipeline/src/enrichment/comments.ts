@@ -184,6 +184,7 @@ export async function enrichComments(
           log(
             `[comments] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allCommentRows.length} rows)`,
           );
+          adaptive.onSuccess();
           batchHandled = true;
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
@@ -295,7 +296,7 @@ export async function enrichComments(
     }
   }
 
-  log(`[comments] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);
+  log(`[comments] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}, recoveries=${adaptive.summary().recoveries}`);
   log(`[comments] Done: ${fetched} fetched, ${notFound} not_found, ${forbidden} forbidden, ${rateLimited} rate_limited, ${unknownBot} unknown_bot, ${repliesFiltered} replies_filtered, ${errors} errors`);
   return {
     fetched,

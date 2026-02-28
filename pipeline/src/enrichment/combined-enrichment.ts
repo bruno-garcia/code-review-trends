@@ -342,6 +342,7 @@ export async function enrichCombined(
             `[combined] Batch timing: graphql=${graphqlMs}ms, insert=${insertMs}ms (${allPrRows.length} PRs, ${allCommentRows.length} comments, ${allReactionRows.length} reactions, ${allScanProgress.length} scans)`,
           );
 
+          adaptive.onSuccess();
           batchHandled = true;
         } catch (err: unknown) {
           if (err instanceof RateLimitExitError) throw err;
@@ -392,7 +393,7 @@ export async function enrichCombined(
   }
 
   log(
-    `[combined] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`,
+    `[combined] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}, recoveries=${adaptive.summary().recoveries}`,
   );
   log(
     `[combined] Done: ${prs_fetched} PRs fetched, ${comments_fetched} comment combos, ${reactions_scanned} reactions scanned (${reactions_found} with bot reactions), ${skipped} skipped, ${errors} errors`,
