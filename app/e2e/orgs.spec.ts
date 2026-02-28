@@ -47,7 +47,9 @@ test.describe("Organization listing page", () => {
 
   test("nav has Orgs link", async ({ page }) => {
     await page.goto("/");
-    const orgLink = page.locator("nav a", { hasText: "Orgs" });
+    // Scope to desktop nav to avoid matching the hidden mobile hamburger menu
+    const desktopNav = page.locator("nav .hidden.sm\\:flex");
+    const orgLink = desktopNav.locator("a", { hasText: "Orgs" });
     await expect(orgLink).toBeVisible();
     await orgLink.click();
     await page.waitForURL("/orgs");
