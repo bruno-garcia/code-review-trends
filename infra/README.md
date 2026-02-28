@@ -222,18 +222,23 @@ gcloud compute ssh crt-staging-clickhouse --zone=us-central1-a --tunnel-through-
 
 Per-environment config lives in `Pulumi.<stack>.yaml`:
 
-| Key | Description | Default (staging) |
-|-----|-------------|-------------------|
+| Key | Description | Default |
+|-----|-------------|---------|
 | `gcp:project` | GCP project ID (set with `--secret`) | — |
 | `gcp:region` | GCP region | `us-central1` |
 | `gcp:zone` | GCP zone | `us-central1-a` |
-| `environment` | Environment name (used in resource naming) | `staging` |
+| `environment` | Environment name (used in resource naming) | — |
 | `clickhouseMachineType` | GCE machine type | `e2-highmem-2` |
 | `clickhouseDiskSizeGb` | Boot disk size in GB | `40` |
-| `clickhouseDomain` | Domain for ClickHouse TLS (secret) | — |
+| `subnetCidr` | VPC subnet CIDR (must not overlap across envs) | `10.100.0.0/24` |
+| `clickhouseHttpPort` | ClickHouse HTTP port (different per env to prevent cross-env accidents) | `41923` |
+| `clickhouseDomain` | Domain for ClickHouse TLS (secret, required only when `clickhousePublicAccess` is true) | — |
 | `appDomain` | Domain for Cloud Run app (secret) | — |
 | `artifactRegistryLocation` | GCP region for container registry | `us-central1` |
-| `clickhousePublicAccess` | Whether ClickHouse is publicly accessible | `false` |
+| `skipArtifactRegistry` | Skip Artifact Registry creation (production reuses staging's) | `false` |
+| `clickhousePublicAccess` | Whether ClickHouse is publicly accessible via Caddy TLS | `false` |
+| `workerVpcNetwork` | External VPC name to peer with for worker VM access (secret) | — |
+| `workerIp` | Worker VM IP to allow through firewall and ClickHouse ACL (secret) | — |
 | `sentryDsnAppFrontend` | Sentry DSN for Next.js client/browser (secret) | — |
 | `sentryDsnAppBackend` | Sentry DSN for Next.js server (secret) | — |
 | `sentryDsnPipeline` | Sentry DSN for the pipeline (secret) | — |
@@ -247,27 +252,26 @@ Per-environment config lives in `Pulumi.<stack>.yaml`:
 | `appMaxInstances` | Cloud Run maximum instances | `4` |
 | `appConcurrency` | Max concurrent requests per instance | `40` |
 
-To add a new environment (e.g. prod), see the **Adding a new environment** section below.
+To add a new environment, see the **Adding a new environment** section below.
 
 ## Adding a new environment
 
-When adding a new environment (e.g., `production`), every layer of the stack must know about it. Missing any step causes silent misconfigurations — wrong Sentry environment, missing secrets, broken deploys. Follow this checklist in order:
+When adding a new environment, every layer of the stack must know about it. Missing any step causes silent misconfigurations — wrong Sentry environment, missing secrets, broken deploys. Follow this checklist in order.
 
 ### 1. Pulumi stack
 
 ```bash
 cd infra
-pulumi stack init production
+pulumi stack init <env>
 ```
 
-Set all required config values (see **Stack configuration** table above):
+Set all required config values (see **Stack configuration** table above). At minimum:
 
 ```bash
-pulumi config set code-review-trends:environment production
-pulumi config set gcp:project <prod-project-id> --secret
+pulumi config set code-review-trends:environment <env>
+pulumi config set gcp:project <project-id> --secret
 pulumi config set gcp:region us-central1
 pulumi config set gcp:zone us-central1-a
-pulumi config set code-review-trends:clickhouseDomain <domain> --secret
 pulumi config set code-review-trends:appDomain <domain> --secret
 pulumi config set code-review-trends:sentryDsnAppFrontend <dsn> --secret
 pulumi config set code-review-trends:sentryDsnAppBackend <dsn> --secret
@@ -277,9 +281,27 @@ pulumi config set code-review-trends:githubTokens '["ghp_..."]' --secret
 pulumi config set code-review-trends:githubRepo owner/repo
 pulumi config set code-review-trends:artifactRegistryLocation us-central1
 pulumi config set code-review-trends:alertEmail <email> --secret
-# Tune resource limits for production traffic:
-pulumi config set code-review-trends:appMinInstances 2
-pulumi config set code-review-trends:appMaxInstances 10
+```
+
+**For public ClickHouse access** (staging-style with Caddy TLS):
+```bash
+pulumi config set code-review-trends:clickhousePublicAccess true
+pulumi config set code-review-trends:clickhouseDomain <domain> --secret
+```
+
+**For private ClickHouse access** (production-style, internal only):
+```bash
+# clickhousePublicAccess defaults to false — no Caddy, no TLS
+# ClickHouse is reached via internal IP within the VPC
+pulumi config set code-review-trends:subnetCidr 10.101.0.0/24
+pulumi config set code-review-trends:clickhouseHttpPort <port>
+pulumi config set code-review-trends:skipArtifactRegistry true  # reuse staging's registry
+```
+
+**For VPC peering** (worker VM access to ClickHouse):
+```bash
+pulumi config set code-review-trends:workerVpcNetwork <vpc-name> --secret
+pulumi config set code-review-trends:workerIp <ip> --secret
 ```
 
 Then deploy:
@@ -288,16 +310,17 @@ Then deploy:
 pulumi up
 ```
 
-This creates all resources (VPC, ClickHouse VM, Cloud Run, secrets, etc.) and sets the `SENTRY_ENVIRONMENT` Cloud Run env var to `production` automatically (from `cfg.environment`).
+This creates all resources (VPC, ClickHouse VM, Cloud Run, secrets, VPC peering) and sets the `SENTRY_ENVIRONMENT` Cloud Run env var automatically from `cfg.environment`.
 
-### 2. CI deploy job
+### 2. CI deploy workflow
 
-Add a `deploy-production` job to `.github/workflows/ci.yml`. Copy `deploy-staging` and change:
+The production deploy workflow is in `.github/workflows/deploy-production.yml`:
 
-- **`DEPLOY_ENV: production`** — this flows into `--build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT` (client bundle) and must match the Pulumi `environment` config. The Dockerfile fails the build if this is missing.
-- **Cloud Run service/job names** — `crt-production-app`, `crt-production-*` (these follow the `crt-{env}-*` naming convention from `cfg.namePrefix`).
-- **GCP auth** — point to production WIF provider and deploy SA (separate GitHub Variables: `WIF_PROVIDER_PROD`, `DEPLOY_SA_EMAIL_PROD`).
-- **Trigger** — use `workflow_dispatch` for manual deploys, not auto-deploy on merge.
+- Triggered manually via `workflow_dispatch` with an optional SHA input
+- Promotes the staging-built pipeline image (same SHA tag, no rebuild)
+- Rebuilds the app image with `NEXT_PUBLIC_SENTRY_ENVIRONMENT=production` baked in (Next.js inlines `NEXT_PUBLIC_*` at build time)
+- App image tagged as `app:<sha>-production`; pipeline image reused as `pipeline:<sha>`
+- Deploys to `crt-production-*` Cloud Run resources with warmup
 
 ### 3. GitHub Variables and Secrets
 
@@ -309,11 +332,13 @@ gh variable set WIF_PROVIDER_PROD --body "$(pulumi stack output workloadIdentity
 gh variable set DEPLOY_SA_EMAIL_PROD --body "$(pulumi stack output deployServiceAccountEmail)"
 ```
 
-If production uses different Sentry DSNs or tokens, add them as separate GitHub Secrets (e.g., `SENTRY_DSN_CRT_FRONTEND_PROD`).
+Sentry DSNs are shared across staging and production — the same GitHub Secrets are used. Only `SENTRY_ENVIRONMENT` (set by Pulumi at runtime) and `NEXT_PUBLIC_SENTRY_ENVIRONMENT` (baked at build time by CI) differ.
 
 ### 4. DNS
 
-Create CNAME records for the production app domain and ClickHouse domain (if publicly accessible).
+For staging: CNAME for the app domain pointing to the Cloud Run service URL.
+
+For production: CNAME for the app domain. The Cloud Run generated URL (`*.run.app`) is available immediately for testing before DNS cutover.
 
 ### 5. Database schema
 
@@ -325,7 +350,7 @@ npm run pipeline -- migrate --stack production
 
 ### 6. Verify Sentry environment
 
-After the first deploy, check that events appear under the correct environment in Sentry. Both server-side (`SENTRY_ENVIRONMENT`) and client-side (`NEXT_PUBLIC_SENTRY_ENVIRONMENT`) must show the new environment name. If they show `production` when they shouldn't, the `DEPLOY_ENV` or Pulumi `environment` config is wrong. See AGENTS.md principle #20.
+After the first deploy, check that events appear under the correct environment in Sentry. Both server-side (`SENTRY_ENVIRONMENT`) and client-side (`NEXT_PUBLIC_SENTRY_ENVIRONMENT`) must show the environment name.
 
 ### Checklist summary
 
@@ -333,9 +358,8 @@ After the first deploy, check that events appear under the correct environment i
 |------|------|-------|
 | Pulumi stack | `pulumi stack init` + all config values | `infra/Pulumi.<env>.yaml` |
 | Pulumi deploy | `pulumi up` (creates resources + sets `SENTRY_ENVIRONMENT`) | `infra/` |
-| CI deploy job | New job with `DEPLOY_ENV: <env>` | `.github/workflows/ci.yml` |
-| GitHub Variables | WIF provider + deploy SA email | GitHub repo settings |
-| GitHub Secrets | Sentry DSNs/tokens if different from staging | GitHub repo settings |
+| CI deploy workflow | `deploy-production.yml` (manual trigger) | `.github/workflows/` |
+| GitHub Variables | `WIF_PROVIDER_PROD` + `DEPLOY_SA_EMAIL_PROD` | GitHub repo settings |
 | DNS | CNAME for app domain | DNS provider |
 | DB schema | `npm run pipeline -- migrate --stack <env>` | CLI |
 | Verify Sentry | Check events show correct environment | Sentry dashboard |
@@ -352,7 +376,7 @@ After the first deploy, check that events appear under the correct environment i
 - **Shared `schedules.json`**: Single source of truth for job cadences, imported by both Cloud Scheduler (Pulumi) and Sentry cron monitors (pipeline CLI). Prevents drift.
 - **Placeholder images with `ignoreChanges`**: Pulumi creates Cloud Run services with a placeholder image. CI deploys real images. `ignoreChanges` on the image field prevents Pulumi from reverting CI deployments.
 - **Enrich exits on rate limit**: The `--exit-on-rate-limit` flag makes the enrich job exit cleanly instead of sleeping when GitHub API rate limit is exhausted. Avoids wasting Cloud Run vCPU-seconds. The job runs again next hour and picks up where it left off.
-- **Non-standard ClickHouse port**: ClickHouse HTTP listens on a high port instead of the default 8123 to reduce drive-by scanning. The port is a constant in `config.ts`, not per-stack config. Authentication is still the primary security boundary.
+- **Non-standard ClickHouse port**: ClickHouse HTTP listens on a high port instead of the default 8123 to reduce drive-by scanning. The port is per-stack config (different for staging and production) to prevent accidental cross-environment connections. Authentication is still the primary security boundary.
 - **Config overrides, not sed**: ClickHouse configuration uses `config.d/` and `users.d/` override files instead of editing `config.xml` directly. This is the ClickHouse-recommended approach and avoids escaping issues in startup scripts.
 - **Password in Secret Manager**: Auto-generated by Pulumi (`@pulumi/random`, 32 chars, alphanumeric), stored in GCP Secret Manager, and injected into the VM startup script. Retrievable via `pulumi stack output` or `gcloud secrets` directly.
 - **Static external IP**: Reserved separately from the VM so it survives VM recreation. This is the IP Cloud Run (and Vercel preview deploys) connect to.
@@ -360,7 +384,10 @@ After the first deploy, check that events appear under the correct environment i
 - **Boot disk not auto-deleted**: `autoDelete: false` on the boot disk so data survives accidental VM deletion. The VM is also `protect: true` in Pulumi.
 - **IAP for SSH**: No SSH from the open internet. The firewall only allows SSH from Google's IAP range (`35.235.240.0/20`). Uses `gcloud compute ssh --tunnel-through-iap`.
 - **Startup script ignored after creation**: The VM is configured once via `ignoreChanges` on `metadataStartupScript`, `metadata`, and `bootDisk`. Manual config changes on the VM are preserved across Pulumi runs.
-- **Isolated VPC**: All resources are prefixed `crt-{env}-*` and live in their own network (`10.100.0.0/24`), separate from anything else in the GCP project. No VPC peering or shared subnets.
+- **Isolated VPC**: All resources are prefixed `crt-{env}-*` and live in their own network, separate from anything else in the GCP project. Staging uses `10.100.0.0/24`, production uses `10.101.0.0/24` — the different second octet makes it easy to identify the environment from an IP.
+- **VPC peering for worker access**: Production uses VPC peering to give the migration-worker VM access to ClickHouse on its internal IP. The firewall and ClickHouse user ACL are scoped to a single worker IP (not the entire peered subnet) for tighter security.
+- **Shared Artifact Registry**: The `crt` Docker repository in Artifact Registry is created by the staging stack and reused by production (`skipArtifactRegistry: true`). Images are tagged with git SHA — the same pipeline image is promoted from staging to production, while the app image is rebuilt with the correct Sentry environment baked in.
+- **Production deploys are manual**: Production uses `workflow_dispatch` (manual button click), not auto-deploy on merge. This ensures a human reviews staging before promoting to production.
 - **TLS via Caddy**: Caddy reverse proxy auto-provisions Let's Encrypt certificates. ClickHouse listens on localhost only; Caddy terminates TLS on a non-standard high port and proxies to it. Port 80 is open only for ACME HTTP-01 challenges.
 - **Non-standard HTTPS port**: Caddy listens on a high port instead of 443 to reduce drive-by scanning. The port is a constant in `config.ts`.
 
@@ -379,11 +406,15 @@ npm run test:vm
 ```
 
 Unit tests validate:
-- Config loading and naming conventions
-- Port constants are non-standard
-- Network resources (VPC, subnet, static IP)
-- Firewall rules exist
-- Secret generation (password length)
-- VM configuration (name, machine type, boot disk, tags)
-- Startup script contents (ClickHouse, Caddy, password injection, database creation)
+- Config loading for both staging (public access) and production (private access) modes
+- Per-stack config values (subnet CIDR, ClickHouse HTTP port, optional domain)
+- Network resources (VPC, subnet with configurable CIDR, static IP)
+- Firewall rules including optional worker IP rule for VPC-peered access
+- Secret generation (password length) and clickhouse-url secret creation
+- VM startup script: ClickHouse config, Caddy setup (or skip), password injection, worker IP in ACL
+- VPC peering creation (bidirectional, only when workerVpcNetwork is set)
+- Cloud Run app with and without VPC access (public vs private ClickHouse)
+- Cloud Run jobs with VPC access for private mode
+- Backup snapshot schedule creation
+- Artifact Registry creation and skip behavior
 - Stack outputs are all exported

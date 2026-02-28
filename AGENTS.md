@@ -184,6 +184,9 @@ Integration and smoke tests run in CI gated on secret availability (see `.github
 | `infra/service-accounts.ts` | Runtime and deploy service accounts with IAM |
 | `infra/workload-identity.ts` | WIF pool + provider for GitHub Actions auth |
 | `infra/Pulumi.staging.yaml` | Staging stack config (GCP project, machine types) |
+| `infra/Pulumi.production.yaml` | Production stack config (private ClickHouse, VPC peering) |
+| `infra/vpc-peering.ts` | Bidirectional VPC peering for worker VM access |
+| `.github/workflows/deploy-production.yml` | Manual production deploy workflow |
 | `infra/tests/infra.test.ts` | Pulumi unit tests (mocked, no cloud calls) |
 | `infra/test-vm.sh` | Integration test (creates real VM, validates, tears down) |
 
@@ -263,14 +266,30 @@ Every merge to `main` triggers the `deploy-staging` CI job:
 
 Uses Workload Identity Federation — no service account keys needed.
 
-### Production (not yet set up)
-Will use `workflow_dispatch` to deploy a specific image tag.
-Same infrastructure, different Pulumi stack. Currently the `coming-soon/` static page is live on codereviewtrends.com.
+### Production (manual)
+Triggered via `workflow_dispatch` in `.github/workflows/deploy-production.yml`:
+1. Takes an optional SHA (defaults to latest `main`)
+2. Verifies the pipeline image exists (must have been built by staging deploy)
+3. Rebuilds app image with `NEXT_PUBLIC_SENTRY_ENVIRONMENT=production` baked in
+4. Promotes pipeline image as-is (same SHA tag)
+5. Deploys to Cloud Run (`crt-production-app`) with warmup
+6. Updates all 5 pipeline Cloud Run Jobs
+
+Same infrastructure as staging but in a separate VPC (`10.101.0.0/24`), with:
+- ClickHouse not exposed to the internet (internal access only via VPC)
+- VPC peering for migration-worker VM access
+- Different ClickHouse HTTP port to prevent cross-env accidents
+- Weekly disk snapshots with 14-day retention
+- Shared Artifact Registry (images promoted from staging)
 
 ### Rollback
 Redeploy with an older git SHA:
 ```bash
+# Staging
 gcloud run deploy crt-staging-app --image=<registry>/app:<old-sha> --region=us-central1
+
+# Production
+gcloud run deploy crt-production-app --image=<registry>/app:<old-sha>-production --region=us-central1
 ```
 
 ## OG Images & SEO

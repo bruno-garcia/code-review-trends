@@ -2,9 +2,14 @@ import * as pulumi from "@pulumi/pulumi";
 
 const PROJECT_PREFIX = "crt";
 
-export const CLICKHOUSE_HTTP_PORT = 41923;
+/** Default ClickHouse HTTP port — non-standard to reduce drive-by scanning. */
+const DEFAULT_CLICKHOUSE_HTTP_PORT = 41923;
+
+/** Caddy HTTPS port — only used when clickhousePublicAccess is true. */
 export const CADDY_HTTPS_PORT = 58432;
-export const SUBNET_CIDR = "10.100.0.0/24";
+
+/** Default subnet CIDR — staging uses 10.100.0.0/24, production 10.101.0.0/24. */
+const DEFAULT_SUBNET_CIDR = "10.100.0.0/24";
 
 /** GCP default Cloud Run container — used only on first `pulumi up` before CI deploys. */
 export const PLACEHOLDER_IMAGE =
@@ -14,9 +19,20 @@ export interface EnvironmentConfig {
   environment: string;
   clickhouseMachineType: string;
   clickhouseDiskSizeGb: number;
-  clickhouseDomain: pulumi.Output<string>;
+  /**
+   * Domain for Caddy TLS termination. Required when clickhousePublicAccess
+   * is true (staging). Undefined when clickhousePublicAccess is false (prod)
+   * — ClickHouse is reached via internal IP only.
+   */
+  clickhouseDomain?: pulumi.Output<string>;
   /** Resource name prefix: crt-{env} */
   namePrefix: string;
+
+  // Networking
+  /** Subnet CIDR for the environment VPC. Must not overlap with other VPCs in the project. */
+  subnetCidr: string;
+  /** ClickHouse HTTP port — different per environment to prevent accidental cross-env connections. */
+  clickhouseHttpPort: number;
 
   // App hosting
   appDomain: pulumi.Output<string>;
@@ -31,6 +47,8 @@ export interface EnvironmentConfig {
 
   // Container registry
   artifactRegistryLocation: string;
+  /** Skip Artifact Registry creation — production reuses staging's shared registry. */
+  skipArtifactRegistry: boolean;
 
   /**
    * Whether ClickHouse is accessible from the public internet.
@@ -41,6 +59,19 @@ export interface EnvironmentConfig {
    *   Egress to reach ClickHouse on its internal IP via plain HTTP.
    */
   clickhousePublicAccess: boolean;
+
+  // VPC peering for external worker VM access
+  /**
+   * Name of an external VPC to peer with (e.g., for a migration-worker VM).
+   * When set, bidirectional VPC peering is created so the worker can reach
+   * ClickHouse on its internal IP.
+   */
+  workerVpcNetwork?: string;
+  /**
+   * Specific IP of the worker VM to allow through firewall and ClickHouse
+   * user config. More restrictive than allowing the entire peered subnet.
+   */
+  workerIp?: string;
 
   // Secrets (stored in Pulumi config, created in Secret Manager)
   /** Sentry DSN for the Next.js frontend (public — baked into client bundle) */
@@ -84,13 +115,21 @@ export function loadConfig(): EnvironmentConfig {
   const config = new pulumi.Config();
 
   const environment = config.require("environment");
+  const clickhousePublicAccess = config.getBoolean("clickhousePublicAccess") ?? false;
 
   return {
     environment,
     clickhouseMachineType: config.require("clickhouseMachineType"),
     clickhouseDiskSizeGb: config.requireNumber("clickhouseDiskSizeGb"),
-    clickhouseDomain: config.requireSecret("clickhouseDomain"),
+    // Domain is only required for public access (Caddy TLS)
+    clickhouseDomain: clickhousePublicAccess
+      ? config.requireSecret("clickhouseDomain")
+      : config.getSecret("clickhouseDomain") ?? undefined,
     namePrefix: `${PROJECT_PREFIX}-${environment}`,
+
+    // Networking
+    subnetCidr: config.get("subnetCidr") ?? DEFAULT_SUBNET_CIDR,
+    clickhouseHttpPort: config.getNumber("clickhouseHttpPort") ?? DEFAULT_CLICKHOUSE_HTTP_PORT,
 
     appDomain: config.requireSecret("appDomain"),
 
@@ -105,7 +144,22 @@ export function loadConfig(): EnvironmentConfig {
     }),
 
     artifactRegistryLocation: config.require("artifactRegistryLocation"),
-    clickhousePublicAccess: config.getBoolean("clickhousePublicAccess") ?? false,
+    skipArtifactRegistry: config.getBoolean("skipArtifactRegistry") ?? false,
+    clickhousePublicAccess,
+
+    // VPC peering
+    workerVpcNetwork: config.get("workerVpcNetwork"),
+    workerIp: (() => {
+      const ip = config.get("workerIp");
+      if (ip && ip.includes("/")) {
+        throw new Error(
+          `workerIp must be a single IP address without CIDR notation, got: ${ip}. ` +
+          `The /32 mask is appended automatically in firewall rules.`,
+        );
+      }
+      return ip;
+    })(),
+
     sentryDsnAppFrontend: config.requireSecret("sentryDsnAppFrontend"),
     sentryDsnAppBackend: config.requireSecret("sentryDsnAppBackend"),
     sentryDsnPipeline: config.requireSecret("sentryDsnPipeline"),

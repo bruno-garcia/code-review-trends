@@ -49,6 +49,11 @@ function createManagedSecret(
   return secret;
 }
 
+/**
+ * Create a Secret Manager secret with an initial version (exported for use in index.ts).
+ */
+export { createManagedSecret };
+
 export function createSecrets(
   cfg: EnvironmentConfig,
   parent?: pulumi.Resource,
