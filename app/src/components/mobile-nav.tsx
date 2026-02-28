@@ -4,18 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useFilterUrl } from "@/lib/product-filter";
-
-const navItems = [
-  { href: "/", label: "Overview" },
-  { href: "/products", label: "Products" },
-  { href: "/compare", label: "Compare" },
-  { href: "/repos", label: "Repos" },
-  { href: "/orgs", label: "Orgs" },
-  { href: "/status", label: "Status" },
-  { href: "/about", label: "About" },
-];
-
-const FILTER_PAGES = new Set(["/products", "/compare", "/repos", "/orgs"]);
+import { navItems, FILTER_PAGES } from "@/lib/navigation";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
