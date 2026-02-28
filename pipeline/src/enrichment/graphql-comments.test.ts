@@ -13,7 +13,14 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseResults, type CommentBatchInput } from "./graphql-comments.js";
+import {
+  parseResults,
+  buildCommentsQuery,
+  REVIEW_THREADS_PAGE_SIZE,
+  GRAPHQL_COMMENT_BATCH_MAX,
+  GRAPHQL_COMMENT_BATCH_MIN,
+  type CommentBatchInput,
+} from "./graphql-comments.js";
 
 function makeInput(overrides: Partial<CommentBatchInput> & { repo_name: string; pr_number: number }): CommentBatchInput {
   return {
@@ -476,5 +483,131 @@ describe("graphql-comments parseResults", () => {
 
     const results = parseResults(byRepo, repoIndex, data);
     assert.equal(results[0].comments.length, 0);
+  });
+});
+
+describe("graphql-comments constants", () => {
+  it("REVIEW_THREADS_PAGE_SIZE is 30", () => {
+    // Reduced from 100 to cut per-PR GraphQL complexity by ~70%.
+    // Changing this affects rate-limit throughput — update batch sizes accordingly.
+    assert.equal(REVIEW_THREADS_PAGE_SIZE, 30);
+  });
+
+  it("GRAPHQL_COMMENT_BATCH_MAX is 120", () => {
+    // ~3× the old max of 40 to compensate for the reduced page size.
+    assert.equal(GRAPHQL_COMMENT_BATCH_MAX, 120);
+  });
+
+  it("GRAPHQL_COMMENT_BATCH_MIN is 5", () => {
+    assert.equal(GRAPHQL_COMMENT_BATCH_MIN, 5);
+  });
+
+  it("batch max is proportional to page size reduction", () => {
+    // With first:100 the old batch max was 40 (cost ~36K nodes).
+    // With first:30 we can fit ~3.3× more PRs per query for the same cost.
+    // 120 is conservative (3×), leaving headroom for GitHub complexity calc variance.
+    assert.ok(
+      GRAPHQL_COMMENT_BATCH_MAX >= 100,
+      `batch max ${GRAPHQL_COMMENT_BATCH_MAX} should be ≥100 to benefit from reduced page size`,
+    );
+    assert.ok(
+      GRAPHQL_COMMENT_BATCH_MAX <= 160,
+      `batch max ${GRAPHQL_COMMENT_BATCH_MAX} should be ≤160 to stay within GitHub complexity budget`,
+    );
+  });
+});
+
+describe("graphql-comments buildCommentsQuery", () => {
+  it("generates a query using REVIEW_THREADS_PAGE_SIZE", () => {
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 42 })];
+    const { query } = buildCommentsQuery(inputs);
+
+    assert.ok(
+      query.includes(`reviewThreads(first: ${REVIEW_THREADS_PAGE_SIZE})`),
+      `query should use REVIEW_THREADS_PAGE_SIZE (${REVIEW_THREADS_PAGE_SIZE}), got: ${query.slice(0, 200)}...`,
+    );
+    // Must NOT contain the old hardcoded value
+    assert.ok(
+      !query.includes("reviewThreads(first: 100)"),
+      "query must not contain old hardcoded first: 100",
+    );
+  });
+
+  it("includes pullRequest number in query", () => {
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 42 })];
+    const { query } = buildCommentsQuery(inputs);
+
+    assert.ok(query.includes("pullRequest(number: 42)"), "query should reference PR number");
+  });
+
+  it("includes repository owner and name", () => {
+    const inputs = [makeInput({ repo_name: "my-org/my-repo", pr_number: 1 })];
+    const { query } = buildCommentsQuery(inputs);
+
+    assert.ok(query.includes('"my-org"'), "query should include owner");
+    assert.ok(query.includes('"my-repo"'), "query should include repo name");
+  });
+
+  it("groups multiple PRs under the same repo", () => {
+    const inputs = [
+      makeInput({ repo_name: "owner/repo", pr_number: 1 }),
+      makeInput({ repo_name: "owner/repo", pr_number: 2 }),
+    ];
+    const { query, byRepo, repoIndex } = buildCommentsQuery(inputs);
+
+    // Only one repo alias
+    assert.equal(byRepo.size, 1);
+    assert.equal(repoIndex.size, 1);
+    assert.ok(query.includes("pr0:"), "should have pr0 alias");
+    assert.ok(query.includes("pr1:"), "should have pr1 alias");
+    // Only one repo fragment
+    assert.ok(!query.includes("repo1:"), "should NOT have a second repo alias");
+  });
+
+  it("separates different repos into different aliases", () => {
+    const inputs = [
+      makeInput({ repo_name: "org/repo-a", pr_number: 1 }),
+      makeInput({ repo_name: "org/repo-b", pr_number: 2 }),
+    ];
+    const { query, byRepo, repoIndex } = buildCommentsQuery(inputs);
+
+    assert.equal(byRepo.size, 2);
+    assert.equal(repoIndex.size, 2);
+    assert.ok(query.includes("repo0:"), "should have repo0 alias");
+    assert.ok(query.includes("repo1:"), "should have repo1 alias");
+  });
+
+  it("returns correct repoIndex mapping", () => {
+    const inputs = [
+      makeInput({ repo_name: "org/repo-a", pr_number: 1 }),
+      makeInput({ repo_name: "org/repo-b", pr_number: 2 }),
+      makeInput({ repo_name: "org/repo-a", pr_number: 3 }),
+    ];
+    const { byRepo, repoIndex } = buildCommentsQuery(inputs);
+
+    assert.equal(repoIndex.get("org/repo-a"), 0);
+    assert.equal(repoIndex.get("org/repo-b"), 1);
+    assert.equal(byRepo.get("org/repo-a")!.length, 2, "repo-a should have 2 PRs");
+    assert.equal(byRepo.get("org/repo-b")!.length, 1, "repo-b should have 1 PR");
+  });
+
+  it("query includes all required GraphQL fields", () => {
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 1 })];
+    const { query } = buildCommentsQuery(inputs);
+
+    // Verify key fields are present in the query
+    const requiredFields = [
+      "databaseId",
+      "author { login }",
+      "bodyText",
+      "createdAt",
+      "reactionGroups",
+      "reactors { totalCount }",
+      "pageInfo { hasNextPage }",
+      "comments(first: 1)",
+    ];
+    for (const field of requiredFields) {
+      assert.ok(query.includes(field), `query should include "${field}"`);
+    }
   });
 });

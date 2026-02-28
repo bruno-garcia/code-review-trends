@@ -19,7 +19,7 @@ import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 // handleEnterprisePolicyError removed — GraphQL batch handles errors differently
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
-import { fetchCommentsBatch, type CommentBatchInput } from "./graphql-comments.js";
+import { fetchCommentsBatch, GRAPHQL_COMMENT_BATCH_MAX, GRAPHQL_COMMENT_BATCH_MIN, type CommentBatchInput } from "./graphql-comments.js";
 import { AdaptiveBatch } from "./adaptive-batch.js";
 import { isServerError } from "./graphql-retry.js";
 
@@ -100,7 +100,7 @@ export async function enrichComments(
   let unknownBot = 0;
   let repliesFiltered = 0;
   let errors = 0;
-  const adaptive = new AdaptiveBatch({ max: 40, min: 5 });
+  const adaptive = new AdaptiveBatch({ max: GRAPHQL_COMMENT_BATCH_MAX, min: GRAPHQL_COMMENT_BATCH_MIN });
 
   let batchStart = 0;
   while (batchStart < combos.length) {

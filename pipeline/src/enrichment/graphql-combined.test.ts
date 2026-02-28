@@ -7,7 +7,13 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildCombinedResults, type CombinedBatchInput } from "./graphql-combined.js";
+import {
+  buildCombinedResults,
+  GRAPHQL_COMBINED_BATCH_MAX,
+  GRAPHQL_COMBINED_BATCH_MIN,
+  type CombinedBatchInput,
+} from "./graphql-combined.js";
+import { REVIEW_THREADS_PAGE_SIZE } from "./graphql-comments.js";
 
 function makeInput(overrides: Partial<CombinedBatchInput> & { repo_name: string; pr_number: number }): CombinedBatchInput {
   return {
@@ -253,5 +259,46 @@ describe("graphql-combined buildCombinedResults", () => {
 
     const results = buildCombinedResults(byRepo, repoIndex, data);
     assert.equal(results[0].hasMoreThreads, true);
+  });
+});
+
+describe("graphql-combined constants", () => {
+  it("GRAPHQL_COMBINED_BATCH_MAX is 60", () => {
+    // Increased from 25 to compensate for reduced REVIEW_THREADS_PAGE_SIZE.
+    // Combined queries are heavier than comment-only (PR metadata + reactions),
+    // so the increase is more conservative (~2.4×) than comments (~3×).
+    assert.equal(GRAPHQL_COMBINED_BATCH_MAX, 60);
+  });
+
+  it("GRAPHQL_COMBINED_BATCH_MIN is 5", () => {
+    assert.equal(GRAPHQL_COMBINED_BATCH_MIN, 5);
+  });
+
+  it("uses same REVIEW_THREADS_PAGE_SIZE as graphql-comments", () => {
+    // Both modules must use the same page size to avoid inconsistent hasMore behavior.
+    assert.equal(REVIEW_THREADS_PAGE_SIZE, 30);
+  });
+
+  it("batch max is proportional to page size reduction", () => {
+    // With first:100, old batch max was 25. With first:30, we can fit ~2.4× more.
+    // 60 is conservative because combined queries also include PR metadata and reactions.
+    assert.ok(
+      GRAPHQL_COMBINED_BATCH_MAX >= 40,
+      `combined batch max ${GRAPHQL_COMBINED_BATCH_MAX} should be ≥40 to benefit from reduced page size`,
+    );
+    assert.ok(
+      GRAPHQL_COMBINED_BATCH_MAX <= 80,
+      `combined batch max ${GRAPHQL_COMBINED_BATCH_MAX} should be ≤80 to stay within GitHub complexity budget`,
+    );
+  });
+
+  it("combined batch max is smaller than comment batch max", async () => {
+    // Combined queries are heavier per item (PR metadata + reactions + threads),
+    // so the batch size must be smaller than standalone comment enrichment.
+    const { GRAPHQL_COMMENT_BATCH_MAX } = await import("./graphql-comments.js");
+    assert.ok(
+      GRAPHQL_COMBINED_BATCH_MAX < GRAPHQL_COMMENT_BATCH_MAX,
+      `combined max (${GRAPHQL_COMBINED_BATCH_MAX}) should be < comment max (${GRAPHQL_COMMENT_BATCH_MAX})`,
+    );
   });
 });

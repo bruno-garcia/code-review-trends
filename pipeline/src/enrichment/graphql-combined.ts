@@ -12,8 +12,9 @@ import type { RateLimiter } from "./rate-limiter.js";
 import type { PullRequestRow, PrCommentRow, PrBotReactionRow } from "../clickhouse.js";
 import { BOT_BY_LOGIN } from "../bots.js";
 import { graphqlWithRetry } from "./graphql-retry.js";
+import { REVIEW_THREADS_PAGE_SIZE } from "./graphql-comments.js";
 
-export const GRAPHQL_COMBINED_BATCH_MAX = 25;
+export const GRAPHQL_COMBINED_BATCH_MAX = 60;
 export const GRAPHQL_COMBINED_BATCH_MIN = 5;
 
 const REACTION_MAP: Record<string, string> = {
@@ -99,7 +100,7 @@ export async function fetchCombinedBatch(
           content
           reactors { totalCount }
         }
-        reviewThreads(first: 100) {
+        reviewThreads(first: ${REVIEW_THREADS_PAGE_SIZE}) {
           nodes {
             comments(first: 1) {
               nodes {
