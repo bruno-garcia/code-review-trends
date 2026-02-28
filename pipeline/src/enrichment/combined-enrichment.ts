@@ -38,6 +38,7 @@ import {
   GRAPHQL_COMBINED_BATCH_MIN,
   type CombinedBatchInput,
 } from "./graphql-combined.js";
+import { REVIEW_THREADS_PAGE_SIZE } from "./graphql-comments.js";
 
 export type CombinedResult = {
   prs_fetched: number;
@@ -255,8 +256,9 @@ export async function enrichCombined(
                 batchComments++;
               }
             } else if (result.prStatus === "ok" && result.hasMoreThreads) {
-              // PR has >100 review threads — insert found comments but skip
-              // sentinels. The individual enrichComments stage will handle the rest.
+              // PR has more review threads than REVIEW_THREADS_PAGE_SIZE — insert
+              // found comments but skip sentinels. The individual enrichComments
+              // stage will handle the rest.
               for (const botEntry of result.input.bot_entries) {
                 const botComments =
                   result.comments.get(botEntry.bot_id) ?? [];
@@ -268,7 +270,7 @@ export async function enrichCombined(
               }
               if (result.hasMoreThreads) {
                 log(
-                  `[combined] ${result.input.repo_name}#${result.input.pr_number} has >100 review threads, skipping sentinels`,
+                  `[combined] ${result.input.repo_name}#${result.input.pr_number} has >${REVIEW_THREADS_PAGE_SIZE} review threads, skipping sentinels`,
                 );
               }
             }
