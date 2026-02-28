@@ -168,11 +168,11 @@ test.describe("Compare page", () => {
     await expect(chart.getByText(/Aggregated monthly/)).toBeVisible();
   });
 
-  test("Y-axis shows percent format for thumbs-up rate", async ({ page }) => {
+  test("thumbs-up rate is selectable via URL", async ({ page }) => {
     await page.goto("/compare?trend=thumbs_up_rate");
     const chart = page.getByTestId("compare-trends-chart");
     await expect(chart).toBeVisible();
-    // The 👍 Rate button should be active
+    // The 👍 Rate button should be active (pressed)
     const toggle = page.getByTestId("compare-trends-toggle");
     await expect(toggle.getByRole("button", { name: "👍 Rate", pressed: true })).toBeVisible();
   });
