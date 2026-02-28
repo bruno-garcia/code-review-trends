@@ -1181,9 +1181,14 @@ describe("clickhouse query integration tests", () => {
 
   describe("getMonthlyReactionsByProduct", () => {
     it("aggregates weekly reactions into calendar months", async () => {
-      // The test setup inserted a pr_comment for BOT_A1 on 2020-01-07
-      // (week W1 = 2020-01-06) with thumbs_up=80, thumbs_down=20.
-      // The monthly query should group all January 2020 data together.
+      // Test setup inserts multiple pr_comments for BOT_A1 in January 2020:
+      //   comment 900001: thumbs_up=80, thumbs_down=20 (2020-01-07, W1)
+      //   comment 900010: thumbs_up=5,  thumbs_down=1  (2020-01-07, W1)
+      //   comment 900011: thumbs_up=3,  thumbs_down=0  (2020-01-07, W1)
+      //   comment 900012: thumbs_up=2,  thumbs_down=2  (2020-01-14, W2)
+      // The MV aggregates into comment_stats_weekly per (bot_id, week).
+      // The monthly query should group both weeks into January 2020:
+      //   total thumbs_up = 80+5+3+2 = 90, thumbs_down = 20+1+0+2 = 23
       const rows = await q<{ month: string; product_id: string; thumbs_up: number; thumbs_down: number }>(ch, `
         SELECT
           formatDateTime(toStartOfMonth(cs.week), '%Y-%m-%d') AS month,
@@ -1200,8 +1205,8 @@ describe("clickhouse query integration tests", () => {
       assert.ok(rows.length >= 1, "Should have at least one monthly row for product A");
       const jan = rows.find(r => r.month === "2020-01-01");
       assert.ok(jan, "Should have a January 2020 row");
-      assert.equal(Number(jan!.thumbs_up), 80, "thumbs_up should be 80 (from pr_comment)");
-      assert.equal(Number(jan!.thumbs_down), 20, "thumbs_down should be 20 (from pr_comment)");
+      assert.equal(Number(jan!.thumbs_up), 90, "thumbs_up = 80+5+3+2 from all January pr_comments");
+      assert.equal(Number(jan!.thumbs_down), 23, "thumbs_down = 20+1+0+2 from all January pr_comments");
     });
 
     it("since filter excludes earlier months", async () => {
