@@ -324,6 +324,9 @@ describe("clickhouse VM", () => {
     expect(s).toContain("password_sha256_hex");
     expect(s).toContain("sha256sum");
 
+    // Removes empty <password> from users.xml to avoid conflict with password_sha256_hex
+    expect(s).toContain("/<password></password>/d");
+
     // Network ACL includes subnet CIDR only (no worker IP in default config)
     expect(s).toContain("<ip>10.100.0.0/24</ip>");
 
