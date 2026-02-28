@@ -495,6 +495,28 @@ export function CompareTrendsChart({
     [dataByMetric, validMetric],
   );
 
+  // For percent metrics, compute a tight Y-axis domain rounded to nearest 10.
+  // e.g. min 38% → floor to 30%, max 92% → ceil to 100%.
+  const percentDomain = useMemo(() => {
+    if (!isPercent || data.length === 0) return undefined;
+    let min = 100;
+    let max = 0;
+    for (const row of data) {
+      for (const [key, val] of Object.entries(row)) {
+        if (key === "week") continue;
+        const n = Number(val);
+        if (!isNaN(n) && n > 0) {
+          if (n < min) min = n;
+          if (n > max) max = n;
+        }
+      }
+    }
+    if (min > max) return undefined;
+    const lo = Math.floor(min / 10) * 10;
+    const hi = Math.min(100, Math.ceil(max / 10) * 10);
+    return [lo, hi] as const;
+  }, [isPercent, data]);
+
   if (data.length === 0) {
     return (
       <div data-testid="compare-trends-chart">
@@ -530,6 +552,7 @@ export function CompareTrendsChart({
             stroke={c.axis}
             tick={{ fontSize: 12 }}
             tickFormatter={isPercent ? (v) => `${v}%` : formatNumber}
+            domain={percentDomain ?? ["auto", "auto"]}
           />
           <Tooltip
             contentStyle={c.tooltipStyle}
@@ -561,6 +584,11 @@ export function CompareTrendsChart({
           })}
         </LineChart>
       </ResponsiveContainer>
+      {isPercent && (
+        <p className="text-theme-muted text-xs mt-2 text-center">
+          Aggregated monthly. Months with fewer than 30 thumbs-up/down reactions are hidden.
+        </p>
+      )}
     </div>
   );
 }
