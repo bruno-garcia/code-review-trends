@@ -1178,4 +1178,71 @@ describe("clickhouse query integration tests", () => {
       assert.equal(rows.length, 0, "No repos for nonexistent product");
     });
   });
+
+  describe("getMonthlyReactionsByProduct", () => {
+    it("aggregates weekly reactions into calendar months", async () => {
+      // The test setup inserted a pr_comment for BOT_A1 on 2020-01-07
+      // (week W1 = 2020-01-06) with thumbs_up=80, thumbs_down=20.
+      // The monthly query should group all January 2020 data together.
+      const rows = await q<{ month: string; product_id: string; thumbs_up: number; thumbs_down: number }>(ch, `
+        SELECT
+          formatDateTime(toStartOfMonth(cs.week), '%Y-%m-%d') AS month,
+          b.product_id AS product_id,
+          sum(cs.thumbs_up) AS thumbs_up,
+          sum(cs.thumbs_down) AS thumbs_down
+        FROM comment_stats_weekly cs
+        JOIN bots b ON cs.bot_id = b.id
+        WHERE b.product_id = {pid:String}
+        GROUP BY toStartOfMonth(cs.week), b.product_id
+        ORDER BY month ASC
+      `, { pid: PRODUCT_A });
+
+      assert.ok(rows.length >= 1, "Should have at least one monthly row for product A");
+      const jan = rows.find(r => r.month === "2020-01-01");
+      assert.ok(jan, "Should have a January 2020 row");
+      assert.equal(Number(jan!.thumbs_up), 80, "thumbs_up should be 80 (from pr_comment)");
+      assert.equal(Number(jan!.thumbs_down), 20, "thumbs_down should be 20 (from pr_comment)");
+    });
+
+    it("since filter excludes earlier months", async () => {
+      // Filter starting from 2020-02-01 should exclude all January data
+      const rows = await q<{ month: string; product_id: string }>(ch, `
+        SELECT
+          formatDateTime(toStartOfMonth(cs.week), '%Y-%m-%d') AS month,
+          b.product_id AS product_id
+        FROM comment_stats_weekly cs
+        JOIN bots b ON cs.bot_id = b.id
+        WHERE cs.week >= toDate({since:String})
+          AND b.product_id = {pid:String}
+        GROUP BY toStartOfMonth(cs.week), b.product_id
+        ORDER BY month ASC
+      `, { since: "2020-02-01", pid: PRODUCT_A });
+
+      assert.equal(rows.length, 0, "No data after January for test product");
+    });
+
+    it("column names match MonthlyReactionsByProduct type", async () => {
+      const rows = await q<Record<string, unknown>>(ch, `
+        SELECT
+          formatDateTime(toStartOfMonth(cs.week), '%Y-%m-%d') AS month,
+          b.product_id AS product_id,
+          sum(cs.thumbs_up) AS thumbs_up,
+          sum(cs.thumbs_down) AS thumbs_down
+        FROM comment_stats_weekly cs
+        JOIN bots b ON cs.bot_id = b.id
+        WHERE b.product_id = {pid:String}
+        GROUP BY toStartOfMonth(cs.week), b.product_id
+        LIMIT 1
+      `, { pid: PRODUCT_A });
+
+      assert.ok(rows.length === 1);
+      const keys = Object.keys(rows[0]);
+      assert.ok(keys.includes("month"), "Should have 'month' key");
+      assert.ok(keys.includes("product_id"), "Should have 'product_id' key");
+      assert.ok(keys.includes("thumbs_up"), "Should have 'thumbs_up' key");
+      assert.ok(keys.includes("thumbs_down"), "Should have 'thumbs_down' key");
+      // Should NOT have prefixed keys like "b.product_id"
+      assert.ok(!keys.some(k => k.includes(".")), `No dotted keys, got: ${keys.join(", ")}`);
+    });
+  });
 });

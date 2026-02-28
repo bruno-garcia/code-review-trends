@@ -139,4 +139,41 @@ test.describe("Compare page", () => {
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("href", "/about");
   });
+
+  test("thumbs-up rate shows monthly aggregation note", async ({ page }) => {
+    await page.goto("/compare?trend=thumbs_up_rate");
+    const chart = page.getByTestId("compare-trends-chart");
+    await expect(chart).toBeVisible();
+    // The monthly aggregation note should be visible when 👍 Rate is selected
+    await expect(chart.getByText(/Aggregated monthly/)).toBeVisible();
+    await expect(chart.getByText(/fewer than 30/)).toBeVisible();
+  });
+
+  test("monthly aggregation note is hidden for non-percent metrics", async ({ page }) => {
+    await page.goto("/compare?trend=reviews");
+    const chart = page.getByTestId("compare-trends-chart");
+    await expect(chart).toBeVisible();
+    // The monthly aggregation note should NOT be visible for Reviews metric
+    await expect(chart.getByText(/Aggregated monthly/)).toBeHidden();
+  });
+
+  test("thumbs-up rate toggle activates via click", async ({ page }) => {
+    await page.goto("/compare");
+    const toggle = page.getByTestId("compare-trends-toggle");
+    // Click 👍 Rate
+    await toggle.getByText("👍 Rate", { exact: true }).click();
+    await expect(page).toHaveURL(/trend=thumbs_up_rate/);
+    // Monthly aggregation note should appear
+    const chart = page.getByTestId("compare-trends-chart");
+    await expect(chart.getByText(/Aggregated monthly/)).toBeVisible();
+  });
+
+  test("Y-axis shows percent format for thumbs-up rate", async ({ page }) => {
+    await page.goto("/compare?trend=thumbs_up_rate");
+    const chart = page.getByTestId("compare-trends-chart");
+    await expect(chart).toBeVisible();
+    // The 👍 Rate button should be active
+    const toggle = page.getByTestId("compare-trends-toggle");
+    await expect(toggle.getByRole("button", { name: "👍 Rate", pressed: true })).toBeVisible();
+  });
 });
