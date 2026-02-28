@@ -118,9 +118,9 @@ export default async function RootLayout({
           >
             <SchemaBanner status={schemaStatus} />
             <NavigationProgress />
-            <nav className="border-b border-theme-border bg-theme-nav sticky top-0 z-50">
+            <nav className="border-b border-theme-border bg-theme-nav sticky top-0 z-50 overflow-x-hidden">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-                <div className="flex items-center py-3 sm:py-0 sm:h-16 gap-x-4">
+                <div className="flex items-center py-3 sm:py-0 sm:h-16 gap-x-3 sm:gap-x-4">
                   <Link href="/" className="flex items-center flex-shrink-0">
                     <Logo />
                   </Link>
