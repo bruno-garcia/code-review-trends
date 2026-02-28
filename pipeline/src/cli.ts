@@ -329,6 +329,7 @@ Options for discover-bots:
   --bigquery-only      Skip marketplace scan
 
 Options for enrich:
+  --gh-token TOKEN     GitHub PAT (or set GITHUB_TOKEN env var)
   --worker-id N        Worker ID for partitioning (default: 0)
   --total-workers N    Total workers (default: 1)
   --limit N            Max items per entity type per run
@@ -972,7 +973,7 @@ async function cmdEnrich() {
   } else if (process.env.GITHUB_TOKEN) {
     token = process.env.GITHUB_TOKEN;
   } else {
-    throw new CliError("GitHub token required. Set GITHUB_TOKENS (JSON array) or GITHUB_TOKEN env var.");
+    throw new CliError("GitHub token required. Use --gh-token TOKEN, set GITHUB_TOKEN env var, or set GITHUB_TOKENS (JSON array) env var.");
   }
 
   const { runEnrichment } = await import("./enrichment/worker.js");
