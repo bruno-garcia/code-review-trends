@@ -278,22 +278,20 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
 
     const duration = Date.now() - start;
     const rl = rateLimiter.waitSummary();
-    const workTime = duration - rl.totalWaitMs;
+    const workTime = duration - rl.totalWaitMs - rl.totalPacingMs;
     const totalItems = reposResult.fetched + reposResult.skipped + reposResult.errors
       + prsResult.fetched + prsResult.skipped + prsResult.errors
       + commentsResult.fetched + commentsResult.skipped + commentsResult.errors
       + reactionsResult.scanned + reactionsResult.skipped + reactionsResult.errors
       + combinedResult.prs_fetched + combinedResult.comments_fetched + combinedResult.reactions_scanned + combinedResult.skipped + combinedResult.errors;
     const itemsPerSec = workTime > 0 ? (totalItems / (workTime / 1000)).toFixed(1) : "∞";
-    const rlPct = duration > 0 ? ((rl.totalWaitMs / duration) * 100).toFixed(1) : "0";
+    const idleMs = rl.totalWaitMs + rl.totalPacingMs;
+    const rlPct = duration > 0 ? ((idleMs / duration) * 100).toFixed(1) : "0";
 
     log(`[worker] Enrichment ${rateLimitExit ? "stopped (rate limit)" : "complete"} in ${Math.ceil(duration / 1000)}s`);
     log(`[worker]   Items processed: ${totalItems} (${itemsPerSec} items/s effective)`);
     log(`[worker]   Combined: ${combinedResult.prs_fetched} PRs + ${combinedResult.comments_fetched} comment combos + ${combinedResult.reactions_scanned} reactions scanned (${combinedResult.reactions_found} with bot reactions, ${combinedResult.errors} errors)`);
-    log(`[worker]   Rate-limit waits: ${rl.waitCount} pauses, ${Math.ceil(rl.totalWaitMs / 1000)}s total (${rlPct}% of wall time)`);
-    if (rl.pacingCount > 0) {
-      log(`[worker]   Pacing delays: ${rl.pacingCount} pauses, ${Math.ceil(rl.totalPacingMs / 1000)}s total`);
-    }
+    log(`[worker]   Idle time: ${Math.ceil(idleMs / 1000)}s (${rlPct}% of wall time) — ${rl.waitCount} rate-limit pauses (${Math.ceil(rl.totalWaitMs / 1000)}s), ${rl.pacingCount} pacing delays (${Math.ceil(rl.totalPacingMs / 1000)}s)`);
     if (rl.secondaryHits > 0) {
       log(`[worker]   Secondary rate limits: ${rl.secondaryHits}`);
     }
