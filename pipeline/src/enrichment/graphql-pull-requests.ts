@@ -101,7 +101,7 @@ export async function fetchPRsBatch(
         ?.map((e: { message?: string }) => e.message)
         .join("; ");
       throw new Error(
-        `GraphQL response contained no data field: ${errors ?? "unknown"}`,
+        `GraphQL response contained no data field: ${errors || "unknown"}`,
       );
     }
 

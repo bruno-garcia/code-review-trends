@@ -140,38 +140,43 @@ export async function graphqlWithRetry(
               query,
               request: { signal: controller.signal },
             });
+
+            // Check for errors-only responses (HTTP 200 but no data field).
+            // GitHub returns these for server-side timeouts like "We couldn't
+            // respond to your request in time." Treat as retryable server errors.
+            const gqlRes = res as unknown as GraphQLResponse;
+            if (!gqlRes.data?.data && gqlRes.data?.errors?.length) {
+              const errMsgs = gqlRes.data.errors
+                .map((e) => e.message || "unknown")
+                .join("; ");
+              const err = new Error(
+                `GraphQL errors-only response (no data field): ${errMsgs}`,
+              );
+              // Attach response so callers can inspect errors if needed
+              (err as unknown as Record<string, unknown>).response = {
+                data: gqlRes.data,
+                headers: gqlRes.headers,
+                status: 200,
+              };
+              span.setStatus({ code: 2, message: "GraphQL errors-only response" });
+              throw err;
+            }
+
             span.setStatus({ code: 1 }); // OK
             return res;
           } catch (err) {
-            const statusMsg = isAbortError(err)
-              ? `timeout after ${timeoutMs}ms`
-              : (err instanceof Error ? err.message.split("\n")[0] : "unknown");
-            span.setStatus({ code: 2, message: statusMsg });
+            if (!(err instanceof Error && err.message.startsWith("GraphQL errors-only"))) {
+              const statusMsg = isAbortError(err)
+                ? `timeout after ${timeoutMs}ms`
+                : (err instanceof Error ? err.message.split("\n")[0] : "unknown");
+              span.setStatus({ code: 2, message: statusMsg });
+            }
             throw err;
           }
         },
       );
-      // Check for errors-only responses (HTTP 200 but no data field).
-      // GitHub returns these for server-side timeouts like "We couldn't
-      // respond to your request in time." Treat as retryable server errors.
-      const gqlResponse = response as unknown as GraphQLResponse;
-      if (!gqlResponse.data?.data && gqlResponse.data?.errors?.length) {
-        const errMsgs = gqlResponse.data.errors
-          .map((e) => e.message ?? "unknown")
-          .join("; ");
-        const err = new Error(
-          `GraphQL errors-only response (no data field): ${errMsgs}`,
-        );
-        // Attach response so callers can inspect errors if needed
-        (err as unknown as Record<string, unknown>).response = {
-          data: gqlResponse.data,
-          headers: gqlResponse.headers,
-          status: 200,
-        };
-        throw err;
-      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return gqlResponse as any;
+      return response as any;
     } catch (err: unknown) {
       lastError = err;
 
