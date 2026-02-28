@@ -46,10 +46,10 @@ cd infra
 npm install
 
 # Create a GCS bucket for Pulumi state
-gsutil mb -l us-central1 gs://code-review-trends-pulumi-state
+gsutil mb -l us-central1 gs://<your-pulumi-state-bucket>
 
 # Log in to the GCS backend
-pulumi login gs://code-review-trends-pulumi-state
+pulumi login gs://<your-pulumi-state-bucket>
 
 # Initialize the stack
 pulumi stack init staging
@@ -84,7 +84,7 @@ The `--secret` flag encrypts values in `Pulumi.staging.yaml` so they won't be re
 On subsequent sessions, you just need to log in to the backend and set your passphrase:
 
 ```bash
-pulumi login gs://code-review-trends-pulumi-state
+pulumi login gs://<your-pulumi-state-bucket>
 export PULUMI_CONFIG_PASSPHRASE="<your-passphrase>"
 ```
 

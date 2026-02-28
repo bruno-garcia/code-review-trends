@@ -45,11 +45,16 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.WIF_PROVIDER_PROD }}
-          service_account: ${{ vars.DEPLOY_SA_EMAIL_PROD }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
+          service_account: ${{ secrets.DEPLOY_SA_EMAIL_PROD }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+
+      - name: Mask GCP identifiers
+        run: |
+          echo "::add-mask::$(gcloud config get-value project 2>/dev/null)"
+          echo "::add-mask::$(gcloud projects describe $(gcloud config get-value project 2>/dev/null) --format='value(projectNumber)' 2>/dev/null)"
 
       - uses: actions/setup-node@v4
         with:
@@ -66,18 +71,17 @@ jobs:
         id: tags
         run: |
           SHORT_SHA=$(echo "${{ steps.sha.outputs.sha }}" | cut -c1-7)
-          PROJECT=$(gcloud config get-value project)
+          PROJECT=$(gcloud config get-value project 2>/dev/null)
           GAR="${REGION}-docker.pkg.dev/${PROJECT}/crt"
+          echo "::add-mask::${GAR}"
           echo "app=${GAR}/app:${SHORT_SHA}-production" >> $GITHUB_OUTPUT
           echo "pipeline=${GAR}/pipeline:${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Verify pipeline image exists
         run: |
-          echo "Checking pipeline image: ${{ steps.tags.outputs.pipeline }}"
           if ! gcloud artifacts docker images describe "${{ steps.tags.outputs.pipeline }}" --quiet 2>/dev/null; then
             echo "::error::Pipeline image not found. Has this SHA been deployed to staging first?"
-            echo "Expected: ${{ steps.tags.outputs.pipeline }}"
             echo ""
             echo "Production deploys promote staging-built images."
             echo "Merge to main first, wait for staging deploy, then trigger this workflow."
@@ -114,7 +118,7 @@ jobs:
             --region=${REGION} \
             --no-traffic \
             --tag=warmup \
-            --quiet
+            --quiet > /dev/null
 
       - name: Warm up cache on new revision
         run: |
@@ -127,6 +131,8 @@ jobs:
             exit 1
           fi
 
+          echo "::add-mask::${WARMUP_URL}"
+
           NODE_ENV=production \
           npm run warmup --workspace=pipeline -- "${WARMUP_URL}" || {
             echo "::warning::Some pages failed to warm up — proceeding with traffic switch anyway"
@@ -138,21 +144,22 @@ jobs:
             --to-latest \
             --remove-tags=warmup \
             --region=${REGION} \
-            --quiet
+            --quiet > /dev/null
 
           # Verify the correct image is serving
-          SERVING_REV=$(gcloud run services describe crt-production-app \
+          SERVING_IMAGE=$(gcloud run services describe crt-production-app \
             --region=${REGION} \
-            --format=json | jq -r '.status.traffic[] | select(.latestRevision == true) | .revisionName')
-          SERVING_IMAGE=$(gcloud run revisions describe "${SERVING_REV}" \
-            --region=${REGION} \
-            --format='value(spec.containers[0].image)')
-          echo "Serving revision: ${SERVING_REV}"
-          echo "Serving image:    ${SERVING_IMAGE}"
+            --format=json | jq -r '
+              .status.traffic[]
+              | select(.latestRevision == true)
+              | .revisionName' | xargs -I{} gcloud run revisions describe {} \
+                --region=${REGION} \
+                --format='value(spec.containers[0].image)')
           if [[ "${SERVING_IMAGE}" == *"cloudrun/container/hello"* ]]; then
             echo "::error::Deploy verification failed — still serving the GCP placeholder image"
             exit 1
           fi
+          echo "Deploy verified — serving correct image"
 
       - name: Update pipeline job images
         run: |
@@ -160,7 +167,7 @@ jobs:
             gcloud run jobs update "crt-production-${job}" \
               --image=${{ steps.tags.outputs.pipeline }} \
               --region=${REGION} \
-              --quiet
+              --quiet > /dev/null
           done
 
       - name: Deploy summary

@@ -61,7 +61,12 @@ esac
 
 REPO_DIR="$HOME/code-review-trends"
 SESSION="enrich-${PIPELINE_ENV}"
-GCP_PROJECT="nuget-trends"
+# GCP project must be configured on the VM (gcloud config set project <id>)
+GCP_PROJECT=$(gcloud config get-value project 2>/dev/null)
+if [[ -z "$GCP_PROJECT" ]]; then
+  err "No GCP project configured. Run: gcloud config set project <project-id>"
+  exit 1
+fi
 PREFIX="crt-${PIPELINE_ENV}"
 WORKER_LIMIT="50000"
 
