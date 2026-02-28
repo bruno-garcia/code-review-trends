@@ -29,7 +29,7 @@ config:
   code-review-trends:appMemory: "4Gi"
   code-review-trends:appCpu: "2"
   code-review-trends:appMinInstances: "2"
-  code-review-trends:appMaxInstances: "10"
+  code-review-trends:appMaxInstances: "20"
   code-review-trends:appConcurrency: "40"
   code-review-trends:artifactRegistryLocation: us-central1
   code-review-trends:githubRepo: bruno-garcia/code-review-trends
