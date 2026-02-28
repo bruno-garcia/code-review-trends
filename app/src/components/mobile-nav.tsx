@@ -57,7 +57,7 @@ export function MobileNav() {
       {/* Dropdown panel — only rendered when open to avoid duplicate links in DOM */}
       {open && (
         <div
-          className="fixed left-0 right-0 bg-theme-nav border-b border-theme-border shadow-lg"
+          className="fixed left-0 right-0 top-[60px] bg-theme-nav border-b border-theme-border shadow-lg"
           data-testid="mobile-nav-menu"
         >
           <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1">
