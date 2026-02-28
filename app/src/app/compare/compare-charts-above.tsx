@@ -418,19 +418,17 @@ export function CompareChartsAbove({
   const thumbsUpRateData = useMemo(() => {
     const selectedSet = new Set(selectedProductIds);
 
-    // Index monthly reactions by month|product_id
-    const monthIndex = new Map<string, { thumbs_up: number; thumbs_down: number }>();
-    for (const r of monthlyReactions) {
-      if (!selectedSet.has(r.product_id)) continue;
-      const key = `${r.month}|${r.product_id}`;
-      const existing = monthIndex.get(key);
-      if (existing) {
-        existing.thumbs_up += Number(r.thumbs_up);
-        existing.thumbs_down += Number(r.thumbs_down);
-      } else {
-        monthIndex.set(key, { thumbs_up: Number(r.thumbs_up), thumbs_down: Number(r.thumbs_down) });
-      }
-    }
+    // Index pre-aggregated monthly reactions by month|product_id.
+    // The server query already GROUP BYs (month, product_id), so each
+    // combination appears exactly once — no client-side accumulation needed.
+    const monthIndex = new Map<string, { thumbs_up: number; thumbs_down: number }>(
+      monthlyReactions
+        .filter((r) => selectedSet.has(r.product_id))
+        .map((r) => [
+          `${r.month}|${r.product_id}`,
+          { thumbs_up: Number(r.thumbs_up), thumbs_down: Number(r.thumbs_down) },
+        ]),
+    );
 
     const allMonths = new Set<string>();
     for (const key of monthIndex.keys()) {
