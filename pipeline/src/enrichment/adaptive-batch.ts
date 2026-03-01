@@ -68,7 +68,8 @@ export class AdaptiveBatch {
    */
   onSuccess(): void {
     if (this.current >= this.max) {
-      // Already at max — no recovery needed, but keep tracking for streak reset on error
+      // Already at max — no recovery needed. Reset streak so it
+      // starts fresh if an error later reduces the batch size.
       this.consecutiveSuccesses = 0;
       return;
     }

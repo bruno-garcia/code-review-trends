@@ -246,6 +246,17 @@ describe("RateLimiter backward compatibility", () => {
     assert.equal(status.remaining, 5000);
   });
 
+  it("handles undefined minRemaining (defaults to 100)", async () => {
+    // new RateLimiter(undefined, true) is allowed by the overload signature
+    const rl = new RateLimiter(undefined, true);
+    // Should not throw — minRemaining should default to 100
+    setRateLimit(rl, 200, 60_000);
+    // pacingDelay should work (usableBudget = 200 - 100 = 100)
+    const delay = rl.pacingDelay();
+    assert.equal(typeof delay, "number");
+    assert.ok(delay >= 0);
+  });
+
   it("waitSummary includes new pacing fields", () => {
     const rl = new RateLimiter();
     const summary = rl.waitSummary();
