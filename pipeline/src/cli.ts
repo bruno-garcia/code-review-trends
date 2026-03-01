@@ -354,6 +354,9 @@ Environment variables:
   GITHUB_TOKENS        JSON array of GitHub PATs (for multi-worker enrichment)
                        When set, auto-selects token via CLOUD_RUN_TASK_INDEX or --worker-id.
                        Falls back to GITHUB_TOKEN if not set.
+  PROXY_URLS           Comma-separated HTTP proxy URLs for IP rotation (avoids secondary rate limits)
+                       e.g. http://10.0.0.233:8888,http://10.0.0.238:8888,http://10.0.0.239:8888
+                       Creates N+1 outbound pathways (N proxies + direct).
   CLOUD_RUN_TASK_INDEX Auto-set by Cloud Run Jobs for multi-task jobs
   PULUMI_CONFIG_PASSPHRASE  Passphrase for Pulumi secrets (if not using interactive login)
 
@@ -975,6 +978,13 @@ async function cmdEnrich() {
     throw new CliError("GitHub token required. Set GITHUB_TOKENS (JSON array) or GITHUB_TOKEN env var.");
   }
 
+  // Parse proxy URLs for IP rotation (avoids GitHub secondary rate limits per IP)
+  const { parseProxyUrls } = await import("./enrichment/proxy-pool.js");
+  const proxyUrls = parseProxyUrls(process.env.PROXY_URLS);
+  if (proxyUrls.length > 0) {
+    log(`IP rotation: ${proxyUrls.length} proxies + direct = ${proxyUrls.length + 1} outbound IPs`);
+  }
+
   const { runEnrichment } = await import("./enrichment/worker.js");
 
   const result = await runEnrichment({
@@ -986,6 +996,7 @@ async function cmdEnrich() {
     priority: parseStepArg("--priority", args["--priority"]),
     only: parseStepArg("--only", args["--only"]),
     exitOnRateLimit: args["--exit-on-rate-limit"] !== undefined,
+    proxyUrls,
   });
 
   log("\n=== Enrichment Summary ===");

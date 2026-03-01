@@ -53,4 +53,5 @@ config:
     secure: v1:3c+PLoUeEp11aQBM:ZWTJn/MAajWXS9fHZ4mZe3hTDU8nw9IH74TX3JcFKZm8joCfDg==
   code-review-trends:workerIp:
     secure: v1:ROZUzU11hf4B3Gz8:tlUMPXRoUqWtXmGSApIeca0is7Z/V9OWjCk=
+
 encryptionsalt: v1:iDjZ4Fjkne8=:v1:uVWQlqiGgeGovORW:WLD3JoVz1Pm88b3eKw07L8uJrHx1fQ==
