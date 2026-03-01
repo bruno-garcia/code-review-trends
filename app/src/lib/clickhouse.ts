@@ -870,7 +870,8 @@ export async function getPrCharacteristics(
         WHERE b.product_id = {productId:String}
         AND e.event_week >= toDate({since:String})
       ) AS de
-      JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number`
+      JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number
+      WHERE p.state NOT IN ('not_found', 'forbidden')`
     : `SELECT
         count() AS sampled_prs,
         round(avg(additions), 0) AS avg_additions,
@@ -918,6 +919,7 @@ export async function getAllPrCharacteristics(
         WHERE e.event_week >= toDate({since:String})
       ) AS de
       JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number
+      WHERE p.state NOT IN ('not_found', 'forbidden')
       GROUP BY de.product_id
       HAVING sampled_prs >= 10`
     : `SELECT
@@ -1677,7 +1679,7 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
       (SELECT count() FROM repos) AS total_discovered_repos,
       (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
       (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS total_discovered_prs,
-      (SELECT count() FROM pull_requests) AS enriched_prs,
+      (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden')) AS enriched_prs,
       (SELECT sum(comment_count) FROM comment_stats_weekly) AS total_comments
   `);
   return setCache("enrichmentStats", rows[0] ?? {
@@ -1750,7 +1752,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       SELECT
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
         (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
-        (SELECT count() FROM pull_requests) AS prs_enriched,
+        (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden')) AS prs_enriched,
         (SELECT sum(x) FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)) AS comments_discovered,
         (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched,
         (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
@@ -2218,6 +2220,7 @@ export async function getRepoDetail(repoName: string): Promise<RepoDetail | null
         round(avg(p.changed_files), 1) AS avg_changed_files
       FROM pull_requests p
       WHERE p.repo_name = {repoName:String}
+        AND p.state NOT IN ('not_found', 'forbidden')
       GROUP BY p.repo_name
     ) pr_stats ON r.name = pr_stats.repo_name
     WHERE r.fetch_status = 'ok' AND r.name = {repoName:String}

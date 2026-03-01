@@ -133,8 +133,53 @@ export async function enrichPullRequests(
               allPrRows.push(result.row);
               batchFetched++;
             } else if (result.status === "not_found") {
+              // Insert sentinel PR row so this PR is excluded from future queries.
+              // Without this, the ClickHouse query keeps returning inaccessible PRs
+              // every run, creating an infinite loop that burns API calls.
+              allPrRows.push({
+                repo_name: batch[i].repo_name,
+                pr_number: batch[i].pr_number,
+                title: "",
+                author: "",
+                state: "not_found",
+                created_at: new Date().toISOString(),
+                merged_at: null,
+                closed_at: null,
+                additions: 0,
+                deletions: 0,
+                changed_files: 0,
+                thumbs_up: 0,
+                thumbs_down: 0,
+                laugh: 0,
+                confused: 0,
+                heart: 0,
+                hooray: 0,
+                eyes: 0,
+                rocket: 0,
+              });
               batchNotFound++;
             } else if (result.status === "forbidden") {
+              allPrRows.push({
+                repo_name: batch[i].repo_name,
+                pr_number: batch[i].pr_number,
+                title: "",
+                author: "",
+                state: "forbidden",
+                created_at: new Date().toISOString(),
+                merged_at: null,
+                closed_at: null,
+                additions: 0,
+                deletions: 0,
+                changed_files: 0,
+                thumbs_up: 0,
+                thumbs_down: 0,
+                laugh: 0,
+                confused: 0,
+                heart: 0,
+                hooray: 0,
+                eyes: 0,
+                rocket: 0,
+              });
               batchForbidden++;
             }
           }
@@ -213,6 +258,16 @@ export async function enrichPullRequests(
             } catch (innerErr: unknown) {
               const status = (innerErr as { status?: number }).status;
               if (status === 404) {
+                // Insert sentinel so this PR is excluded from future queries.
+                await insertPullRequests(ch, [{
+                  repo_name, pr_number, title: "", author: "",
+                  state: "not_found",
+                  created_at: new Date().toISOString(),
+                  merged_at: null, closed_at: null,
+                  additions: 0, deletions: 0, changed_files: 0,
+                  thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+                  heart: 0, hooray: 0, eyes: 0, rocket: 0,
+                }]);
                 notFound++;
               } else if (status === 403) {
                 const headers = (innerErr as { response?: { headers?: Record<string, string> } }).response?.headers;
@@ -225,9 +280,29 @@ export async function enrichPullRequests(
                   } else if (headers["x-ratelimit-remaining"] === "0") {
                     rateLimited++;
                   } else {
+                    // Actual forbidden (not rate-limited) — insert sentinel
+                    await insertPullRequests(ch, [{
+                      repo_name, pr_number, title: "", author: "",
+                      state: "forbidden",
+                      created_at: new Date().toISOString(),
+                      merged_at: null, closed_at: null,
+                      additions: 0, deletions: 0, changed_files: 0,
+                      thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+                      heart: 0, hooray: 0, eyes: 0, rocket: 0,
+                    }]);
                     forbidden++;
                   }
                 } else {
+                  // No headers — treat as forbidden, insert sentinel
+                  await insertPullRequests(ch, [{
+                    repo_name, pr_number, title: "", author: "",
+                    state: "forbidden",
+                    created_at: new Date().toISOString(),
+                    merged_at: null, closed_at: null,
+                    additions: 0, deletions: 0, changed_files: 0,
+                    thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+                    heart: 0, hooray: 0, eyes: 0, rocket: 0,
+                  }]);
                   forbidden++;
                 }
               } else {
