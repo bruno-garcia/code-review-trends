@@ -14,8 +14,8 @@ import { enrichPullRequests } from "./pull-requests.js";
 import { enrichComments } from "./comments.js";
 import { enrichReactions } from "./reactions.js";
 import type { WorkerConfig } from "./partitioner.js";
-import { createOctokitAgent } from "./octokit-agent.js";
 import { enrichCombined, type CombinedResult } from "./combined-enrichment.js";
+import { createRotatingFetch } from "./proxy-pool.js";
 
 export const ROUND_ROBIN_THRESHOLD = 0.70;
 
@@ -92,6 +92,8 @@ export type EnrichmentOptions = {
   priority?: "repos" | "prs" | "comments" | "reactions";
   only?: "repos" | "prs" | "comments" | "reactions";
   exitOnRateLimit?: boolean;
+  /** HTTP CONNECT proxy URLs for IP rotation (e.g., ["http://10.0.0.233:8888"]) */
+  proxyUrls?: string[];
 };
 
 export type EnrichmentResult = {
@@ -107,12 +109,20 @@ export type EnrichmentResult = {
 export async function runEnrichment(options: EnrichmentOptions): Promise<EnrichmentResult> {
   const start = Date.now();
 
+  // Create rotating fetch for proxy-based IP rotation (if configured).
+  // When PROXY_URLS is set, requests are distributed across proxy VMs
+  // to avoid GitHub's per-IP secondary rate limits.
+  const rotatingFetch = createRotatingFetch(options.proxyUrls ?? []);
+
   const octokit = new Octokit({
     auth: options.githubToken,
     request: {
-      agent: createOctokitAgent(),
-      // Request timeout: 30s to prevent hanging on stale connections
-      timeout: 30_000,
+      // Note: @octokit/request v9 uses fetch, not Node's http module.
+      // The `agent` and `timeout` options are silently ignored by v9.
+      // We pass a custom fetch for proxy rotation; without proxies,
+      // Octokit uses native fetch. The 30s request timeout is applied
+      // inside the custom fetch wrapper via AbortSignal.timeout().
+      ...(rotatingFetch ? { fetch: rotatingFetch } : {}),
     },
   });
   const ch = createCHClient();

@@ -72,6 +72,18 @@ export interface EnvironmentConfig {
    * user config. More restrictive than allowing the entire peered subnet.
    */
   workerIp?: string;
+  /**
+   * Self-link or name of the worker VPC's subnet.
+   * Required when workerProxyCount > 0 — proxy VMs are created on this subnet.
+   */
+  workerSubnet?: string;
+  /**
+   * Number of HTTP CONNECT proxy VMs to create on the worker VPC for IP rotation.
+   * Each proxy gets its own static external IP. The pipeline round-robins
+   * requests across proxies + direct to avoid GitHub secondary rate limits.
+   * Default: 0 (no proxies).
+   */
+  workerProxyCount?: number;
 
   // Secrets (stored in Pulumi config, created in Secret Manager)
   /** Sentry DSN for the Next.js frontend (public — baked into client bundle) */
@@ -159,6 +171,8 @@ export function loadConfig(): EnvironmentConfig {
       }
       return ip;
     })(),
+    workerSubnet: config.get("workerSubnet"),
+    workerProxyCount: config.getNumber("workerProxyCount"),
 
     sentryDsnAppFrontend: config.requireSecret("sentryDsnAppFrontend"),
     sentryDsnAppBackend: config.requireSecret("sentryDsnAppBackend"),

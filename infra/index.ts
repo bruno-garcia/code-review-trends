@@ -12,6 +12,7 @@ import { createCloudRunJobs } from "./cloud-run-jobs";
 import { createBackups } from "./backups";
 import { createDiskMonitoring } from "./monitoring";
 import { createVpcPeering } from "./vpc-peering";
+import { createWorkerProxies } from "./worker-proxies";
 
 /**
  * How Cloud Run connects to ClickHouse.
@@ -106,6 +107,10 @@ if (cfg.workerVpcNetwork) {
   createVpcPeering(cfg, network.vpc);
 }
 
+// Worker proxy VMs: HTTP CONNECT proxies for GitHub API IP rotation.
+// Only created when workerProxyCount > 0 (currently staging only).
+const workerProxies = createWorkerProxies(cfg);
+
 // Outputs — used by the app and pipeline
 export const clickhouseExternalIp = network.clickhouseExternalIp.address;
 export const clickhouseInternalIp = clickhouse.internalIp;
@@ -126,3 +131,8 @@ export const deployServiceAccountEmail = serviceAccounts.deploySa.email;
 
 // Reference
 export const runtimeServiceAccountEmail = serviceAccounts.runtimeSa.email;
+
+// Worker proxy URLs for PROXY_URLS env var (empty if no proxies configured)
+export const workerProxyUrls = workerProxies
+  ? pulumi.all(workerProxies.proxyInternalUrls).apply((urls) => urls.join(","))
+  : pulumi.output("");

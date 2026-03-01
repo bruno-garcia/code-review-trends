@@ -66,6 +66,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   "generate-compare-pairs": cmdGenerateComparePairs,
   "detach-mv": cmdDetachMV,
   "reattach-mv": cmdReattachMV,
+  "test-proxies": cmdTestProxies,
   help: cmdHelp,
 };
 
@@ -82,8 +83,11 @@ async function main() {
   }
 
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+  const proxyUrlsRaw = process.env.PROXY_URLS?.trim();
+  const proxyCount = proxyUrlsRaw ? proxyUrlsRaw.split(",").filter(Boolean).length : 0;
   log(`Environment: ${pipelineEnv}`);
   log(`ClickHouse:  ${chUrl}`);
+  log(`Proxies:     ${proxyCount > 0 ? `${proxyCount} proxies + direct (${proxyCount + 1} outbound IPs)` : "none (direct only)"}`);
 
   // Resolve GitHub token identity and tag Sentry (non-blocking: failures are logged, not fatal)
   const githubToken = getGitHubToken();
@@ -263,6 +267,79 @@ async function cmdReattachMV() {
   }
 }
 
+async function cmdTestProxies() {
+  const { parseProxyUrls, createRotatingFetch } = await import("./enrichment/proxy-pool.js");
+  const { fetch: undiciFetch, ProxyAgent, Agent } = await import("undici");
+
+  const proxyUrls = parseProxyUrls(process.env.PROXY_URLS);
+  if (proxyUrls.length === 0) {
+    console.log("PROXY_URLS is not set. Nothing to test.\n");
+    console.log("Usage: PROXY_URLS=http://host1:8888,http://host2:8888 npm run pipeline -- test-proxies");
+    return;
+  }
+
+  console.log(`Testing ${proxyUrls.length} proxies + direct...\n`);
+
+  // Test each pathway individually
+  const pathways: { label: string; dispatcher: import("undici").Dispatcher }[] = [
+    { label: "direct", dispatcher: new Agent({ connectTimeout: 10_000 }) },
+    ...proxyUrls.map((url) => ({
+      label: url,
+      dispatcher: new ProxyAgent({ uri: url, connectTimeout: 10_000 }),
+    })),
+  ];
+
+  let passed = 0;
+  let failed = 0;
+  const ips = new Set<string>();
+
+  for (const { label, dispatcher } of pathways) {
+    try {
+      const res = await undiciFetch("https://ifconfig.me/ip", {
+        dispatcher,
+        headers: { "User-Agent": "curl/8.0" },
+        signal: AbortSignal.timeout(15_000),
+      });
+      const ip = (await res.text()).trim();
+      ips.add(ip);
+      console.log(`  ✓ ${label.padEnd(35)} → ${ip}`);
+      passed++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(`  ✗ ${label.padEnd(35)} → FAILED: ${msg}`);
+      failed++;
+    }
+  }
+
+  // Test round-robin fetch
+  console.log("\nRound-robin test (8 requests):");
+  const rotatingFetch = createRotatingFetch(proxyUrls);
+  if (rotatingFetch) {
+    const roundRobinIps: string[] = [];
+    for (let i = 0; i < 8; i++) {
+      try {
+        const res = await rotatingFetch("https://ifconfig.me/ip", {
+          headers: { "User-Agent": "curl/8.0" },
+          signal: AbortSignal.timeout(15_000),
+        });
+        const ip = (await res.text()).trim();
+        roundRobinIps.push(ip);
+      } catch {
+        roundRobinIps.push("FAILED");
+      }
+    }
+    console.log(`  ${roundRobinIps.join(" → ")}`);
+  }
+
+  // Summary
+  console.log(`\n=== Summary ===`);
+  console.log(`Pathways: ${passed} passed, ${failed} failed`);
+  console.log(`Unique IPs: ${ips.size} (${[...ips].join(", ")})`);
+  if (failed > 0) {
+    process.exitCode = 1;
+  }
+}
+
 async function cmdHelp() {
   console.log(`
 Pipeline CLI — Code Review Trends
@@ -284,6 +361,7 @@ Commands:
   generate-compare-pairs  Generate compare pair metadata for the app
   detach-mv          Detach expensive MVs for faster bulk enrichment
   reattach-mv        Reattach MVs and backfill from existing data
+  test-proxies       Test PROXY_URLS connectivity and IP rotation
   help               Show this help message
 
 Options for fetch-bigquery:
@@ -354,6 +432,9 @@ Environment variables:
   GITHUB_TOKENS        JSON array of GitHub PATs (for multi-worker enrichment)
                        When set, auto-selects token via CLOUD_RUN_TASK_INDEX or --worker-id.
                        Falls back to GITHUB_TOKEN if not set.
+  PROXY_URLS           Comma-separated HTTP proxy URLs for IP rotation (avoids secondary rate limits)
+                       e.g. http://10.0.0.233:8888,http://10.0.0.238:8888,http://10.0.0.239:8888
+                       Creates N+1 outbound pathways (N proxies + direct).
   CLOUD_RUN_TASK_INDEX Auto-set by Cloud Run Jobs for multi-task jobs
   PULUMI_CONFIG_PASSPHRASE  Passphrase for Pulumi secrets (if not using interactive login)
 
@@ -974,6 +1055,13 @@ async function cmdEnrich() {
     throw new CliError("GitHub token required. Set GITHUB_TOKENS (JSON array) or GITHUB_TOKEN env var.");
   }
 
+  // Parse proxy URLs for IP rotation (avoids GitHub secondary rate limits per IP)
+  const { parseProxyUrls } = await import("./enrichment/proxy-pool.js");
+  const proxyUrls = parseProxyUrls(process.env.PROXY_URLS);
+  if (proxyUrls.length > 0) {
+    log(`IP rotation: ${proxyUrls.length} proxies + direct = ${proxyUrls.length + 1} outbound IPs`);
+  }
+
   const { runEnrichment } = await import("./enrichment/worker.js");
 
   const result = await runEnrichment({
@@ -985,6 +1073,7 @@ async function cmdEnrich() {
     priority: parseStepArg("--priority", args["--priority"]),
     only: parseStepArg("--only", args["--only"]),
     exitOnRateLimit: args["--exit-on-rate-limit"] !== undefined,
+    proxyUrls,
   });
 
   log("\n=== Enrichment Summary ===");
