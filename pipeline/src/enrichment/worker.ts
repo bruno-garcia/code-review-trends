@@ -14,7 +14,6 @@ import { enrichPullRequests } from "./pull-requests.js";
 import { enrichComments } from "./comments.js";
 import { enrichReactions } from "./reactions.js";
 import type { WorkerConfig } from "./partitioner.js";
-import { createOctokitAgent } from "./octokit-agent.js";
 import { enrichCombined, type CombinedResult } from "./combined-enrichment.js";
 import { createRotatingFetch } from "./proxy-pool.js";
 
