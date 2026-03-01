@@ -221,14 +221,39 @@ export async function enrichCombined(
               result.prStatus === "not_found" ||
               result.prStatus === "forbidden"
             ) {
+              // Insert sentinel PR row so this combo is excluded from future queries.
+              // Without this, the ClickHouse query (`WHERE p.repo_name = ''`) keeps
+              // returning these inaccessible PRs every run, creating an infinite loop
+              // that burns API calls with no useful work.
+              allPrRows.push({
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
+                title: "",
+                author: "",
+                state: result.prStatus,
+                created_at: new Date().toISOString(),
+                merged_at: null,
+                closed_at: null,
+                additions: 0,
+                deletions: 0,
+                changed_files: 0,
+                thumbs_up: 0,
+                thumbs_down: 0,
+                laugh: 0,
+                confused: 0,
+                heart: 0,
+                hooray: 0,
+                eyes: 0,
+                rocket: 0,
+              });
               batchSkipped++;
             }
 
-            // Collect comment rows for each bot — only when PR was actually found.
-            // Skip not_found/forbidden PRs: don't insert sentinels that would
-            // permanently prevent retry if the PR was only temporarily unavailable.
-            // Also skip if hasMoreThreads is true — there may be bot comments
-            // beyond the first 100 threads that we couldn't fetch.
+            // Collect comment rows for each bot.
+            // For ok PRs: insert real comments or sentinel (comment_id=0) for "no comments found".
+            // For not_found/forbidden PRs: insert comment sentinels so the pr_comments LEFT JOIN
+            // also finds a match, preventing re-selection even if only one of the two JOINs is checked.
+            // Skip if hasMoreThreads is true — there may be bot comments beyond the page we fetched.
             if (result.prStatus === "ok" && !result.hasMoreThreads) {
               for (const botEntry of result.input.bot_entries) {
                 const botComments =
@@ -267,6 +292,32 @@ export async function enrichCombined(
               log(
                 `[combined] ${result.input.repo_name}#${result.input.pr_number} has >${REVIEW_THREADS_PAGE_SIZE} review threads, deferring to comments stage`,
               );
+            } else if (
+              result.prStatus === "not_found" ||
+              result.prStatus === "forbidden"
+            ) {
+              // PR inaccessible — insert comment sentinels for each bot so the
+              // pr_comments LEFT JOIN finds a match. Without this, the enrichment
+              // query keeps returning these combos (infinite loop).
+              for (const botEntry of result.input.bot_entries) {
+                allCommentRows.push({
+                  repo_name: result.input.repo_name,
+                  pr_number: result.input.pr_number,
+                  comment_id: "0",
+                  bot_id: botEntry.bot_id,
+                  body_length: 0,
+                  created_at: new Date().toISOString(),
+                  thumbs_up: 0,
+                  thumbs_down: 0,
+                  laugh: 0,
+                  confused: 0,
+                  heart: 0,
+                  hooray: 0,
+                  eyes: 0,
+                  rocket: 0,
+                });
+                batchComments++;
+              }
             }
 
             // Collect reaction data — only for successfully fetched PRs

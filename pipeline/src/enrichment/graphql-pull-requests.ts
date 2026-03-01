@@ -30,6 +30,7 @@ export type PRBatchInput = {
 };
 
 export type PRBatchResult = {
+  input: PRBatchInput;
   row: PullRequestRow | null;
   status: "ok" | "not_found" | "forbidden";
 };
@@ -178,14 +179,14 @@ export function buildResults(
       const input = prInputs[pi];
 
       if (!repoData) {
-        results.push({ row: null, status: "not_found" });
+        results.push({ input, row: null, status: "not_found" });
         continue;
       }
 
       const prData = repoData[`pr${pi}`] as GraphQLPRData;
 
       if (!prData) {
-        results.push({ row: null, status: "not_found" });
+        results.push({ input, row: null, status: "not_found" });
         continue;
       }
 
@@ -205,6 +206,7 @@ export function buildResults(
       }
 
       results.push({
+        input,
         row: {
           repo_name: input.repo_name,
           pr_number: input.pr_number,

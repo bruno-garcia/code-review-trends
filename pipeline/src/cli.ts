@@ -1055,11 +1055,15 @@ async function cmdEnrich() {
     throw new CliError("GitHub token required. Set GITHUB_TOKENS (JSON array) or GITHUB_TOKEN env var.");
   }
 
-  // Parse proxy URLs for IP rotation (avoids GitHub secondary rate limits per IP)
+  // Parse proxy URLs for IP pinning (avoids GitHub secondary rate limits per IP).
+  // CLI flag takes precedence over env var.
   const { parseProxyUrls } = await import("./enrichment/proxy-pool.js");
-  const proxyUrls = parseProxyUrls(process.env.PROXY_URLS);
+  const proxyUrls = parseProxyUrls(args["--proxy-urls"] ?? process.env.PROXY_URLS);
   if (proxyUrls.length > 0) {
-    log(`IP rotation: ${proxyUrls.length} proxies + direct = ${proxyUrls.length + 1} outbound IPs`);
+    const pathways = proxyUrls.length + 1;
+    const wid = workerId ?? 0;
+    const pinnedTo = wid % pathways;
+    log(`IP pinning: worker ${wid} → pathway ${pinnedTo}/${pathways - 1} (${pinnedTo === 0 ? "direct" : proxyUrls[pinnedTo - 1]})`);
   }
 
   const { runEnrichment } = await import("./enrichment/worker.js");

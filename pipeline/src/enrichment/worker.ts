@@ -15,7 +15,7 @@ import { enrichComments } from "./comments.js";
 import { enrichReactions } from "./reactions.js";
 import type { WorkerConfig } from "./partitioner.js";
 import { enrichCombined, type CombinedResult } from "./combined-enrichment.js";
-import { createRotatingFetch } from "./proxy-pool.js";
+import { createPinnedFetch } from "./proxy-pool.js";
 
 export const ROUND_ROBIN_THRESHOLD = 0.70;
 
@@ -109,10 +109,10 @@ export type EnrichmentResult = {
 export async function runEnrichment(options: EnrichmentOptions): Promise<EnrichmentResult> {
   const start = Date.now();
 
-  // Create rotating fetch for proxy-based IP rotation (if configured).
-  // When PROXY_URLS is set, requests are distributed across proxy VMs
-  // to avoid GitHub's per-IP secondary rate limits.
-  const rotatingFetch = createRotatingFetch(options.proxyUrls ?? []);
+  // Create pinned fetch for proxy-based IP assignment (if configured).
+  // When PROXY_URLS is set, each worker is assigned a specific outbound IP
+  // based on its worker ID to avoid GitHub's per-IP secondary rate limits.
+  const pinnedFetch = createPinnedFetch(options.proxyUrls ?? [], options.workerId ?? 0);
 
   const octokit = new Octokit({
     auth: options.githubToken,
@@ -122,7 +122,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
       // We pass a custom fetch for proxy rotation; without proxies,
       // Octokit uses native fetch. The 30s request timeout is applied
       // inside the custom fetch wrapper via AbortSignal.timeout().
-      ...(rotatingFetch ? { fetch: rotatingFetch } : {}),
+      ...(pinnedFetch ? { fetch: pinnedFetch } : {}),
     },
   });
   const ch = createCHClient();

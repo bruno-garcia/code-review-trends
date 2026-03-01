@@ -99,6 +99,13 @@ async function fetchComboViaRest(
   } catch (innerErr: unknown) {
     const status = (innerErr as { status?: number }).status;
     if (status === 404) {
+      // Insert sentinel so this combo is excluded from future queries
+      await insertPrComments(ch, [{
+        repo_name, pr_number, comment_id: "0", bot_id,
+        body_length: 0, created_at: new Date().toISOString(),
+        thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+        heart: 0, hooray: 0, eyes: 0, rocket: 0,
+      }]);
       counters.notFound++;
     } else if (status === 403) {
       const headers = (innerErr as { response?: { headers?: Record<string, string> } }).response?.headers;
@@ -111,9 +118,23 @@ async function fetchComboViaRest(
         } else if (headers["x-ratelimit-remaining"] === "0") {
           counters.rateLimited++;
         } else {
+          // Actual forbidden — insert sentinel
+          await insertPrComments(ch, [{
+            repo_name, pr_number, comment_id: "0", bot_id,
+            body_length: 0, created_at: new Date().toISOString(),
+            thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+            heart: 0, hooray: 0, eyes: 0, rocket: 0,
+          }]);
           counters.forbidden++;
         }
       } else {
+        // No headers — insert sentinel
+        await insertPrComments(ch, [{
+          repo_name, pr_number, comment_id: "0", bot_id,
+          body_length: 0, created_at: new Date().toISOString(),
+          thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+          heart: 0, hooray: 0, eyes: 0, rocket: 0,
+        }]);
         counters.forbidden++;
       }
     } else {
@@ -233,6 +254,19 @@ export async function enrichComments(
           let batchErrors = 0;
           for (const result of results) {
             if (result.error === "repo_not_found" || result.error === "pr_not_found") {
+              // Insert comment sentinel so this combo is excluded from future queries.
+              // Without this, the query keeps returning inaccessible PR/bot combos
+              // every run (infinite loop).
+              allCommentRows.push({
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
+                comment_id: "0",
+                bot_id: result.input.bot_id,
+                body_length: 0,
+                created_at: new Date().toISOString(),
+                thumbs_up: 0, thumbs_down: 0, laugh: 0, confused: 0,
+                heart: 0, hooray: 0, eyes: 0, rocket: 0,
+              });
               batchNotFound++;
               continue;
             }
