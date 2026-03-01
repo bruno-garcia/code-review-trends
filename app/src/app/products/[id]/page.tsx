@@ -323,7 +323,7 @@ export default async function ProductPage({
           </SectionHeading>
           <p className="text-theme-muted mb-4">
             Characteristics of pull requests reviewed by {product.name}, based
-            on {Number(prChars.sampled_prs).toLocaleString()} sampled PRs.
+            on {Number(prChars.sampled_prs).toLocaleString()} enriched PRs.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <StatCard
