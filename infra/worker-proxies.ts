@@ -19,9 +19,9 @@ import { EnvironmentConfig } from "./config";
  * The pipeline uses PROXY_URLS env var to round-robin across these proxies.
  * See pipeline/src/enrichment/proxy-pool.ts.
  *
- * These resources live on the worker VPC (nuget-trends-prod-vpc), not the
- * CRT VPC. The migration-worker VM itself is NOT managed by Pulumi.
- * The Cloud NAT config on nuget-trends-prod-router is also manual — it must
+ * These resources live on the worker VPC (external, not the CRT VPC).
+ * The migration-worker VM itself is NOT managed by Pulumi.
+ * The Cloud NAT config on the worker VPC router is also manual — it must
  * be configured to use worker-nat-ip-0 for the migration-worker's direct
  * outbound traffic (MANUAL_ONLY allocation with that single IP).
  */

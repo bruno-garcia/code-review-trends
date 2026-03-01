@@ -73,7 +73,7 @@ export interface EnvironmentConfig {
    */
   workerIp?: string;
   /**
-   * Self-link or name of the worker VPC's subnet (e.g., nuget-trends-prod-subnet).
+   * Self-link or name of the worker VPC's subnet.
    * Required when workerProxyCount > 0 — proxy VMs are created on this subnet.
    */
   workerSubnet?: string;
