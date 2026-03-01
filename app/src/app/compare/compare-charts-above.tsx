@@ -141,8 +141,8 @@ const METRICS: {
   },
   {
     key: "sampled_prs",
-    label: "Sample",
-    description: "Enriched PRs with metadata from GitHub API",
+    label: "Enriched PRs",
+    description: "PRs with metadata fetched from GitHub API",
     format: (v) => Number(v).toLocaleString(),
   },
   {

@@ -338,11 +338,12 @@ export default async function AboutPage() {
           share of PRs reviewed. We don&apos;t currently have a &ldquo;per
           run&rdquo; metric (where a run is a single invocation of a bot,
           whether triggered by a PR opening, a new commit, or an @mention).
-          Even with enriched comment timestamps from the GitHub API, reliably
-          grouping events into runs would require heuristics (e.g., time-window
-          clustering) that are fragile across different bot behaviors — and
-          we lack per-event timestamps for formal reviews
-          (PullRequestReviewEvent), only weekly granularity from GH Archive.
+          Even with per-event timestamps from GH Archive and enriched
+          comment timestamps from the GitHub API, reliably grouping events
+          into runs would require heuristics (e.g., time-window clustering)
+          that are fragile across different bot behaviors. Our pipeline
+          aggregates events to weekly buckets for trend analysis, which
+          precludes run-level detection.
         </p>
 
         <p className="text-theme-muted text-sm italic">
