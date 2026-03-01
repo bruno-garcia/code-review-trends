@@ -21,6 +21,14 @@ import { ProxyAgent, Agent, fetch as undiciFetch, type Dispatcher } from "undici
 import { log } from "../sentry.js";
 
 /**
+ * Request timeout for individual fetch calls (milliseconds).
+ * Matches the previous Octokit request timeout (30s). GraphQL requests
+ * have their own 60s AbortController timeout in graphqlWithRetry;
+ * this covers REST API fallback calls that don't go through that wrapper.
+ */
+const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
  * Creates a fetch function that rotates requests across proxy URLs + a direct pathway.
  *
  * When proxyUrls is empty, returns undefined (caller should use default fetch).
@@ -65,10 +73,15 @@ export function createRotatingFetch(proxyUrls: string[]): typeof globalThis.fetc
     requestCount++;
     const dispatcher = dispatchers[idx];
 
+    // Apply a default request timeout unless the caller already provides
+    // an AbortSignal (e.g., graphqlWithRetry sets its own 60s timeout).
+    const signal = init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+
     // Use undici's fetch with the dispatcher option for proxy routing.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return undiciFetch(input as any, {
       ...init as Record<string, unknown>,
+      signal,
       dispatcher,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any) as unknown as Promise<Response>;

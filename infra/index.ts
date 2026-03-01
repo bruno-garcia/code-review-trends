@@ -108,7 +108,7 @@ if (cfg.workerVpcNetwork) {
 }
 
 // Worker proxy VMs: HTTP CONNECT proxies for GitHub API IP rotation.
-// Only created when workerProxyCount > 0 (production).
+// Only created when workerProxyCount > 0 (currently staging only).
 const workerProxies = createWorkerProxies(cfg);
 
 // Outputs — used by the app and pipeline

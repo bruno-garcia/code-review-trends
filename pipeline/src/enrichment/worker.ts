@@ -118,8 +118,10 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     auth: options.githubToken,
     request: {
       // Note: @octokit/request v9 uses fetch, not Node's http module.
-      // The `agent` option is silently ignored. We pass a custom fetch
-      // for proxy rotation; without proxies, Octokit uses native fetch.
+      // The `agent` and `timeout` options are silently ignored by v9.
+      // We pass a custom fetch for proxy rotation; without proxies,
+      // Octokit uses native fetch. The 30s request timeout is applied
+      // inside the custom fetch wrapper via AbortSignal.timeout().
       ...(rotatingFetch ? { fetch: rotatingFetch } : {}),
     },
   });
