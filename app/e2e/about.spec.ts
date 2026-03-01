@@ -28,7 +28,7 @@ test.describe("About page", () => {
     // Section heading is visible
     await expect(page.getByRole("heading", { name: /PR Profile/ })).toBeVisible();
     // Key caveats are present
-    await expect(page.getByText("Sample, not census.")).toBeVisible();
+    await expect(page.getByText("Progressive enrichment.")).toBeVisible();
     await expect(page.getByText("Correlation, not causation.")).toBeVisible();
   });
 });
