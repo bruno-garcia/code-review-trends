@@ -91,6 +91,70 @@ export function createRotatingFetch(proxyUrls: string[]): typeof globalThis.fetc
 }
 
 /**
+ * Creates a fetch function pinned to a single outbound IP based on worker ID.
+ *
+ * With N proxy URLs, there are N+1 pathways (direct + N proxies).
+ * Worker `workerId` is assigned to pathway `workerId % (N+1)`:
+ *   - pathway 0 = direct (Cloud NAT IP)
+ *   - pathway 1..N = proxy 1..N
+ *
+ * This ensures each IP handles at most ceil(totalWorkers / (N+1)) workers,
+ * avoiding the problem where round-robin causes all workers to hit the same
+ * IP simultaneously. GitHub's secondary rate limits are per-IP, so spreading
+ * workers across IPs lets each worker sustain higher throughput.
+ *
+ * Returns undefined when proxyUrls is empty (caller should use default fetch).
+ */
+export function createPinnedFetch(
+  proxyUrls: string[],
+  workerId: number,
+): typeof globalThis.fetch | undefined {
+  if (proxyUrls.length === 0) return undefined;
+
+  const pathwayCount = proxyUrls.length + 1; // direct + proxies
+  const pinnedIndex = workerId % pathwayCount;
+
+  let dispatcher: Dispatcher;
+  let label: string;
+
+  if (pinnedIndex === 0) {
+    dispatcher = new Agent({
+      keepAliveTimeout: 55_000,
+      keepAliveMaxTimeout: 60_000,
+      connections: 50,
+      pipelining: 1,
+    });
+    label = "direct";
+  } else {
+    const proxyUrl = proxyUrls[pinnedIndex - 1];
+    dispatcher = new ProxyAgent({
+      uri: proxyUrl,
+      keepAliveTimeout: 55_000,
+      keepAliveMaxTimeout: 60_000,
+    });
+    label = proxyUrl;
+  }
+
+  log(`[proxy-pool] Worker ${workerId} pinned to pathway ${pinnedIndex}/${pathwayCount - 1}: ${label}`);
+
+  const pinnedFetch = (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ): Promise<Response> => {
+    const signal = init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return undiciFetch(input as any, {
+      ...init as Record<string, unknown>,
+      signal,
+      dispatcher,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any) as unknown as Promise<Response>;
+  };
+
+  return pinnedFetch as typeof globalThis.fetch;
+}
+
+/**
  * Parse PROXY_URLS environment variable into an array of proxy URLs.
  * Returns empty array if not set or empty.
  */
