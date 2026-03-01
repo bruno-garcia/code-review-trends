@@ -14,7 +14,7 @@ import {
   type PrCommentRow,
 } from "../clickhouse.js";
 import { BOT_BY_ID } from "../bots.js";
-import { Sentry, log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
+import { Sentry, log, logError, countMetric, distributionMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 // handleEnterprisePolicyError removed — GraphQL batch handles errors differently
@@ -332,6 +332,7 @@ export async function enrichComments(
     const processed = counters.fetched + counters.notFound + counters.forbidden + counters.rateLimited + counters.unknownBot + counters.errors;
     log(`[comments] Progress: ${processed}/${combos.length} (${counters.fetched} ok, ${counters.notFound} not_found, ${counters.forbidden} forbidden, ${counters.errors} errors)`);
     countMetric("pipeline.enrich.comments.batch", 1);
+    distributionMetric("pipeline.graphql.batch_size", adaptive.size, "none", { phase: "comments" });
     // Flush Sentry periodically so spans are visible during long runs
     if (processed % 100 < adaptive.size) {
       void Sentry.flush(5000);

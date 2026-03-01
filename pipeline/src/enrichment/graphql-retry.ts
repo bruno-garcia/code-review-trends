@@ -19,7 +19,7 @@
  */
 
 import type { Octokit } from "@octokit/rest";
-import { Sentry, log, countMetric, sentryLogger } from "../sentry.js";
+import { Sentry, log, countMetric, distributionMetric, gaugeMetric, sentryLogger } from "../sentry.js";
 
 const MAX_RETRIES = 3;
 
@@ -92,12 +92,21 @@ function sanitizeErrorMessage(msg: string): string {
   return cleaned.length > 120 ? cleaned.slice(0, 120) + "…" : cleaned;
 }
 
+/** Rate limit info returned inline by GitHub's GraphQL API. */
+export type GraphQLRateLimitInfo = {
+  cost: number;
+  remaining: number;
+  nodeCount: number;
+};
+
 export type GraphQLResponse = {
   data: {
     data?: Record<string, unknown>;
     errors?: Array<{ message?: string }>;
   };
   headers: Record<string, string>;
+  /** Inline rate limit info from the `rateLimit` field, if present. */
+  rateLimit?: GraphQLRateLimitInfo;
 };
 
 /**
@@ -114,6 +123,10 @@ export async function graphqlWithRetry(
   timeoutMs: number = RESPONSE_TIMEOUT_MS,
 ): Promise<GraphQLResponse> {
   let lastError: unknown;
+
+  // Inject rateLimit field to get cost/remaining/nodeCount in every response.
+  // This goes inside the top-level `query { ... }` block.
+  const augmentedQuery = injectRateLimitField(query);
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     // Create per-attempt AbortController with total response timeout.
@@ -137,7 +150,7 @@ export async function graphqlWithRetry(
         async (span) => {
           try {
             const res = await octokit.request("POST /graphql", {
-              query,
+              query: augmentedQuery,
               request: { signal: controller.signal },
             });
 
@@ -175,8 +188,10 @@ export async function graphqlWithRetry(
           }
         },
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return response as any;
+      const gqlResponse = response as unknown as GraphQLResponse;
+      gqlResponse.rateLimit = extractRateLimitInfo(gqlResponse.data?.data);
+      emitGraphQLMetrics(label, gqlResponse.rateLimit);
+      return gqlResponse;
     } catch (err: unknown) {
       lastError = err;
 
@@ -225,4 +240,48 @@ export async function graphqlWithRetry(
 
   // Should be unreachable, but TypeScript needs it
   throw lastError;
+}
+
+/**
+ * Inject `rateLimit { cost remaining nodeCount }` into a GraphQL query.
+ * Finds the opening `query {` (or just `{`) and appends the field.
+ *
+ * Exported for testing.
+ */
+export function injectRateLimitField(query: string): string {
+  // Match `query {` or `query($var: Type) {` or just `{` at the start
+  const match = query.match(/^(\s*query\b[^{]*\{|\s*\{)/);
+  if (!match) return query; // can't parse — return unchanged
+
+  const insertPos = match.index! + match[0].length;
+  return (
+    query.slice(0, insertPos) +
+    " _rateLimit: rateLimit { cost remaining nodeCount }" +
+    query.slice(insertPos)
+  );
+}
+
+/**
+ * Extract rate limit info from the GraphQL response data.
+ * Returns undefined if the field is missing (e.g., errors-only response).
+ */
+export function extractRateLimitInfo(
+  data: Record<string, unknown> | undefined,
+): GraphQLRateLimitInfo | undefined {
+  if (!data) return undefined;
+  const rl = data._rateLimit as { cost?: number; remaining?: number; nodeCount?: number } | undefined;
+  if (!rl || typeof rl.cost !== "number") return undefined;
+  return {
+    cost: rl.cost,
+    remaining: rl.remaining ?? 0,
+    nodeCount: rl.nodeCount ?? 0,
+  };
+}
+
+/** Emit Sentry metrics for a GraphQL query's rate limit cost. */
+function emitGraphQLMetrics(label: string, rateLimit?: GraphQLRateLimitInfo): void {
+  if (!rateLimit) return;
+  distributionMetric("pipeline.graphql.cost", rateLimit.cost, "none", { phase: label });
+  gaugeMetric("pipeline.graphql.remaining", rateLimit.remaining, { phase: label });
+  distributionMetric("pipeline.graphql.node_count", rateLimit.nodeCount, "none", { phase: label });
 }

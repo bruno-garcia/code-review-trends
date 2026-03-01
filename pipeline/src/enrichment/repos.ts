@@ -12,7 +12,7 @@ import {
   insertRepos,
   query,
 } from "../clickhouse.js";
-import { Sentry, log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
+import { Sentry, log, logError, countMetric, distributionMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { handleEnterprisePolicyError } from "./enterprise-policy.js";
@@ -204,6 +204,7 @@ export async function enrichRepos(
     const processed = fetched + notFound + forbidden + rateLimited + errors;
     log(`[repos] Progress: ${processed}/${validRepos.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.repos.batch", 1);
+    distributionMetric("pipeline.graphql.batch_size", adaptive.size, "none", { phase: "repos" });
   }
 
   log(`[repos] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}, recoveries=${adaptive.summary().recoveries}`);
