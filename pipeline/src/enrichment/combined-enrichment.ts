@@ -24,6 +24,7 @@ import {
   log,
   logError,
   countMetric,
+  distributionMetric,
   captureEnrichmentError,
   sentryLogger,
 } from "../sentry.js";
@@ -383,6 +384,7 @@ export async function enrichCombined(
       void Sentry.flush(5000);
     }
     countMetric("pipeline.enrich.combined.batch", 1);
+    distributionMetric("pipeline.graphql.batch_size", adaptive.size, "none", { phase: "combined" });
   }
 
   log(

@@ -13,7 +13,7 @@ import {
   query,
 } from "../clickhouse.js";
 import { extractReactionCounts } from "../github.js";
-import { Sentry, log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
+import { Sentry, log, logError, countMetric, distributionMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { summarizeOrgs, summarizeRepos } from "./summary.js";
@@ -250,6 +250,7 @@ export async function enrichPullRequests(
     const processed = fetched + notFound + forbidden + rateLimited + errors;
     log(`[pull-requests] Progress: ${processed}/${validPrs.length} (${fetched} ok, ${notFound} not_found, ${forbidden} forbidden, ${errors} errors)`);
     countMetric("pipeline.enrich.prs.batch", 1);
+    distributionMetric("pipeline.graphql.batch_size", adaptive.size, "none", { phase: "prs" });
     // Flush Sentry periodically so spans are visible during long runs
     if (processed % 100 < adaptive.size) {
       void Sentry.flush(5000);

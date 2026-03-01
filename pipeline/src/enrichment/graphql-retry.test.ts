@@ -12,7 +12,7 @@
 
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { graphqlWithRetry, isTransientNetworkError, isServerError, isRetryableError, isAbortError, TRANSIENT_ERROR_PATTERNS, RESPONSE_TIMEOUT_MS, type GraphQLResponse } from "./graphql-retry.js";
+import { graphqlWithRetry, isTransientNetworkError, isServerError, isRetryableError, isAbortError, injectRateLimitField, extractRateLimitInfo, TRANSIENT_ERROR_PATTERNS, RESPONSE_TIMEOUT_MS, type GraphQLResponse } from "./graphql-retry.js";
 import type { Octokit } from "@octokit/rest";
 
 /** Build a minimal Octokit-like object with a stubbed request method. */
@@ -21,7 +21,7 @@ function makeOctokit(requestFn: (...args: unknown[]) => Promise<unknown>): Octok
 }
 
 const OK_RESPONSE: GraphQLResponse = {
-  data: { data: { repo0: { stargazerCount: 42 } } },
+  data: { data: { repo0: { stargazerCount: 42 }, _rateLimit: { cost: 1, remaining: 4999, nodeCount: 5 } } },
   headers: { "x-ratelimit-remaining": "4999" },
 };
 
@@ -396,5 +396,112 @@ describe("isRetryableError", () => {
 
   it("returns false for other errors", () => {
     assert.equal(isRetryableError(new Error("Bad credentials")), false);
+  });
+});
+
+describe("injectRateLimitField", () => {
+  it("injects into simple query { ... }", () => {
+    const q = 'query { repo0: repository(owner: "a", name: "b") { stargazerCount } }';
+    const result = injectRateLimitField(q);
+    assert.ok(result.includes("_rateLimit: rateLimit { cost remaining nodeCount }"), "should inject rateLimit field");
+    assert.ok(result.startsWith("query {"), "should keep query prefix");
+    assert.ok(result.includes("repo0:"), "should keep original content");
+  });
+
+  it("injects into bare { ... } query", () => {
+    const q = '{ viewer { login } }';
+    const result = injectRateLimitField(q);
+    assert.ok(result.includes("_rateLimit: rateLimit { cost remaining nodeCount }"));
+    assert.ok(result.includes("viewer"));
+  });
+
+  it("injects into query with whitespace", () => {
+    const q = '  query {\n  repo0: repository(owner: "a", name: "b") { stargazerCount }\n}';
+    const result = injectRateLimitField(q);
+    assert.ok(result.includes("_rateLimit: rateLimit { cost remaining nodeCount }"));
+  });
+
+  it("returns unchanged if no query block found", () => {
+    const q = "mutation { something }";
+    assert.equal(injectRateLimitField(q), q);
+  });
+
+  it("preserves all original query content", () => {
+    const q = 'query { repo0: repository(owner: "x", name: "y") { stargazerCount primaryLanguage { name } } repo1: repository(owner: "a", name: "b") { isFork } }';
+    const result = injectRateLimitField(q);
+    assert.ok(result.includes("repo0:"));
+    assert.ok(result.includes("repo1:"));
+    assert.ok(result.includes("primaryLanguage"));
+    assert.ok(result.includes("_rateLimit:"));
+  });
+});
+
+describe("extractRateLimitInfo", () => {
+  it("extracts cost, remaining, nodeCount from _rateLimit field", () => {
+    const data = {
+      repo0: { stargazerCount: 42 },
+      _rateLimit: { cost: 12, remaining: 4988, nodeCount: 350 },
+    };
+    const info = extractRateLimitInfo(data);
+    assert.deepStrictEqual(info, { cost: 12, remaining: 4988, nodeCount: 350 });
+  });
+
+  it("returns undefined when data is undefined", () => {
+    assert.equal(extractRateLimitInfo(undefined), undefined);
+  });
+
+  it("returns undefined when _rateLimit field is missing", () => {
+    const data = { repo0: { stargazerCount: 42 } };
+    assert.equal(extractRateLimitInfo(data), undefined);
+  });
+
+  it("returns undefined when cost is not a number", () => {
+    const data = { _rateLimit: { cost: "not-a-number", remaining: 100, nodeCount: 5 } };
+    assert.equal(extractRateLimitInfo(data as Record<string, unknown>), undefined);
+  });
+
+  it("defaults remaining and nodeCount to 0 when missing", () => {
+    const data = { _rateLimit: { cost: 5 } };
+    const info = extractRateLimitInfo(data as Record<string, unknown>);
+    assert.deepStrictEqual(info, { cost: 5, remaining: 0, nodeCount: 0 });
+  });
+});
+
+describe("graphqlWithRetry rateLimit extraction", () => {
+  it("extracts rateLimit from successful response", async () => {
+    const requestFn = mock.fn(async () => OK_RESPONSE);
+    const octokit = makeOctokit(requestFn);
+
+    const result = await graphqlWithRetry(octokit, "query { viewer { login } }", "test");
+    assert.ok(result.rateLimit, "should have rateLimit");
+    assert.equal(result.rateLimit!.cost, 1);
+    assert.equal(result.rateLimit!.remaining, 4999);
+    assert.equal(result.rateLimit!.nodeCount, 5);
+  });
+
+  it("rateLimit is undefined when response lacks _rateLimit field", async () => {
+    const response: GraphQLResponse = {
+      data: { data: { viewer: { login: "test" } } },
+      headers: { "x-ratelimit-remaining": "4999" },
+    };
+    const requestFn = mock.fn(async () => response);
+    const octokit = makeOctokit(requestFn);
+
+    const result = await graphqlWithRetry(octokit, "query { viewer { login } }", "test");
+    assert.equal(result.rateLimit, undefined);
+  });
+
+  it("injects rateLimit field into the query sent to GitHub", async () => {
+    let sentQuery = "";
+    const requestFn = mock.fn(async (...args: unknown[]) => {
+      const options = args[1] as { query?: string } | undefined;
+      sentQuery = options?.query ?? "";
+      return OK_RESPONSE;
+    });
+    const octokit = makeOctokit(requestFn);
+
+    await graphqlWithRetry(octokit, "query { viewer { login } }", "test");
+    assert.ok(sentQuery.includes("_rateLimit: rateLimit { cost remaining nodeCount }"),
+      "query sent to GitHub should include rateLimit field");
   });
 });

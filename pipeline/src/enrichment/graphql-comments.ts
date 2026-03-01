@@ -9,7 +9,7 @@
  */
 
 import type { Octokit } from "@octokit/rest";
-import { log } from "../sentry.js";
+import { log, distributionMetric } from "../sentry.js";
 import type { RateLimiter } from "./rate-limiter.js";
 import type { PrCommentRow } from "../clickhouse.js";
 import { graphqlWithRetry } from "./graphql-retry.js";
@@ -235,6 +235,10 @@ export function parseResults(
 
       const comments: PrCommentRow[] = [];
       const hasMore = prData.reviewThreads.pageInfo.hasNextPage;
+      const threadCount = prData.reviewThreads.nodes.length;
+
+      // Track actual thread counts per PR — helps determine optimal REVIEW_THREADS_PAGE_SIZE
+      distributionMetric("pipeline.graphql.threads_returned", threadCount, "none", { phase: "comments" });
 
       for (const thread of prData.reviewThreads.nodes) {
         const comment = thread.comments.nodes[0];

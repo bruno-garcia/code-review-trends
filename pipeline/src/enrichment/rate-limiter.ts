@@ -66,8 +66,8 @@ export class RateLimiter {
       this.exitOnRateLimit = minRemainingOrOptions.exitOnRateLimit ?? false;
       this._sleep = minRemainingOrOptions.sleep ?? defaultSleep;
     } else {
-      this.minRemaining = minRemainingOrOptions;
-      this.exitOnRateLimit = exitOnRateLimit;
+      this.minRemaining = minRemainingOrOptions ?? 100;
+      this.exitOnRateLimit = exitOnRateLimit ?? false;
       this._sleep = defaultSleep;
     }
   }
@@ -156,17 +156,19 @@ export class RateLimiter {
     // Pacing: spread requests evenly across the rate limit window.
     // Skip pacing in exitOnRateLimit mode — those workers should go
     // as fast as possible within their limited runtime.
+    let pacedMs = 0;
     if (!this.exitOnRateLimit) {
       const pacingMs = this.pacingDelay();
       if (pacingMs > 10) {
         await this._sleep(pacingMs);
         this._totalPacingMs += pacingMs;
         this._pacingCount++;
+        pacedMs = pacingMs;
       }
     }
 
     this.lastRequestAt = Date.now();
-    return 0;
+    return pacedMs;
   }
 
   /**

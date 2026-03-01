@@ -17,7 +17,7 @@ import {
   type PrBotReactionRow,
   type ReactionScanStatus,
 } from "../clickhouse.js";
-import { log, logError, countMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
+import { log, logError, countMetric, distributionMetric, captureEnrichmentError, sentryLogger } from "../sentry.js";
 import { type RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { partitionWhereClause, type WorkerConfig } from "./partitioner.js";
 import { fetchReactionsBatch, type ReactionBatchInput } from "./graphql-reactions.js";
@@ -178,6 +178,7 @@ export async function enrichReactions(
       log(`[reactions] Progress: ${processed}/${allPendingPrs.length} PRs (${fetched} with bot reactions)`);
     }
     countMetric("pipeline.enrich.reactions.batch", 1);
+    distributionMetric("pipeline.graphql.batch_size", adaptive.size, "none", { phase: "reactions" });
   }
 
   log(`[reactions] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}, recoveries=${adaptive.summary().recoveries}`);
