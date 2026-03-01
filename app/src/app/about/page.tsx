@@ -64,10 +64,15 @@ export default async function AboutPage() {
           <a href="https://www.gharchive.org/" target="_blank" rel="noopener noreferrer" className={linkClass}>GH Archive</a> stores
           all public GitHub events in BigQuery. We query these daily tables to
           count how AI code review bots interact with pull requests. The{" "}
-          <a href="#ai-share" className={linkClass}>AI Share</a> percentage and
-          all trend charts are computed entirely from this BigQuery data —
-          no GitHub API calls are involved, so these numbers reflect the
-          complete public event stream with no sampling or enrichment gaps.
+          <a href="#ai-share" className={linkClass}>AI Share</a> percentage
+          and the weekly time-series charts (AI Share, Total Volume) are
+          computed entirely from this BigQuery data — no GitHub API calls are
+          involved, and we collect all public events (not a sample).
+          Product-level rankings and totals
+          also include{" "}
+          <a href="#what-counts" className={linkClass}>emoji reaction reviews</a>{" "}
+          discovered via the GitHub API, which capture bot activity invisible
+          to GH Archive.
         </p>
         <p className="text-theme-text-secondary leading-relaxed">
           Additional metadata — repository stars, primary languages, comment
@@ -261,8 +266,8 @@ export default async function AboutPage() {
           <p className="text-theme-text-secondary leading-relaxed">
             <strong className="text-theme-text">Numerator</strong> (tracked bot
             events): Only events from the{" "}
-            <span className="tabular-nums">~30</span> bot accounts we
-            explicitly track. If an AI code review tool isn&apos;t in our
+            bot accounts we explicitly track (see{" "}
+            <a href="#bot-registry" className={linkClass}>Bot Registry</a>). If an AI code review tool isn&apos;t in our
             registry, its activity does not count as &ldquo;AI.&rdquo;
           </p>
           <p className="text-theme-text-secondary leading-relaxed">
@@ -301,13 +306,13 @@ export default async function AboutPage() {
 
         <p className="text-theme-text-secondary leading-relaxed">
           <strong className="text-theme-text">No double counting</strong>: Each
-          event type is counted and displayed independently — the chart lets you
-          toggle between Reviews and Review Comments. A bot that
-          submits 1 review with 5 inline comments contributes 1 to the Reviews
-          metric and 5 to the Review Comments metric, but these are never
-          combined. PR Comments (IssueCommentEvent) are tracked in aggregate
-          counts but not shown in time-series charts due to incomplete
-          historical data. The same counting logic applies to both the bot and
+          event type is counted independently — the AI Share chart lets you
+          toggle between Reviews and Review Comments, while the{" "}
+          <Link href="/compare" className={linkClass}>comparison page</Link>{" "}
+          lets you toggle between Reviews, Review Comments, and PR Comments.
+          A bot that submits 1 review with 5 inline comments contributes 1 to
+          the Reviews metric and 5 to the Review Comments metric, but these are
+          never combined. The same counting logic applies to both the bot and
           non-bot sides, so the ratio is apples-to-apples.
         </p>
 
@@ -325,15 +330,19 @@ export default async function AboutPage() {
           bots are automated and typically re-run on every commit pushed to a
           PR, generating a new review each time, whereas human reviewers
           usually review once or twice and don&apos;t re-review on every push.
-          This asymmetry means event-based counting inherently amplifies bot
-          activity relative to human activity, and the AI Share percentage
-          likely overstates the true share of PRs that receive AI review. It
+          <strong className="text-theme-text">This asymmetry means
+          event-based counting inherently amplifies bot activity relative to
+          human activity, and the AI Share percentage likely overstates the
+          true share of PRs that receive AI review.</strong> It
           measures share of review <em>activity</em> (volume of events), not
           share of PRs reviewed. We don&apos;t currently have a &ldquo;per
           run&rdquo; metric (where a run is a single invocation of a bot,
-          whether triggered by a PR opening, a new commit, or an @mention)
-          because GH Archive doesn&apos;t provide enough signal to reliably
-          group events into runs.
+          whether triggered by a PR opening, a new commit, or an @mention).
+          Even with enriched comment timestamps from the GitHub API, reliably
+          grouping events into runs would require heuristics (e.g., time-window
+          clustering) that are fragile across different bot behaviors — and
+          we lack per-event timestamps for formal reviews
+          (PullRequestReviewEvent), only weekly granularity from GH Archive.
         </p>
 
         <p className="text-theme-muted text-sm italic">
@@ -449,12 +458,14 @@ export default async function AboutPage() {
           <h3 className="text-lg font-medium text-theme-text">Important caveats</h3>
           <ul className="list-disc space-y-2 pl-6 text-theme-text-secondary">
             <li>
-              <strong className="text-theme-text">Sample, not census.</strong>{" "}
-              Not all discovered PRs have been enriched yet. The sample size is
-              shown alongside each stat (&ldquo;based on X sampled PRs&rdquo;).
-              Coverage varies by product — high-volume products may have tens of
-              thousands of samples, while newer or smaller products may have
-              only a few hundred.
+              <strong className="text-theme-text">Progressive enrichment.</strong>{" "}
+              We discover <em>every</em> PR where a tracked bot left an event
+              in GH Archive, then fetch metadata via the GitHub API. Until
+              enrichment completes, statistics are based on the subset already
+              enriched — check
+              the <Link href="/status" className={linkClass}>/status</Link> page
+              for current progress. The count is shown alongside each stat
+              (&ldquo;based on X PRs&rdquo;).
             </li>
             <li>
               <strong className="text-theme-text">Correlation, not causation.</strong>{" "}
@@ -464,7 +475,7 @@ export default async function AboutPage() {
             </li>
             <li>
               <strong className="text-theme-text">Merge rate</strong> is the
-              percentage of sampled PRs in{" "}
+              percentage of enriched PRs in{" "}
               <code className={codeClass}>MERGED</code> state (vs.{" "}
               <code className={codeClass}>CLOSED</code> without merge or
               still <code className={codeClass}>OPEN</code>).
@@ -472,13 +483,13 @@ export default async function AboutPage() {
             <li>
               <strong className="text-theme-text">Time to merge</strong> is the
               average hours between PR creation and merge, computed only for
-              merged PRs. Products where no sampled PRs have been merged
+              merged PRs. Products where no enriched PRs have been merged
               show &ldquo;—&rdquo;.
             </li>
             <li>
               Products with fewer than <strong className="text-theme-text">10
-              sampled PRs</strong> are excluded from the comparison table to
-              avoid misleading statistics from tiny samples.
+              enriched PRs</strong> are excluded from the comparison table to
+              avoid misleading statistics from insufficient data.
             </li>
           </ul>
         </div>
@@ -486,7 +497,7 @@ export default async function AboutPage() {
           <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400" data-testid="pr-enrichment-warning">
             <strong>Note:</strong> PR metadata has not yet been fully
             collected ({prEnrichmentPct.toFixed(1)}% complete). PR profile
-            statistics are based on an incomplete sample.{" "}
+            statistics are based on incomplete data.{" "}
             <Link href="/status" className="text-red-300 hover:text-red-200 underline">
               View status →
             </Link>
@@ -500,9 +511,18 @@ export default async function AboutPage() {
           👍 Rate &amp; Reaction Data
         </SectionHeading>
         <p className="text-theme-text-secondary leading-relaxed">
-          When humans read a bot&apos;s inline review comment on GitHub, they
-          can react with emoji — including 👍 and 👎. We track these reactions
-          and compute two metrics:
+          When someone reads a bot&apos;s inline review comment on GitHub, they
+          can react with emoji — including 👍 and 👎. This includes human
+          developers, but also coding agents and automation that can be{" "}
+          <a
+            href="https://github.com/bruno-garcia/pi-config/blob/main/skills/address-review/SKILL.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkClass}
+          >
+            instructed to react to review comments
+          </a>
+          . We track these reactions and compute two metrics:
         </p>
         <div className="space-y-4">
           <div className="overflow-x-auto rounded-lg border border-theme-border bg-theme-surface px-6 py-4 space-y-3">
@@ -542,8 +562,8 @@ export default async function AboutPage() {
             <li>
               <strong className="text-theme-text">Minimum threshold.</strong>{" "}
               Bots with fewer than 30 total 👍+👎 reactions show &ldquo;—&rdquo;
-              instead of a percentage. Below this threshold the sample is too
-              small to be meaningful.
+              instead of a percentage. Below this threshold the data is too
+              sparse to be meaningful.
             </li>
             <li>
               <strong className="text-theme-text">Selection bias.</strong>{" "}
@@ -639,7 +659,7 @@ export default async function AboutPage() {
           <div>
             <h3 className="text-lg font-medium text-theme-text">Untracked bot accounts</h3>
             <p className="mt-1 text-theme-text-secondary leading-relaxed">
-              We maintain a curated registry of ~30 AI code review bot accounts.
+              We maintain a curated registry of AI code review bot accounts.
               Any bot not in this registry is excluded from the AI share
               numerator. If it has a{" "}
               <code className={codeClass}>[bot]</code>{" "}
@@ -847,7 +867,7 @@ export default async function AboutPage() {
           </li>
           <li>
             <strong className="text-theme-text">Different bot coverage</strong>: We
-            track 25+ products with 30+ bot accounts. Other trackers may include
+            track dozens of products and bot accounts. Other trackers may include
             different sets.
           </li>
         </ul>
