@@ -17,7 +17,7 @@
 
 // Sentry must be imported first to instrument all subsequent modules.
 // This also validates --env (required) and configures Sentry environment/tags.
-import { Sentry, log, withCronMonitor, countMetric, pipelineEnv } from "./sentry.js";
+import { Sentry, log, withCronMonitor, countMetric, gaugeMetric, pipelineEnv } from "./sentry.js";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const schedules: Record<string, { cron: string; maxRuntime: number; description: string }> = require("../schedules.json");
@@ -1106,6 +1106,15 @@ async function cmdEnrichStatus() {
     console.log(`PRs:       ${prPct}% complete`);
     console.log(`Comments:  ${commentPct}% complete`);
     console.log(`Reactions: ${reactionPct}% complete`);
+
+    // Emit enrichment progress as Sentry gauge metrics.
+    // Runs every 60s via `watch` in workers.sh — each invocation is a fresh
+    // process so we just emit the current value unconditionally.
+    // pipeline.environment is already included by gaugeMetric().
+    gaugeMetric("enrichment.progress", parseFloat(repoPct), { "enrichment.type": "repos" });
+    gaugeMetric("enrichment.progress", parseFloat(prPct), { "enrichment.type": "prs" });
+    gaugeMetric("enrichment.progress", parseFloat(commentPct), { "enrichment.type": "comments" });
+    gaugeMetric("enrichment.progress", parseFloat(reactionPct), { "enrichment.type": "reactions" });
 
     // Pace section — repos + reactions
     const reactionPace1h = (await query<{ cnt: string }>(
