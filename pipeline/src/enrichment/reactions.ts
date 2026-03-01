@@ -144,6 +144,7 @@ export async function enrichReactions(
       if (reactionRows.length > 0) {
         await insertPrBotReactions(ch, reactionRows);
       }
+      adaptive.onSuccess();
       batchHandled = true;
     } catch (err: unknown) {
       if (err instanceof RateLimitExitError) throw err;
@@ -179,7 +180,7 @@ export async function enrichReactions(
     countMetric("pipeline.enrich.reactions.batch", 1);
   }
 
-  log(`[reactions] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}`);
+  log(`[reactions] Batch sizing: final=${adaptive.summary().current}, max=${adaptive.summary().max}, reductions=${adaptive.summary().reductions}, recoveries=${adaptive.summary().recoveries}`);
   log(`[reactions] Done: ${fetched} PRs with bot reactions, ${scanned} scanned, ${skipped} skipped, ${errors} errors (${totalApiCalls} API calls)`);
   return { fetched, scanned, skipped, errors };
 }

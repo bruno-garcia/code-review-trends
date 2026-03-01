@@ -13,7 +13,14 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseResults, type CommentBatchInput } from "./graphql-comments.js";
+import {
+  parseResults,
+  buildCommentsQuery,
+  REVIEW_THREADS_PAGE_SIZE,
+  GRAPHQL_COMMENT_BATCH_MAX,
+  GRAPHQL_COMMENT_BATCH_MIN,
+  type CommentBatchInput,
+} from "./graphql-comments.js";
 
 function makeInput(overrides: Partial<CommentBatchInput> & { repo_name: string; pr_number: number }): CommentBatchInput {
   return {
@@ -263,6 +270,87 @@ describe("graphql-comments parseResults", () => {
     assert.equal(results[0].hasMore, true);
   });
 
+  it("hasMore true with zero comments — caller must not insert sentinel", () => {
+    // When hasMore is true, there may be bot comments in unfetched threads.
+    // The caller (comments.ts) must NOT insert a sentinel row in this case,
+    // or it will permanently mask the unfetched data (AGENTS.md principle 17).
+    // This test documents the contract: parseResults sets hasMore=true and
+    // returns empty comments — the caller is responsible for checking hasMore.
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 1 })];
+    const byRepo = makeByRepo(inputs);
+    const repoIndex = makeRepoIndex(byRepo);
+
+    const data = {
+      repo0: {
+        pr0: {
+          reviewThreads: {
+            nodes: [
+              {
+                comments: {
+                  nodes: [
+                    {
+                      databaseId: 999,
+                      author: { login: "human-reviewer" },
+                      bodyText: "Human comment only in first 30 threads",
+                      createdAt: "2024-01-01T10:00:00Z",
+                      reactionGroups: [],
+                    },
+                  ],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: true }, // more threads exist
+          },
+        },
+      },
+    };
+
+    const results = parseResults(byRepo, repoIndex, data);
+    assert.equal(results[0].hasMore, true, "hasMore should be true");
+    assert.equal(results[0].comments.length, 0, "no bot comments in first page");
+    // The caller must check hasMore before inserting a sentinel.
+    // If it inserts a sentinel here, bot comments in threads 31+ are lost forever.
+  });
+
+  it("hasMore true with some bot comments — caller should save comments but no sentinel", () => {
+    // When hasMore is true AND there are some bot comments, the caller should
+    // save the found comments but still not insert a sentinel for missing bots,
+    // since more comments may exist in unfetched threads.
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 1 })];
+    const byRepo = makeByRepo(inputs);
+    const repoIndex = makeRepoIndex(byRepo);
+
+    const data = {
+      repo0: {
+        pr0: {
+          reviewThreads: {
+            nodes: [
+              {
+                comments: {
+                  nodes: [
+                    {
+                      databaseId: 888,
+                      author: { login: "bot-login" },
+                      bodyText: "Bot found in first 30 threads",
+                      createdAt: "2024-01-01T10:00:00Z",
+                      reactionGroups: [],
+                    },
+                  ],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: true },
+          },
+        },
+      },
+    };
+
+    const results = parseResults(byRepo, repoIndex, data);
+    assert.equal(results[0].hasMore, true);
+    assert.equal(results[0].comments.length, 1, "found bot comment should be returned");
+    assert.equal(results[0].comments[0].comment_id, "888");
+  });
+
   it("handles multiple repos with multiple PRs", () => {
     const inputs = [
       makeInput({ repo_name: "org/repo-a", pr_number: 1 }),
@@ -476,5 +564,131 @@ describe("graphql-comments parseResults", () => {
 
     const results = parseResults(byRepo, repoIndex, data);
     assert.equal(results[0].comments.length, 0);
+  });
+});
+
+describe("graphql-comments constants", () => {
+  it("REVIEW_THREADS_PAGE_SIZE is 30", () => {
+    // Reduced from 100 to cut per-PR GraphQL complexity by ~70%.
+    // Changing this affects rate-limit throughput — update batch sizes accordingly.
+    assert.equal(REVIEW_THREADS_PAGE_SIZE, 30);
+  });
+
+  it("GRAPHQL_COMMENT_BATCH_MAX is 120", () => {
+    // ~3× the old max of 40 to compensate for the reduced page size.
+    assert.equal(GRAPHQL_COMMENT_BATCH_MAX, 120);
+  });
+
+  it("GRAPHQL_COMMENT_BATCH_MIN is 5", () => {
+    assert.equal(GRAPHQL_COMMENT_BATCH_MIN, 5);
+  });
+
+  it("batch max is proportional to page size reduction", () => {
+    // With first:100 the old batch max was 40 (cost ~36K nodes).
+    // With first:30 we can fit ~3.3× more PRs per query for the same cost.
+    // 120 is conservative (3×), leaving headroom for GitHub complexity calc variance.
+    assert.ok(
+      GRAPHQL_COMMENT_BATCH_MAX >= 100,
+      `batch max ${GRAPHQL_COMMENT_BATCH_MAX} should be ≥100 to benefit from reduced page size`,
+    );
+    assert.ok(
+      GRAPHQL_COMMENT_BATCH_MAX <= 160,
+      `batch max ${GRAPHQL_COMMENT_BATCH_MAX} should be ≤160 to stay within GitHub complexity budget`,
+    );
+  });
+});
+
+describe("graphql-comments buildCommentsQuery", () => {
+  it("generates a query using REVIEW_THREADS_PAGE_SIZE", () => {
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 42 })];
+    const { query } = buildCommentsQuery(inputs);
+
+    assert.ok(
+      query.includes(`reviewThreads(first: ${REVIEW_THREADS_PAGE_SIZE})`),
+      `query should use REVIEW_THREADS_PAGE_SIZE (${REVIEW_THREADS_PAGE_SIZE}), got: ${query.slice(0, 200)}...`,
+    );
+    // Must NOT contain the old hardcoded value
+    assert.ok(
+      !query.includes("reviewThreads(first: 100)"),
+      "query must not contain old hardcoded first: 100",
+    );
+  });
+
+  it("includes pullRequest number in query", () => {
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 42 })];
+    const { query } = buildCommentsQuery(inputs);
+
+    assert.ok(query.includes("pullRequest(number: 42)"), "query should reference PR number");
+  });
+
+  it("includes repository owner and name", () => {
+    const inputs = [makeInput({ repo_name: "my-org/my-repo", pr_number: 1 })];
+    const { query } = buildCommentsQuery(inputs);
+
+    assert.ok(query.includes('"my-org"'), "query should include owner");
+    assert.ok(query.includes('"my-repo"'), "query should include repo name");
+  });
+
+  it("groups multiple PRs under the same repo", () => {
+    const inputs = [
+      makeInput({ repo_name: "owner/repo", pr_number: 1 }),
+      makeInput({ repo_name: "owner/repo", pr_number: 2 }),
+    ];
+    const { query, byRepo, repoIndex } = buildCommentsQuery(inputs);
+
+    // Only one repo alias
+    assert.equal(byRepo.size, 1);
+    assert.equal(repoIndex.size, 1);
+    assert.ok(query.includes("pr0:"), "should have pr0 alias");
+    assert.ok(query.includes("pr1:"), "should have pr1 alias");
+    // Only one repo fragment
+    assert.ok(!query.includes("repo1:"), "should NOT have a second repo alias");
+  });
+
+  it("separates different repos into different aliases", () => {
+    const inputs = [
+      makeInput({ repo_name: "org/repo-a", pr_number: 1 }),
+      makeInput({ repo_name: "org/repo-b", pr_number: 2 }),
+    ];
+    const { query, byRepo, repoIndex } = buildCommentsQuery(inputs);
+
+    assert.equal(byRepo.size, 2);
+    assert.equal(repoIndex.size, 2);
+    assert.ok(query.includes("repo0:"), "should have repo0 alias");
+    assert.ok(query.includes("repo1:"), "should have repo1 alias");
+  });
+
+  it("returns correct repoIndex mapping", () => {
+    const inputs = [
+      makeInput({ repo_name: "org/repo-a", pr_number: 1 }),
+      makeInput({ repo_name: "org/repo-b", pr_number: 2 }),
+      makeInput({ repo_name: "org/repo-a", pr_number: 3 }),
+    ];
+    const { byRepo, repoIndex } = buildCommentsQuery(inputs);
+
+    assert.equal(repoIndex.get("org/repo-a"), 0);
+    assert.equal(repoIndex.get("org/repo-b"), 1);
+    assert.equal(byRepo.get("org/repo-a")!.length, 2, "repo-a should have 2 PRs");
+    assert.equal(byRepo.get("org/repo-b")!.length, 1, "repo-b should have 1 PR");
+  });
+
+  it("query includes all required GraphQL fields", () => {
+    const inputs = [makeInput({ repo_name: "owner/repo", pr_number: 1 })];
+    const { query } = buildCommentsQuery(inputs);
+
+    // Verify key fields are present in the query
+    const requiredFields = [
+      "databaseId",
+      "author { login }",
+      "bodyText",
+      "createdAt",
+      "reactionGroups",
+      "reactors { totalCount }",
+      "pageInfo { hasNextPage }",
+      "comments(first: 1)",
+    ];
+    for (const field of requiredFields) {
+      assert.ok(query.includes(field), `query should include "${field}"`);
+    }
   });
 });

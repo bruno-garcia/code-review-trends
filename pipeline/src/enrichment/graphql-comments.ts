@@ -14,7 +14,25 @@ import type { RateLimiter } from "./rate-limiter.js";
 import type { PrCommentRow } from "../clickhouse.js";
 import { graphqlWithRetry } from "./graphql-retry.js";
 
-export const GRAPHQL_COMMENT_BATCH_SIZE = 20;
+/**
+ * Number of review threads fetched per PR in a single GraphQL query.
+ *
+ * GitHub's GraphQL rate limit charges based on the *requested* `first` value,
+ * not the actual node count returned. Nested connections multiply:
+ * each PR costs ≈ REVIEW_THREADS_PAGE_SIZE × (comment fields + reaction groups).
+ *
+ * Reducing from 100 → 30 cuts the per-PR complexity by ~70%, allowing ~3×
+ * larger batch sizes (more PRs per API call) for the same rate-limit budget.
+ * PRs with >30 threads get `hasMore: true` and are handled by REST fallback
+ * or re-queued for the next round.
+ */
+export const REVIEW_THREADS_PAGE_SIZE = 30;
+
+/** Max PRs per GraphQL query for comment enrichment. */
+export const GRAPHQL_COMMENT_BATCH_MAX = 120;
+
+/** Min PRs per GraphQL query (floor for adaptive batch reduction). */
+export const GRAPHQL_COMMENT_BATCH_MIN = 5;
 
 const REACTION_MAP: Record<string, keyof Pick<PrCommentRow, "thumbs_up" | "thumbs_down" | "laugh" | "confused" | "heart" | "hooray" | "eyes" | "rocket">> = {
   THUMBS_UP: "thumbs_up",
@@ -71,19 +89,14 @@ type PrData = {
 } | null;
 
 /**
- * Fetch bot review comments for a batch of PRs via a single GraphQL query.
- * Groups PRs by repo and uses field aliases.
+ * Build the GraphQL query string and repo grouping metadata for a batch
+ * of comment enrichment inputs. Exported for testing.
  */
-export async function fetchCommentsBatch(
-  octokit: Octokit,
-  rateLimiter: RateLimiter,
-  inputs: CommentBatchInput[],
-): Promise<CommentBatchResult[]> {
-  if (inputs.length === 0) return [];
-
-  await rateLimiter.waitIfNeeded();
-
-  // Group by repo
+export function buildCommentsQuery(inputs: CommentBatchInput[]): {
+  query: string;
+  byRepo: Map<string, CommentBatchInput[]>;
+  repoIndex: Map<string, number>;
+} {
   const byRepo = new Map<string, CommentBatchInput[]>();
   for (const input of inputs) {
     const existing = byRepo.get(input.repo_name) ?? [];
@@ -91,7 +104,6 @@ export async function fetchCommentsBatch(
     byRepo.set(input.repo_name, existing);
   }
 
-  // Build query
   const repoFragments: string[] = [];
   const repoIndex = new Map<string, number>();
   let ri = 0;
@@ -101,7 +113,7 @@ export async function fetchCommentsBatch(
 
     const prFragments = prInputs.map((input, pi) =>
       `pr${pi}: pullRequest(number: ${input.pr_number}) {
-        reviewThreads(first: 100) {
+        reviewThreads(first: ${REVIEW_THREADS_PAGE_SIZE}) {
           nodes {
             comments(first: 1) {
               nodes {
@@ -129,7 +141,27 @@ export async function fetchCommentsBatch(
     ri++;
   }
 
-  const queryStr = `query { ${repoFragments.join("\n")} }`;
+  return {
+    query: `query { ${repoFragments.join("\n")} }`,
+    byRepo,
+    repoIndex,
+  };
+}
+
+/**
+ * Fetch bot review comments for a batch of PRs via a single GraphQL query.
+ * Groups PRs by repo and uses field aliases.
+ */
+export async function fetchCommentsBatch(
+  octokit: Octokit,
+  rateLimiter: RateLimiter,
+  inputs: CommentBatchInput[],
+): Promise<CommentBatchResult[]> {
+  if (inputs.length === 0) return [];
+
+  await rateLimiter.waitIfNeeded();
+
+  const { query: queryStr, byRepo, repoIndex } = buildCommentsQuery(inputs);
 
   try {
     const response = await graphqlWithRetry(octokit, queryStr, "graphql-comments");
