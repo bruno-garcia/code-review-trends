@@ -252,7 +252,7 @@ const MIGRATION_003: Migration = {
     GROUP BY repo_name, bot_id`,
 
     // Backfill existing data
-    `INSERT INTO pr_bot_event_counts
+    `INSERT INTO pr_bot_event_counts (repo_name, bot_id, pr_count)
     SELECT
       repo_name,
       bot_id,
@@ -344,7 +344,7 @@ const MIGRATION_006: Migration = {
     // Backfill BEFORE creating the MV to avoid double-counting: if the MV
     // exists during the backfill, concurrent pr_comments inserts would be
     // counted by both the MV trigger and the backfill's FINAL scan.
-    `INSERT INTO comment_stats_weekly
+    `INSERT INTO comment_stats_weekly (bot_id, week, comment_count, thumbs_up, thumbs_down, heart, pr_count)
     SELECT
       bot_id,
       toMonday(created_at) AS week,
@@ -422,7 +422,7 @@ const MIGRATION_007: Migration = {
     GROUP BY r.repo_name, r.bot_id`,
 
     // Backfill — run the same query to populate immediately
-    `INSERT INTO reaction_only_repo_counts
+    `INSERT INTO reaction_only_repo_counts (repo_name, bot_id, pr_count, exclusive_pr_count)
     SELECT
       r.repo_name,
       r.bot_id,
@@ -465,7 +465,7 @@ const MIGRATION_008: Migration = {
     // Truncate and re-backfill with the new column
     `TRUNCATE TABLE comment_stats_weekly`,
 
-    `INSERT INTO comment_stats_weekly
+    `INSERT INTO comment_stats_weekly (bot_id, week, comment_count, thumbs_up, thumbs_down, heart, pr_count, reacted_comment_count)
     SELECT
       bot_id,
       toMonday(created_at) AS week,
@@ -564,7 +564,7 @@ const MIGRATION_010: Migration = {
       ON e.bot_id = b.id`,
 
     // Backfill existing data
-    `INSERT INTO pr_product_characteristics
+    `INSERT INTO pr_product_characteristics (product_id, repo_name, pr_number, additions, deletions, changed_files, state, created_at, merged_at)
     SELECT
       b.product_id AS product_id,
       p.repo_name AS repo_name,
@@ -614,7 +614,7 @@ const MIGRATION_011: Migration = {
     GROUP BY owner, bot_id`,
 
     // Backfill from existing data
-    `INSERT INTO org_bot_pr_counts
+    `INSERT INTO org_bot_pr_counts (owner, bot_id, pr_count)
     SELECT
       splitByChar('/', repo_name)[1] AS owner,
       bot_id,
@@ -645,7 +645,7 @@ const MIGRATION_012: Migration = {
     GROUP BY repo_name`,
 
     // Backfill repo_pr_summary
-    `INSERT INTO repo_pr_summary
+    `INSERT INTO repo_pr_summary (repo_name, total_prs)
     SELECT repo_name, uniqExactState(pr_number) AS total_prs
     FROM pr_bot_events
     GROUP BY repo_name
@@ -667,7 +667,7 @@ const MIGRATION_012: Migration = {
     GROUP BY owner`,
 
     // Backfill org_pr_summary
-    `INSERT INTO org_pr_summary
+    `INSERT INTO org_pr_summary (owner, total_prs)
     SELECT
       splitByChar('/', repo_name)[1] AS owner,
       uniqExactState(repo_name, pr_number) AS total_prs
@@ -701,7 +701,7 @@ const MIGRATION_013: Migration = {
     GROUP BY bot_id`,
 
     // Backfill from existing data
-    `INSERT INTO bot_comment_discovery_summary
+    `INSERT INTO bot_comment_discovery_summary (bot_id, total_combos)
     SELECT
       bot_id,
       uniqExactState(repo_name, pr_number) AS total_combos

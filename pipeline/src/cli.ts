@@ -211,7 +211,7 @@ INNER JOIN pr_bot_events AS e
     ON p.repo_name = e.repo_name AND p.pr_number = e.pr_number
 INNER JOIN bots AS b
     ON e.bot_id = b.id`,
-    backfill: `INSERT INTO pr_product_characteristics
+    backfill: `INSERT INTO pr_product_characteristics (product_id, repo_name, pr_number, additions, deletions, changed_files, state, created_at, merged_at)
 SELECT
     b.product_id AS product_id,
     p.repo_name AS repo_name,
@@ -723,8 +723,8 @@ async function cmdMigrate() {
       return;
     }
 
-    // Sync bot registry from bots.ts (source of truth)
-    console.log(`\nSyncing bot registry...`);
+    // Record schema versions BEFORE bot sync — if bot sync fails, the schema
+    // is still correctly tracked and the app won't try to re-run migrations.
     const chClient = createCHClient({
       url: clickhouseUrl,
       username: clickhouseUser,
@@ -732,14 +732,6 @@ async function cmdMigrate() {
       database: clickhouseDb,
     });
     try {
-      await syncProducts(chClient, PRODUCTS);
-      console.log(`  ✓ Synced ${PRODUCTS.length} products`);
-      await syncBots(chClient, BOTS);
-      console.log(`  ✓ Synced ${BOTS.length} bots`);
-
-      // Record each pending migration version in schema_migrations.
-      // All SQL files are applied above (idempotent), so we just need to
-      // record the versions that weren't previously tracked.
       if (pendingMigrations.length > 0) {
         console.log(`\nRecording schema version(s)...`);
         await chClient.insert({
@@ -751,6 +743,13 @@ async function cmdMigrate() {
           console.log(`  ✓ v${m.version} ${m.name}`);
         }
       }
+
+      // Sync bot registry from bots.ts (source of truth)
+      console.log(`\nSyncing bot registry...`);
+      await syncProducts(chClient, PRODUCTS);
+      console.log(`  ✓ Synced ${PRODUCTS.length} products`);
+      await syncBots(chClient, BOTS);
+      console.log(`  ✓ Synced ${BOTS.length} bots`);
     } finally {
       await chClient.close();
     }

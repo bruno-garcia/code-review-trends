@@ -66,6 +66,49 @@ function listSqlMigrationFiles(): string[] {
   return files;
 }
 
+/** Extract all INSERT INTO...SELECT statements from app migrations source. */
+function findInsertSelectStatements(): { line: number; text: string }[] {
+  const src = readFileSync(
+    join(ROOT, "app/src/lib/migrations.ts"),
+    "utf-8",
+  );
+  const results: { line: number; text: string }[] = [];
+  const lines = src.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    // Match INSERT INTO that isn't followed by a parenthesized column list
+    // but IS followed by SELECT (possibly on the next non-empty line).
+    // Pattern: INSERT INTO <table_name> SELECT (no parentheses between table and SELECT)
+    if (/INSERT\s+INTO\s+\w+\s*$/i.test(trimmed) || /INSERT\s+INTO\s+\w+\s+SELECT/i.test(trimmed)) {
+      // Check if there's a column list (parentheses after the table name)
+      const fullMatch = trimmed.match(/INSERT\s+INTO\s+(\w+)\s*(.*)/i);
+      if (fullMatch) {
+        const afterTable = fullMatch[2].trim();
+        // If nothing follows on this line, peek at next non-empty line
+        let nextContent = afterTable;
+        if (!nextContent) {
+          for (let j = i + 1; j < lines.length && j < i + 5; j++) {
+            const next = lines[j].trim();
+            if (next) {
+              nextContent = next;
+              break;
+            }
+          }
+        }
+        // Safe: starts with '(' (column list) or VALUES
+        if (nextContent.startsWith("(") || /^VALUES/i.test(nextContent)) {
+          continue;
+        }
+        // Unsafe: SELECT without column list
+        if (/^SELECT/i.test(nextContent) || nextContent === "") {
+          results.push({ line: i + 1, text: trimmed });
+        }
+      }
+    }
+  }
+  return results;
+}
+
 describe("migration registry sync", () => {
   const pipeline = parsePipelineMigrations();
   const app = parseAppMigrations();
@@ -113,6 +156,18 @@ describe("migration registry sync", () => {
       lastPipeline.version,
       app.expectedVersion,
       `Pipeline max version is ${lastPipeline.version} but app expects ${app.expectedVersion}`,
+    );
+  });
+
+  it("all INSERT INTO...SELECT statements have explicit column lists", () => {
+    const unsafeInserts = findInsertSelectStatements();
+    assert.equal(
+      unsafeInserts.length,
+      0,
+      `Found ${unsafeInserts.length} INSERT INTO...SELECT without explicit column list in app/src/lib/migrations.ts.\n` +
+        `Each INSERT must list columns: INSERT INTO table (col1, col2) SELECT ...\n` +
+        `Without explicit columns, adding a column in a later migration breaks earlier INSERTs.\n\n` +
+        unsafeInserts.map((u) => `  Line ${u.line}: ${u.text}`).join("\n"),
     );
   });
 
