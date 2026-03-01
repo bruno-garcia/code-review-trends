@@ -83,8 +83,11 @@ async function main() {
   }
 
   const chUrl = process.env.CLICKHOUSE_URL ?? "http://localhost:8123";
+  const proxyUrlsRaw = process.env.PROXY_URLS?.trim();
+  const proxyCount = proxyUrlsRaw ? proxyUrlsRaw.split(",").filter(Boolean).length : 0;
   log(`Environment: ${pipelineEnv}`);
   log(`ClickHouse:  ${chUrl}`);
+  log(`Proxies:     ${proxyCount > 0 ? `${proxyCount} proxies + direct (${proxyCount + 1} outbound IPs)` : "none (direct only)"}`);
 
   // Resolve GitHub token identity and tag Sentry (non-blocking: failures are logged, not fatal)
   const githubToken = getGitHubToken();
