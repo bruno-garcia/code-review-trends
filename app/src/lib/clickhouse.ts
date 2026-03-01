@@ -881,7 +881,8 @@ export async function getPrCharacteristics(
         round(avg(if(state = 'merged' AND merged_at IS NOT NULL,
           dateDiff('hour', created_at, merged_at), NULL)), 1) AS avg_hours_to_merge
       FROM pr_product_characteristics FINAL
-      WHERE product_id = {productId:String}`;
+      WHERE product_id = {productId:String}
+        AND state NOT IN ('not_found', 'forbidden')`;
   const rows = await query<PrCharacteristics>(sql, params);
 
   const row = rows[0];
@@ -932,6 +933,7 @@ export async function getAllPrCharacteristics(
         round(avg(if(state = 'merged' AND merged_at IS NOT NULL,
           dateDiff('hour', created_at, merged_at), NULL)), 1) AS avg_hours_to_merge
       FROM pr_product_characteristics FINAL
+      WHERE state NOT IN ('not_found', 'forbidden')
       GROUP BY product_id
       HAVING sampled_prs >= 10`;
   return query<ProductPrCharacteristics>(sql, params);

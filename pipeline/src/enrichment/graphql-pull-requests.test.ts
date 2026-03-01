@@ -171,6 +171,8 @@ describe("graphql-pull-requests buildResults", () => {
     assert.equal(results.length, 1);
     assert.equal(results[0].status, "not_found");
     assert.equal(results[0].row, null);
+    assert.equal(results[0].input.repo_name, "owner/gone");
+    assert.equal(results[0].input.pr_number, 1);
   });
 
   it("handles null PR (deleted)", () => {
@@ -184,6 +186,8 @@ describe("graphql-pull-requests buildResults", () => {
     assert.equal(results.length, 1);
     assert.equal(results[0].status, "not_found");
     assert.equal(results[0].row, null);
+    assert.equal(results[0].input.repo_name, "owner/repo");
+    assert.equal(results[0].input.pr_number, 999);
   });
 
   it("handles multiple repos with multiple PRs", () => {

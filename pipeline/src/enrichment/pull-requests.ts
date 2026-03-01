@@ -127,8 +127,7 @@ export async function enrichPullRequests(
           let batchFetched = 0;
           let batchNotFound = 0;
           let batchForbidden = 0;
-          for (let i = 0; i < results.length; i++) {
-            const result = results[i];
+          for (const result of results) {
             if (result.row) {
               allPrRows.push(result.row);
               batchFetched++;
@@ -136,9 +135,11 @@ export async function enrichPullRequests(
               // Insert sentinel PR row so this PR is excluded from future queries.
               // Without this, the ClickHouse query keeps returning inaccessible PRs
               // every run, creating an infinite loop that burns API calls.
+              // Use result.input (not batch[i]) because fetchPRsBatch groups by repo
+              // and results may be in a different order than the input batch.
               allPrRows.push({
-                repo_name: batch[i].repo_name,
-                pr_number: batch[i].pr_number,
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
                 title: "",
                 author: "",
                 state: "not_found",
@@ -160,8 +161,8 @@ export async function enrichPullRequests(
               batchNotFound++;
             } else if (result.status === "forbidden") {
               allPrRows.push({
-                repo_name: batch[i].repo_name,
-                pr_number: batch[i].pr_number,
+                repo_name: result.input.repo_name,
+                pr_number: result.input.pr_number,
                 title: "",
                 author: "",
                 state: "forbidden",
