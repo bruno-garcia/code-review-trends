@@ -199,6 +199,39 @@ cat > /etc/clickhouse-server/config.d/memory.xml <<'MEMEOF'
 </clickhouse>
 MEMEOF
 
+# System log TTL — prevent logs from filling the disk (was 27GB on a 40GB disk)
+cat > /etc/clickhouse-server/config.d/log-ttl.xml <<'TTLEOF'
+<clickhouse>
+  <query_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </query_log>
+  <trace_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </trace_log>
+  <text_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </text_log>
+  <part_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </part_log>
+  <metric_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </metric_log>
+  <asynchronous_metric_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </asynchronous_metric_log>
+  <query_views_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </query_views_log>
+  <query_metric_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </query_metric_log>
+  <processors_profile_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </processors_profile_log>
+</clickhouse>
+TTLEOF
+
 cat > /etc/clickhouse-server/users.d/memory-limits.xml <<'MLEOF'
 <clickhouse>
   <profiles>

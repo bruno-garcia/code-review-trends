@@ -3,7 +3,7 @@ config:
   gcp:zone: us-central1-a
   code-review-trends:environment: staging
   code-review-trends:clickhouseMachineType: e2-highmem-2
-  code-review-trends:clickhouseDiskSizeGb: "40"
+  code-review-trends:clickhouseDiskSizeGb: "80"
   code-review-trends:appMemory: "4Gi"
   code-review-trends:appCpu: "2"
   code-review-trends:appMinInstances: "1"
