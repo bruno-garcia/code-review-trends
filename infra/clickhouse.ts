@@ -200,14 +200,30 @@ cat > /etc/clickhouse-server/config.d/memory.xml <<'MEMEOF'
 MEMEOF
 
 # System log TTL — prevent logs from filling the disk (was 27GB on a 40GB disk).
-# <system_log> applies to query_log, trace_log, text_log, part_log, metric_log,
-# asynchronous_metric_log, and query_views_log. The remaining two tables
-# (query_metric_log, processors_profile_log) need their own blocks.
+# Each table needs its own block; <system_log> does not support <ttl>.
 cat > /etc/clickhouse-server/config.d/log-ttl.xml <<'TTLEOF'
 <clickhouse>
-  <system_log>
+  <query_log>
     <ttl>event_date + INTERVAL 3 DAY</ttl>
-  </system_log>
+  </query_log>
+  <trace_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </trace_log>
+  <text_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </text_log>
+  <part_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </part_log>
+  <metric_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </metric_log>
+  <asynchronous_metric_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </asynchronous_metric_log>
+  <query_views_log>
+    <ttl>event_date + INTERVAL 3 DAY</ttl>
+  </query_views_log>
   <query_metric_log>
     <ttl>event_date + INTERVAL 3 DAY</ttl>
   </query_metric_log>
