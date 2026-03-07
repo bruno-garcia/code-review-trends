@@ -119,7 +119,10 @@ fetch_shared_secrets() {
 
   # Proxy URLs for IP rotation (optional — not all envs have proxies).
   # Non-fatal: if the secret doesn't exist, fall back to PROXY_URLS env var.
-  PROXY_URLS=$(gcloud secrets versions access latest --secret="${PREFIX}-proxy-urls" --project="$GCP_PROJECT" 2>/dev/null) || PROXY_URLS="${PROXY_URLS:-}"
+  # Save env var first — the failed $(gcloud ...) assignment clears PROXY_URLS
+  # before the || branch runs, so ${PROXY_URLS:-} would see empty, not the original.
+  local env_proxy_urls="${PROXY_URLS:-}"
+  PROXY_URLS=$(gcloud secrets versions access latest --secret="${PREFIX}-proxy-urls" --project="$GCP_PROJECT" 2>/dev/null) || PROXY_URLS="$env_proxy_urls"
   if [[ -n "$PROXY_URLS" ]]; then
     local proxy_count
     proxy_count=$(echo "$PROXY_URLS" | tr ',' '\n' | grep -c '.')
