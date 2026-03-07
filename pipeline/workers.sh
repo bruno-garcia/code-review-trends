@@ -109,14 +109,7 @@ fetch_tokens() {
   log "Found ${#TOKENS[@]} GitHub token(s)"
 }
 
-fetch_shared_secrets() {
-  log "Fetching config from GCP Secret Manager (project: $GCP_PROJECT)..."
-  CLICKHOUSE_URL=$(fetch_secret "${PREFIX}-clickhouse-url")
-  CLICKHOUSE_PASSWORD=$(fetch_secret "${PREFIX}-clickhouse-password")
-  SENTRY_DSN=$(fetch_secret "${PREFIX}-sentry-dsn-pipeline")
-  log "  ClickHouse: ${CLICKHOUSE_URL%%:*}://*** (password: ***)"
-  log "  Sentry DSN: ${SENTRY_DSN:0:30}..."
-
+fetch_proxy_urls() {
   # Proxy URLs for IP rotation (optional — not all envs have proxies).
   # Non-fatal: if the secret doesn't exist, fall back to PROXY_URLS env var.
   # Save env var first — the failed $(gcloud ...) assignment clears PROXY_URLS
@@ -125,13 +118,30 @@ fetch_shared_secrets() {
   PROXY_URLS=$(gcloud secrets versions access latest --secret="${PREFIX}-proxy-urls" --project="$GCP_PROJECT" 2>/dev/null) || PROXY_URLS="$env_proxy_urls"
   if [[ -n "$PROXY_URLS" ]]; then
     local proxy_count
-    proxy_count=$(echo "$PROXY_URLS" | tr ',' '\n' | grep -c '.')
-    PATHWAY_COUNT=$((proxy_count + 1))  # proxies + direct
-    log "  Proxy URLs: ${proxy_count} proxies → ${PATHWAY_COUNT} IP pathways"
+    # Count non-empty, trimmed entries — matches TypeScript parseProxyUrls logic.
+    # Uses awk instead of grep -c to avoid exit code 1 under set -euo pipefail.
+    proxy_count=$(echo "$PROXY_URLS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | awk '/[^[:space:]]/ {c++} END {print c+0}')
+    if (( proxy_count > 0 )); then
+      PATHWAY_COUNT=$((proxy_count + 1))  # proxies + direct
+      log "  Proxy URLs: ${proxy_count} proxies → ${PATHWAY_COUNT} IP pathways"
+    else
+      PATHWAY_COUNT=0
+      warn "  No proxy URLs configured — workers won't be capped to pathway count"
+    fi
   else
     PATHWAY_COUNT=0
     warn "  No proxy URLs configured — workers won't be capped to pathway count"
   fi
+}
+
+fetch_shared_secrets() {
+  log "Fetching config from GCP Secret Manager (project: $GCP_PROJECT)..."
+  CLICKHOUSE_URL=$(fetch_secret "${PREFIX}-clickhouse-url")
+  CLICKHOUSE_PASSWORD=$(fetch_secret "${PREFIX}-clickhouse-password")
+  SENTRY_DSN=$(fetch_secret "${PREFIX}-sentry-dsn-pipeline")
+  log "  ClickHouse: ${CLICKHOUSE_URL%%:*}://*** (password: ***)"
+  log "  Sentry DSN: ${SENTRY_DSN:0:30}..."
+  fetch_proxy_urls
 }
 
 # Build the shared CLI args that every worker command needs.
@@ -249,7 +259,7 @@ cmd_update() {
 }
 
 cmd_tokens() {
-  fetch_shared_secrets
+  fetch_proxy_urls
   fetch_tokens
   local n=${#TOKENS[@]}
   local active=$n
