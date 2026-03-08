@@ -201,32 +201,35 @@ MEMEOF
 
 # System log TTL — prevent logs from filling the disk (was 27GB on a 40GB disk).
 # Each table needs its own block; <system_log> does not support <ttl>.
+# Tiered retention: 30d for diagnostic essentials (~0.09 GB/day),
+# 10d for merge/view tracking (~0.09 GB/day), 3d for high-volume
+# traces and text (~1.07 GB/day). Total ≈ 6 GB steady state.
 cat > /etc/clickhouse-server/config.d/log-ttl.xml <<'TTLEOF'
 <clickhouse>
   <query_log>
-    <ttl>event_date + INTERVAL 3 DAY</ttl>
+    <ttl>event_date + INTERVAL 30 DAY</ttl>
   </query_log>
+  <metric_log>
+    <ttl>event_date + INTERVAL 30 DAY</ttl>
+  </metric_log>
+  <asynchronous_metric_log>
+    <ttl>event_date + INTERVAL 30 DAY</ttl>
+  </asynchronous_metric_log>
+  <part_log>
+    <ttl>event_date + INTERVAL 10 DAY</ttl>
+  </part_log>
+  <query_views_log>
+    <ttl>event_date + INTERVAL 10 DAY</ttl>
+  </query_views_log>
+  <query_metric_log>
+    <ttl>event_date + INTERVAL 10 DAY</ttl>
+  </query_metric_log>
   <trace_log>
     <ttl>event_date + INTERVAL 3 DAY</ttl>
   </trace_log>
   <text_log>
     <ttl>event_date + INTERVAL 3 DAY</ttl>
   </text_log>
-  <part_log>
-    <ttl>event_date + INTERVAL 3 DAY</ttl>
-  </part_log>
-  <metric_log>
-    <ttl>event_date + INTERVAL 3 DAY</ttl>
-  </metric_log>
-  <asynchronous_metric_log>
-    <ttl>event_date + INTERVAL 3 DAY</ttl>
-  </asynchronous_metric_log>
-  <query_views_log>
-    <ttl>event_date + INTERVAL 3 DAY</ttl>
-  </query_views_log>
-  <query_metric_log>
-    <ttl>event_date + INTERVAL 3 DAY</ttl>
-  </query_metric_log>
   <processors_profile_log>
     <ttl>event_date + INTERVAL 3 DAY</ttl>
   </processors_profile_log>
