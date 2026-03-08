@@ -1765,7 +1765,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     }>(`
       SELECT
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
-        (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
+        (SELECT countIf(fetch_status IN ('not_found', 'forbidden')) FROM repos) AS repos_not_found,
         (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden')) AS prs_enriched,
         (SELECT count(DISTINCT (e.repo_name, e.pr_number))
          FROM pr_bot_events AS e
