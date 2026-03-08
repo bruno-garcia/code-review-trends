@@ -67,6 +67,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   "detach-mv": cmdDetachMV,
   "reattach-mv": cmdReattachMV,
   "test-proxies": cmdTestProxies,
+  "mark-unreachable": cmdMarkUnreachable,
   help: cmdHelp,
 };
 
@@ -359,6 +360,7 @@ Commands:
   enrich-status      Show enrichment progress
   validate-bq-prs    Compare PR data from BigQuery vs GitHub API
   generate-compare-pairs  Generate compare pair metadata for the app
+  mark-unreachable   Insert sentinels for PRs in deleted/private repos
   detach-mv          Detach expensive MVs for faster bulk enrichment
   reattach-mv        Reattach MVs and backfill from existing data
   test-proxies       Test PROXY_URLS connectivity and IP rotation
@@ -1305,6 +1307,131 @@ async function cmdEnrichStatus() {
         console.log(`${row.repo_name.padEnd(45)} ${row.bot_id.padEnd(20)} ${String(row.pr_count).padStart(6)}`);
       }
     }
+  } finally {
+    await ch.close();
+  }
+}
+
+/**
+ * Insert sentinel rows for PRs/comments/reactions in repos that are
+ * deleted or private (fetch_status = 'not_found' or 'forbidden').
+ *
+ * Without this, enrichment skips these items (correct — the API would 404),
+ * but the status page counts them as "pending" forever, so progress never
+ * reaches 100%.
+ *
+ * Uses INSERT...SELECT for efficiency — no data leaves ClickHouse.
+ * Idempotent: ReplacingMergeTree deduplicates on re-run.
+ */
+async function cmdMarkUnreachable() {
+  const { query } = await import("./clickhouse.js");
+  const ch = createCHClient();
+
+  try {
+    // Count pending items in unreachable repos (before)
+    const [before] = await query<{
+      pending_prs: string;
+      pending_comments: string;
+      pending_reactions: string;
+    }>(
+      ch,
+      `SELECT
+        (SELECT count(DISTINCT (e.repo_name, e.pr_number))
+         FROM pr_bot_events e
+         LEFT JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
+         JOIN repos r ON e.repo_name = r.name
+         WHERE r.fetch_status IN ('not_found', 'forbidden') AND p.repo_name = '') AS pending_prs,
+        (SELECT count(DISTINCT (e.repo_name, e.pr_number, e.bot_id))
+         FROM pr_bot_events e
+         LEFT JOIN pr_comments c ON e.repo_name = c.repo_name AND e.pr_number = c.pr_number AND e.bot_id = c.bot_id
+         JOIN repos r ON e.repo_name = r.name
+         WHERE r.fetch_status IN ('not_found', 'forbidden') AND c.repo_name = '') AS pending_comments,
+        (SELECT count(DISTINCT (e.repo_name, e.pr_number))
+         FROM pr_bot_events e
+         LEFT JOIN reaction_scan_progress s ON e.repo_name = s.repo_name AND e.pr_number = s.pr_number
+         JOIN repos r ON e.repo_name = r.name
+         WHERE r.fetch_status IN ('not_found', 'forbidden') AND s.repo_name = '') AS pending_reactions`,
+    );
+
+    const pendingPrs = Number(before.pending_prs);
+    const pendingComments = Number(before.pending_comments);
+    const pendingReactions = Number(before.pending_reactions);
+
+    console.log("=== Mark Unreachable ===");
+    console.log(`\nPending items in deleted/private repos:`);
+    console.log(`  PRs:       ${pendingPrs.toLocaleString()}`);
+    console.log(`  Comments:  ${pendingComments.toLocaleString()}`);
+    console.log(`  Reactions: ${pendingReactions.toLocaleString()}`);
+
+    if (pendingPrs === 0 && pendingComments === 0 && pendingReactions === 0) {
+      console.log("\nNothing to mark — all items in unreachable repos already have sentinels.");
+      return;
+    }
+
+    // Insert sentinel PR rows (state = repo's fetch_status)
+    if (pendingPrs > 0) {
+      const stopTimer = startTimer("Inserting PR sentinels");
+      await ch.command({
+        query: `INSERT INTO pull_requests (repo_name, pr_number, title, author, state, created_at)
+          SELECT DISTINCT
+            e.repo_name AS repo_name,
+            e.pr_number AS pr_number,
+            '' AS title,
+            '' AS author,
+            r.fetch_status AS state,
+            now() AS created_at
+          FROM pr_bot_events e
+          LEFT JOIN pull_requests p ON e.repo_name = p.repo_name AND e.pr_number = p.pr_number
+          JOIN repos r ON e.repo_name = r.name
+          WHERE r.fetch_status IN ('not_found', 'forbidden')
+            AND p.repo_name = ''`,
+      });
+      stopTimer();
+      console.log(`  ✓ Inserted ${pendingPrs.toLocaleString()} PR sentinels`);
+    }
+
+    // Insert sentinel comment rows (comment_id = 0)
+    if (pendingComments > 0) {
+      const stopTimer = startTimer("Inserting comment sentinels");
+      await ch.command({
+        query: `INSERT INTO pr_comments (repo_name, pr_number, comment_id, bot_id, body_length, created_at)
+          SELECT DISTINCT
+            e.repo_name AS repo_name,
+            e.pr_number AS pr_number,
+            0 AS comment_id,
+            e.bot_id AS bot_id,
+            0 AS body_length,
+            now() AS created_at
+          FROM pr_bot_events e
+          LEFT JOIN pr_comments c ON e.repo_name = c.repo_name AND e.pr_number = c.pr_number AND e.bot_id = c.bot_id
+          JOIN repos r ON e.repo_name = r.name
+          WHERE r.fetch_status IN ('not_found', 'forbidden')
+            AND c.repo_name = ''`,
+      });
+      stopTimer();
+      console.log(`  ✓ Inserted ${pendingComments.toLocaleString()} comment sentinels`);
+    }
+
+    // Insert reaction scan progress sentinels
+    if (pendingReactions > 0) {
+      const stopTimer = startTimer("Inserting reaction sentinels");
+      await ch.command({
+        query: `INSERT INTO reaction_scan_progress (repo_name, pr_number, scan_status)
+          SELECT DISTINCT
+            e.repo_name AS repo_name,
+            e.pr_number AS pr_number,
+            r.fetch_status AS scan_status
+          FROM pr_bot_events e
+          LEFT JOIN reaction_scan_progress s ON e.repo_name = s.repo_name AND e.pr_number = s.pr_number
+          JOIN repos r ON e.repo_name = r.name
+          WHERE r.fetch_status IN ('not_found', 'forbidden')
+            AND s.repo_name = ''`,
+      });
+      stopTimer();
+      console.log(`  ✓ Inserted ${pendingReactions.toLocaleString()} reaction sentinels`);
+    }
+
+    console.log("\nDone. Run OPTIMIZE TABLE or wait for background merges before checking status.");
   } finally {
     await ch.close();
   }
