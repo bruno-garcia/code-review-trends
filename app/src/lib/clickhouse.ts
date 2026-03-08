@@ -1707,12 +1707,18 @@ export type DataCollectionStats = {
   // GitHub enrichment — PRs
   prs_discovered: number;
   prs_enriched: number;
+  prs_unreachable: number;
+  prs_pending: number;
   // GitHub enrichment — comments
   comments_discovered: number;
   comments_enriched: number;
+  comments_unreachable: number;
+  comments_pending: number;
   // GitHub enrichment — reaction scans
   reactions_total: number;
   reactions_scanned: number;
+  reactions_unreachable: number;
+  reactions_pending: number;
   reactions_found: number;
 };
 
@@ -1742,22 +1748,42 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)
     `),
     // B: everything else (each subquery is cheap — <1s individually)
+    // prs/comments/reactions_unreachable: count items in repos with fetch_status
+    // 'not_found' or 'forbidden'. These are correctly skipped by enrichment (the
+    // API would 404), but must be counted separately so progress can reach 100%.
     query<{
       repos_ok: number;
       repos_not_found: number;
       prs_enriched: number;
+      prs_unreachable: number;
       comments_discovered: number;
       comments_enriched: number;
+      comments_unreachable: number;
       reactions_scanned: number;
+      reactions_unreachable: number;
       reactions_found: number;
     }>(`
       SELECT
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
         (SELECT countIf(fetch_status = 'not_found') FROM repos) AS repos_not_found,
         (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden')) AS prs_enriched,
+        (SELECT count(DISTINCT (e.repo_name, e.pr_number))
+         FROM pr_bot_events AS e
+         JOIN repos AS r ON e.repo_name = r.name
+         WHERE r.fetch_status IN ('not_found', 'forbidden')) AS prs_unreachable,
         (SELECT sum(x) FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)) AS comments_discovered,
-        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments) AS comments_enriched,
-        (SELECT count() FROM reaction_scan_progress) AS reactions_scanned,
+        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments
+         WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))) AS comments_enriched,
+        (SELECT count(DISTINCT (e.repo_name, e.pr_number, e.bot_id))
+         FROM pr_bot_events AS e
+         JOIN repos AS r ON e.repo_name = r.name
+         WHERE r.fetch_status IN ('not_found', 'forbidden')) AS comments_unreachable,
+        (SELECT count() FROM reaction_scan_progress
+         WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))) AS reactions_scanned,
+        (SELECT count(DISTINCT (e.repo_name, e.pr_number))
+         FROM pr_bot_events AS e
+         JOIN repos AS r ON e.repo_name = r.name
+         WHERE r.fetch_status IN ('not_found', 'forbidden')) AS reactions_unreachable,
         (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
     `),
   ]);
@@ -1795,10 +1821,16 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     repos_pending: Math.max(0, reposTotal - Number(base?.repos_ok ?? 0) - Number(base?.repos_not_found ?? 0)),
     prs_discovered: prsDiscovered,
     prs_enriched: Number(base?.prs_enriched ?? 0),
+    prs_unreachable: Number(base?.prs_unreachable ?? 0),
+    prs_pending: Math.max(0, prsDiscovered - Number(base?.prs_enriched ?? 0) - Number(base?.prs_unreachable ?? 0)),
     comments_discovered: Number(base?.comments_discovered ?? 0),
     comments_enriched: Number(base?.comments_enriched ?? 0),
+    comments_unreachable: Number(base?.comments_unreachable ?? 0),
+    comments_pending: Math.max(0, Number(base?.comments_discovered ?? 0) - Number(base?.comments_enriched ?? 0) - Number(base?.comments_unreachable ?? 0)),
     reactions_total: prsDiscovered, // same as prs_discovered (total PRs = total to scan for reactions)
     reactions_scanned: Number(base?.reactions_scanned ?? 0),
+    reactions_unreachable: Number(base?.reactions_unreachable ?? 0),
+    reactions_pending: Math.max(0, prsDiscovered - Number(base?.reactions_scanned ?? 0) - Number(base?.reactions_unreachable ?? 0)),
     reactions_found: Number(base?.reactions_found ?? 0),
   }, ENRICHMENT_CACHE_TTL_MS); // 30-min cache — status data changes slowly
 }
