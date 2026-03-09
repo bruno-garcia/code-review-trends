@@ -341,7 +341,7 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
 
     // ── Weekly totals ───────────────────────────────────────────────────
 
-    it("getWeeklyTotals: bot share between 0-100", async () => {
+    it("getWeeklyTotals: bot share between 0-100, both humans and bots present", async () => {
       const rows = await query<{
         week: string; bot_reviews: string; human_reviews: string; bot_share_pct: string;
       }>(
@@ -358,6 +358,9 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
       for (const r of rows) {
         const pct = Number(r.bot_share_pct);
         assert.ok(pct > 0 && pct < 100, `bot_share_pct out of range: ${pct}`);
+        // Bot adoption can exceed human reviews in some weeks — just verify both are positive
+        assert.ok(Number(r.human_reviews) > 0, `human reviews should be > 0 for week ${r.week}`);
+        assert.ok(Number(r.bot_reviews) > 0, `bot reviews should be > 0 for week ${r.week}`);
       }
     });
 
