@@ -32,7 +32,15 @@ for f in db/init/*.sql; do
   echo "  Done."
 done
 
-# 2. Record schema version (extracted from app/src/lib/migrations.ts — single source of truth)
+# 2. Optimize reference tables to deduplicate rows from overlapping migrations
+#    (e.g., 002_bot_data.sql TRUNCATE+INSERT then 010_kodus_bot.sql INSERT).
+echo "Optimizing reference tables..."
+for table in products bots bot_logins; do
+  run_statement "OPTIMIZE TABLE code_review_trends.${table} FINAL"
+done
+echo "  Done."
+
+# 3. Record schema version (extracted from app/src/lib/migrations.ts — single source of truth)
 SCHEMA_VERSION=$(awk '/EXPECTED_SCHEMA_VERSION *= *[0-9]/{gsub(/[^0-9]/,"",$NF); print $NF; exit}' app/src/lib/migrations.ts)
 if [ -z "$SCHEMA_VERSION" ]; then
   echo "ERROR: Could not extract EXPECTED_SCHEMA_VERSION from app/src/lib/migrations.ts"
@@ -42,7 +50,7 @@ echo "Recording schema version ${SCHEMA_VERSION}..."
 run_statement "INSERT INTO code_review_trends.schema_migrations (version, name) VALUES (${SCHEMA_VERSION}, 'ci_init')"
 echo "  Done."
 
-# 3. Run seed data (db/seed/*.sql) — test data for CI and local dev, never on staging/prod
+# 4. Run seed data (db/seed/*.sql) — test data for CI and local dev, never on staging/prod
 for f in db/seed/*.sql; do
   [ -f "$f" ] || continue
   echo "Seeding $f..."

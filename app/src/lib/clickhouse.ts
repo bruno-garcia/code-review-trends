@@ -239,12 +239,12 @@ export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
 // --- Product queries ---
 
 export async function getProducts(): Promise<Product[]> {
-  return query<Product>("SELECT * FROM products ORDER BY name", undefined, REFERENCE_CACHE_TTL_MS);
+  return query<Product>("SELECT * FROM products FINAL ORDER BY name", undefined, REFERENCE_CACHE_TTL_MS);
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
   const rows = await query<Product>(
-    "SELECT * FROM products WHERE id = {id:String}",
+    "SELECT * FROM products FINAL WHERE id = {id:String}",
     { id },
     REFERENCE_CACHE_TTL_MS,
   );
@@ -511,7 +511,7 @@ export async function getProductBots(productId: string, since?: string): Promise
       JOIN products p ON b.product_id = p.id
       LEFT JOIN (
         SELECT bot_id, min(github_login) AS github_login
-        FROM bot_logins
+        FROM bot_logins FINAL
         GROUP BY bot_id
       ) bl ON b.id = bl.bot_id
       LEFT JOIN (
