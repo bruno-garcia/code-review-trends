@@ -85,6 +85,7 @@ export default async function OrgsPage({
               <Link
                 key={org.owner}
                 href={`/orgs/${org.owner}`}
+                prefetch={false}
                 className="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-theme-surface/60 transition-colors group"
                 data-testid="org-row"
               >

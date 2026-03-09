@@ -948,26 +948,62 @@ export type BotByLanguage = {
 };
 
 export async function getBotsByLanguage(botId?: string, since?: string): Promise<BotByLanguage[]> {
-  const conditions = ["r.primary_language != ''"];
-  if (botId) conditions.push("e.bot_id = {botId:String}");
-  if (since) conditions.push("e.event_week >= toDate({since:String})");
-  const where = `WHERE ${conditions.join(" AND ")}`;
   const params: Record<string, string> = {};
   if (botId) params.botId = botId;
   if (since) params.since = since;
+
+  // When a date filter is applied, fall back to the original query since
+  // pr_bot_event_counts has no time dimension.
+  if (since) {
+    const conditions = ["r.primary_language != ''"];
+    if (botId) conditions.push("e.bot_id = {botId:String}");
+    conditions.push("e.event_week >= toDate({since:String})");
+    const where = `WHERE ${conditions.join(" AND ")}`;
+    return query<BotByLanguage>(
+      `
+      SELECT
+        e.bot_id AS bot_id,
+        b.name AS bot_name,
+        r.primary_language AS language,
+        countDistinct(e.repo_name, e.pr_number) AS pr_count,
+        count() AS comment_count
+      FROM pr_bot_events e
+      JOIN bots b FINAL ON e.bot_id = b.id
+      JOIN repos r ON e.repo_name = r.name
+      ${where}
+      GROUP BY e.bot_id, b.name, r.primary_language
+      ORDER BY pr_count DESC
+      `,
+      params,
+    );
+  }
+
+  // Fast path: use pre-aggregated pr_bot_event_counts (731K rows vs 8.8M).
+  // First merge uniqExact per (repo, language) to get exact PR counts,
+  // then sum across repos per language. This avoids wrong dedup of PR
+  // numbers across different repos.
+  const botFilter = botId ? "AND s.bot_id = {botId:String}" : "";
   return query<BotByLanguage>(
     `
     SELECT
-      e.bot_id AS bot_id,
-      b.name AS bot_name,
-      r.primary_language AS language,
-      countDistinct(e.repo_name, e.pr_number) AS pr_count,
-      count() AS comment_count
-    FROM pr_bot_events e
-    JOIN bots b FINAL ON e.bot_id = b.id
-    JOIN repos r ON e.repo_name = r.name
-    ${where}
-    GROUP BY e.bot_id, b.name, r.primary_language
+      bot_id,
+      any(bot_name) AS bot_name,
+      language,
+      sum(repo_pr_count) AS pr_count,
+      0 AS comment_count
+    FROM (
+      SELECT
+        s.bot_id AS bot_id,
+        b.name AS bot_name,
+        r.primary_language AS language,
+        uniqExactMerge(s.pr_count) AS repo_pr_count
+      FROM pr_bot_event_counts s
+      JOIN bots b FINAL ON s.bot_id = b.id
+      JOIN repos r ON s.repo_name = r.name
+      WHERE r.primary_language != '' ${botFilter}
+      GROUP BY s.bot_id, b.name, r.primary_language, s.repo_name
+    )
+    GROUP BY bot_id, language
     ORDER BY pr_count DESC
     `,
     params,
@@ -1005,20 +1041,25 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       COALESCE(any(cm.heart), 0) AS heart
     FROM repos r
     LEFT JOIN (
-      SELECT r2.owner,
-        countDistinct(e.repo_name, e.pr_number) AS event_prs
-      FROM pr_bot_events e
-      JOIN repos r2 ON e.repo_name = r2.name
-      WHERE r2.owner = {owner:String} AND r2.fetch_status = 'ok'
-      GROUP BY r2.owner
-    ) ev ON r.owner = ev.owner
+      SELECT sum(repo_prs) AS event_prs
+      FROM (
+        SELECT
+          s.repo_name AS repo_name,
+          uniqExactMerge(s.pr_count) AS repo_prs
+        FROM pr_bot_event_counts s
+        WHERE s.repo_name IN (
+          SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok'
+        )
+        GROUP BY s.repo_name
+      )
+    ) ev ON 1 = 1
     LEFT JOIN (
       -- Exclusive reaction-only PRs from MV (no events from ANY bot).
       -- Disjoint from event PRs, so addition is safe.
-      SELECT r2.owner,
+      SELECT r2.owner AS owner,
         sum(repo_exclusive) AS exclusive_reaction_prs
       FROM (
-        SELECT rrc.repo_name,
+        SELECT rrc.repo_name AS repo_name,
           max(rrc.exclusive_pr_count) AS repo_exclusive
         FROM reaction_only_repo_counts rrc
         WHERE rrc.repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
@@ -1029,16 +1070,13 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
     ) rr ON r.owner = rr.owner
     LEFT JOIN (
       SELECT
-        r3.owner AS owner,
         countIf(c.comment_id > 0) AS total_bot_comments,
         sumIf(c.thumbs_up, c.comment_id > 0) AS thumbs_up,
         sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
         sumIf(c.heart, c.comment_id > 0) AS heart
       FROM pr_comments c
-      JOIN repos r3 ON c.repo_name = r3.name
-      WHERE r3.owner = {owner:String} AND r3.fetch_status = 'ok'
-      GROUP BY r3.owner
-    ) cm ON r.owner = cm.owner
+      WHERE c.repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+    ) cm ON 1 = 1
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
     GROUP BY r.owner
     `,
@@ -1166,9 +1204,8 @@ export async function getTopReposByProduct(
         r.primary_language AS primary_language,
         uniqExactMerge(s.pr_count) AS pr_count
       FROM pr_bot_event_counts s
-      JOIN bots b FINAL ON s.bot_id = b.id
       JOIN repos r ON s.repo_name = r.name
-      WHERE b.product_id = {productId:String}
+      WHERE s.bot_id IN (SELECT id FROM bots FINAL WHERE product_id = {productId:String})
         AND r.fetch_status = 'ok'
       GROUP BY r.name, r.owner, r.stars, r.primary_language
       ORDER BY r.stars DESC
@@ -1181,9 +1218,8 @@ export async function getTopReposByProduct(
       SELECT count() AS cnt FROM (
         SELECT r.name
         FROM pr_bot_event_counts s
-        JOIN bots b FINAL ON s.bot_id = b.id
         JOIN repos r ON s.repo_name = r.name
-        WHERE b.product_id = {productId:String}
+        WHERE s.bot_id IN (SELECT id FROM bots FINAL WHERE product_id = {productId:String})
           AND r.fetch_status = 'ok'
         GROUP BY r.name
       )
