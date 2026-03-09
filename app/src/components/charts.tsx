@@ -100,7 +100,7 @@ function ToggleGroup({
                 : "bg-theme-border text-theme-muted hover:text-theme-text"
             }`}
             aria-pressed={value === opt.value}
-            aria-describedby={opt.info ? `toggle-${opt.value}-tooltip` : undefined}
+            aria-describedby={opt.info && testId ? `${testId}-${opt.value}-tooltip` : undefined}
             data-testid={`toggle-${opt.value}`}
           >
             {opt.label}
@@ -109,7 +109,7 @@ function ToggleGroup({
             <span className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 pb-1 pointer-events-none group-hover/btn:pointer-events-auto group-focus-within/btn:pointer-events-auto">
               <span
                 role="tooltip"
-                id={`toggle-${opt.value}-tooltip`}
+                id={testId ? `${testId}-${opt.value}-tooltip` : undefined}
                 className="block px-2.5 py-1.5 text-[11px] leading-relaxed text-theme-muted bg-theme-surface-alt border border-theme-border rounded-md shadow-md w-56 whitespace-normal opacity-0 transition-opacity duration-200 delay-500 group-hover/btn:opacity-100 group-focus-within/btn:opacity-100 group-focus-within/btn:delay-0"
               >
                 {opt.info}
