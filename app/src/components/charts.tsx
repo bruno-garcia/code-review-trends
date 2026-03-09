@@ -94,6 +94,7 @@ function ToggleGroup({
           <button
             type="button"
             onClick={() => onChange(opt.value)}
+            onMouseDown={(e) => e.preventDefault()}
             className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
               value === opt.value
                 ? "bg-violet-600 text-white"
