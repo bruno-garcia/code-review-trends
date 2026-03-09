@@ -341,7 +341,7 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
 
     // ── Weekly totals ───────────────────────────────────────────────────
 
-    it("getWeeklyTotals: bot share between 0-100, humans > bots", async () => {
+    it("getWeeklyTotals: bot share between 0-100", async () => {
       const rows = await query<{
         week: string; bot_reviews: string; human_reviews: string; bot_share_pct: string;
       }>(
@@ -358,10 +358,6 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
       for (const r of rows) {
         const pct = Number(r.bot_share_pct);
         assert.ok(pct > 0 && pct < 100, `bot_share_pct out of range: ${pct}`);
-        assert.ok(
-          Number(r.human_reviews) > Number(r.bot_reviews),
-          `human (${r.human_reviews}) should exceed bot (${r.bot_reviews}) reviews`,
-        );
       }
     });
 

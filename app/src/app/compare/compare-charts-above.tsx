@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import type { ProductComparison, ProductPrCharacteristics, WeeklyActivityByProduct, WeeklyReactionsByProduct, MonthlyReactionsByProduct } from "@/lib/clickhouse";
 import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
-import { BotRadarChart, CompareTrendsChart, COLORS } from "@/components/charts";
+import { CompareTrendsChart, COLORS } from "@/components/charts";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor } from "@/lib/theme-overrides";
 import { useProductFilter, useFilterUrl } from "@/lib/product-filter";
@@ -45,14 +45,14 @@ const METRICS: {
   },
   {
     key: "total_comments",
-    label: "Rev. Cmts",
-    description: "Total review comments posted",
+    label: "Inline",
+    description: "Inline comments on code diffs during review (PullRequestReviewCommentEvent)",
     format: (v) => Number(v).toLocaleString(),
   },
   {
     key: "total_pr_comments",
-    label: "PR Cmts",
-    description: "Total PR comments (IssueCommentEvent on pull requests)",
+    label: "Top-level",
+    description: "Top-level comments on the PR conversation thread (IssueCommentEvent on pull requests)",
     format: (v) => Number(v).toLocaleString(),
   },
   {
@@ -123,26 +123,20 @@ const METRICS: {
   },
   {
     key: "latest_week_comments",
-    label: "4w Cmts",
-    description: "Review comments in the last 4 weeks",
+    label: "4w Inline",
+    description: "Inline code review comments in the last 4 weeks",
     format: (v) => Number(v).toLocaleString(),
   },
   {
     key: "latest_week_pr_comments",
-    label: "4w PR",
-    description: "PR comments in the last 4 weeks",
+    label: "4w Top-lvl",
+    description: "Top-level PR comments in the last 4 weeks",
     format: (v) => Number(v).toLocaleString(),
   },
   {
     key: "weeks_active",
     label: "Weeks",
     description: "Number of weeks with data",
-    format: (v) => Number(v).toLocaleString(),
-  },
-  {
-    key: "sampled_prs",
-    label: "Enriched PRs",
-    description: "PRs with metadata fetched from GitHub API",
     format: (v) => Number(v).toLocaleString(),
   },
   {
@@ -179,33 +173,6 @@ const METRICS: {
 
 /** Columns that use -1 as a sentinel for N/A — push to end when sorting. */
 const SENTINEL_KEYS: Set<SortKey> = new Set(["thumbs_up_rate", "reaction_rate"]);
-
-const RADAR_DIMENSIONS: { key: SortKey; label: string }[] = [
-  { key: "total_reviews", label: "Reviews" },
-  { key: "total_comments", label: "Review Comments" },
-  { key: "total_pr_comments", label: "PR Comments" },
-  { key: "total_repos", label: "Repos" },
-  { key: "total_orgs", label: "Orgs" },
-  { key: "latest_week_reviews", label: "Recent Activity" },
-];
-
-const BAR_CHART_METRICS: { key: SortKey; label: string }[] = [
-  { key: "total_reviews", label: "Total Reviews" },
-  { key: "total_pr_comments", label: "PR Comments" },
-  { key: "total_repos", label: "Active Repos" },
-  { key: "total_orgs", label: "Organizations" },
-  { key: "avg_comments_per_review", label: "Avg Comments/Review" },
-  { key: "thumbs_up_rate", label: "👍 Rate %" },
-  { key: "reaction_rate", label: "Reaction Rate %" },
-  { key: "comments_per_repo", label: "Comments per Repo" },
-];
-
-function normalize(products: CompareRow[], key: SortKey): number[] {
-  const values = products.map((p) => Number(p[key] ?? 0));
-  const max = Math.max(...values);
-  if (max === 0) return values.map(() => 0);
-  return values.map((v) => Math.round((v / max) * 100));
-}
 
 export function CompareChartsAbove({
   products: allProducts,
@@ -472,19 +439,6 @@ export function CompareChartsAbove({
     nameColorMap[p.name] = getThemedBrandColor(p.id, p.brand_color || COLORS[i % COLORS.length], resolved);
   }
 
-  // --- Radar chart data ---
-
-  const radarData = RADAR_DIMENSIONS.map((dim) => {
-    const normalized = normalize(products, dim.key);
-    const point: Record<string, string | number> = { metric: dim.label };
-    products.forEach((p, i) => {
-      point[p.name] = normalized[i];
-    });
-    return point;
-  });
-
-  // --- Bar chart breakdowns ---
-
   // --- Table section ---
 
   const tableSection = (
@@ -633,75 +587,6 @@ export function CompareChartsAbove({
 
       {/* Big comparison table — always visible */}
       {tableSection}
-
-      {/* Radar chart — hidden when table is expanded */}
-      {!isExpanded && (
-      <section data-testid="radar-section" id="radar">
-        <SectionHeading id="radar">Radar Overview</SectionHeading>
-        <p className="text-theme-muted mb-4 text-sm">
-          Each dimension normalized to 0–100 relative to the top product.
-        </p>
-        <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
-          <BotRadarChart data={radarData} bots={productNames} colors={nameColorMap} />
-        </div>
-      </section>
-      )}
-
-      {/* Bar chart breakdowns — hidden when table is expanded */}
-      {!isExpanded && (
-      <section data-testid="bar-charts-section" id="breakdowns">
-        <SectionHeading id="breakdowns">Visual Breakdowns</SectionHeading>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {BAR_CHART_METRICS.map(({ key, label }) => {
-            const chartData = [...products]
-              .sort((a, b) => Number(b[key]) - Number(a[key]))
-              .map((product) => ({
-                name: product.name,
-                value: Number(product[key]),
-                fill:
-                  productColorMap.get(product.id) ?? COLORS[0],
-              }));
-
-            return (
-              <div
-                key={key}
-                className="bg-theme-surface rounded-xl p-5 border border-theme-border"
-              >
-                <h3 className="text-sm font-medium text-theme-text/80 mb-3">
-                  {label}
-                </h3>
-                <div className="space-y-2">
-                  {chartData.map((item) => {
-                    const isNA = item.value < 0;
-                    const max = chartData[0].value;
-                    const pct = !isNA && max > 0 ? (item.value / max) * 100 : 0;
-                    return (
-                      <div key={item.name} className="flex items-center gap-3">
-                        <span className="text-xs text-theme-muted w-28 text-right truncate">
-                          {item.name}
-                        </span>
-                        <div className="flex-1 bg-theme-border rounded-full h-5 relative overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: isNA ? "0%" : `${Math.max(pct, 2)}%`,
-                              backgroundColor: item.fill,
-                            }}
-                          />
-                        </div>
-                        <span className="text-xs text-theme-text/80 tabular-nums w-16 text-right">
-                          {METRICS.find((m) => m.key === key)?.format(item.value) ?? item.value}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-      )}
     </div>
   );
 }

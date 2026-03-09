@@ -27,19 +27,14 @@ test.describe("Compare page", () => {
     await expect(toggle.getByRole("button", { name: "Orgs", pressed: true })).toBeVisible();
   });
 
-  test("shows radar chart section", async ({ page }) => {
-    await page.goto("/compare");
-    await expect(page.getByTestId("radar-section")).toBeVisible();
-    await expect(page.getByText("Radar Overview")).toBeVisible();
-  });
-
   test("shows comparison table with column headers", async ({ page }) => {
     await page.goto("/compare");
     const table = page.getByTestId("compare-table");
     await expect(table).toBeVisible();
     await expect(table.getByText("Reviews", { exact: true })).toBeVisible();
     await expect(table.getByText("Orgs", { exact: true })).toBeVisible();
-    await expect(table.getByText("PR Cmts", { exact: true })).toBeVisible();
+    await expect(table.getByText("Inline", { exact: true })).toBeVisible();
+    await expect(table.getByText("Top-level", { exact: true })).toBeVisible();
     await expect(table.getByText("👍 Rate")).toBeVisible();
   });
 
@@ -54,22 +49,10 @@ test.describe("Compare page", () => {
     await expect(orgHeader.getByText('↓')).toBeVisible();
   });
 
-  test("shows visual bar chart breakdowns", async ({ page }) => {
-    await page.goto("/compare");
-    await expect(page.getByTestId("bar-charts-section")).toBeVisible();
-    await expect(page.getByText("Visual Breakdowns")).toBeVisible();
-  });
-
   test("shows comments per PR chart", async ({ page }) => {
     await page.goto("/compare");
     await expect(page.getByTestId("comments-per-pr-section")).toBeVisible();
     await expect(page.getByTestId("comments-per-pr-chart")).toBeVisible();
-  });
-
-  test("shows bot sentiment section", async ({ page }) => {
-    await page.goto("/compare");
-    await expect(page.getByTestId("bot-sentiment-section")).toBeVisible();
-    await expect(page.getByText("Bot Sentiment")).toBeVisible();
   });
 
   test("bot names in table link to detail pages", async ({ page }) => {
@@ -89,16 +72,13 @@ test.describe("Compare page", () => {
     await page.goto("/compare");
     // Verify sections are visible before expanding
     await expect(page.getByTestId("trends-section")).toBeVisible();
-    await expect(page.getByTestId("radar-section")).toBeVisible();
     await expect(page.getByTestId("compare-table-section")).toBeVisible();
 
     // Click expand
     await page.getByTestId("expand-table-btn").click();
 
-    // Trends, radar and bar charts should be hidden
+    // Trends should be hidden
     await expect(page.getByTestId("trends-section")).toBeHidden();
-    await expect(page.getByTestId("radar-section")).toBeHidden();
-    await expect(page.getByTestId("bar-charts-section")).toBeHidden();
 
     // Close button should appear, expand button should not
     await expect(page.getByTestId("collapse-table-x")).toBeVisible();
@@ -112,15 +92,12 @@ test.describe("Compare page", () => {
     await page.goto("/compare?expanded=1");
     await expect(page.getByTestId("compare-table")).toBeVisible();
     await expect(page.getByTestId("trends-section")).toBeHidden();
-    await expect(page.getByTestId("radar-section")).toBeHidden();
 
     // Click close
     await page.getByTestId("collapse-table-x").click();
 
     // All sections restored
     await expect(page.getByTestId("trends-section")).toBeVisible();
-    await expect(page.getByTestId("radar-section")).toBeVisible();
-    await expect(page.getByTestId("bar-charts-section")).toBeVisible();
     await expect(page.getByTestId("expand-table-btn")).toBeVisible();
   });
 
@@ -128,7 +105,6 @@ test.describe("Compare page", () => {
     await page.goto("/compare?expanded=1");
     await expect(page.getByTestId("compare-table")).toBeVisible();
     await expect(page.getByTestId("trends-section")).toBeHidden();
-    await expect(page.getByTestId("radar-section")).toBeHidden();
     await expect(page.getByTestId("collapse-table-x")).toBeVisible();
   });
 
