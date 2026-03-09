@@ -37,7 +37,7 @@ export const BRAND_COLORS: { id: string; name: string; color: string }[] = [
   { id: "kodus", name: "Kodus", color: "#6C63FF" },
   { id: "amazon-q", name: "Amazon Q Developer", color: "#232F3E" },
   { id: "codacy", name: "Codacy", color: "#242C33" },
-  { id: "qlty", name: "Qlty", color: "#6366F1" },
+
   { id: "codeclimate", name: "Code Climate", color: "#1E293B" },
   { id: "kilo", name: "Kilo Review", color: "#000000" },
 ];
