@@ -1725,6 +1725,8 @@ export type DataCollectionStats = {
 import { DATA_EPOCH } from "./constants";
 export { DATA_EPOCH };
 
+export { isNewProduct } from "./product-utils";
+
 export async function getDataCollectionStats(): Promise<DataCollectionStats> {
   const cached = getCached<DataCollectionStats>("dataCollectionStats");
   if (cached) return cached;
