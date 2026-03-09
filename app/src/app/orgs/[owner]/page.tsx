@@ -215,6 +215,7 @@ export default async function OrgPage({
                     <td className="py-3 pr-4">
                       <Link
                         href={`/repos/${owner}/${shortName}`}
+                        prefetch={false}
                         className="font-medium text-indigo-400 hover:text-indigo-300 hover:underline"
                       >
                         {shortName}

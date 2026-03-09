@@ -366,6 +366,7 @@ export default async function ProductPage({
                 <Link
                   key={org.owner}
                   href={`/orgs/${org.owner}`}
+                  prefetch={false}
                   className="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-theme-surface/60 transition-colors group"
                 >
                   <span className="text-theme-muted text-sm w-6 text-right shrink-0 tabular-nums">
@@ -438,6 +439,7 @@ export default async function ProductPage({
               <Link
                 key={repo.name}
                 href={`/repos/${repo.name}`}
+                prefetch={false}
                 className="flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-theme-surface/60 transition-colors group"
               >
                 <span className="text-theme-muted text-sm w-6 text-right shrink-0 tabular-nums">
