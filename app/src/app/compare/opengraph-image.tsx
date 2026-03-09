@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import * as Sentry from "@sentry/nextjs";
-import { getProductSummaries } from "@/lib/clickhouse";
+import { getProductSummaries, isNewProduct } from "@/lib/clickhouse";
 import { OG_SIZE, OG_BG, OgFooter, OgFallback } from "@/lib/og-utils";
 
 export const runtime = "nodejs";
@@ -14,14 +14,14 @@ export default async function Image() {
   try {
     const summaries = await getProductSummaries();
     topProducts = summaries
-      .filter((s) => Number(s.growth_pct) > 0)
+      .filter((s) => Number(s.growth_pct) > 0 || isNewProduct(s))
       .sort((a, b) => Number(b.growth_pct) - Number(a.growth_pct))
       .slice(0, 6)
       .map((s) => {
         const g = Number(s.growth_pct);
         return {
           name: s.name,
-          growth: `+${g.toFixed(1)}%`,
+          growth: isNewProduct(s) ? "New" : `+${g.toFixed(1)}%`,
           color: s.brand_color || "#7c3aed",
           rawGrowth: g,
         };

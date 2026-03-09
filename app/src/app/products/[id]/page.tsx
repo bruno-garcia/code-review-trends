@@ -11,6 +11,7 @@ import {
   getOrgList,
   getTopReposByProduct,
   getPrCharacteristics,
+  isNewProduct,
 } from "@/lib/clickhouse";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import {
@@ -120,6 +121,7 @@ export default async function ProductPage({
   const commentsPerRepo = Number(summary?.comments_per_repo ?? 0);
   const avgCommentsPerPR = commentsPerPR.length > 0 ? Number(commentsPerPR[0].avg_comments_per_pr) : null;
   const growthPct = Number(summary?.growth_pct ?? 0);
+  const productIsNew = summary ? isNewProduct(summary) : false;
 
   // Rank among all products (by growth rate — see /about#rankings).
   // allSummaries is already sorted by growth_pct DESC, total_reviews DESC
@@ -207,6 +209,11 @@ export default async function ProductPage({
               ))}
             </span>
           )}
+          {productIsNew && (
+            <span className="shrink-0 rounded-full bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 text-xs font-medium text-blue-400" data-testid="new-product-badge">
+              New
+            </span>
+          )}
           <span className="text-sm text-theme-muted/70" data-testid="bot-rank">
             <InfoTooltip
               content={
@@ -253,8 +260,8 @@ export default async function ProductPage({
           />
           <StatCard
             label="Growth (12w)"
-            value={`${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`}
-            color={growthPct >= 0 ? "text-emerald-400" : "text-red-400"}
+            value={productIsNew ? "New" : `${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`}
+            color={productIsNew ? "text-blue-400" : growthPct >= 0 ? "text-emerald-400" : "text-red-400"}
           />
         </div>
       </div>

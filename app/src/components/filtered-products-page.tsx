@@ -10,6 +10,7 @@ import type {
   WeeklyActivityByProduct,
   ProductSummary,
 } from "@/lib/clickhouse";
+import { isNewProduct } from "@/lib/clickhouse";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 import { SectionHeading } from "@/components/section-heading";
@@ -130,6 +131,11 @@ export function FilteredProductsPage({
                   Retired
                 </span>
               )}
+              {product.status !== "retired" && isNewProduct(product) && (
+                <span className="shrink-0 rounded-full bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 text-xs font-medium text-blue-400" data-testid="new-product-badge">
+                  New
+                </span>
+              )}
             </div>
             <p className="text-sm text-theme-muted line-clamp-2">
               {product.description}
@@ -167,12 +173,16 @@ export function FilteredProductsPage({
               </div>
               <div>
                 <span className="text-theme-muted/70">Growth</span>
-                <p
-                  className={`font-medium tabular-nums ${Number(product.growth_pct) >= 0 ? "text-emerald-400" : "text-red-400"}`}
-                >
-                  {Number(product.growth_pct) >= 0 ? "+" : ""}
-                  {Number(product.growth_pct).toFixed(1)}%
-                </p>
+                {isNewProduct(product) ? (
+                  <p className="font-medium text-blue-400">New</p>
+                ) : (
+                  <p
+                    className={`font-medium tabular-nums ${Number(product.growth_pct) >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                  >
+                    {Number(product.growth_pct) >= 0 ? "+" : ""}
+                    {Number(product.growth_pct).toFixed(1)}%
+                  </p>
+                )}
               </div>
             </div>
           </Link>
