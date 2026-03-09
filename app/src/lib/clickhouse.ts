@@ -77,6 +77,16 @@ export type WeeklyTotals = {
   bot_pr_comment_share_pct: number;
 };
 
+/**
+ * Minimum review count in the previous 12-week window for growth % to be
+ * meaningful. Products below this threshold show a "New" badge instead of
+ * a (likely misleading) growth percentage.
+ */
+// Import from shared module (client-safe, no server deps) and re-export
+// so server callers can still import from clickhouse.ts.
+import { GROWTH_BASELINE_THRESHOLD, isNewProduct, isDormantProduct } from "./product-utils";
+export { GROWTH_BASELINE_THRESHOLD, isNewProduct, isDormantProduct };
+
 export type ProductSummary = {
   id: string;
   name: string;
@@ -94,6 +104,8 @@ export type ProductSummary = {
   avg_comments_per_review: number;
   latest_week_reviews: number;
   growth_pct: number;
+  prev_12w_reviews: number;
+  recent_12w_reviews: number;
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
@@ -118,6 +130,8 @@ export type BotSummary = {
   avg_comments_per_review: number;
   latest_week_reviews: number;
   growth_pct: number;
+  prev_12w_reviews: number;
+  recent_12w_reviews: number;
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
@@ -145,6 +159,8 @@ export type ProductComparison = {
   thumbs_up_rate: number;
   reaction_rate: number;
   growth_pct: number;
+  prev_12w_reviews: number;
+  recent_12w_reviews: number;
   latest_week_reviews: number;
   latest_week_comments: number;
   latest_week_pr_comments: number;
@@ -330,11 +346,13 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_12w_reviews > 0,
-          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
-          0),
+        if(ra.recent_12w_reviews = 0, 0, if(ra.prev_12w_reviews >= {growthBaseline:UInt32},
+          least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
+          0)),
         1
       ) AS growth_pct,
+      COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
+      COALESCE(ra.recent_12w_reviews, 0) AS recent_12w_reviews,
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
@@ -351,7 +369,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY growth_pct DESC, total_reviews DESC
     `,
-    since ? { since } : {},
+    { ...(since ? { since } : {}), growthBaseline: GROWTH_BASELINE_THRESHOLD },
   );
 }
 
@@ -473,11 +491,13 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         round(COALESCE(rr.reacted_comment_count, 0) * 100.0 / COALESCE(rr.comment_count, 0), 1),
         -1) AS reaction_rate,
       round(
-        if(ra.prev_12w_reviews > 0,
-          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
-          0),
+        if(ra.recent_12w_reviews = 0, 0, if(ra.prev_12w_reviews >= {growthBaseline:UInt32},
+          least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
+          0)),
         1
       ) AS growth_pct,
+      COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
+      COALESCE(ra.recent_12w_reviews, 0) AS recent_12w_reviews,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
       COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
@@ -487,7 +507,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY total_reviews DESC
     `,
-    since ? { since } : {},
+    { ...(since ? { since } : {}), growthBaseline: GROWTH_BASELINE_THRESHOLD },
   );
 }
 
@@ -622,11 +642,13 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_12w_reviews > 0,
-          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
-          0),
+        if(ra.recent_12w_reviews = 0, 0, if(ra.prev_12w_reviews >= {growthBaseline:UInt32},
+          least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
+          0)),
         1
       ) AS growth_pct,
+      COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
+      COALESCE(ra.recent_12w_reviews, 0) AS recent_12w_reviews,
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
@@ -644,7 +666,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
     `,
-    since ? { since } : {},
+    { ...(since ? { since } : {}), growthBaseline: GROWTH_BASELINE_THRESHOLD },
   );
 }
 

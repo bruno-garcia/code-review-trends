@@ -418,11 +418,51 @@ export default async function AboutPage() {
           to the next shows +100% growth, regardless of whether that&apos;s
           1,000 → 2,000 or 100,000 → 200,000 reviews.
         </p>
+
+        <h4 className="text-theme-text font-semibold mt-6" id="growth-threshold">
+          Minimum Baseline &amp; &ldquo;New&rdquo; Products
+        </h4>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Growth percentages require a meaningful baseline to be useful. A product
+          that goes from 5 to 50 reviews shows +900% growth — technically correct
+          but misleading when compared to established products. To prevent this,
+          we require at least <strong className="text-theme-text">100 reviews</strong> in the
+          previous 12-week window before calculating a growth percentage.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Products below this threshold that still have recent activity display
+          a <span className="inline-flex items-center rounded-full bg-blue-500/15 border border-blue-500/30 px-1.5 py-px text-xs font-medium text-blue-400">New</span> badge
+          instead of a growth percentage. These are recently launched tools still
+          building their initial user base. Once they accumulate enough review
+          history, the badge is replaced with a real growth rate.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Products with zero reviews in the last 12 weeks are automatically
+          detected as <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-px text-xs font-medium text-amber-400">Inactive</span> —
+          no manual status change is needed. This catches tools that have stopped
+          operating even if they haven&apos;t been formally retired. Their historical
+          data is preserved and they reactivate automatically if activity resumes.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Additionally, growth is capped at ±999% to prevent extreme outliers from
+          distorting rankings. In practice, this cap rarely triggers — the baseline
+          threshold handles the most common case.
+        </p>
+
+        <h4 className="text-theme-text font-semibold mt-6">
+          Ranking Order
+        </h4>
         <p className="text-theme-text-secondary leading-relaxed">
           We chose growth over absolute volume because it makes the ranking
           more dynamic, giving credit to fast-growing tools over
           older, established ones — while the 12-week window keeps it
-          stable enough to avoid noise from week-to-week fluctuations. The{" "}
+          stable enough to avoid noise from week-to-week fluctuations.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          New products (with the <span className="inline-flex items-center rounded-full bg-blue-500/15 border border-blue-500/30 px-1.5 py-px text-xs font-medium text-blue-400">New</span> badge)
+          have a growth of 0% for ranking purposes, placing them alongside
+          products with neutral growth — above retired or declining tools, but
+          below products with established positive growth trends. The{" "}
           <Link href="/compare#detailed" className={linkClass}>
             detailed comparison table
           </Link>{" "}

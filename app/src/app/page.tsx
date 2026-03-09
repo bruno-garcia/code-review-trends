@@ -4,6 +4,8 @@ import {
   getWeeklyTotalVolume,
   getTopOrgsByStars,
   getProductSummaries,
+  isNewProduct,
+  isDormantProduct,
 } from "@/lib/clickhouse";
 import {
   BotShareChart,
@@ -107,8 +109,9 @@ export default async function Home() {
             <Link href="/about#rankings" className="underline hover:text-theme-text">Methodology.</Link>
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {products.filter(p => p.status !== "retired").slice(0, 10).map((product, i) => {
+            {products.filter(p => p.status !== "retired" && !isDormantProduct(p)).slice(0, 10).map((product, i) => {
               const growth = Number(product.growth_pct);
+              const isNew = isNewProduct(product);
               return (
                 <Link
                   key={product.id}
@@ -128,12 +131,21 @@ export default async function Home() {
                     />
                   )}
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm font-medium text-theme-text group-hover:text-violet-400 transition-colors truncate block">
-                      {product.name}
-                    </span>
-                    <span className={`text-xs tabular-nums ${growth >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium text-theme-text group-hover:text-violet-400 transition-colors truncate">
+                        {product.name}
+                      </span>
+                      {isNew && (
+                        <span className="shrink-0 rounded-full bg-blue-500/15 border border-blue-500/30 px-1.5 py-px text-[10px] font-medium text-blue-400">
+                          New
+                        </span>
+                      )}
+                    </div>
+                    {!isNew && (
+                      <span className={`text-xs tabular-nums ${growth >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
+                      </span>
+                    )}
                   </div>
                 </Link>
               );

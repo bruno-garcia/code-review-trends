@@ -10,6 +10,7 @@ import type {
   WeeklyActivityByProduct,
   ProductSummary,
 } from "@/lib/clickhouse";
+import { isNewProduct, isDormantProduct } from "@/lib/product-utils";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 import { SectionHeading } from "@/components/section-heading";
@@ -105,7 +106,7 @@ export function FilteredProductsPage({
           <Link
             key={product.id}
             href={buildUrl(`/products/${product.id}`)}
-            className={`block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors${product.status === "retired" ? " opacity-60" : ""}`}
+            className={`block bg-theme-surface rounded-xl p-6 border border-theme-border hover:border-violet-500/50 transition-colors${(product.status === "retired" || isDormantProduct(product)) ? " opacity-60" : ""}`}
             data-testid={`bot-card-${product.id}`}
           >
             <div className="flex items-center gap-3 mb-3">
@@ -125,9 +126,14 @@ export function FilteredProductsPage({
               >
                 {product.name}
               </h2>
-              {product.status === "retired" && (
+              {(product.status === "retired" || isDormantProduct(product)) && (
                 <span className="shrink-0 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-medium text-amber-400">
                   Retired
+                </span>
+              )}
+              {product.status !== "retired" && !isDormantProduct(product) && isNewProduct(product) && (
+                <span className="shrink-0 rounded-full bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 text-xs font-medium text-blue-400" data-testid="new-product-badge">
+                  New
                 </span>
               )}
             </div>
@@ -167,12 +173,18 @@ export function FilteredProductsPage({
               </div>
               <div>
                 <span className="text-theme-muted/70">Growth</span>
-                <p
-                  className={`font-medium tabular-nums ${Number(product.growth_pct) >= 0 ? "text-emerald-400" : "text-red-400"}`}
-                >
-                  {Number(product.growth_pct) >= 0 ? "+" : ""}
-                  {Number(product.growth_pct).toFixed(1)}%
-                </p>
+                {isDormantProduct(product) ? (
+                  <p className="font-medium text-amber-400">Inactive</p>
+                ) : isNewProduct(product) ? (
+                  <p className="font-medium text-blue-400">New</p>
+                ) : (
+                  <p
+                    className={`font-medium tabular-nums ${Number(product.growth_pct) >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                  >
+                    {Number(product.growth_pct) >= 0 ? "+" : ""}
+                    {Number(product.growth_pct).toFixed(1)}%
+                  </p>
+                )}
               </div>
             </div>
           </Link>

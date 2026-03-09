@@ -11,6 +11,8 @@ import {
   getOrgList,
   getTopReposByProduct,
   getPrCharacteristics,
+  isNewProduct,
+  isDormantProduct,
 } from "@/lib/clickhouse";
 import { PrCommentSyncBanner } from "@/components/pr-comment-sync-banner";
 import {
@@ -45,10 +47,12 @@ export async function generateMetadata({
   const summary = summaries.find((s) => s.id === id);
   const reviews = summary ? formatNumber(Number(summary.total_reviews)) : "0";
   const repos = summary ? formatNumber(Number(summary.total_repos)) : "0";
-  const growth = summary ? Number(summary.growth_pct).toFixed(1) : "0";
+  const growthLabel = summary
+    ? isDormantProduct(summary) ? "inactive" : isNewProduct(summary) ? "new" : `${Number(summary.growth_pct) >= 0 ? "+" : ""}${Number(summary.growth_pct).toFixed(1)}% growth`
+    : "0% growth";
 
   const title = `${product.name} AI Code Review Stats & Trends`;
-  const description = `${product.name} has performed ${reviews} code reviews across ${repos} repos (${Number(growth) >= 0 ? "+" : ""}${growth}% growth). See weekly trends, language breakdown, and comparisons.`;
+  const description = `${product.name} has performed ${reviews} code reviews across ${repos} repos (${growthLabel}). See weekly trends, language breakdown, and comparisons.`;
 
   return {
     title,
@@ -122,6 +126,8 @@ export default async function ProductPage({
   const commentsPerRepo = Number(summary?.comments_per_repo ?? 0);
   const avgCommentsPerPR = commentsPerPR.length > 0 ? Number(commentsPerPR[0].avg_comments_per_pr) : null;
   const growthPct = Number(summary?.growth_pct ?? 0);
+  const productIsNew = summary ? isNewProduct(summary) : false;
+  const productIsDormant = summary ? isDormantProduct(summary) : false;
 
   // Rank among all products (by growth rate — see /about#rankings).
   // allSummaries is already sorted by growth_pct DESC, total_reviews DESC
@@ -161,17 +167,19 @@ export default async function ProductPage({
           brandColor={product.brand_color}
         />
         <p className="mt-2 text-theme-muted">{product.description}</p>
-        {product.status === "retired" && (
+        {(product.status === "retired" || productIsDormant) && (
           <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-2 text-sm text-amber-400">
             <span>⚠️</span>
             <span>
-              <strong>Retired</strong> — this product appears to be no longer available. Historical data is preserved.
+              {product.status === "retired"
+                ? <><strong>Retired</strong> — this product appears to be no longer available. Historical data is preserved.</>
+                : <><strong>Inactive</strong> — no review activity detected in the last 12 weeks. Historical data is preserved.</>}
             </span>
           </div>
         )}
         <div className="mt-4 flex items-center gap-4 flex-wrap">
           {product.website && (
-            product.status === "retired" ? (
+            (product.status === "retired") ? (
               <span className="text-sm text-theme-muted/50">{product.website}</span>
             ) : (
             <a
@@ -185,7 +193,7 @@ export default async function ProductPage({
             )
           )}
           {product.docs_url && product.docs_url !== product.website && (
-            product.status === "retired" ? (
+            (product.status === "retired") ? (
               <span className="text-sm text-theme-muted/50">Docs</span>
             ) : (
             <a
@@ -207,6 +215,16 @@ export default async function ProductPage({
                   <GitHubLogin login={login} />
                 </span>
               ))}
+            </span>
+          )}
+          {productIsDormant && !productIsNew && (
+            <span className="shrink-0 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-medium text-amber-400">
+              Inactive
+            </span>
+          )}
+          {productIsNew && (
+            <span className="shrink-0 rounded-full bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 text-xs font-medium text-blue-400" data-testid="new-product-badge">
+              New
             </span>
           )}
           <span className="text-sm text-theme-muted/70" data-testid="bot-rank">
@@ -255,8 +273,8 @@ export default async function ProductPage({
           />
           <StatCard
             label="Growth (12w)"
-            value={`${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`}
-            color={growthPct >= 0 ? "text-emerald-400" : "text-red-400"}
+            value={productIsDormant ? "Inactive" : productIsNew ? "New" : `${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`}
+            color={productIsDormant ? "text-amber-400" : productIsNew ? "text-blue-400" : growthPct >= 0 ? "text-emerald-400" : "text-red-400"}
           />
         </div>
       </div>
