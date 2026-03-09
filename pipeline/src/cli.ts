@@ -1310,6 +1310,7 @@ async function cmdEnrichStatus() {
   }
 }
 
+
 async function cmdValidateBqPrs() {
   const args = parseArgs();
   const { validateBigQueryPRData } = await import("./tools/validate-bq-prs.js");

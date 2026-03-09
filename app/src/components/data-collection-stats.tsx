@@ -214,6 +214,74 @@ function StatRow({
   );
 }
 
+// ── Enrichment card (shared layout for repos, PRs, comments, reactions) ──
+
+function EnrichmentCard({
+  title,
+  tooltip,
+  progressLabel,
+  total,
+  success,
+  unreachable,
+  pending,
+  extraNote,
+}: {
+  title: string;
+  tooltip: string;
+  progressLabel: string;
+  total: number;
+  success: number;
+  unreachable: number;
+  pending: number;
+  extraNote?: string;
+}) {
+  const processed = success + unreachable;
+  const failRate =
+    processed > 0 ? ((unreachable / processed) * 100).toFixed(1) : "0";
+
+  return (
+    <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
+      <h4 className="text-sm font-semibold text-theme-text">
+        <Tooltip text={tooltip}>{title}</Tooltip>
+      </h4>
+      <ProgressBar
+        value={processed}
+        max={total}
+        label={progressLabel}
+        color="bg-emerald-500"
+      />
+      <div className="grid grid-cols-3 gap-3 text-center mt-2">
+        <div>
+          <div className="text-lg font-semibold text-emerald-400 tabular-nums">
+            {success.toLocaleString()}
+          </div>
+          <div className="text-xs text-theme-muted">Success</div>
+        </div>
+        <div>
+          <div className="text-lg font-semibold text-red-400 tabular-nums">
+            {unreachable.toLocaleString()}
+          </div>
+          <div className="text-xs text-theme-muted">Deleted / Private</div>
+        </div>
+        <div>
+          <div className="text-lg font-semibold text-yellow-400 tabular-nums">
+            {pending.toLocaleString()}
+          </div>
+          <div className="text-xs text-theme-muted">Pending</div>
+        </div>
+      </div>
+      {(Number(failRate) > 0 || extraNote) && (
+        <div className="text-xs text-theme-muted mt-1 space-y-0.5">
+          {Number(failRate) > 0 && (
+            <p>{failRate}% of processed items were deleted or inaccessible.</p>
+          )}
+          {extraNote && <p>{extraNote}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ───────────────────────────────────────────────────────
 
 export function DataCollectionPanel({
@@ -235,11 +303,6 @@ export function DataCollectionPanel({
   }
 
   const missingWeeks = expected.filter((w) => !presentSet.has(w));
-  const reposProcessed = stats.repos_ok + stats.repos_not_found;
-  const repoFailRate =
-    reposProcessed > 0
-      ? ((stats.repos_not_found / reposProcessed) * 100).toFixed(1)
-      : "0";
 
   const dataRange = stats.weeks_with_data.length > 0
     ? `${formatDate(stats.weeks_with_data[0])} — ${formatDate(stats.weeks_with_data[stats.weeks_with_data.length - 1])}`
@@ -329,94 +392,53 @@ export function DataCollectionPanel({
 
         <div className="space-y-5">
           {/* Repos */}
-          <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-theme-text">
-              <Tooltip text="Repos found in GH Archive where tracked bots reviewed PRs. The total comes from the discover pipeline step, not from all of GitHub.">
-                Repositories
-              </Tooltip>
-            </h4>
-            <ProgressBar
-              value={reposProcessed}
-              max={stats.repos_total}
-              label="Fetched from GitHub"
-              color="bg-emerald-500"
-            />
-            <div className="grid grid-cols-3 gap-3 text-center mt-2">
-              <div>
-                <div className="text-lg font-semibold text-emerald-400 tabular-nums">
-                  {stats.repos_ok.toLocaleString()}
-                </div>
-                <div className="text-xs text-theme-muted">Success</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold text-red-400 tabular-nums">
-                  {stats.repos_not_found.toLocaleString()}
-                </div>
-                <div className="text-xs text-theme-muted">
-                  Deleted / Private
-                </div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold text-yellow-400 tabular-nums">
-                  {stats.repos_pending.toLocaleString()}
-                </div>
-                <div className="text-xs text-theme-muted">Pending</div>
-              </div>
-            </div>
-            <p className="text-xs text-theme-muted mt-1">
-              {repoFailRate}% of processed repos were deleted or inaccessible.
-            </p>
-          </div>
+          <EnrichmentCard
+            title="Repositories"
+            tooltip="Repos found in GH Archive where tracked bots reviewed PRs. The total comes from the discover pipeline step, not from all of GitHub."
+            progressLabel="Fetched from GitHub"
+            total={stats.repos_total}
+            success={stats.repos_ok}
+            unreachable={stats.repos_not_found}
+            pending={stats.repos_pending}
+          />
 
           {/* PRs */}
-          <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-theme-text">
-              <Tooltip text="Individual PRs where tracked bots left reviews. Discovered via GH Archive events, enriched via GitHub API.">
-                Pull Requests
-              </Tooltip>
-            </h4>
-            <ProgressBar
-              value={stats.prs_enriched}
-              max={stats.prs_discovered}
-              label="PR metadata fetched"
-              color="bg-emerald-500"
-            />
-          </div>
+          <EnrichmentCard
+            title="Pull Requests"
+            tooltip="Individual PRs where tracked bots left reviews. Discovered via GH Archive events, enriched via GitHub API."
+            progressLabel="PR metadata fetched"
+            total={stats.prs_discovered}
+            success={stats.prs_enriched}
+            unreachable={stats.prs_unreachable}
+            pending={stats.prs_pending}
+          />
 
           {/* Comments */}
-          <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-theme-text">
-              <Tooltip text="Bot activity threads (one per repo/PR/bot combo). Each combo is checked via GitHub API for review comments, reaction data, and comment bodies.">
-                Bot Comments
-              </Tooltip>
-            </h4>
-            <ProgressBar
-              value={stats.comments_enriched}
-              max={stats.comments_discovered}
-              label="Comment threads fetched"
-              color="bg-emerald-500"
-            />
-          </div>
+          <EnrichmentCard
+            title="Bot Comments"
+            tooltip="Bot activity threads (one per repo/PR/bot combo). Each combo is checked via GitHub API for review comments, reaction data, and comment bodies."
+            progressLabel="Comment threads fetched"
+            total={stats.comments_discovered}
+            success={stats.comments_enriched}
+            unreachable={stats.comments_unreachable}
+            pending={stats.comments_pending}
+          />
 
           {/* Reactions */}
-          <div className="bg-theme-surface rounded-lg border border-theme-border p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-theme-text">
-              <Tooltip text="PRs scanned for bot emoji reactions (🎉). Some bots signal approval via reactions instead of reviews — these are invisible in GH Archive and require per-PR API calls to discover.">
-                Reaction Scans
-              </Tooltip>
-            </h4>
-            <ProgressBar
-              value={stats.reactions_scanned}
-              max={stats.reactions_total}
-              label="PRs scanned for reactions"
-              color="bg-emerald-500"
-            />
-            {stats.reactions_found > 0 && (
-              <p className="text-xs text-theme-muted mt-1">
-                {stats.reactions_found.toLocaleString()} PR{stats.reactions_found !== 1 ? "s" : ""} found with bot reactions
-              </p>
-            )}
-          </div>
+          <EnrichmentCard
+            title="Reaction Scans"
+            tooltip="PRs scanned for bot emoji reactions (🎉). Some bots signal approval via reactions instead of reviews — these are invisible in GH Archive and require per-PR API calls to discover."
+            progressLabel="PRs scanned for reactions"
+            total={stats.reactions_total}
+            success={stats.reactions_scanned}
+            unreachable={stats.reactions_unreachable}
+            pending={stats.reactions_pending}
+            extraNote={
+              stats.reactions_found > 0
+                ? `${stats.reactions_found.toLocaleString()} PR${stats.reactions_found !== 1 ? "s" : ""} found with bot reactions`
+                : undefined
+            }
+          />
         </div>
       </div>
     </div>

@@ -5,6 +5,12 @@
 # Fetches ALL config from GCP Secret Manager — no .env.local needed.
 # Spawns one tmux worker per GitHub token, plus a status window.
 #
+# Worker count is automatically capped to the number of IP pathways
+# (proxy VMs + direct) to ensure 1:1 worker-to-IP mapping. GitHub's
+# secondary rate limits are per-IP; when two workers share an IP they
+# compete for the same limit and both degrade. With N pathways, at most
+# N workers run — extra tokens in the secret are held in reserve.
+#
 # Usage:
 #   ./workers.sh <env> start        # Fetch secrets, start N workers in tmux
 #   ./workers.sh <env> stop         # Kill all workers
@@ -16,6 +22,7 @@
 #
 # <env> is required: staging, production, development
 # Secrets are derived from env: crt-<env>-*
+#   crt-<env>-proxy-urls (optional): comma-separated HTTP CONNECT proxy URLs
 #
 # Reentrant: start always kills existing session first.
 # Logs: ~/worker-<env>-{1,2,...}.log
@@ -102,6 +109,31 @@ fetch_tokens() {
   log "Found ${#TOKENS[@]} GitHub token(s)"
 }
 
+fetch_proxy_urls() {
+  # Proxy URLs for IP rotation (optional — not all envs have proxies).
+  # Non-fatal: if the secret doesn't exist, fall back to PROXY_URLS env var.
+  # Save env var first — the failed $(gcloud ...) assignment clears PROXY_URLS
+  # before the || branch runs, so ${PROXY_URLS:-} would see empty, not the original.
+  local env_proxy_urls="${PROXY_URLS:-}"
+  PROXY_URLS=$(gcloud secrets versions access latest --secret="${PREFIX}-proxy-urls" --project="$GCP_PROJECT" 2>/dev/null) || PROXY_URLS="$env_proxy_urls"
+  if [[ -n "$PROXY_URLS" ]]; then
+    local proxy_count
+    # Count non-empty, trimmed entries — matches TypeScript parseProxyUrls logic.
+    # Uses awk instead of grep -c to avoid exit code 1 under set -euo pipefail.
+    proxy_count=$(echo "$PROXY_URLS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | awk '/[^[:space:]]/ {c++} END {print c+0}')
+    if (( proxy_count > 0 )); then
+      PATHWAY_COUNT=$((proxy_count + 1))  # proxies + direct
+      log "  Proxy URLs: ${proxy_count} proxies → ${PATHWAY_COUNT} IP pathways"
+    else
+      PATHWAY_COUNT=0
+      warn "  No proxy URLs configured — workers won't be capped to pathway count"
+    fi
+  else
+    PATHWAY_COUNT=0
+    warn "  No proxy URLs configured — workers won't be capped to pathway count"
+  fi
+}
+
 fetch_shared_secrets() {
   log "Fetching config from GCP Secret Manager (project: $GCP_PROJECT)..."
   CLICKHOUSE_URL=$(fetch_secret "${PREFIX}-clickhouse-url")
@@ -109,6 +141,7 @@ fetch_shared_secrets() {
   SENTRY_DSN=$(fetch_secret "${PREFIX}-sentry-dsn-pipeline")
   log "  ClickHouse: ${CLICKHOUSE_URL%%:*}://*** (password: ***)"
   log "  Sentry DSN: ${SENTRY_DSN:0:30}..."
+  fetch_proxy_urls
 }
 
 # Build the shared CLI args that every worker command needs.
@@ -123,6 +156,23 @@ cmd_start() {
   local n=${#TOKENS[@]}
   local cli_args
   cli_args=$(shared_cli_args)
+
+  # Cap workers to IP pathway count for 1:1 worker-to-IP assignment.
+  # GitHub enforces secondary rate limits per source IP. When two workers
+  # share an IP, they compete for the same limit and both slow down.
+  # With N pathways (proxies + direct), we use at most N workers.
+  if [[ $PATHWAY_COUNT -gt 0 && $n -gt $PATHWAY_COUNT ]]; then
+    warn "Capping workers from $n to $PATHWAY_COUNT (matching ${PATHWAY_COUNT} IP pathways)"
+    warn "  Each worker gets a dedicated IP — avoids secondary rate limit contention"
+    warn "  Unused tokens: $((n - PATHWAY_COUNT)) of $n"
+    n=$PATHWAY_COUNT
+  fi
+
+  # Build --proxy-urls arg if available
+  local proxy_arg=""
+  if [[ -n "$PROXY_URLS" ]]; then
+    proxy_arg="--proxy-urls $(printf %q "$PROXY_URLS")"
+  fi
 
   # Kill existing session (reentrant)
   tmux kill-session -t "$SESSION" 2>/dev/null && warn "Killed existing tmux session '$SESSION'"
@@ -151,8 +201,7 @@ cmd_start() {
     escaped_token=$(printf %q "${token}")
     # Loop continuously: run enrich, pause 30s, repeat.
     # The 30s pause lets ClickHouse merges settle between rounds.
-    # Uses printf with %()T for timestamp (bash builtin, no subshell needed in single quotes).
-    local cmd="${sleep_cmd}cd $REPO_DIR && while true; do echo \"--- Round starting at \$(date -u +%Y-%m-%dT%H:%M:%SZ) ---\"; npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --gh-token ${escaped_token} ${cli_args} 2>&1; rc=\$?; echo \"--- Round finished (exit \$rc) at \$(date -u +%Y-%m-%dT%H:%M:%SZ) ---\"; if [ \$rc -ne 0 ]; then echo 'Non-zero exit, pausing 60s before retry...'; sleep 60; fi; echo 'Pausing 30s before next round...'; sleep 30; done | tee $logfile"
+    local cmd="${sleep_cmd}cd $REPO_DIR && while true; do echo \"--- Round starting at \$(date -u +%Y-%m-%dT%H:%M:%SZ) ---\"; npm run pipeline -- enrich --env $PIPELINE_ENV --limit $WORKER_LIMIT --worker-id $i --total-workers $n --gh-token ${escaped_token} ${cli_args} ${proxy_arg} 2>&1; rc=\$?; echo \"--- Round finished (exit \$rc) at \$(date -u +%Y-%m-%dT%H:%M:%SZ) ---\"; if [ \$rc -ne 0 ]; then echo 'Non-zero exit, pausing 60s before retry...'; sleep 60; fi; echo 'Pausing 30s before next round...'; sleep 30; done | tee $logfile"
 
     tmux new-window -t "$SESSION" -n "$wname"
     tmux send-keys -t "$SESSION:$wname" "$cmd" Enter
@@ -210,21 +259,33 @@ cmd_update() {
 }
 
 cmd_tokens() {
+  fetch_proxy_urls
   fetch_tokens
   local n=${#TOKENS[@]}
-  log "$n token(s) in secret '${PREFIX}-github-tokens':"
+  local active=$n
+  if [[ $PATHWAY_COUNT -gt 0 && $n -gt $PATHWAY_COUNT ]]; then
+    active=$PATHWAY_COUNT
+  fi
+  log "$n token(s) in secret '${PREFIX}-github-tokens' ($active active, $((n - active)) unused):"
+  if [[ $PATHWAY_COUNT -gt 0 ]]; then
+    log "  IP pathways: $PATHWAY_COUNT (workers capped to match)"
+  fi
   echo ""
   for i in $(seq 0 $((n - 1))); do
     local token="${TOKENS[$i]}"
     local info
+    local status_label=""
+    if [[ $i -ge $active ]]; then
+      status_label=" (unused — exceeds pathway count)"
+    fi
     info=$(GH_TOKEN="$token" gh api user --include 2>&1) || {
-      echo "  [$i] ${token:0:15}... → INVALID"
+      echo "  [$i] ${token:0:15}... → INVALID${status_label}"
       continue
     }
     local login expiry
     login=$(echo "$info" | grep -o '"login":"[^"]*"' | head -1 | cut -d\" -f4)
     expiry=$(echo "$info" | grep -i token-expiration | awk '{print $2, $3, $4}')
-    echo "  [$i] $login — expires $expiry"
+    echo "  [$i] $login — expires $expiry${status_label}"
   done
 }
 
