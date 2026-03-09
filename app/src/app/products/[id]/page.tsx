@@ -6,7 +6,7 @@ import {
   getProductBots,
   getWeeklyActivityByProduct,
   getBotsByLanguage,
-  getAvgCommentsPerPR,
+  getAvgCommentsPerPRByProduct,
   getPrCommentSyncPct,
   getOrgList,
   getTopReposByProduct,
@@ -85,9 +85,7 @@ export default async function ProductPage({
     getProductBots(id, since),
     getWeeklyActivityByProduct(id, since),
     getBotsByLanguage(id, since),
-    // TODO: getAvgCommentsPerPR takes botId, not productId. Works for single-bot
-    // products where product_id = bot_id, but wrong for multi-bot products (e.g. sentry).
-    getAvgCommentsPerPR(id, since),
+    getAvgCommentsPerPRByProduct(id, since),
     getPrCommentSyncPct(),
     getOrgList({ productIds: [id], sort: "stars", limit: TOP_N }),
     getTopReposByProduct(id, TOP_N),
@@ -120,7 +118,7 @@ export default async function ProductPage({
   const totalOrgs = Number(summary?.total_orgs ?? 0);
   const avgCommentsPerReview = Number(summary?.avg_comments_per_review ?? 0);
   const commentsPerRepo = Number(summary?.comments_per_repo ?? 0);
-  const avgCommentsPerPR = commentsPerPR.length > 0 ? Number(commentsPerPR[0].avg_comments_per_pr) : null;
+  const avgCommentsPerPR = commentsPerPR ? Number(commentsPerPR.avg_comments_per_pr) : null;
   const growthPct = Number(summary?.growth_pct ?? 0);
 
   // Rank among all products (by growth rate — see /about#rankings).
