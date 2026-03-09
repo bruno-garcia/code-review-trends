@@ -831,6 +831,11 @@ async function cmdMigrate() {
       console.log(`  ✓ Synced ${PRODUCTS.length} products`);
       await syncBots(chClient, BOTS);
       console.log(`  ✓ Synced ${BOTS.length} bots`);
+
+      // OPTIMIZE reference tables to deduplicate rows from overlapping migrations
+      // (e.g., 002_bot_data.sql TRUNCATE+INSERT then 010_kodus_bot.sql INSERT).
+      // These are tiny tables so OPTIMIZE is instant.
+      await optimizeTables(chClient, ["products", "bots", "bot_logins"]);
     } finally {
       await chClient.close();
     }

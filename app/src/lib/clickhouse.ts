@@ -239,12 +239,12 @@ export async function getWeeklyTotalVolume(): Promise<WeeklyTotalVolume[]> {
 // --- Product queries ---
 
 export async function getProducts(): Promise<Product[]> {
-  return query<Product>("SELECT * FROM products ORDER BY name", undefined, REFERENCE_CACHE_TTL_MS);
+  return query<Product>("SELECT * FROM products FINAL ORDER BY name", undefined, REFERENCE_CACHE_TTL_MS);
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
   const rows = await query<Product>(
-    "SELECT * FROM products WHERE id = {id:String}",
+    "SELECT * FROM products FINAL WHERE id = {id:String}",
     { id },
     REFERENCE_CACHE_TTL_MS,
   );
@@ -276,12 +276,12 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           SELECT b.product_id, ra.week, ra.review_count, ra.review_comment_count,
             ra.pr_comment_count, ra.repo_count, ra.org_count
           FROM review_activity ra
-          JOIN bots b ON ra.bot_id = b.id
+          JOIN bots b FINAL ON ra.bot_id = b.id
           UNION ALL
           SELECT b.product_id, ror.week, ror.reaction_reviews AS review_count,
             0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
           FROM reaction_only_review_counts ror
-          JOIN bots b ON ror.bot_id = b.id
+          JOIN bots b FINAL ON ror.bot_id = b.id
         )
         GROUP BY product_id, week
       ),
@@ -309,7 +309,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
           sum(cs.comment_count) AS comment_count,
           sum(cs.reacted_comment_count) AS reacted_comment_count
         FROM comment_stats_weekly cs
-        JOIN bots b ON cs.bot_id = b.id
+        JOIN bots b FINAL ON cs.bot_id = b.id
         ${reactionSinceFilter}
         GROUP BY b.product_id
       )
@@ -346,7 +346,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         -1) AS reaction_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
-    FROM products p
+    FROM products p FINAL
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY growth_pct DESC, total_reviews DESC
@@ -379,8 +379,8 @@ export async function getWeeklyActivityByProduct(
         sum(ra.repo_count) AS repo_count,
         sum(ra.org_count) AS org_count
       FROM review_activity ra
-      JOIN bots b ON ra.bot_id = b.id
-      JOIN products p ON b.product_id = p.id
+      JOIN bots b FINAL ON ra.bot_id = b.id
+      JOIN products p FINAL ON b.product_id = p.id
       ${where}
       GROUP BY ra.week, b.product_id, p.name, p.brand_color
       ORDER BY ra.week ASC, review_count DESC
@@ -412,12 +412,12 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
           SELECT b.product_id, ra.week, ra.review_count, ra.review_comment_count,
             ra.pr_comment_count, ra.repo_count, ra.org_count
           FROM review_activity ra
-          JOIN bots b ON ra.bot_id = b.id
+          JOIN bots b FINAL ON ra.bot_id = b.id
           UNION ALL
           SELECT b.product_id, ror.week, ror.reaction_reviews AS review_count,
             0 AS review_comment_count, 0 AS pr_comment_count, 0 AS repo_count, 0 AS org_count
           FROM reaction_only_review_counts ror
-          JOIN bots b ON ror.bot_id = b.id
+          JOIN bots b FINAL ON ror.bot_id = b.id
         )
         GROUP BY product_id, week
       ),
@@ -447,7 +447,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
           sum(cs.comment_count) AS comment_count,
           sum(cs.reacted_comment_count) AS reacted_comment_count
         FROM comment_stats_weekly cs
-        JOIN bots b ON cs.bot_id = b.id
+        JOIN bots b FINAL ON cs.bot_id = b.id
         ${reactionSinceFilter}
         GROUP BY b.product_id
       )
@@ -482,7 +482,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
       COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
       COALESCE(ra.weeks_active, 0) AS weeks_active
-    FROM products p
+    FROM products p FINAL
     LEFT JOIN activity_agg ra ON p.id = ra.product_id
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY total_reviews DESC
@@ -507,11 +507,11 @@ export async function getProductBots(productId: string, since?: string): Promise
         COALESCE(sum(ra.pr_comment_count), 0) AS total_pr_comments,
         toString(min(ra.week)) AS first_week,
         toString(max(ra.week)) AS last_week
-      FROM bots b
-      JOIN products p ON b.product_id = p.id
+      FROM bots b FINAL
+      JOIN products p FINAL ON b.product_id = p.id
       LEFT JOIN (
         SELECT bot_id, min(github_login) AS github_login
-        FROM bot_logins
+        FROM bot_logins FINAL
         GROUP BY bot_id
       ) bl ON b.id = bl.bot_id
       LEFT JOIN (
@@ -638,8 +638,8 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
         -1) AS reaction_rate,
       round(if(ra.max_repos > 0, ra.total_comments / ra.max_repos, 0), 0) AS comments_per_repo,
       COALESCE(formatDateTime(ra.first_seen, '%Y-%m-%d'), '') AS first_seen
-    FROM bots AS b
-    JOIN products p ON b.product_id = p.id
+    FROM bots AS b FINAL
+    JOIN products p FINAL ON b.product_id = p.id
     LEFT JOIN activity_agg ra ON b.id = ra.bot_id
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
@@ -702,7 +702,7 @@ export async function getBotReactionLeaderboard(since?: string): Promise<BotReac
         round(sum(cs.reacted_comment_count) * 100.0 / sum(cs.comment_count), 1),
         -1) AS reaction_rate
     FROM comment_stats_weekly cs
-    JOIN bots b ON cs.bot_id = b.id
+    JOIN bots b FINAL ON cs.bot_id = b.id
     ${sinceFilter}
     GROUP BY cs.bot_id, b.name, b.product_id
     ORDER BY total_thumbs_up DESC
@@ -744,7 +744,7 @@ export async function getAvgCommentsPerPR(botId?: string, since?: string): Promi
         uniqExactMerge(cs.pr_count) AS total_prs,
         sum(cs.comment_count) AS total_comments
       FROM comment_stats_weekly cs
-      JOIN bots b ON cs.bot_id = b.id
+      JOIN bots b FINAL ON cs.bot_id = b.id
       ${where}
       GROUP BY cs.bot_id, b.name, b.product_id
     )
@@ -788,8 +788,8 @@ export async function getWeeklyReactionsByProduct(
       sum(cs.reacted_comment_count) AS reacted_comment_count,
       uniqExactMerge(cs.pr_count) AS pr_count
     FROM comment_stats_weekly cs
-    JOIN bots b ON cs.bot_id = b.id
-    JOIN products p ON b.product_id = p.id
+    JOIN bots b FINAL ON cs.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
     ${sinceFilter}
     GROUP BY cs.week, b.product_id, p.name, p.brand_color
     ORDER BY cs.week ASC
@@ -823,7 +823,7 @@ export async function getMonthlyReactionsByProduct(
       sum(cs.thumbs_up) AS thumbs_up,
       sum(cs.thumbs_down) AS thumbs_down
     FROM comment_stats_weekly cs
-    JOIN bots b ON cs.bot_id = b.id
+    JOIN bots b FINAL ON cs.bot_id = b.id
     ${sinceFilter}
     GROUP BY toStartOfMonth(cs.week), b.product_id
     ORDER BY month ASC
@@ -866,7 +866,7 @@ export async function getPrCharacteristics(
       FROM (
         SELECT DISTINCT e.repo_name, e.pr_number
         FROM pr_bot_events e
-        JOIN bots b ON e.bot_id = b.id
+        JOIN bots b FINAL ON e.bot_id = b.id
         WHERE b.product_id = {productId:String}
         AND e.event_week >= toDate({since:String})
       ) AS de
@@ -916,7 +916,7 @@ export async function getAllPrCharacteristics(
       FROM (
         SELECT DISTINCT e.repo_name, e.pr_number, b.product_id
         FROM pr_bot_events e
-        JOIN bots b ON e.bot_id = b.id
+        JOIN bots b FINAL ON e.bot_id = b.id
         WHERE e.event_week >= toDate({since:String})
       ) AS de
       JOIN pull_requests p ON de.repo_name = p.repo_name AND de.pr_number = p.pr_number
@@ -964,7 +964,7 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
       countDistinct(e.repo_name, e.pr_number) AS pr_count,
       count() AS comment_count
     FROM pr_bot_events e
-    JOIN bots b ON e.bot_id = b.id
+    JOIN bots b FINAL ON e.bot_id = b.id
     JOIN repos r ON e.repo_name = r.name
     ${where}
     GROUP BY e.bot_id, b.name, r.primary_language
@@ -1117,8 +1117,8 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
         e.repo_name AS repo_name, e.pr_number AS pr_number, 1 AS is_event
       FROM pr_bot_events e
       JOIN repos r ON e.repo_name = r.name
-      JOIN bots b ON e.bot_id = b.id
-      JOIN products p ON b.product_id = p.id
+      JOIN bots b FINAL ON e.bot_id = b.id
+      JOIN products p FINAL ON b.product_id = p.id
       WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
       UNION ALL
       SELECT p.id AS product_id, p.name AS product_name,
@@ -1126,8 +1126,8 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
         rx.repo_name AS repo_name, rx.pr_number AS pr_number, 0 AS is_event
       FROM pr_bot_reactions rx FINAL
       JOIN repos r ON rx.repo_name = r.name
-      JOIN bots b ON rx.bot_id = b.id
-      JOIN products p ON b.product_id = p.id
+      JOIN bots b FINAL ON rx.bot_id = b.id
+      JOIN products p FINAL ON b.product_id = p.id
       WHERE rx.reaction_type = 'hooray'
         AND r.fetch_status = 'ok' AND r.owner = {owner:String}
         AND NOT EXISTS (
@@ -1166,7 +1166,7 @@ export async function getTopReposByProduct(
         r.primary_language AS primary_language,
         uniqExactMerge(s.pr_count) AS pr_count
       FROM pr_bot_event_counts s
-      JOIN bots b ON s.bot_id = b.id
+      JOIN bots b FINAL ON s.bot_id = b.id
       JOIN repos r ON s.repo_name = r.name
       WHERE b.product_id = {productId:String}
         AND r.fetch_status = 'ok'
@@ -1181,7 +1181,7 @@ export async function getTopReposByProduct(
       SELECT count() AS cnt FROM (
         SELECT r.name
         FROM pr_bot_event_counts s
-        JOIN bots b ON s.bot_id = b.id
+        JOIN bots b FINAL ON s.bot_id = b.id
         JOIN repos r ON s.repo_name = r.name
         WHERE b.product_id = {productId:String}
           AND r.fetch_status = 'ok'
@@ -1310,7 +1310,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
               opc.owner AS owner,
               uniqExactMerge(opc.pr_count) AS total_prs
             FROM org_bot_pr_counts opc
-            JOIN bots b ON opc.bot_id = b.id
+            JOIN bots b FINAL ON opc.bot_id = b.id
             ${productJoinFilter}
             GROUP BY opc.owner
             HAVING total_prs > 0
@@ -1337,7 +1337,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
             AND r.owner IN (
               SELECT opc.owner
               FROM org_bot_pr_counts opc
-              JOIN bots b ON opc.bot_id = b.id
+              JOIN bots b FINAL ON opc.bot_id = b.id
               ${productJoinFilter}
               GROUP BY opc.owner
               HAVING uniqExactMerge(opc.pr_count) > 0
@@ -1383,7 +1383,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
           uniqExactMerge(opc.pr_count) AS total_prs,
           groupUniqArray(b.product_id) AS product_ids
         FROM org_bot_pr_counts opc
-        JOIN bots b ON opc.bot_id = b.id
+        JOIN bots b FINAL ON opc.bot_id = b.id
         WHERE opc.owner IN ({owners:Array(String)})
           ${reactionProductFilter}
         GROUP BY opc.owner
@@ -1399,7 +1399,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
             max(rrc.exclusive_pr_count) AS repo_exclusive,
             groupUniqArray(b.product_id) AS repo_product_ids
           FROM reaction_only_repo_counts rrc FINAL
-          JOIN bots b ON rrc.bot_id = b.id
+          JOIN bots b FINAL ON rrc.bot_id = b.id
           WHERE splitByChar('/', rrc.repo_name)[1] IN ({owners:Array(String)})
             AND rrc.repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')
             ${reactionProductFilter}
@@ -1499,7 +1499,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
       query<{ owner: string; product_ids: string[] }>(`
         SELECT opc.owner AS owner, groupUniqArray(b.product_id) AS product_ids
         FROM org_bot_pr_counts opc
-        JOIN bots b ON opc.bot_id = b.id
+        JOIN bots b FINAL ON opc.bot_id = b.id
         WHERE opc.owner IN ({owners:Array(String)})
         GROUP BY opc.owner
       `, enrichParams),
@@ -1514,7 +1514,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
             max(rrc.exclusive_pr_count) AS repo_exclusive,
             groupUniqArray(b.product_id) AS repo_product_ids
           FROM reaction_only_repo_counts rrc FINAL
-          JOIN bots b ON rrc.bot_id = b.id
+          JOIN bots b FINAL ON rrc.bot_id = b.id
           WHERE splitByChar('/', rrc.repo_name)[1] IN ({owners:Array(String)})
             AND rrc.repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')
           GROUP BY rrc_owner, rrc.repo_name
@@ -1598,7 +1598,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
           uniqExactMerge(opc.pr_count) AS total_prs,
           groupUniqArray(b.product_id) AS product_ids
         FROM org_bot_pr_counts opc
-        JOIN bots b ON opc.bot_id = b.id
+        JOIN bots b FINAL ON opc.bot_id = b.id
         WHERE opc.owner IN ({owners:Array(String)})
         GROUP BY opc.owner
       `, enrichParams),
@@ -1613,7 +1613,7 @@ export async function getOrgList(filters: OrgListFilters = {}): Promise<OrgListR
             max(rrc.exclusive_pr_count) AS repo_exclusive,
             groupUniqArray(b.product_id) AS repo_product_ids
           FROM reaction_only_repo_counts rrc FINAL
-          JOIN bots b ON rrc.bot_id = b.id
+          JOIN bots b FINAL ON rrc.bot_id = b.id
           WHERE splitByChar('/', rrc.repo_name)[1] IN ({owners:Array(String)})
             AND rrc.repo_name IN (SELECT name FROM repos WHERE fetch_status = 'ok')
           GROUP BY rrc_owner, rrc.repo_name
@@ -1985,7 +1985,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
               s.repo_name AS repo_name,
               uniqExactMerge(s.pr_count) AS total_prs
             FROM pr_bot_event_counts s
-            JOIN bots b ON s.bot_id = b.id
+            JOIN bots b FINAL ON s.bot_id = b.id
             WHERE b.product_id IN ({productIds:Array(String)})
             GROUP BY s.repo_name
             HAVING total_prs > 0
@@ -2002,7 +2002,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
       repoConditions.push(`r.name IN (
         SELECT s.repo_name
         FROM pr_bot_event_counts s
-        JOIN bots b ON s.bot_id = b.id
+        JOIN bots b FINAL ON s.bot_id = b.id
         WHERE b.product_id IN ({productIds:Array(String)})
         GROUP BY s.repo_name
         HAVING uniqExactMerge(s.pr_count) > 0
@@ -2048,7 +2048,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
           uniqExactMerge(s.pr_count) AS total_prs,
           groupUniqArray(b.product_id) AS product_ids
         FROM pr_bot_event_counts s
-        JOIN bots b ON s.bot_id = b.id
+        JOIN bots b FINAL ON s.bot_id = b.id
         WHERE s.repo_name IN ({repoNames:Array(String)})
           AND b.product_id IN ({productIds:Array(String)})
         GROUP BY s.repo_name
@@ -2124,7 +2124,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
       query<{ repo_name: string; product_ids: string[] }>(`
         SELECT s.repo_name AS repo_name, groupUniqArray(b.product_id) AS product_ids
         FROM pr_bot_event_counts s
-        JOIN bots b ON s.bot_id = b.id
+        JOIN bots b FINAL ON s.bot_id = b.id
         WHERE s.repo_name IN ({repoNames:Array(String)})
         GROUP BY s.repo_name
       `, enrichParams),
@@ -2183,7 +2183,7 @@ export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoLi
         uniqExactMerge(s.pr_count) AS total_prs,
         groupUniqArray(b.product_id) AS product_ids
       FROM pr_bot_event_counts s
-      JOIN bots b ON s.bot_id = b.id
+      JOIN bots b FINAL ON s.bot_id = b.id
       WHERE s.repo_name IN ({repoNames:Array(String)})
       GROUP BY s.repo_name
     `, { repoNames });
@@ -2286,8 +2286,8 @@ export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> 
       WHERE repo_name = {repoName:String}
       GROUP BY bot_id
     ) s_agg
-    JOIN bots b ON s_agg.bot_id = b.id
-    JOIN products p ON b.product_id = p.id
+    JOIN bots b FINAL ON s_agg.bot_id = b.id
+    JOIN products p FINAL ON b.product_id = p.id
     LEFT JOIN (
       SELECT bot_id, count() AS event_count
       FROM pr_bot_events
