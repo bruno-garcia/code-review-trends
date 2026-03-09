@@ -37,10 +37,11 @@ const schedules = JSON.parse(fs.readFileSync(schedulesPath, "utf-8")) as Record<
 
 // Job definitions — args are passed to the pipeline CLI container.
 // --env is appended automatically from the Pulumi environment config.
+// memory defaults to 512Mi; override per-job when BigQuery result sets are large.
 const jobs = [
   { name: "sync", args: ["sync"], timeout: "1800s" },
   { name: "backfill", args: ["backfill"], timeout: "7200s" },
-  { name: "discover", args: ["discover"], timeout: "1800s" },
+  { name: "discover", args: ["discover"], timeout: "1800s", memory: "1Gi" },
   { name: "enrich", args: ["enrich", "--exit-on-rate-limit"], timeout: "3600s" },
   { name: "discover-bots", args: ["discover-bots"], timeout: "1800s" },
 ];
@@ -142,7 +143,7 @@ export function createCloudRunJobs(
                 image, // CI updates via gcloud; we preserve the current image on pulumi up
                 args: jobArgs,
                 resources: {
-                  limits: { memory: "512Mi", cpu: "1" },
+                  limits: { memory: job.memory ?? "512Mi", cpu: "1" },
                 },
                 envs: [...sharedEnvs, ...extraEnvs],
               },

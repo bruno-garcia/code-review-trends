@@ -395,7 +395,7 @@ Options for migrate:
   Safe to re-run — schema uses IF NOT EXISTS, bot data uses TRUNCATE+INSERT.
 
 Options for discover:
-  --start YYYY-MM-DD   Start date (default: 3 months ago)
+  --start YYYY-MM-DD   Start date (default: 4 weeks ago)
   --end YYYY-MM-DD     End date (default: today)
   --all                Discover full history from 2023-01-01
   --dry-run            Show what would be fetched without running
@@ -849,7 +849,7 @@ async function cmdMigrate() {
 async function cmdDiscover() {
   const args = parseArgs();
   const all = "--all" in args;
-  const startDate = args["--start"] ?? (all ? FULL_HISTORY_START : defaultStart());
+  const startDate = args["--start"] ?? (all ? FULL_HISTORY_START : defaultDiscoverStart());
   const endDate = args["--end"] ?? formatDate(new Date());
   const dryRun = "--dry-run" in args;
 
@@ -864,34 +864,41 @@ async function cmdDiscover() {
     return;
   }
 
-  const { queryBotPREvents } = await import("./bigquery.js");
+  const { streamBotPREvents } = await import("./bigquery.js");
   const { insertPrBotEvents } = await import("./clickhouse.js");
+  const { mapPrBotEventRows } = await import("./sync.js");
 
   const bq = createBigQueryClient();
   const ch = createCHClient();
 
   try {
-    console.log("Querying BigQuery for PR bot events...");
+    console.log("Streaming PR bot events from BigQuery...");
+    let totalBqRows = 0;
+    let totalChRows = 0;
+
     const elapsed = startTimer("  Waiting for BigQuery");
-    const rows = await Sentry.startSpan(
-      { op: "bigquery", name: `bigquery.discover ${startDate}→${endDate}` },
-      () => queryBotPREvents(bq, startDate, endDate, logins),
-    ).finally(elapsed);
-    log(`  Got ${rows.length} PR bot event rows`);
-    countMetric("pipeline.discover.bq_rows", rows.length);
-
-    // Map BigQuery rows to ClickHouse rows
-    const { mapPrBotEventRows } = await import("./sync.js");
-    const chRows = mapPrBotEventRows(rows, console.warn);
-
-    console.log("Writing to ClickHouse...");
-    const elapsedWrite = startTimer("  Inserting batches");
     await Sentry.startSpan(
-      { op: "db", name: "clickhouse.insert-pr-bot-events" },
-      () => insertPrBotEvents(ch, chRows),
-    ).finally(elapsedWrite);
-    log(`  ✓ Inserted ${chRows.length} pr_bot_events rows`);
-    countMetric("pipeline.discover.ch_rows", chRows.length);
+      { op: "bigquery", name: `bigquery.discover ${startDate}→${endDate}` },
+      async () => {
+        totalBqRows = await streamBotPREvents(
+          bq, startDate, endDate, logins,
+          async (bqBatch) => {
+            const chRows = mapPrBotEventRows(bqBatch, console.warn);
+            if (chRows.length > 0) {
+              await insertPrBotEvents(ch, chRows);
+            }
+            totalChRows += chRows.length;
+            log(`  Streamed batch: ${bqBatch.length} BQ rows → ${chRows.length} CH rows (total: ${totalChRows})`);
+          },
+        );
+      },
+    );
+    elapsed();
+    log(`  Got ${totalBqRows} PR bot event rows`);
+    countMetric("pipeline.discover.bq_rows", totalBqRows);
+    log(`  ✓ Inserted ${totalChRows} pr_bot_events rows`);
+    countMetric("pipeline.discover.ch_rows", totalChRows);
+
     log("Optimizing tables...");
     await optimizeTables(ch, ["pr_bot_events", "org_bot_pr_counts", "repo_pr_summary", "org_pr_summary", "bot_comment_discovery_summary"]);
     log("✓ Tables optimized");
@@ -1397,6 +1404,18 @@ function defaultStart(): string {
   const d = new Date();
   d.setDate(1); // avoid setMonth overflow (e.g. May 31 → Mar 3)
   d.setMonth(d.getMonth() - 3);
+  return formatDate(d);
+}
+
+/**
+ * Shorter default for discover: 4 weeks ago.
+ * Discover pulls per-PR event rows (much larger than weekly aggregates),
+ * so a smaller window keeps memory usage manageable. If the job fails for
+ * up to 3 weeks in a row, the 4th run still covers the gap.
+ */
+function defaultDiscoverStart(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 28);
   return formatDate(d);
 }
 
