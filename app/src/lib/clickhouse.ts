@@ -775,6 +775,38 @@ export async function getAvgCommentsPerPR(botId?: string, since?: string): Promi
   );
 }
 
+/**
+ * Get avg comments per PR aggregated across ALL bots for a product.
+ *
+ * Unlike getAvgCommentsPerPR (which filters by bot_id), this filters via
+ * bots.product_id so multi-bot products (e.g. Sentry) aggregate correctly.
+ */
+export async function getAvgCommentsPerPRByProduct(
+  productId: string,
+  since?: string,
+): Promise<{ avg_comments_per_pr: number; total_prs: number; total_comments: number } | null> {
+  const sinceClause = since ? "AND cs.week >= toDate({since:String})" : "";
+  const rows = await query<{ avg_comments_per_pr: number; total_prs: number; total_comments: number }>(
+    `SELECT
+      round(if(total_prs > 0, total_comments / total_prs, 0), 2) AS avg_comments_per_pr,
+      total_prs AS total_prs,
+      total_comments AS total_comments
+    FROM (
+      SELECT
+        uniqExactMerge(cs.pr_count) AS total_prs,
+        sum(cs.comment_count) AS total_comments
+      FROM comment_stats_weekly cs
+      JOIN bots b FINAL ON cs.bot_id = b.id
+      WHERE b.product_id = {productId:String}
+        ${sinceClause}
+    )`,
+    since ? { productId, since } : { productId },
+  );
+  const row = rows.length > 0 ? rows[0] : null;
+  // Aggregate without GROUP BY always returns 1 row; return null when no data
+  return row && row.total_prs > 0 ? row : null;
+}
+
 // --- Weekly reactions by product (for compare trends chart) ---
 
 export type WeeklyReactionsByProduct = {

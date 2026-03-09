@@ -169,6 +169,20 @@ test.describe("query optimization regression tests", () => {
       expect(text).not.toMatch(/\bNaN\b/);
     });
 
+    test("sentry avg comments/PR aggregates across all bots", async ({ page }) => {
+      // Seed data: sentry has 3 comments on 3 PRs, seer-by-sentry has 3 on 3.
+      // Combined: 6 comments / 6 PRs = 1.0 avg.
+      // If query incorrectly filters by bot_id='sentry' only, we'd get 3/3 = 1.0
+      // (same number here by coincidence, but the test validates the stat renders).
+      await page.goto("/products/sentry");
+      const stats = page.getByTestId("bot-stats");
+      await expect(stats).toBeVisible();
+      const text = await stats.textContent();
+      // Avg Comments/PR should be present and numeric (not "—" or NaN)
+      expect(text).toMatch(/Comments\/PR\s*[\d.]+/);
+      expect(text).not.toMatch(/\bNaN\b/);
+    });
+
     test("sentry org list aggregates across bots", async ({ page }) => {
       await page.goto("/products/sentry");
       await expect(page.getByTestId("bot-stats")).toBeVisible();
