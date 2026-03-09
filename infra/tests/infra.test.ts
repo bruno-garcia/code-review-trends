@@ -351,6 +351,12 @@ describe("clickhouse VM", () => {
     // Database creation
     expect(s).toContain("CREATE DATABASE IF NOT EXISTS code_review_trends");
 
+    // System log TTL (tiered: 30d diagnostics, 10d merge/views, 3d high-volume)
+    expect(s).toContain("log-ttl.xml");
+    expect(s).toContain("<ttl>event_date + INTERVAL 30 DAY</ttl>");
+    expect(s).toContain("<ttl>event_date + INTERVAL 10 DAY</ttl>");
+    expect(s).toContain("<ttl>event_date + INTERVAL 3 DAY</ttl>");
+
     // Disk usage watchdog
     expect(s).toContain("disk-check.sh");
     expect(s).toContain("DISK_HIGH");
@@ -399,6 +405,12 @@ describe("clickhouse VM", () => {
 
     // Database still created
     expect(s).toContain("CREATE DATABASE IF NOT EXISTS code_review_trends");
+
+    // System log TTL (present regardless of Caddy)
+    expect(s).toContain("log-ttl.xml");
+    expect(s).toContain("<ttl>event_date + INTERVAL 30 DAY</ttl>");
+    expect(s).toContain("<ttl>event_date + INTERVAL 10 DAY</ttl>");
+    expect(s).toContain("<ttl>event_date + INTERVAL 3 DAY</ttl>");
   });
 
   it("startup script includes worker IP in networks when set", async () => {
