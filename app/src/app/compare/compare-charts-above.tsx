@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import type { ProductComparison, ProductPrCharacteristics, WeeklyActivityByProduct, WeeklyReactionsByProduct, MonthlyReactionsByProduct } from "@/lib/clickhouse";
-import { isNewProduct } from "@/lib/clickhouse";
+import { isNewProduct } from "@/lib/product-utils";
 import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
 import { BotRadarChart, CompareTrendsChart, COLORS } from "@/components/charts";

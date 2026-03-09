@@ -82,12 +82,8 @@ export type WeeklyTotals = {
  * meaningful. Products below this threshold show a "New" badge instead of
  * a (likely misleading) growth percentage.
  */
-export const GROWTH_BASELINE_THRESHOLD = 100;
-
-/** True when a product is too new for a meaningful growth percentage. */
-export function isNewProduct(p: { growth_pct: number; prev_12w_reviews: number; total_reviews: number }): boolean {
-  return p.growth_pct === 0 && p.prev_12w_reviews < GROWTH_BASELINE_THRESHOLD && p.total_reviews > 0;
-}
+// Re-export from shared module so server callers can still import from clickhouse.ts
+export { GROWTH_BASELINE_THRESHOLD, isNewProduct } from "./product-utils";
 
 export type ProductSummary = {
   id: string;

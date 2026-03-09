@@ -10,7 +10,7 @@ import type {
   WeeklyActivityByProduct,
   ProductSummary,
 } from "@/lib/clickhouse";
-import { isNewProduct } from "@/lib/clickhouse";
+import { isNewProduct } from "@/lib/product-utils";
 import { useTheme } from "@/components/theme-provider";
 import { getThemedBrandColor, getAvatarStyle } from "@/lib/theme-overrides";
 import { SectionHeading } from "@/components/section-heading";
