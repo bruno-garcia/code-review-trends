@@ -17,13 +17,9 @@ import {
   BarChart,
   Bar,
   Cell,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
 } from "recharts";
 import { useTheme } from "@/components/theme-provider";
+import { getThemedBrandColor } from "@/lib/theme-overrides";
 
 export { COLORS } from "@/lib/colors";
 import { COLORS } from "@/lib/colors";
@@ -67,7 +63,6 @@ function useChartColors() {
       legendStyle: { color: isDark ? "#9ca3af" : "#6b7280" },
       cartesianGrid: isDark ? "#374151" : "#e5e7eb",
       barAxis: isDark ? "#9ca3af" : "#6b7280",
-      polarRadius: isDark ? "#2a2a3a" : "#d1d5db",
     };
   }, [resolved]);
 }
@@ -391,72 +386,6 @@ export function SingleBotChart({ data }: { data: SingleBotData[] }) {
   );
 }
 
-// --- Radar comparison chart ---
-
-export function BotRadarChart({
-  data,
-  bots,
-  colors,
-}: {
-  data: Record<string, string | number>[];
-  bots: string[];
-  colors?: Record<string, string>;
-}) {
-  const c = useChartColors();
-
-  return (
-    <div>
-      <ResponsiveContainer width="100%" height={400}>
-        <RadarChart data={data}>
-          <PolarGrid stroke={c.grid} />
-          <PolarAngleAxis
-            dataKey="metric"
-            stroke={c.axis}
-            tick={{ fontSize: 11 }}
-          />
-          <PolarRadiusAxis
-            stroke={c.polarRadius}
-            tick={{ fontSize: 10 }}
-            domain={[0, 100]}
-            tickCount={5}
-          />
-          {bots.map((bot, i) => {
-            const color = colors?.[bot] ?? COLORS[i % COLORS.length];
-            return (
-              <Radar
-                key={bot}
-                name={bot}
-                dataKey={bot}
-                stroke={color}
-                fill={color}
-                fillOpacity={0.15}
-                animationDuration={ANIM_DURATION}
-                animationEasing={ANIM_EASING}
-              />
-            );
-          })}
-          <Tooltip contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} itemSorter={descendingItemSorter} />
-        </RadarChart>
-      </ResponsiveContainer>
-      {/* Legend rendered outside the chart so it never overlaps the radar */}
-      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2" style={c.legendStyle}>
-        {bots.map((bot, i) => {
-          const color = colors?.[bot] ?? COLORS[i % COLORS.length];
-          return (
-            <div key={bot} className="flex items-center gap-1.5 text-sm">
-              <span
-                className="inline-block w-3 h-3 rounded-sm shrink-0"
-                style={{ backgroundColor: color }}
-              />
-              <span>{bot}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // --- Compare Trends (multi-line time series for compare page) ---
 
 type TrendMetricKey = "reviews" | "review_comments" | "pr_comments" | "repos" | "orgs" | "thumbs_up_rate" | "comments_per_pr";
@@ -589,79 +518,6 @@ export function CompareTrendsChart({
           Aggregated monthly. Months with fewer than 30 thumbs-up/down reactions are hidden.
         </p>
       )}
-    </div>
-  );
-}
-
-// --- Bot Reaction Leaderboard (horizontal stacked bar) ---
-
-type BotReactionLeaderboardData = {
-  bot_id: string;
-  bot_name: string;
-  total_thumbs_up: number;
-  total_thumbs_down: number;
-  total_heart: number;
-  total_comments: number;
-  thumbs_up_rate: number;
-  reaction_rate: number;
-};
-
-export function BotReactionLeaderboardChart({
-  data,
-}: {
-  data: BotReactionLeaderboardData[];
-}) {
-  const c = useChartColors();
-
-  if (data.length === 0) {
-    return <div data-testid="bot-reaction-leaderboard"><p className="text-theme-muted text-sm">No data</p></div>;
-  }
-  return (
-    <div data-testid="bot-reaction-leaderboard">
-      <ResponsiveContainer width="100%" height={data.length * 44 + 40}>
-        <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={c.cartesianGrid} horizontal={false} />
-          <XAxis
-            type="number"
-            stroke={c.barAxis}
-            tick={{ fontSize: 12 }}
-            tickFormatter={formatNumber}
-          />
-          <YAxis
-            type="category"
-            dataKey="bot_name"
-            stroke={c.barAxis}
-            tick={{ fontSize: 12 }}
-            width={130}
-          />
-          <Tooltip cursor={false} contentStyle={c.tooltipStyle} wrapperStyle={TOOLTIP_WRAPPER_STYLE} />
-          <Legend />
-          <Bar
-            dataKey="total_thumbs_up"
-            fill="#10b981"
-            name="👍"
-            stackId="a"
-            animationDuration={ANIM_DURATION}
-            animationEasing={ANIM_EASING}
-          />
-          <Bar
-            dataKey="total_heart"
-            fill="#ec4899"
-            name="❤️"
-            stackId="a"
-            animationDuration={ANIM_DURATION}
-            animationEasing={ANIM_EASING}
-          />
-          <Bar
-            dataKey="total_thumbs_down"
-            fill="#ef4444"
-            name="👎"
-            stackId="a"
-            animationDuration={ANIM_DURATION}
-            animationEasing={ANIM_EASING}
-          />
-        </BarChart>
-      </ResponsiveContainer>
     </div>
   );
 }
@@ -799,13 +655,22 @@ export function TopOrgsChart({ data }: { data: TopOrgData[] }) {
 type CommentsPerPRData = {
   bot_id: string;
   bot_name: string;
+  product_id: string;
   avg_comments_per_pr: number;
   total_prs: number;
   total_comments: number;
 };
 
-export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
+export function CommentsPerPRChart({
+  data,
+  productColors,
+}: {
+  data: CommentsPerPRData[];
+  /** Optional map from product_id → brand_color hex string. Falls back to palette. */
+  productColors?: Map<string, string>;
+}) {
   const c = useChartColors();
+  const { resolved } = useTheme();
 
   if (data.length === 0) {
     return <div data-testid="comments-per-pr-chart"><p className="text-theme-muted text-sm">No data</p></div>;
@@ -827,9 +692,13 @@ export function CommentsPerPRChart({ data }: { data: CommentsPerPRData[] }) {
             ]}
           />
           <Bar dataKey="avg_comments_per_pr" fill="#6366f1" name="Avg Comments/PR" animationDuration={ANIM_DURATION} animationEasing={ANIM_EASING}>
-            {data.map((_, i) => (
-              <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
-            ))}
+            {data.map((entry, i) => {
+              const raw = productColors?.get(entry.product_id);
+              const color = raw
+                ? getThemedBrandColor(entry.product_id, raw, resolved)
+                : COLORS[i % COLORS.length];
+              return <Cell key={`cell-${i}`} fill={color} />;
+            })}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
