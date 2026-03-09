@@ -1222,16 +1222,24 @@ export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
       sum(pr_count) AS pr_count,
       sum(event_count) AS event_count
     FROM (
-      -- Event-based PR counts from pre-aggregated MV
-      SELECT p.id AS product_id, p.name AS product_name,
-        p.brand_color AS brand_color, p.avatar_url AS avatar_url,
-        uniqExactMerge(ec.pr_count) AS pr_count,
-        uniqExactMerge(ec.pr_count) AS event_count
-      FROM pr_bot_event_counts ec
-      JOIN bots b FINAL ON ec.bot_id = b.id
-      JOIN products p FINAL ON b.product_id = p.id
-      WHERE ec.repo_name IN (SELECT name FROM owner_repos)
-      GROUP BY p.id, p.name, p.brand_color, p.avatar_url
+      -- Event-based PR counts from pre-aggregated MV.
+      -- GROUP BY repo_name first to avoid PR number collisions across repos
+      -- (uniqExactState(pr_number) per repo+bot; merging across repos without
+      -- grouping would deduplicate PR #1 in repo A with PR #1 in repo B).
+      SELECT product_id, product_name, brand_color, avatar_url,
+        sum(repo_prs) AS pr_count, sum(repo_prs) AS event_count
+      FROM (
+        SELECT p.id AS product_id, p.name AS product_name,
+          p.brand_color AS brand_color, p.avatar_url AS avatar_url,
+          ec.repo_name AS repo_name,
+          uniqExactMerge(ec.pr_count) AS repo_prs
+        FROM pr_bot_event_counts ec
+        JOIN bots b FINAL ON ec.bot_id = b.id
+        JOIN products p FINAL ON b.product_id = p.id
+        WHERE ec.repo_name IN (SELECT name FROM owner_repos)
+        GROUP BY p.id, p.name, p.brand_color, p.avatar_url, ec.repo_name
+      )
+      GROUP BY product_id, product_name, brand_color, avatar_url
       UNION ALL
       -- Reaction-only PRs from MV
       SELECT p.id AS product_id, p.name AS product_name,
@@ -1835,7 +1843,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
   const cached = getCached<DataCollectionStats>("dataCollectionStats");
   if (cached) return cached;
 
-  // Split into 5 parallel queries to keep each well under the 30s execution limit.
+  // Split into 5 parallel queries to keep each well under the 15s execution limit.
   // Previously "Query B" combined 10 scalar subqueries in one statement; splitting
   // into repos/PRs, comments, and reactions lets ClickHouse process them concurrently
   // and prevents one slow subquery from pushing the whole batch over the timeout.
