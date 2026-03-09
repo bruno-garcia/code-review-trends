@@ -1041,12 +1041,18 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       COALESCE(any(cm.heart), 0) AS heart
     FROM repos r
     LEFT JOIN (
-      SELECT opc.owner AS owner,
-        uniqExactMerge(opc.pr_count) AS event_prs
-      FROM org_bot_pr_counts opc
-      WHERE opc.owner = {owner:String}
-      GROUP BY opc.owner
-    ) ev ON r.owner = ev.owner
+      SELECT sum(repo_prs) AS event_prs
+      FROM (
+        SELECT
+          s.repo_name AS repo_name,
+          uniqExactMerge(s.pr_count) AS repo_prs
+        FROM pr_bot_event_counts s
+        WHERE s.repo_name IN (
+          SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok'
+        )
+        GROUP BY s.repo_name
+      )
+    ) ev ON 1 = 1
     LEFT JOIN (
       -- Exclusive reaction-only PRs from MV (no events from ANY bot).
       -- Disjoint from event PRs, so addition is safe.

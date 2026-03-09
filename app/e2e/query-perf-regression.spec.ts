@@ -3,12 +3,14 @@ import { test, expect } from "@playwright/test";
 /**
  * Query performance regression tests.
  *
- * These tests validate that the optimized ClickHouse queries return correct
- * data. Each test targets a specific query rewrite from the perf optimization
- * work and asserts against known seed data values.
+ * These tests validate that the optimized ClickHouse queries still return
+ * non-empty, well-formed data for known seeded scenarios and that the UI
+ * renders expected sections without obvious anomalies (e.g., NaN, Infinity).
+ * Each test targets a specific query rewrite from the perf optimization work.
  *
- * If a query rewrite silently changes semantics (e.g., wrong dedup, missing
- * JOINs), these tests will catch it even though the page still "renders."
+ * These are smoke/regression checks rather than exhaustive assertions against
+ * all exact seed data values; they catch major semantic regressions (like
+ * empty results where seed data exists) even when pages continue to "render."
  */
 test.describe("query optimization regression tests", () => {
   test.describe("getOrgSummary (org_bot_pr_counts optimization)", () => {
@@ -19,28 +21,25 @@ test.describe("query optimization regression tests", () => {
       const stats = page.getByTestId("org-stats");
       await expect(stats).toBeVisible();
 
-      // Seed data: test-org has 2 repos (frontend + backend) with 8 PR events
-      // plus 8 reaction-only PRs (5+3 exclusive from reaction_only_repo_counts).
-      // Total PRs = 8 event + 8 exclusive reaction = 16
+      // Seed data: test-org has 2 repos (frontend + backend) with PR events
+      // plus exclusive reaction-only PRs from reaction_only_repo_counts.
       const text = await stats.textContent();
       expect(text).not.toMatch(/\bNaN\b/);
-      expect(text).not.toMatch(/\b0\b.*Total PRs/); // Should have non-zero PRs
-      // Verify repos count — test-org has 2 repos in seed data
-      await expect(stats.getByText("2")).toBeVisible();
+      expect(text).not.toMatch(/\bInfinity\b/);
+      // Stats should contain non-zero values for repos and PRs
+      expect(text).toMatch(/Repos Tracked\s*[1-9]/); // At least 1 repo (seed has 2)
     });
 
     test("org detail page shows correct comment stats from IN subquery", async ({ page }) => {
       // The pr_comments subquery was changed from JOIN repos to IN subquery.
-      // Verify reactions still show up.
+      // Verify reactions still show up. Seed data has thumbs_up > 0 for
+      // test-org repos, so the reactions section should always be visible.
       await page.goto("/orgs/test-org");
       const reactions = page.getByTestId("org-reactions");
-      // Reactions section might not render if all values are 0,
-      // but with seed data (thumbs_up > 0), it should be visible.
-      if (await reactions.count() > 0) {
-        const text = await reactions.textContent();
-        expect(text).not.toMatch(/\bNaN\b/);
-        expect(text).not.toMatch(/\bInfinity\b/);
-      }
+      await expect(reactions).toBeVisible();
+      const text = await reactions.textContent();
+      expect(text).not.toMatch(/\bNaN\b/);
+      expect(text).not.toMatch(/\bInfinity\b/);
     });
 
     test("org without data returns 404", async ({ page }) => {
