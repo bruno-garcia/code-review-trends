@@ -41,12 +41,6 @@ export function BelowFoldSkeleton() {
         <div className="h-4 w-80 bg-theme-surface/50 rounded mb-6" />
         <div className="h-48 bg-theme-surface rounded-xl border border-theme-border" />
       </div>
-      {/* Bot Sentiment placeholder */}
-      <div>
-        <div className="h-6 w-40 bg-theme-surface rounded mb-4" />
-        <div className="h-4 w-72 bg-theme-surface/50 rounded mb-6" />
-        <div className="h-48 bg-theme-surface rounded-xl border border-theme-border" />
-      </div>
     </div>
   );
 }
