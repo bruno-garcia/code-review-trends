@@ -35,7 +35,6 @@ INSERT INTO code_review_trends.products (id, name, website, description, docs_ur
     ('kodus', 'Kodus', 'https://kodus.io', 'AI code reviewer that analyzes pull requests like a senior developer. Provides actionable suggestions, identifies bugs, and enforces coding standards. Open-source with cloud and self-hosted options.', 'https://docs.kodus.io', '#6C63FF', 'https://avatars.githubusercontent.com/in/413034?v=4'),
     ('amazon-q', 'Amazon Q Developer', 'https://aws.amazon.com/q/developer/', 'AWS''s generative AI assistant for software development. Reviews PRs for bugs, security vulnerabilities, and best practices. Deeply integrated with the AWS ecosystem — understands IAM policies, CloudFormation templates, and AWS SDK patterns.', 'https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/what-is.html', '#232F3E', 'https://avatars.githubusercontent.com/in/1220912?v=4'),
     ('codacy', 'Codacy', 'https://www.codacy.com', 'Automated code quality and security platform analyzing PRs since 2012. Combines static analysis, security scanning (SAST/DAST), and AI-powered review across 40+ languages with end-to-end DevSecOps coverage.', 'https://docs.codacy.com', '#242C33', 'https://avatars.githubusercontent.com/in/56611?v=4'),
-    ('qlty', 'Qlty', 'https://qlty.sh', 'Code quality platform spun out from Code Climate in 2024. Automates PR review with linting, formatting, security scanning, complexity analysis, and AI-generated autofix suggestions. No CI setup required.', 'https://qlty.sh/docs', '#6366F1', 'https://avatars.githubusercontent.com/in/890766?v=4'),
     ('codeclimate', 'Code Climate', 'https://codeclimate.com', 'Pioneering automated code review platform founded in 2011. Now focused on Software Engineering Intelligence (SEI). Original quality product was spun out as Qlty Software in 2024.', 'https://codeclimate.com/quality/docs', '#1E293B', 'https://avatars.githubusercontent.com/u/789641?v=4'),
     ('kilo', 'Kilo Review', 'https://kilocode.ai', 'AI code review bot from Kilo Code. Fast-growing newcomer reviewing PRs for bugs and code quality issues with rapidly accelerating adoption since late 2025.', 'https://kilocode.ai/docs', '#000000', 'https://avatars.githubusercontent.com/in/2193792?v=4');
 
@@ -77,7 +76,6 @@ INSERT INTO code_review_trends.bots (id, name, product_id) VALUES
     ('kodus', 'Kody AI', 'kodus'),
     ('amazon-q', 'Amazon Q Developer', 'amazon-q'),
     ('codacy', 'Codacy', 'codacy'),
-    ('qlty', 'Qlty', 'qlty'),
     ('codeclimate', 'Code Climate', 'codeclimate'),
     ('kilo', 'Kilo Review', 'kilo');
 
@@ -118,7 +116,6 @@ INSERT INTO code_review_trends.bot_logins (bot_id, github_login) VALUES
     ('kodus', 'kody-ai[bot]'),
     ('amazon-q', 'amazon-q-developer[bot]'),
     ('codacy', 'codacy-production[bot]'),
-    ('qlty', 'qltysh[bot]'),
     ('codeclimate', 'codeclimate[bot]'),
     ('kilo', 'kiloconnect[bot]');
 

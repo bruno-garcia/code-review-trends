@@ -306,16 +306,7 @@ export const PRODUCTS: ProductDefinition[] = [
     brand_color: "#242C33",
     avatar_url: "https://avatars.githubusercontent.com/in/56611?v=4",
   },
-  {
-    id: "qlty",
-    name: "Qlty",
-    website: "https://qlty.sh",
-    description:
-      "Code quality platform spun out from Code Climate in 2024, led by Code Climate's original founder. Automates PR review with linting, formatting, duplication detection, security scanning, and complexity analysis — plus AI-generated autofix suggestions for 90% of issues. Runs analysis in the cloud with no CI setup required, providing consistent pass/fail quality gates on every pull request. Also offers code coverage tracking with diff-aware coverage gates.",
-    docs_url: "https://qlty.sh/docs",
-    brand_color: "#6366F1",
-    avatar_url: "https://avatars.githubusercontent.com/in/890766?v=4",
-  },
+
   {
     id: "codeclimate",
     name: "Code Climate",
@@ -582,14 +573,7 @@ export const BOTS: BotDefinition[] = [
     github_login: "codacy-production[bot]",
     github_id: 61871480,
   },
-  // Qlty
-  {
-    id: "qlty",
-    product_id: "qlty",
-    name: "Qlty",
-    github_login: "qltysh[bot]",
-    github_id: 168846912,
-  },
+
   // Code Climate
   {
     id: "codeclimate",

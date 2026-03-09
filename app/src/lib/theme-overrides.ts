@@ -101,11 +101,7 @@ const THEME_OVERRIDES: Record<string, ThemeOverride> = {
     // Default #c06a33 washes out on white
     brand_color_light: "#a95d2d",
   },
-  qlty: {
-    // Default #6366F1 lacks contrast on both themes
-    brand_color_dark: "#5085fa",
-    brand_color_light: "#5e61e5",
-  },
+
   qodo: {
     // Default #9d75f8 washes out on white. Shifted magenta to stay distinct from LinearB (#7c4dbd).
     brand_color_light: "#9838a8",
