@@ -979,16 +979,16 @@ export type BotByLanguage = {
   comment_count: number;
 };
 
-export async function getBotsByLanguage(botId?: string, since?: string): Promise<BotByLanguage[]> {
+export async function getBotsByLanguage(productId?: string, since?: string): Promise<BotByLanguage[]> {
   const params: Record<string, string> = {};
-  if (botId) params.botId = botId;
+  if (productId) params.productId = productId;
   if (since) params.since = since;
 
   // When a date filter is applied, fall back to the original query since
   // pr_bot_event_counts has no time dimension.
   if (since) {
     const conditions = ["r.primary_language != ''"];
-    if (botId) conditions.push("e.bot_id = {botId:String}");
+    if (productId) conditions.push("b.product_id = {productId:String}");
     conditions.push("e.event_week >= toDate({since:String})");
     const where = `WHERE ${conditions.join(" AND ")}`;
     return query<BotByLanguage>(
@@ -1014,7 +1014,7 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
   // First merge uniqExact per (repo, language) to get exact PR counts,
   // then sum across repos per language. This avoids wrong dedup of PR
   // numbers across different repos.
-  const botFilter = botId ? "AND s.bot_id = {botId:String}" : "";
+  const productFilter = productId ? "AND b.product_id = {productId:String}" : "";
   return query<BotByLanguage>(
     `
     SELECT
@@ -1032,7 +1032,7 @@ export async function getBotsByLanguage(botId?: string, since?: string): Promise
       FROM pr_bot_event_counts s
       JOIN bots b FINAL ON s.bot_id = b.id
       JOIN repos r ON s.repo_name = r.name
-      WHERE r.primary_language != '' ${botFilter}
+      WHERE r.primary_language != '' ${productFilter}
       GROUP BY s.bot_id, b.name, r.primary_language, s.repo_name
     )
     GROUP BY bot_id, language
