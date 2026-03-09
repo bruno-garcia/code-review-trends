@@ -75,8 +75,8 @@ export default async function Home() {
       <section data-testid="ai-share-section">
         <SectionHeading id="ai-share">AI Share of Code Reviews</SectionHeading>
         <p className="text-theme-muted mb-6">
-          Percentage of pull request reviews performed by AI bots vs. humans
-          over time.
+          Percentage of pull request review activity performed by AI bots vs.
+          humans over time.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <BotShareChart data={totals} />
@@ -91,7 +91,7 @@ export default async function Home() {
       <section data-testid="total-volume-section">
         <SectionHeading id="volume">Total AI Review Volume</SectionHeading>
         <p className="text-theme-muted mb-6">
-          Weekly volume of AI-generated code reviews and review comments across all bots.
+          Weekly volume of AI-generated code review activity across all bots.
         </p>
         <div className="bg-theme-surface rounded-xl p-6 border border-theme-border">
           <TotalVolumeChart data={totalVolume} />

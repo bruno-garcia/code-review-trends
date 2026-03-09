@@ -306,10 +306,9 @@ export default async function AboutPage() {
 
         <p className="text-theme-text-secondary leading-relaxed">
           <strong className="text-theme-text">No double counting</strong>: Each
-          event type is counted independently — the AI Share chart lets you
-          toggle between Reviews and Review Comments, while the{" "}
-          <Link href="/compare" className={linkClass}>comparison page</Link>{" "}
-          lets you toggle between Reviews, Review Comments, and PR Comments.
+          event type is counted independently — the AI Share and Total Volume
+          charts let you toggle between Reviews, Review Comments, and PR
+          Comments.
           A bot that submits 1 review with 5 inline comments contributes 1 to
           the Reviews metric and 5 to the Review Comments metric, but these are
           never combined. The same counting logic applies to both the bot and
