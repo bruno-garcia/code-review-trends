@@ -1798,10 +1798,11 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
       (SELECT countIf(fetch_status IN ('ok', 'not_found', 'forbidden')) FROM repos) AS enriched_repos,
       (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS total_discovered_prs,
       (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden'))
-        + (SELECT count(DISTINCT (e.repo_name, e.pr_number))
-           FROM pr_bot_events AS e
-           JOIN repos AS r ON e.repo_name = r.name
-           WHERE r.fetch_status IN ('not_found', 'forbidden')) AS enriched_prs,
+        + (SELECT sum(prs) FROM (
+            SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary
+            WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
+            GROUP BY repo_name
+          )) AS enriched_prs,
       (SELECT sum(comment_count) FROM comment_stats_weekly) AS total_comments
   `);
   return setCache("enrichmentStats", rows[0] ?? {
