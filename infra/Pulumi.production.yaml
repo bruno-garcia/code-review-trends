@@ -21,7 +21,7 @@ config:
   gcp:zone: us-central1-a
   code-review-trends:environment: production
   code-review-trends:clickhouseMachineType: e2-highmem-2
-  code-review-trends:clickhouseDiskSizeGb: "80"
+  code-review-trends:clickhouseDiskSizeGb: "40"
   code-review-trends:subnetCidr: "10.101.0.0/24"
   code-review-trends:clickhouseHttpPort: "39847"
   code-review-trends:clickhousePublicAccess: "false"
