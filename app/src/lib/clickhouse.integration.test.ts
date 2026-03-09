@@ -887,6 +887,152 @@ describe("clickhouse query integration tests", () => {
     });
   });
 
+  describe("getRepoDetail — maps fields correctly from all JOINed tables", () => {
+    it("returns correct stats for repo-alpha (2 PRs, 2 comments, all merged)", async () => {
+      // Mirrors getRepoDetail from clickhouse.ts.
+      // __test_org/repo-alpha has:
+      //   - repos: stars=5000, primary_language=TypeScript, fork=false, archived=false
+      //   - pr_bot_events → pr_bot_event_counts MV: 2 unique PRs (1, 2)
+      //   - pr_comments: 2 comments (900010, 900011), both comment_id > 0
+      //   - pull_requests: PR 1 merged in 4h, PR 2 merged in 12h
+      const rows = await q<{
+        name: string; owner: string; stars: string;
+        primary_language: string; fork: string; archived: string;
+        total_prs: string; bot_comment_count: string;
+        merge_rate: string; avg_hours_to_merge: string;
+        avg_additions: string; avg_deletions: string; avg_changed_files: string;
+      }>(ch, `
+        SELECT
+          r.name AS name,
+          r.owner AS owner,
+          r.stars AS stars,
+          r.primary_language AS primary_language,
+          r.fork AS fork,
+          r.archived AS archived,
+          COALESCE(ev.total_prs, 0) AS total_prs,
+          COALESCE(cm.bot_comment_count, 0) AS bot_comment_count,
+          pr_stats.merge_rate AS merge_rate,
+          pr_stats.avg_hours_to_merge AS avg_hours_to_merge,
+          pr_stats.avg_additions AS avg_additions,
+          pr_stats.avg_deletions AS avg_deletions,
+          pr_stats.avg_changed_files AS avg_changed_files
+        FROM repos r
+        LEFT JOIN (
+          SELECT
+            s.repo_name AS repo_name,
+            uniqExactMerge(s.pr_count) AS total_prs
+          FROM pr_bot_event_counts s
+          WHERE s.repo_name = {repoName:String}
+          GROUP BY s.repo_name
+        ) ev ON r.name = ev.repo_name
+        LEFT JOIN (
+          SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
+          FROM pr_comments
+          WHERE repo_name = {repoName:String}
+          GROUP BY repo_name
+        ) cm ON r.name = cm.repo_name
+        LEFT JOIN (
+          SELECT
+            p.repo_name AS repo_name,
+            round(countIf(p.merged_at IS NOT NULL) * 100.0 / count(), 1) AS merge_rate,
+            round(avg(if(p.merged_at IS NOT NULL, dateDiff('second', p.created_at, p.merged_at) / 3600, NULL)), 1) AS avg_hours_to_merge,
+            round(avg(p.additions), 0) AS avg_additions,
+            round(avg(p.deletions), 0) AS avg_deletions,
+            round(avg(p.changed_files), 1) AS avg_changed_files
+          FROM pull_requests p
+          WHERE p.repo_name = {repoName:String}
+            AND p.state NOT IN ('not_found', 'forbidden')
+          GROUP BY p.repo_name
+        ) pr_stats ON r.name = pr_stats.repo_name
+        WHERE r.fetch_status = 'ok' AND r.name = {repoName:String}
+      `, { repoName: "__test_org/repo-alpha" });
+
+      assert.equal(rows.length, 1);
+      const r = rows[0];
+
+      // Each value is unique — a wrong mapping would show up immediately
+      assert.equal(r.name, "__test_org/repo-alpha");
+      assert.equal(r.owner, "__test_org");
+      assert.equal(Number(r.stars), 5000, "stars");
+      assert.equal(r.primary_language, "TypeScript", "primary_language");
+      assert.equal(Number(r.total_prs), 2, "total_prs from pr_bot_event_counts MV");
+      assert.equal(Number(r.bot_comment_count), 2, "bot_comment_count from pr_comments (comment_id > 0)");
+      assert.equal(Number(r.merge_rate), 100.0, "merge_rate: 2/2 merged");
+      assert.equal(Number(r.avg_hours_to_merge), 8.0, "avg_hours_to_merge: avg(4h, 12h)");
+      assert.equal(Number(r.avg_additions), 75, "avg_additions: avg(100, 50)");
+      assert.equal(Number(r.avg_deletions), 15, "avg_deletions: avg(20, 10)");
+      assert.equal(Number(r.avg_changed_files), 4.0, "avg_changed_files: avg(5, 3)");
+    });
+
+    it("returns correct stats for repo-beta (1 PR, 1 comment, none merged)", async () => {
+      // __test_org/repo-beta has:
+      //   - repos: stars=3000, primary_language=Python
+      //   - pr_bot_events: 1 PR (3)
+      //   - pr_comments: 1 comment (900012)
+      //   - pull_requests: PR 3 is "closed" (not merged)
+      const rows = await q<{
+        name: string; stars: string; total_prs: string;
+        bot_comment_count: string; primary_language: string;
+        merge_rate: string; avg_hours_to_merge: string | null;
+        avg_additions: string; avg_deletions: string; avg_changed_files: string;
+      }>(ch, `
+        SELECT
+          r.name AS name,
+          r.stars AS stars,
+          r.primary_language AS primary_language,
+          COALESCE(ev.total_prs, 0) AS total_prs,
+          COALESCE(cm.bot_comment_count, 0) AS bot_comment_count,
+          pr_stats.merge_rate AS merge_rate,
+          pr_stats.avg_hours_to_merge AS avg_hours_to_merge,
+          pr_stats.avg_additions AS avg_additions,
+          pr_stats.avg_deletions AS avg_deletions,
+          pr_stats.avg_changed_files AS avg_changed_files
+        FROM repos r
+        LEFT JOIN (
+          SELECT s.repo_name AS repo_name, uniqExactMerge(s.pr_count) AS total_prs
+          FROM pr_bot_event_counts s
+          WHERE s.repo_name = {repoName:String}
+          GROUP BY s.repo_name
+        ) ev ON r.name = ev.repo_name
+        LEFT JOIN (
+          SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
+          FROM pr_comments
+          WHERE repo_name = {repoName:String}
+          GROUP BY repo_name
+        ) cm ON r.name = cm.repo_name
+        LEFT JOIN (
+          SELECT
+            p.repo_name AS repo_name,
+            round(countIf(p.merged_at IS NOT NULL) * 100.0 / count(), 1) AS merge_rate,
+            round(avg(if(p.merged_at IS NOT NULL, dateDiff('second', p.created_at, p.merged_at) / 3600, NULL)), 1) AS avg_hours_to_merge,
+            round(avg(p.additions), 0) AS avg_additions,
+            round(avg(p.deletions), 0) AS avg_deletions,
+            round(avg(p.changed_files), 1) AS avg_changed_files
+          FROM pull_requests p
+          WHERE p.repo_name = {repoName:String}
+            AND p.state NOT IN ('not_found', 'forbidden')
+          GROUP BY p.repo_name
+        ) pr_stats ON r.name = pr_stats.repo_name
+        WHERE r.fetch_status = 'ok' AND r.name = {repoName:String}
+      `, { repoName: "__test_org/repo-beta" });
+
+      assert.equal(rows.length, 1);
+      const r = rows[0];
+
+      assert.equal(r.name, "__test_org/repo-beta");
+      assert.equal(Number(r.stars), 3000, "stars");
+      assert.equal(r.primary_language, "Python", "primary_language");
+      assert.equal(Number(r.total_prs), 1, "total_prs");
+      assert.equal(Number(r.bot_comment_count), 1, "bot_comment_count");
+      assert.equal(Number(r.merge_rate), 0.0, "merge_rate: 0/1 merged");
+      // avg_hours_to_merge is NULL (no merged PRs) — ClickHouse returns null
+      assert.equal(r.avg_hours_to_merge, null, "avg_hours_to_merge: null (no merged PRs)");
+      assert.equal(Number(r.avg_additions), 200, "avg_additions");
+      assert.equal(Number(r.avg_deletions), 100, "avg_deletions");
+      assert.equal(Number(r.avg_changed_files), 8.0, "avg_changed_files");
+    });
+  });
+
   describe("getOrgProducts — includes reaction-only products", () => {
     it("shows both event-based and reaction-only products with correct PR counts", async () => {
       // Mirrors getOrgProducts from clickhouse.ts.
