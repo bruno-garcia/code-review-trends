@@ -25,7 +25,6 @@ import {
 } from "recharts";
 import { useTheme } from "@/components/theme-provider";
 
-
 export { COLORS } from "@/lib/colors";
 import { COLORS } from "@/lib/colors";
 import { formatNumber } from "@/lib/format";
@@ -101,15 +100,17 @@ function ToggleGroup({
                 : "bg-theme-border text-theme-muted hover:text-theme-text"
             }`}
             aria-pressed={value === opt.value}
+            aria-describedby={opt.info ? `toggle-${opt.value}-tooltip` : undefined}
             data-testid={`toggle-${opt.value}`}
           >
             {opt.label}
           </button>
           {opt.info && (
-            <span className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 pb-1 pointer-events-none group-hover/btn:pointer-events-auto">
+            <span className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 pb-1 pointer-events-none group-hover/btn:pointer-events-auto group-focus-within/btn:pointer-events-auto">
               <span
                 role="tooltip"
-                className="block px-2.5 py-1.5 text-[11px] leading-relaxed text-theme-muted bg-theme-surface-alt border border-theme-border rounded-md shadow-md w-56 whitespace-normal opacity-0 transition-opacity duration-200 delay-500 group-hover/btn:opacity-100"
+                id={`toggle-${opt.value}-tooltip`}
+                className="block px-2.5 py-1.5 text-[11px] leading-relaxed text-theme-muted bg-theme-surface-alt border border-theme-border rounded-md shadow-md w-56 whitespace-normal opacity-0 transition-opacity duration-200 delay-500 group-hover/btn:opacity-100 group-focus-within/btn:opacity-100 group-focus-within/btn:delay-0"
               >
                 {opt.info}
               </span>
@@ -128,6 +129,17 @@ const METRIC_INFO = {
   comments: "Inline comments on specific lines of code within a pull request diff.",
   pr_comments: "General conversation comments on the PR thread, not tied to a specific line of code.",
 } as const;
+
+function metricInfo(key: keyof typeof METRIC_INFO) {
+  return (
+    <>
+      {METRIC_INFO[key]}{" "}
+      <Link href="/about#what-counts" className="text-blue-400 hover:underline">
+        Learn more →
+      </Link>
+    </>
+  );
+}
 
 // --- AI Share Chart ---
 
@@ -160,9 +172,9 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
     <div>
       <ToggleGroup
         options={[
-          { value: "reviews", label: "PR Reviews", info: <>{METRIC_INFO.reviews} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
-          { value: "comments", label: "Review Comments", info: <>{METRIC_INFO.comments} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
-          { value: "pr_comments", label: "PR Comments", info: <>{METRIC_INFO.pr_comments} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
+          { value: "reviews", label: "PR Reviews", info: metricInfo("reviews") },
+          { value: "comments", label: "Review Comments", info: metricInfo("comments") },
+          { value: "pr_comments", label: "PR Comments", info: metricInfo("pr_comments") },
         ]}
         value={metric}
         onChange={setMetric}
@@ -231,9 +243,9 @@ export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
     <div data-testid="total-volume-chart">
       <ToggleGroup
         options={[
-          { value: "reviews", label: "Reviews", info: <>{METRIC_INFO.reviews} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
-          { value: "comments", label: "Review Comments", info: <>{METRIC_INFO.comments} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
-          { value: "pr_comments", label: "PR Comments", info: <>{METRIC_INFO.pr_comments} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
+          { value: "reviews", label: "Reviews", info: metricInfo("reviews") },
+          { value: "comments", label: "Review Comments", info: metricInfo("comments") },
+          { value: "pr_comments", label: "PR Comments", info: metricInfo("pr_comments") },
         ]}
         value={metric}
         onChange={setMetric}

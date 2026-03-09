@@ -63,10 +63,15 @@ test.describe("Home page", () => {
     await commentsBtn.click();
     await expect(commentsBtn).toHaveAttribute("aria-pressed", "true");
     await expect(reviewsBtn).toHaveAttribute("aria-pressed", "false");
+    await expect(prCommentsBtn).toHaveAttribute("aria-pressed", "false");
 
     await prCommentsBtn.click();
     await expect(prCommentsBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(reviewsBtn).toHaveAttribute("aria-pressed", "false");
     await expect(commentsBtn).toHaveAttribute("aria-pressed", "false");
+
+    await reviewsBtn.click();
+    await expect(reviewsBtn).toHaveAttribute("aria-pressed", "true");
   });
 
   test("shows top organizations section", async ({ page }) => {
