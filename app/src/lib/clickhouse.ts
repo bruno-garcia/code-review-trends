@@ -1081,8 +1081,20 @@ export type OrgSummary = {
 };
 
 export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
+  const cacheKey = `orgSummary:${owner}`;
+  const cached = getCached<OrgSummary | null>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  // Use pre-aggregated pr_bot_event_counts MV (~471K rows, ordered by repo_name)
+  // instead of scanning raw pr_bot_events (7M+ rows). Merging uniqExact states
+  // is far cheaper than countDistinct on raw events.
+  // Comments use IN-subquery instead of JOIN repos to let ClickHouse use the
+  // pr_comments primary key (repo_name) for index filtering.
   const rows = await query<OrgSummary>(
     `
+    WITH owner_repos AS (
+      SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok'
+    )
     SELECT
       r.owner AS owner,
       sum(r.stars) AS total_stars,
@@ -1095,33 +1107,26 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       COALESCE(any(cm.heart), 0) AS heart
     FROM repos r
     LEFT JOIN (
+      -- GROUP BY repo_name first to avoid PR number collisions across repos
       SELECT sum(repo_prs) AS event_prs
       FROM (
-        SELECT
-          s.repo_name AS repo_name,
-          uniqExactMerge(s.pr_count) AS repo_prs
+        SELECT uniqExactMerge(s.pr_count) AS repo_prs
         FROM pr_bot_event_counts s
-        WHERE s.repo_name IN (
-          SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok'
-        )
+        WHERE s.repo_name IN (SELECT name FROM owner_repos)
         GROUP BY s.repo_name
       )
     ) ev ON 1 = 1
     LEFT JOIN (
       -- Exclusive reaction-only PRs from MV (no events from ANY bot).
       -- Disjoint from event PRs, so addition is safe.
-      SELECT r2.owner AS owner,
-        sum(repo_exclusive) AS exclusive_reaction_prs
+      SELECT sum(repo_exclusive) AS exclusive_reaction_prs
       FROM (
-        SELECT rrc.repo_name AS repo_name,
-          max(rrc.exclusive_pr_count) AS repo_exclusive
+        SELECT max(rrc.exclusive_pr_count) AS repo_exclusive
         FROM reaction_only_repo_counts rrc
-        WHERE rrc.repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+        WHERE rrc.repo_name IN (SELECT name FROM owner_repos)
         GROUP BY rrc.repo_name
-      ) repo_agg
-      JOIN repos r2 ON repo_agg.repo_name = r2.name
-      GROUP BY r2.owner
-    ) rr ON r.owner = rr.owner
+      )
+    ) rr ON 1 = 1
     LEFT JOIN (
       SELECT
         countIf(c.comment_id > 0) AS total_bot_comments,
@@ -1129,14 +1134,16 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
         sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
         sumIf(c.heart, c.comment_id > 0) AS heart
       FROM pr_comments c
-      WHERE c.repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+      WHERE c.repo_name IN (SELECT name FROM owner_repos)
     ) cm ON 1 = 1
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
     GROUP BY r.owner
     `,
     { owner },
   );
-  return rows[0] ?? null;
+  const result = rows[0] ?? null;
+  setCache(cacheKey, result, DEFAULT_CACHE_TTL_MS);
+  return result;
 }
 
 export type OrgRepo = {
@@ -1148,8 +1155,14 @@ export type OrgRepo = {
 };
 
 export async function getOrgRepos(owner: string): Promise<OrgRepo[]> {
+  // Use repo_pr_summary MV instead of scanning raw pr_bot_events.
+  // uniqExactMerge on the pre-aggregated state is much cheaper than
+  // countDistinct(pr_number) on millions of raw event rows.
   return query<OrgRepo>(
     `
+    WITH owner_repos AS (
+      SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok'
+    )
     SELECT
       r.name AS name,
       r.stars AS stars,
@@ -1158,23 +1171,22 @@ export async function getOrgRepos(owner: string): Promise<OrgRepo[]> {
       COALESCE(cm.bot_comment_count, 0) AS bot_comment_count
     FROM repos r
     LEFT JOIN (
-      SELECT repo_name, countDistinct(pr_number) AS event_prs
-      FROM pr_bot_events
-      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+      SELECT repo_name, uniqExactMerge(total_prs) AS event_prs
+      FROM repo_pr_summary
+      WHERE repo_name IN (SELECT name FROM owner_repos)
       GROUP BY repo_name
     ) ev ON r.name = ev.repo_name
     LEFT JOIN (
-      -- Exclusive reaction-only PRs from MV, per repo.
       SELECT repo_name,
         max(exclusive_pr_count) AS exclusive_reaction_prs
       FROM reaction_only_repo_counts
-      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+      WHERE repo_name IN (SELECT name FROM owner_repos)
       GROUP BY repo_name
     ) rr ON r.name = rr.repo_name
     LEFT JOIN (
       SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
       FROM pr_comments
-      WHERE repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+      WHERE repo_name IN (SELECT name FROM owner_repos)
       GROUP BY repo_name
     ) cm ON r.name = cm.repo_name
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
@@ -1194,38 +1206,50 @@ export type OrgProduct = {
 };
 
 export async function getOrgProducts(owner: string): Promise<OrgProduct[]> {
+  // Use pr_bot_event_counts MV for the event-based PR counts (merging uniqExact
+  // states instead of scanning 7M+ raw pr_bot_events rows). The reaction-only
+  // branch still uses the reaction_only_repo_counts MV which is already efficient.
   return query<OrgProduct>(
     `
+    WITH owner_repos AS (
+      SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok'
+    )
     SELECT
       product_id,
       any(product_name) AS product_name,
       any(brand_color) AS brand_color,
       any(avatar_url) AS avatar_url,
-      countDistinct(repo_name, pr_number) AS pr_count,
-      sum(is_event) AS event_count
+      sum(pr_count) AS pr_count,
+      sum(event_count) AS event_count
     FROM (
-      SELECT p.id AS product_id, p.name AS product_name,
-        p.brand_color AS brand_color, p.avatar_url AS avatar_url,
-        e.repo_name AS repo_name, e.pr_number AS pr_number, 1 AS is_event
-      FROM pr_bot_events e
-      JOIN repos r ON e.repo_name = r.name
-      JOIN bots b FINAL ON e.bot_id = b.id
-      JOIN products p FINAL ON b.product_id = p.id
-      WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
+      -- Event-based PR counts from pre-aggregated MV.
+      -- GROUP BY repo_name first to avoid PR number collisions across repos
+      -- (uniqExactState(pr_number) per repo+bot; merging across repos without
+      -- grouping would deduplicate PR #1 in repo A with PR #1 in repo B).
+      SELECT product_id, product_name, brand_color, avatar_url,
+        sum(repo_prs) AS pr_count, sum(repo_prs) AS event_count
+      FROM (
+        SELECT p.id AS product_id, p.name AS product_name,
+          p.brand_color AS brand_color, p.avatar_url AS avatar_url,
+          ec.repo_name AS repo_name,
+          uniqExactMerge(ec.pr_count) AS repo_prs
+        FROM pr_bot_event_counts ec
+        JOIN bots b FINAL ON ec.bot_id = b.id
+        JOIN products p FINAL ON b.product_id = p.id
+        WHERE ec.repo_name IN (SELECT name FROM owner_repos)
+        GROUP BY p.id, p.name, p.brand_color, p.avatar_url, ec.repo_name
+      )
+      GROUP BY product_id, product_name, brand_color, avatar_url
       UNION ALL
+      -- Reaction-only PRs from MV
       SELECT p.id AS product_id, p.name AS product_name,
         p.brand_color AS brand_color, p.avatar_url AS avatar_url,
-        rx.repo_name AS repo_name, rx.pr_number AS pr_number, 0 AS is_event
-      FROM pr_bot_reactions rx FINAL
-      JOIN repos r ON rx.repo_name = r.name
-      JOIN bots b FINAL ON rx.bot_id = b.id
+        sum(rrc.exclusive_pr_count) AS pr_count, 0 AS event_count
+      FROM reaction_only_repo_counts rrc
+      JOIN bots b FINAL ON rrc.bot_id = b.id
       JOIN products p FINAL ON b.product_id = p.id
-      WHERE rx.reaction_type = 'hooray'
-        AND r.fetch_status = 'ok' AND r.owner = {owner:String}
-        AND NOT EXISTS (
-          SELECT 1 FROM pr_bot_events e
-          WHERE e.repo_name = rx.repo_name AND e.pr_number = rx.pr_number AND e.bot_id = rx.bot_id
-        )
+      WHERE rrc.repo_name IN (SELECT name FROM owner_repos)
+      GROUP BY p.id, p.name, p.brand_color, p.avatar_url
     )
     GROUP BY product_id
     ORDER BY pr_count DESC
@@ -1819,61 +1843,78 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
   const cached = getCached<DataCollectionStats>("dataCollectionStats");
   if (cached) return cached;
 
-  // Split into 3 parallel queries to avoid serializing expensive scans.
-  // Query A (repo_pr_summary) is the heaviest (~4s) — scanning 200K+ rows
-  // with uniqExactMerge. Combining repos_total, prs_discovered, and
-  // reactions_total (which are identical) into one scan avoids 3× the cost.
-  // Query B has the moderate subqueries, Query C is the cheap week listing.
-  const [weekRows, repoSummaryRows, countRows] = await Promise.all([
-    // C: week listing (fast — index scan)
+  // Split into 5 parallel queries to keep each well under the 15s execution limit.
+  // Previously "Query B" combined 10 scalar subqueries in one statement; splitting
+  // into repos/PRs, comments, and reactions lets ClickHouse process them concurrently
+  // and prevents one slow subquery from pushing the whole batch over the timeout.
+  const [weekRows, repoSummaryRows, repoAndPrRows, commentRows, reactionRows] = await Promise.all([
+    // 1: week listing (fast — index scan)
     query<{ w: string }>(`
       SELECT DISTINCT toString(week) AS w
       FROM review_activity
       WHERE week >= toDate('${DATA_EPOCH}')
       ORDER BY w
     `),
-    // A: repo_pr_summary — single scan for repos_total + prs_discovered
+    // 2: repo_pr_summary — single scan for repos_total + prs_discovered
     query<{ repos_total: number; prs_discovered: number }>(`
       SELECT count() AS repos_total, sum(prs) AS prs_discovered
       FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)
     `),
-    // B: everything else (each subquery is cheap — <1s individually)
-    // prs/comments/reactions_unreachable: count items in repos with fetch_status
-    // 'not_found' or 'forbidden'. These are correctly skipped by enrichment (the
-    // API would 404), but must be counted separately so progress can reach 100%.
+    // 3: repo fetch status + PR enrichment counts
+    // Uses repo_pr_summary MV for prs_unreachable instead of scanning raw
+    // pr_bot_events (7M+ rows). The MV stores uniqExact(pr_number) per repo,
+    // so merging states for ~few unreachable repos is nearly instant.
     query<{
       repos_ok: number;
       repos_not_found: number;
       prs_enriched: number;
       prs_unreachable: number;
-      comments_discovered: number;
-      comments_enriched: number;
-      comments_unreachable: number;
-      reactions_scanned: number;
-      reactions_unreachable: number;
-      reactions_found: number;
     }>(`
       SELECT
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
         (SELECT countIf(fetch_status IN ('not_found', 'forbidden')) FROM repos) AS repos_not_found,
         (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden')) AS prs_enriched,
-        (SELECT count(DISTINCT (e.repo_name, e.pr_number))
-         FROM pr_bot_events AS e
-         JOIN repos AS r ON e.repo_name = r.name
-         WHERE r.fetch_status IN ('not_found', 'forbidden')) AS prs_unreachable,
+        (SELECT sum(prs) FROM (
+          SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary
+          WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
+          GROUP BY repo_name
+        )) AS prs_unreachable
+    `),
+    // 4: comment discovery + enrichment counts
+    // Uses pr_bot_event_counts MV for comments_unreachable instead of scanning
+    // raw pr_bot_events. Merges uniqExact(pr_number) states per (repo, bot) —
+    // only needs to process the few unreachable repos.
+    query<{
+      comments_discovered: number;
+      comments_enriched: number;
+      comments_unreachable: number;
+    }>(`
+      SELECT
         (SELECT sum(x) FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)) AS comments_discovered,
         (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments
          WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))) AS comments_enriched,
-        (SELECT count(DISTINCT (e.repo_name, e.pr_number, e.bot_id))
-         FROM pr_bot_events AS e
-         JOIN repos AS r ON e.repo_name = r.name
-         WHERE r.fetch_status IN ('not_found', 'forbidden')) AS comments_unreachable,
+        (SELECT sum(combos) FROM (
+          SELECT uniqExactMerge(pr_count) AS combos FROM pr_bot_event_counts
+          WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
+          GROUP BY repo_name, bot_id
+        )) AS comments_unreachable
+    `),
+    // 5: reaction scan progress
+    // Uses repo_pr_summary MV for reactions_unreachable (same value as
+    // prs_unreachable — distinct PRs in unreachable repos).
+    query<{
+      reactions_scanned: number;
+      reactions_unreachable: number;
+      reactions_found: number;
+    }>(`
+      SELECT
         (SELECT count() FROM reaction_scan_progress
          WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))) AS reactions_scanned,
-        (SELECT count(DISTINCT (e.repo_name, e.pr_number))
-         FROM pr_bot_events AS e
-         JOIN repos AS r ON e.repo_name = r.name
-         WHERE r.fetch_status IN ('not_found', 'forbidden')) AS reactions_unreachable,
+        (SELECT sum(prs) FROM (
+          SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary
+          WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
+          GROUP BY repo_name
+        )) AS reactions_unreachable,
         (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
     `),
   ]);
@@ -1899,29 +1940,31 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
   }
 
   const repo = repoSummaryRows[0];
-  const base = countRows[0];
+  const rp = repoAndPrRows[0];
+  const cm = commentRows[0];
+  const rx = reactionRows[0];
   const reposTotal = Number(repo?.repos_total ?? 0);
   const prsDiscovered = Number(repo?.prs_discovered ?? 0);
   return setCache("dataCollectionStats", {
     weeks_with_data: weekRows.map((r) => r.w),
     last_import: lastImport,
     repos_total: reposTotal,
-    repos_ok: Number(base?.repos_ok ?? 0),
-    repos_not_found: Number(base?.repos_not_found ?? 0),
-    repos_pending: Math.max(0, reposTotal - Number(base?.repos_ok ?? 0) - Number(base?.repos_not_found ?? 0)),
+    repos_ok: Number(rp?.repos_ok ?? 0),
+    repos_not_found: Number(rp?.repos_not_found ?? 0),
+    repos_pending: Math.max(0, reposTotal - Number(rp?.repos_ok ?? 0) - Number(rp?.repos_not_found ?? 0)),
     prs_discovered: prsDiscovered,
-    prs_enriched: Number(base?.prs_enriched ?? 0),
-    prs_unreachable: Number(base?.prs_unreachable ?? 0),
-    prs_pending: Math.max(0, prsDiscovered - Number(base?.prs_enriched ?? 0) - Number(base?.prs_unreachable ?? 0)),
-    comments_discovered: Number(base?.comments_discovered ?? 0),
-    comments_enriched: Number(base?.comments_enriched ?? 0),
-    comments_unreachable: Number(base?.comments_unreachable ?? 0),
-    comments_pending: Math.max(0, Number(base?.comments_discovered ?? 0) - Number(base?.comments_enriched ?? 0) - Number(base?.comments_unreachable ?? 0)),
+    prs_enriched: Number(rp?.prs_enriched ?? 0),
+    prs_unreachable: Number(rp?.prs_unreachable ?? 0),
+    prs_pending: Math.max(0, prsDiscovered - Number(rp?.prs_enriched ?? 0) - Number(rp?.prs_unreachable ?? 0)),
+    comments_discovered: Number(cm?.comments_discovered ?? 0),
+    comments_enriched: Number(cm?.comments_enriched ?? 0),
+    comments_unreachable: Number(cm?.comments_unreachable ?? 0),
+    comments_pending: Math.max(0, Number(cm?.comments_discovered ?? 0) - Number(cm?.comments_enriched ?? 0) - Number(cm?.comments_unreachable ?? 0)),
     reactions_total: prsDiscovered, // same as prs_discovered (total PRs = total to scan for reactions)
-    reactions_scanned: Number(base?.reactions_scanned ?? 0),
-    reactions_unreachable: Number(base?.reactions_unreachable ?? 0),
-    reactions_pending: Math.max(0, prsDiscovered - Number(base?.reactions_scanned ?? 0) - Number(base?.reactions_unreachable ?? 0)),
-    reactions_found: Number(base?.reactions_found ?? 0),
+    reactions_scanned: Number(rx?.reactions_scanned ?? 0),
+    reactions_unreachable: Number(rx?.reactions_unreachable ?? 0),
+    reactions_pending: Math.max(0, prsDiscovered - Number(rx?.reactions_scanned ?? 0) - Number(rx?.reactions_unreachable ?? 0)),
+    reactions_found: Number(rx?.reactions_found ?? 0),
   }, ENRICHMENT_CACHE_TTL_MS); // 30-min cache — status data changes slowly
 }
 
