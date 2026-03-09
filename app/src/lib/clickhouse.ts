@@ -948,26 +948,62 @@ export type BotByLanguage = {
 };
 
 export async function getBotsByLanguage(botId?: string, since?: string): Promise<BotByLanguage[]> {
-  const conditions = ["r.primary_language != ''"];
-  if (botId) conditions.push("e.bot_id = {botId:String}");
-  if (since) conditions.push("e.event_week >= toDate({since:String})");
-  const where = `WHERE ${conditions.join(" AND ")}`;
   const params: Record<string, string> = {};
   if (botId) params.botId = botId;
   if (since) params.since = since;
+
+  // When a date filter is applied, fall back to the original query since
+  // pr_bot_event_counts has no time dimension.
+  if (since) {
+    const conditions = ["r.primary_language != ''"];
+    if (botId) conditions.push("e.bot_id = {botId:String}");
+    conditions.push("e.event_week >= toDate({since:String})");
+    const where = `WHERE ${conditions.join(" AND ")}`;
+    return query<BotByLanguage>(
+      `
+      SELECT
+        e.bot_id AS bot_id,
+        b.name AS bot_name,
+        r.primary_language AS language,
+        countDistinct(e.repo_name, e.pr_number) AS pr_count,
+        count() AS comment_count
+      FROM pr_bot_events e
+      JOIN bots b FINAL ON e.bot_id = b.id
+      JOIN repos r ON e.repo_name = r.name
+      ${where}
+      GROUP BY e.bot_id, b.name, r.primary_language
+      ORDER BY pr_count DESC
+      `,
+      params,
+    );
+  }
+
+  // Fast path: use pre-aggregated pr_bot_event_counts (731K rows vs 8.8M).
+  // First merge uniqExact per (repo, language) to get exact PR counts,
+  // then sum across repos per language. This avoids wrong dedup of PR
+  // numbers across different repos.
+  const botFilter = botId ? "AND s.bot_id = {botId:String}" : "";
   return query<BotByLanguage>(
     `
     SELECT
-      e.bot_id AS bot_id,
-      b.name AS bot_name,
-      r.primary_language AS language,
-      countDistinct(e.repo_name, e.pr_number) AS pr_count,
-      count() AS comment_count
-    FROM pr_bot_events e
-    JOIN bots b FINAL ON e.bot_id = b.id
-    JOIN repos r ON e.repo_name = r.name
-    ${where}
-    GROUP BY e.bot_id, b.name, r.primary_language
+      bot_id,
+      any(bot_name) AS bot_name,
+      language,
+      sum(repo_pr_count) AS pr_count,
+      0 AS comment_count
+    FROM (
+      SELECT
+        s.bot_id AS bot_id,
+        b.name AS bot_name,
+        r.primary_language AS language,
+        uniqExactMerge(s.pr_count) AS repo_pr_count
+      FROM pr_bot_event_counts s
+      JOIN bots b FINAL ON s.bot_id = b.id
+      JOIN repos r ON s.repo_name = r.name
+      WHERE r.primary_language != '' ${botFilter}
+      GROUP BY s.bot_id, b.name, r.primary_language, s.repo_name
+    )
+    GROUP BY bot_id, language
     ORDER BY pr_count DESC
     `,
     params,
