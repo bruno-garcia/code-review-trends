@@ -84,8 +84,8 @@ export type WeeklyTotals = {
  */
 // Import from shared module (client-safe, no server deps) and re-export
 // so server callers can still import from clickhouse.ts.
-import { GROWTH_BASELINE_THRESHOLD, isNewProduct } from "./product-utils";
-export { GROWTH_BASELINE_THRESHOLD, isNewProduct };
+import { GROWTH_BASELINE_THRESHOLD, isNewProduct, isDormantProduct } from "./product-utils";
+export { GROWTH_BASELINE_THRESHOLD, isNewProduct, isDormantProduct };
 
 export type ProductSummary = {
   id: string;
@@ -105,6 +105,7 @@ export type ProductSummary = {
   latest_week_reviews: number;
   growth_pct: number;
   prev_12w_reviews: number;
+  recent_12w_reviews: number;
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
@@ -130,6 +131,7 @@ export type BotSummary = {
   latest_week_reviews: number;
   growth_pct: number;
   prev_12w_reviews: number;
+  recent_12w_reviews: number;
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
@@ -158,6 +160,7 @@ export type ProductComparison = {
   reaction_rate: number;
   growth_pct: number;
   prev_12w_reviews: number;
+  recent_12w_reviews: number;
   latest_week_reviews: number;
   latest_week_comments: number;
   latest_week_pr_comments: number;
@@ -349,6 +352,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
         1
       ) AS growth_pct,
       COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
+      COALESCE(ra.recent_12w_reviews, 0) AS recent_12w_reviews,
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
@@ -493,6 +497,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         1
       ) AS growth_pct,
       COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
+      COALESCE(ra.recent_12w_reviews, 0) AS recent_12w_reviews,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
       COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
@@ -643,6 +648,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
         1
       ) AS growth_pct,
       COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
+      COALESCE(ra.recent_12w_reviews, 0) AS recent_12w_reviews,
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,

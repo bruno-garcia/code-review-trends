@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import type { ProductComparison, ProductPrCharacteristics, WeeklyActivityByProduct, WeeklyReactionsByProduct, MonthlyReactionsByProduct } from "@/lib/clickhouse";
-import { isNewProduct } from "@/lib/product-utils";
+import { isNewProduct, isDormantProduct } from "@/lib/product-utils";
 import { formatHours } from "@/lib/format";
 import { useUrlState } from "@/lib/use-url-state";
 import { BotRadarChart, CompareTrendsChart, COLORS } from "@/components/charts";
@@ -585,17 +585,18 @@ export function CompareChartsAbove({
                     const isTop = raw != null && max > 0 && val === max;
                     const isGrowth = m.key === "growth_pct";
                     const isNewGrowth = isGrowth && isNewProduct(product);
+                    const isDormant = isGrowth && isDormantProduct(product);
                     return (
                       <td
                         key={m.key}
                         title={m.description}
                         className={`py-3 px-3 text-right tabular-nums whitespace-nowrap ${
                           isTop ? "text-theme-text font-semibold" : "text-theme-text/80"
-                        } ${isNewGrowth ? "text-blue-400" : ""} ${
-                          isGrowth && !isNewGrowth && val > 0 ? "text-emerald-400" : ""
-                        } ${isGrowth && !isNewGrowth && val < 0 ? "text-red-400" : ""}`}
+                        } ${isDormant ? "text-amber-400" : ""} ${isNewGrowth && !isDormant ? "text-blue-400" : ""} ${
+                          isGrowth && !isNewGrowth && !isDormant && val > 0 ? "text-emerald-400" : ""
+                        } ${isGrowth && !isNewGrowth && !isDormant && val < 0 ? "text-red-400" : ""}`}
                       >
-                        {isNewGrowth ? "New" : m.format(raw)}
+                        {isDormant ? "Inactive" : isNewGrowth ? "New" : m.format(raw)}
                         {isTop && !isGrowth && (
                           <span className="ml-1 text-xs text-violet-400">
                             ★

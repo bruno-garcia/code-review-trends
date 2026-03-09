@@ -431,11 +431,18 @@ export default async function AboutPage() {
           previous 12-week window before calculating a growth percentage.
         </p>
         <p className="text-theme-text-secondary leading-relaxed">
-          Products below this threshold display
+          Products below this threshold that still have recent activity display
           a <span className="inline-flex items-center rounded-full bg-blue-500/15 border border-blue-500/30 px-1.5 py-px text-xs font-medium text-blue-400">New</span> badge
           instead of a growth percentage. These are recently launched tools still
           building their initial user base. Once they accumulate enough review
           history, the badge is replaced with a real growth rate.
+        </p>
+        <p className="text-theme-text-secondary leading-relaxed">
+          Products with zero reviews in the last 12 weeks are automatically
+          detected as <span className="inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-px text-xs font-medium text-amber-400">Inactive</span> —
+          no manual status change is needed. This catches tools that have stopped
+          operating even if they haven&apos;t been formally retired. Their historical
+          data is preserved and they reactivate automatically if activity resumes.
         </p>
         <p className="text-theme-text-secondary leading-relaxed">
           Additionally, growth is capped at ±999% to prevent extreme outliers from

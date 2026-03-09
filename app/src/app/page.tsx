@@ -5,6 +5,7 @@ import {
   getTopOrgsByStars,
   getProductSummaries,
   isNewProduct,
+  isDormantProduct,
 } from "@/lib/clickhouse";
 import {
   BotShareChart,
@@ -108,7 +109,7 @@ export default async function Home() {
             <Link href="/about#rankings" className="underline hover:text-theme-text">Methodology.</Link>
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {products.filter(p => p.status !== "retired").slice(0, 10).map((product, i) => {
+            {products.filter(p => p.status !== "retired" && !isDormantProduct(p)).slice(0, 10).map((product, i) => {
               const growth = Number(product.growth_pct);
               const isNew = isNewProduct(product);
               return (

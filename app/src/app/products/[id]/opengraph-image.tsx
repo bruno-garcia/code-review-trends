@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import * as Sentry from "@sentry/nextjs";
-import { getProductById, getProductSummaries, isNewProduct } from "@/lib/clickhouse";
+import { getProductById, getProductSummaries, isNewProduct, isDormantProduct } from "@/lib/clickhouse";
 import { formatNumber } from "@/lib/format";
 import { OG_SIZE, OG_BG, OgFooter, OgFallback } from "@/lib/og-utils";
 
@@ -39,7 +39,9 @@ export default async function Image({
     if (summary) {
       reviews = formatNumber(Number(summary.total_reviews));
       repos = formatNumber(Number(summary.total_repos));
-      if (isNewProduct(summary)) {
+      if (isDormantProduct(summary)) {
+        growth = "Inactive";
+      } else if (isNewProduct(summary)) {
         growth = "New";
       } else {
         const g = Number(summary.growth_pct);
