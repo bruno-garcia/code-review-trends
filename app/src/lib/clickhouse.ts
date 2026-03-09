@@ -1775,8 +1775,10 @@ export async function getOrgLanguageOptions(): Promise<OrgFilterOption[]> {
 
 export type EnrichmentStats = {
   total_discovered_repos: number;
+  /** Repos successfully fetched + repos that are deleted/private (i.e. fully processed). */
   enriched_repos: number;
   total_discovered_prs: number;
+  /** PRs successfully fetched + PRs in deleted/private repos (i.e. fully processed). */
   enriched_prs: number;
   total_comments: number;
 };
@@ -1793,9 +1795,13 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
   const rows = await query<EnrichmentStats>(`
     SELECT
       (SELECT count() FROM repos) AS total_discovered_repos,
-      (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
+      (SELECT countIf(fetch_status IN ('ok', 'not_found', 'forbidden')) FROM repos) AS enriched_repos,
       (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS total_discovered_prs,
-      (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden')) AS enriched_prs,
+      (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden'))
+        + (SELECT count(DISTINCT (e.repo_name, e.pr_number))
+           FROM pr_bot_events AS e
+           JOIN repos AS r ON e.repo_name = r.name
+           WHERE r.fetch_status IN ('not_found', 'forbidden')) AS enriched_prs,
       (SELECT sum(comment_count) FROM comment_stats_weekly) AS total_comments
   `);
   return setCache("enrichmentStats", rows[0] ?? {
