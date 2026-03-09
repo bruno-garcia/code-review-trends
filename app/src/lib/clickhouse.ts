@@ -2361,7 +2361,7 @@ export async function getRepoDetail(repoName: string): Promise<RepoDetail | null
       r.fork AS fork,
       r.archived AS archived,
       COALESCE(ev.total_prs, 0) AS total_prs,
-      COALESCE(ev.bot_comment_count, 0) AS bot_comment_count,
+      COALESCE(cm.bot_comment_count, 0) AS bot_comment_count,
       pr_stats.merge_rate AS merge_rate,
       pr_stats.avg_hours_to_merge AS avg_hours_to_merge,
       pr_stats.avg_additions AS avg_additions,
@@ -2371,12 +2371,17 @@ export async function getRepoDetail(repoName: string): Promise<RepoDetail | null
     LEFT JOIN (
       SELECT
         s.repo_name AS repo_name,
-        uniqExactMerge(s.pr_count) AS total_prs,
-        0 AS bot_comment_count
+        uniqExactMerge(s.pr_count) AS total_prs
       FROM pr_bot_event_counts s
       WHERE s.repo_name = {repoName:String}
       GROUP BY s.repo_name
     ) ev ON r.name = ev.repo_name
+    LEFT JOIN (
+      SELECT repo_name, countIf(comment_id > 0) AS bot_comment_count
+      FROM pr_comments
+      WHERE repo_name = {repoName:String}
+      GROUP BY repo_name
+    ) cm ON r.name = cm.repo_name
     LEFT JOIN (
       SELECT
         p.repo_name AS repo_name,

@@ -241,8 +241,9 @@ export default async function RepoPage({ params }: Params) {
 }
 
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
+  const testId = `stat-${label.toLowerCase().replace(/\s+/g, "-")}`;
   return (
-    <div className="bg-theme-surface rounded-xl p-5 border border-theme-border">
+    <div className="bg-theme-surface rounded-xl p-5 border border-theme-border" data-testid={testId}>
       <p className="text-sm text-theme-muted">{label}</p>
       <p className={`text-2xl font-bold tabular-nums ${color ?? ""}`}>{value}</p>
     </div>
