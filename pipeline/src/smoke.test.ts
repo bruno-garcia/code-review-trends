@@ -401,33 +401,8 @@ describe("BigQuery smoke tests", { skip: skipBigQuery ? "No GCP credentials" : f
 
     // ── /status page queries ────────────────────────────────────────────
     // These mirror the exact queries from app/src/lib/clickhouse.ts
-    // (getEnrichmentStats + getDataCollectionStats). They caught the
-    // pr_bot_event_counts timeout in #199 — keep them in sync with the app.
-
-    it("getEnrichmentStats: query executes and returns plausible values", async () => {
-      const rows = await query<{
-        total_discovered_repos: string;
-        enriched_repos: string;
-        total_discovered_prs: string;
-        enriched_prs: string;
-        total_comments: string;
-      }>(
-        ch,
-        `SELECT
-          (SELECT count() FROM repos) AS total_discovered_repos,
-          (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
-          (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS total_discovered_prs,
-          (SELECT count() FROM pull_requests) AS enriched_prs,
-          (SELECT sum(comment_count) FROM comment_stats_weekly) AS total_comments`,
-      );
-      assert.equal(rows.length, 1, "Should return exactly one row");
-      // With smoke test data inserted above, discovered PRs should be > 0
-      // (pr_bot_events inserts trigger the repo_pr_summary MV).
-      assert.ok(
-        Number(rows[0].total_discovered_prs) > 0,
-        `total_discovered_prs should be > 0 (got ${rows[0].total_discovered_prs}) — repo_pr_summary MV may not be populating`,
-      );
-    });
+    // (getDataCollectionStats). They caught the pr_bot_event_counts
+    // timeout in #199 — keep them in sync with the app.
 
     it("getDataCollectionStats: queries execute and return plausible values", async () => {
       // Mirrors the actual app's getDataCollectionStats which splits into

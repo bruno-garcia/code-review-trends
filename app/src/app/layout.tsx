@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import * as Sentry from "@sentry/nextjs";
+
 import { VersionStamp } from "@/components/version-stamp";
 import { Logo } from "@/components/logo";
 import { NavLinks } from "@/components/nav-links";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeProvider, themeScript } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getProductSummaries, getEnrichmentStats } from "@/lib/clickhouse";
+import { getProductSummaries } from "@/lib/clickhouse";
 import { getDefaultProductIds } from "@/lib/product-filter-defaults";
 import { ProductFilterProvider } from "@/lib/product-filter";
 import { ProductFilterBar } from "@/components/product-filter-bar";
@@ -71,31 +71,7 @@ export default async function RootLayout({
   // Product summaries are critical — they drive the filter on every page.
   // If this fails, let it throw → error boundary → 500.
   // (connection() in query() prevents static prerendering during build.)
-  //
-  // Enrichment stats are optional — only used for the "data import in progress"
-  // footer banner. The page is fully functional without it.
-  //
-  // Start both in parallel so a slow getEnrichmentStats() doesn't delay summaries.
-  // Attach .catch() to enrichmentPromise eagerly — if summariesPromise rejects first,
-  // the function throws before we await enrichment. Without the eager catch, the
-  // enrichment rejection would be unhandled and crash the Node.js process.
-  const summariesPromise = getProductSummaries();
-  const enrichmentPromise = getEnrichmentStats().catch((err) => {
-    Sentry.captureException(err, {
-      tags: { route: "layout", section: "enrichment-stats" },
-    });
-    return null;
-  });
-
-  const summaries = await summariesPromise;
-
-  let enrichmentIncomplete = false;
-  const enrichment = await enrichmentPromise;
-  if (enrichment) {
-    enrichmentIncomplete =
-      enrichment.total_discovered_repos > enrichment.enriched_repos ||
-      enrichment.total_discovered_prs > enrichment.enriched_prs;
-  }
+  const summaries = await getProductSummaries();
   const defaultProductIds = getDefaultProductIds(summaries);
   const allProducts = summaries.map((s) => ({
     id: s.id,
@@ -147,23 +123,6 @@ export default async function RootLayout({
               </MigrationGate>
           <footer className="border-t border-theme-border py-8 text-sm text-theme-muted">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {enrichmentIncomplete && (
-                <div className="mb-6 flex items-center gap-2 justify-center" data-testid="data-import-status">
-                  <span className="relative flex h-3 w-3" aria-hidden="true">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
-                    <span className="relative inline-flex rounded-full h-full w-full bg-emerald-500" />
-                  </span>
-                  <span>
-                    <Link
-                      href="/status"
-                      className="text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors"
-                    >
-                      Data import in progress
-                    </Link>
-                    {" "}— some statistics may be incomplete
-                  </span>
-                </div>
-              )}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <a
