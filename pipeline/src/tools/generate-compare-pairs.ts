@@ -51,7 +51,7 @@ const PRODUCT_FOCUS: Record<string, string> = {
   kodus: "an open-source AI reviewer with self-hosted deployment and full review transparency",
   "amazon-q": "AWS's AI assistant spanning code generation, debugging, and PR review with deep AWS ecosystem integration",
   codacy: "a long-running DevSecOps platform combining static analysis, security scanning, and AI review across 40+ languages",
-  qlty: "a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR",
+
   codeclimate: "a pioneering code review platform (est. 2011) now focused on engineering intelligence after spinning out its quality product as Qlty",
   kilo: "a fast-growing newcomer reviewing PRs for bugs and code quality with rapidly accelerating adoption",
 };

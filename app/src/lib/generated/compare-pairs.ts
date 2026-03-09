@@ -212,15 +212,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "amazon-q",
-    "idB": "qlty",
-    "nameA": "Amazon Q Developer",
-    "nameB": "Qlty",
-    "slug": "amazon-q-developer-vs-qlty",
-    "title": "Amazon Q Developer vs Qlty — AI Code Review Comparison",
-    "description": "Amazon Q Developer is AWS's AI assistant spanning code generation, debugging, and PR review with deep AWS ecosystem integration. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "amazon-q",
     "idB": "qodo",
     "nameA": "Amazon Q Developer",
     "nameB": "Qodo",
@@ -446,15 +437,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "augment",
-    "idB": "qlty",
-    "nameA": "Augment Code",
-    "nameB": "Qlty",
-    "slug": "augment-code-vs-qlty",
-    "title": "Augment Code vs Qlty — AI Code Review Comparison",
-    "description": "Augment Code is an enterprise AI assistant with on-premises deployment and compliance-focused review. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "augment",
     "idB": "qodo",
     "nameA": "Augment Code",
     "nameB": "Qodo",
@@ -671,15 +653,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "baz",
-    "idB": "qlty",
-    "nameA": "Baz",
-    "nameB": "Qlty",
-    "slug": "baz-vs-qlty",
-    "title": "Baz vs Qlty — AI Code Review Comparison",
-    "description": "Baz is a high-signal reviewer focused on catching real bugs with minimal false positives. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "baz",
     "idB": "qodo",
     "nameA": "Baz",
     "nameB": "Qodo",
@@ -887,15 +860,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "bito",
-    "idB": "qlty",
-    "nameA": "Bito",
-    "nameB": "Qlty",
-    "slug": "bito-vs-qlty",
-    "title": "Bito vs Qlty — AI Code Review Comparison",
-    "description": "Bito is an LLM-powered reviewer with security analysis and customizable compliance checklists. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "bito",
     "idB": "qodo",
     "nameA": "Bito",
     "nameB": "Qodo",
@@ -1094,15 +1058,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "claude",
-    "idB": "qlty",
-    "nameA": "Claude",
-    "nameB": "Qlty",
-    "slug": "claude-vs-qlty",
-    "title": "Claude vs Qlty — AI Code Review Comparison",
-    "description": "Claude is Anthropic's AI with deep reasoning capabilities for nuanced, multi-file code analysis. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "claude",
     "idB": "qodo",
     "nameA": "Claude",
     "nameB": "Qodo",
@@ -1292,15 +1247,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "codacy",
-    "idB": "qlty",
-    "nameA": "Codacy",
-    "nameB": "Qlty",
-    "slug": "codacy-vs-qlty",
-    "title": "Codacy vs Qlty — AI Code Review Comparison",
-    "description": "Codacy is a long-running DevSecOps platform combining static analysis, security scanning, and AI review across 40+ languages. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "codacy",
     "idB": "qodo",
     "nameA": "Codacy",
     "nameB": "Qodo",
@@ -1481,15 +1427,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "codeclimate",
-    "idB": "qlty",
-    "nameA": "Code Climate",
-    "nameB": "Qlty",
-    "slug": "code-climate-vs-qlty",
-    "title": "Code Climate vs Qlty — AI Code Review Comparison",
-    "description": "Code Climate is a pioneering code review platform (est. 2011) now focused on engineering intelligence after spinning out its quality product as Qlty. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "codeclimate",
     "idB": "qodo",
     "nameA": "Code Climate",
     "nameB": "Qodo",
@@ -1661,15 +1598,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "codeant",
-    "idB": "qlty",
-    "nameA": "CodeAnt",
-    "nameB": "Qlty",
-    "slug": "codeant-vs-qlty",
-    "title": "CodeAnt vs Qlty — AI Code Review Comparison",
-    "description": "CodeAnt is a static analysis tool covering 30+ languages with auto-fix capabilities. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "codeant",
     "idB": "qodo",
     "nameA": "CodeAnt",
     "nameB": "Qodo",
@@ -1832,15 +1760,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "coderabbit",
-    "idB": "qlty",
-    "nameA": "CodeRabbit",
-    "nameB": "Qlty",
-    "slug": "coderabbit-vs-qlty",
-    "title": "CodeRabbit vs Qlty — AI Code Review Comparison",
-    "description": "CodeRabbit is an AI-first review agent that learns from team preferences and provides line-by-line feedback. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "coderabbit",
     "idB": "qodo",
     "nameA": "CodeRabbit",
     "nameB": "Qodo",
@@ -1994,15 +1913,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "codescene",
-    "idB": "qlty",
-    "nameA": "CodeScene",
-    "nameB": "Qlty",
-    "slug": "codescene-vs-qlty",
-    "title": "CodeScene vs Qlty — AI Code Review Comparison",
-    "description": "CodeScene is a behavioral analysis platform that uses git history to identify risky changes in high-churn hotspots. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "codescene",
     "idB": "qodo",
     "nameA": "CodeScene",
     "nameB": "Qodo",
@@ -2147,15 +2057,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "cubic",
-    "idB": "qlty",
-    "nameA": "Cubic",
-    "nameB": "Qlty",
-    "slug": "cubic-vs-qlty",
-    "title": "Cubic vs Qlty — AI Code Review Comparison",
-    "description": "Cubic is an AI assistant that combines code review with developer education and explanations. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "cubic",
     "idB": "qodo",
     "nameA": "Cubic",
     "nameB": "Qodo",
@@ -2291,15 +2192,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "cursor",
-    "idB": "qlty",
-    "nameA": "Cursor Bugbot",
-    "nameB": "Qlty",
-    "slug": "cursor-bugbot-vs-qlty",
-    "title": "Cursor Bugbot vs Qlty — AI Code Review Comparison",
-    "description": "Cursor Bugbot is a PR review extension from the Cursor AI editor, bringing IDE-level bug detection to GitHub. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "cursor",
     "idB": "qodo",
     "nameA": "Cursor Bugbot",
     "nameB": "Qodo",
@@ -2426,15 +2318,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "ellipsis",
-    "idB": "qlty",
-    "nameA": "Ellipsis",
-    "nameB": "Qlty",
-    "slug": "ellipsis-vs-qlty",
-    "title": "Ellipsis vs Qlty — AI Code Review Comparison",
-    "description": "Ellipsis is a configurable review platform where teams define their own rules and custom prompts. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "ellipsis",
     "idB": "qodo",
     "nameA": "Ellipsis",
     "nameB": "Qodo",
@@ -2552,15 +2435,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "gemini",
-    "idB": "qlty",
-    "nameA": "Gemini Code Assist",
-    "nameB": "Qlty",
-    "slug": "gemini-code-assist-vs-qlty",
-    "title": "Gemini Code Assist vs Qlty — AI Code Review Comparison",
-    "description": "Gemini Code Assist is Google Cloud's enterprise AI assistant with GCP integration and custom policy support. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "gemini",
     "idB": "qodo",
     "nameA": "Gemini Code Assist",
     "nameB": "Qodo",
@@ -2669,15 +2543,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "copilot",
-    "idB": "qlty",
-    "nameA": "GitHub Copilot",
-    "nameB": "Qlty",
-    "slug": "github-copilot-vs-qlty",
-    "title": "GitHub Copilot vs Qlty — AI Code Review Comparison",
-    "description": "GitHub Copilot is GitHub's native AI assistant spanning code completion, chat, and PR review with zero third-party setup. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "copilot",
     "idB": "qodo",
     "nameA": "GitHub Copilot",
     "nameB": "Qodo",
@@ -2777,15 +2642,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "graphite",
-    "idB": "qlty",
-    "nameA": "Graphite",
-    "nameB": "Qlty",
-    "slug": "graphite-vs-qlty",
-    "title": "Graphite vs Qlty — AI Code Review Comparison",
-    "description": "Graphite is a developer productivity platform with stacked PRs, merge queues, and AI-assisted review. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "graphite",
     "idB": "qodo",
     "nameA": "Graphite",
     "nameB": "Qodo",
@@ -2876,15 +2732,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "greptile",
-    "idB": "qlty",
-    "nameA": "Greptile",
-    "nameB": "Qlty",
-    "slug": "greptile-vs-qlty",
-    "title": "Greptile vs Qlty — AI Code Review Comparison",
-    "description": "Greptile is a codebase-aware reviewer that indexes your entire repo for architecture-level feedback. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "greptile",
     "idB": "qodo",
     "nameA": "Greptile",
     "nameB": "Qodo",
@@ -2966,15 +2813,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "kilo",
-    "idB": "qlty",
-    "nameA": "Kilo Review",
-    "nameB": "Qlty",
-    "slug": "kilo-review-vs-qlty",
-    "title": "Kilo Review vs Qlty — AI Code Review Comparison",
-    "description": "Kilo Review is a fast-growing newcomer reviewing PRs for bugs and code quality with rapidly accelerating adoption. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "kilo",
     "idB": "qodo",
     "nameA": "Kilo Review",
     "nameB": "Qodo",
@@ -3047,15 +2885,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "kodus",
-    "idB": "qlty",
-    "nameA": "Kodus",
-    "nameB": "Qlty",
-    "slug": "kodus-vs-qlty",
-    "title": "Kodus vs Qlty — AI Code Review Comparison",
-    "description": "Kodus is an open-source AI reviewer with self-hosted deployment and full review transparency. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "kodus",
     "idB": "qodo",
     "nameA": "Kodus",
     "nameB": "Qodo",
@@ -3119,15 +2948,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "korbit",
-    "idB": "qlty",
-    "nameA": "Korbit",
-    "nameB": "Qlty",
-    "slug": "korbit-vs-qlty",
-    "title": "Korbit vs Qlty — AI Code Review Comparison",
-    "description": "Korbit is an educational code review mentor focused on teaching best practices (retired). Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "korbit",
     "idB": "qodo",
     "nameA": "Korbit",
     "nameB": "Qodo",
@@ -3182,15 +3002,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "linearb",
-    "idB": "qlty",
-    "nameA": "LinearB",
-    "nameB": "Qlty",
-    "slug": "linearb-vs-qlty",
-    "title": "LinearB vs Qlty — AI Code Review Comparison",
-    "description": "LinearB is a workflow intelligence platform that optimizes PR routing, auto-approval, and team metrics. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "linearb",
     "idB": "qodo",
     "nameA": "LinearB",
     "nameB": "Qodo",
@@ -3236,15 +3047,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "mesa",
-    "idB": "qlty",
-    "nameA": "Mesa",
-    "nameB": "Qlty",
-    "slug": "mesa-vs-qlty",
-    "title": "Mesa vs Qlty — AI Code Review Comparison",
-    "description": "Mesa is a workflow platform integrating PR review with CI/CD pipeline context and deployment status. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "mesa",
     "idB": "qodo",
     "nameA": "Mesa",
     "nameB": "Qodo",
@@ -3281,15 +3083,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
   },
   {
     "idA": "openai-codex",
-    "idB": "qlty",
-    "nameA": "OpenAI Codex",
-    "nameB": "Qlty",
-    "slug": "openai-codex-vs-qlty",
-    "title": "OpenAI Codex vs Qlty — AI Code Review Comparison",
-    "description": "OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "openai-codex",
     "idB": "qodo",
     "nameA": "OpenAI Codex",
     "nameB": "Qodo",
@@ -3323,42 +3116,6 @@ export const COMPARE_PAIRS: ComparePair[] = [
     "slug": "openai-codex-vs-windsurf",
     "title": "OpenAI Codex vs Windsurf — AI Code Review Comparison",
     "description": "OpenAI Codex is OpenAI's cloud-based coding agent that reviews PRs asynchronously in a sandboxed environment. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "qlty",
-    "idB": "qodo",
-    "nameA": "Qlty",
-    "nameB": "Qodo",
-    "slug": "qlty-vs-qodo",
-    "title": "Qlty vs Qodo — AI Code Review Comparison",
-    "description": "Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Qodo is a code integrity platform that combines PR review with automated test generation. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "qlty",
-    "idB": "sentry",
-    "nameA": "Qlty",
-    "nameB": "Sentry",
-    "slug": "qlty-vs-sentry",
-    "title": "Qlty vs Sentry — AI Code Review Comparison",
-    "description": "Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Sentry is an error tracking platform whose AI (Seer) reviews PRs using production errors, traces, and logs. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "qlty",
-    "idB": "sourcery",
-    "nameA": "Qlty",
-    "nameB": "Sourcery",
-    "slug": "qlty-vs-sourcery",
-    "title": "Qlty vs Sourcery — AI Code Review Comparison",
-    "description": "Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Sourcery is a refactoring-focused reviewer that scores code quality and suggests cleaner patterns. Compare their review volume, growth, repos, and community reactions side-by-side."
-  },
-  {
-    "idA": "qlty",
-    "idB": "windsurf",
-    "nameA": "Qlty",
-    "nameB": "Windsurf",
-    "slug": "qlty-vs-windsurf",
-    "title": "Qlty vs Windsurf — AI Code Review Comparison",
-    "description": "Qlty is a code quality platform (spun out from Code Climate) with automated linting, security, and AI autofix on every PR. Windsurf is an IDE-first AI platform (formerly Codeium) that extends code completion into PR review. Compare their review volume, growth, repos, and community reactions side-by-side."
   },
   {
     "idA": "qodo",
