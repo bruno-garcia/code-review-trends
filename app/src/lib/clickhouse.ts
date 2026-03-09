@@ -1005,20 +1005,19 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
       COALESCE(any(cm.heart), 0) AS heart
     FROM repos r
     LEFT JOIN (
-      SELECT r2.owner,
-        countDistinct(e.repo_name, e.pr_number) AS event_prs
-      FROM pr_bot_events e
-      JOIN repos r2 ON e.repo_name = r2.name
-      WHERE r2.owner = {owner:String} AND r2.fetch_status = 'ok'
-      GROUP BY r2.owner
+      SELECT opc.owner AS owner,
+        uniqExactMerge(opc.pr_count) AS event_prs
+      FROM org_bot_pr_counts opc
+      WHERE opc.owner = {owner:String}
+      GROUP BY opc.owner
     ) ev ON r.owner = ev.owner
     LEFT JOIN (
       -- Exclusive reaction-only PRs from MV (no events from ANY bot).
       -- Disjoint from event PRs, so addition is safe.
-      SELECT r2.owner,
+      SELECT r2.owner AS owner,
         sum(repo_exclusive) AS exclusive_reaction_prs
       FROM (
-        SELECT rrc.repo_name,
+        SELECT rrc.repo_name AS repo_name,
           max(rrc.exclusive_pr_count) AS repo_exclusive
         FROM reaction_only_repo_counts rrc
         WHERE rrc.repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
@@ -1029,16 +1028,13 @@ export async function getOrgSummary(owner: string): Promise<OrgSummary | null> {
     ) rr ON r.owner = rr.owner
     LEFT JOIN (
       SELECT
-        r3.owner AS owner,
         countIf(c.comment_id > 0) AS total_bot_comments,
         sumIf(c.thumbs_up, c.comment_id > 0) AS thumbs_up,
         sumIf(c.thumbs_down, c.comment_id > 0) AS thumbs_down,
         sumIf(c.heart, c.comment_id > 0) AS heart
       FROM pr_comments c
-      JOIN repos r3 ON c.repo_name = r3.name
-      WHERE r3.owner = {owner:String} AND r3.fetch_status = 'ok'
-      GROUP BY r3.owner
-    ) cm ON r.owner = cm.owner
+      WHERE c.repo_name IN (SELECT name FROM repos WHERE owner = {owner:String} AND fetch_status = 'ok')
+    ) cm ON 1 = 1
     WHERE r.fetch_status = 'ok' AND r.owner = {owner:String}
     GROUP BY r.owner
     `,
