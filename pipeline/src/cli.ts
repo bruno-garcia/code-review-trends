@@ -877,23 +877,26 @@ async function cmdDiscover() {
     let totalChRows = 0;
 
     const elapsed = startTimer("  Waiting for BigQuery");
-    await Sentry.startSpan(
-      { op: "bigquery", name: `bigquery.discover ${startDate}→${endDate}` },
-      async () => {
-        totalBqRows = await streamBotPREvents(
-          bq, startDate, endDate, logins,
-          async (bqBatch) => {
-            const chRows = mapPrBotEventRows(bqBatch, console.warn);
-            if (chRows.length > 0) {
-              await insertPrBotEvents(ch, chRows);
-            }
-            totalChRows += chRows.length;
-            log(`  Streamed batch: ${bqBatch.length} BQ rows → ${chRows.length} CH rows (total: ${totalChRows})`);
-          },
-        );
-      },
-    );
-    elapsed();
+    try {
+      await Sentry.startSpan(
+        { op: "bigquery", name: `bigquery.discover ${startDate}→${endDate}` },
+        async () => {
+          totalBqRows = await streamBotPREvents(
+            bq, startDate, endDate, logins,
+            async (bqBatch) => {
+              const chRows = mapPrBotEventRows(bqBatch, console.warn);
+              if (chRows.length > 0) {
+                await insertPrBotEvents(ch, chRows);
+              }
+              totalChRows += chRows.length;
+              log(`  Streamed batch: ${bqBatch.length} BQ rows → ${chRows.length} CH rows (total: ${totalChRows})`);
+            },
+          );
+        },
+      );
+    } finally {
+      elapsed();
+    }
     log(`  Got ${totalBqRows} PR bot event rows`);
     countMetric("pipeline.discover.bq_rows", totalBqRows);
     log(`  ✓ Inserted ${totalChRows} pr_bot_events rows`);

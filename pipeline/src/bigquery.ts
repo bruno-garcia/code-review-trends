@@ -418,20 +418,22 @@ export async function streamBotPREvents(
   let buffer: BotPREventRow[] = [];
   let total = 0;
 
+  const flush = async () => {
+    if (buffer.length === 0) return;
+    await onBatch(buffer);
+    total += buffer.length;
+    buffer = [];
+  };
+
   for await (const row of stream) {
     buffer.push(row as BotPREventRow);
     if (buffer.length >= batchSize) {
-      await onBatch(buffer);
-      total += buffer.length;
-      buffer = [];
+      await flush();
     }
   }
 
   // Flush remaining rows
-  if (buffer.length > 0) {
-    await onBatch(buffer);
-    total += buffer.length;
-  }
+  await flush();
 
   return total;
 }
