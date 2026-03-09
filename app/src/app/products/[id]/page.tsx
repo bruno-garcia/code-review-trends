@@ -47,10 +47,12 @@ export async function generateMetadata({
   const summary = summaries.find((s) => s.id === id);
   const reviews = summary ? formatNumber(Number(summary.total_reviews)) : "0";
   const repos = summary ? formatNumber(Number(summary.total_repos)) : "0";
-  const growth = summary ? Number(summary.growth_pct).toFixed(1) : "0";
+  const growthLabel = summary
+    ? isDormantProduct(summary) ? "inactive" : isNewProduct(summary) ? "new" : `${Number(summary.growth_pct) >= 0 ? "+" : ""}${Number(summary.growth_pct).toFixed(1)}% growth`
+    : "0% growth";
 
   const title = `${product.name} AI Code Review Stats & Trends`;
-  const description = `${product.name} has performed ${reviews} code reviews across ${repos} repos (${Number(growth) >= 0 ? "+" : ""}${growth}% growth). See weekly trends, language breakdown, and comparisons.`;
+  const description = `${product.name} has performed ${reviews} code reviews across ${repos} repos (${growthLabel}). See weekly trends, language breakdown, and comparisons.`;
 
   return {
     title,
