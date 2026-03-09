@@ -82,8 +82,10 @@ export type WeeklyTotals = {
  * meaningful. Products below this threshold show a "New" badge instead of
  * a (likely misleading) growth percentage.
  */
-// Re-export from shared module so server callers can still import from clickhouse.ts
-export { GROWTH_BASELINE_THRESHOLD, isNewProduct } from "./product-utils";
+// Import from shared module (client-safe, no server deps) and re-export
+// so server callers can still import from clickhouse.ts.
+import { GROWTH_BASELINE_THRESHOLD, isNewProduct } from "./product-utils";
+export { GROWTH_BASELINE_THRESHOLD, isNewProduct };
 
 export type ProductSummary = {
   id: string;
@@ -341,7 +343,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_12w_reviews >= 100,
+        if(ra.prev_12w_reviews >= {growthBaseline:UInt32},
           least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
           0),
         1
@@ -363,7 +365,7 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY growth_pct DESC, total_reviews DESC
     `,
-    since ? { since } : {},
+    { ...(since ? { since } : {}), growthBaseline: GROWTH_BASELINE_THRESHOLD },
   );
 }
 
@@ -485,7 +487,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         round(COALESCE(rr.reacted_comment_count, 0) * 100.0 / COALESCE(rr.comment_count, 0), 1),
         -1) AS reaction_rate,
       round(
-        if(ra.prev_12w_reviews >= 100,
+        if(ra.prev_12w_reviews >= {growthBaseline:UInt32},
           least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
           0),
         1
@@ -500,7 +502,7 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
     LEFT JOIN reaction_agg rr ON p.id = rr.product_id
     ORDER BY total_reviews DESC
     `,
-    since ? { since } : {},
+    { ...(since ? { since } : {}), growthBaseline: GROWTH_BASELINE_THRESHOLD },
   );
 }
 
@@ -635,7 +637,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_12w_reviews >= 100,
+        if(ra.prev_12w_reviews >= {growthBaseline:UInt32},
           least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
           0),
         1
@@ -658,7 +660,7 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
     LEFT JOIN reaction_agg rr ON b.id = rr.bot_id
     ORDER BY total_reviews DESC
     `,
-    since ? { since } : {},
+    { ...(since ? { since } : {}), growthBaseline: GROWTH_BASELINE_THRESHOLD },
   );
 }
 

@@ -454,9 +454,9 @@ export default async function AboutPage() {
         </p>
         <p className="text-theme-text-secondary leading-relaxed">
           New products (with the <span className="inline-flex items-center rounded-full bg-blue-500/15 border border-blue-500/30 px-1.5 py-px text-xs font-medium text-blue-400">New</span> badge)
-          rank between products with positive growth and those with declining
-          growth — above retired tools, below products with established growth
-          trends. The{" "}
+          have a growth of 0% for ranking purposes, placing them alongside
+          products with neutral growth — above retired or declining tools, but
+          below products with established positive growth trends. The{" "}
           <Link href="/compare#detailed" className={linkClass}>
             detailed comparison table
           </Link>{" "}

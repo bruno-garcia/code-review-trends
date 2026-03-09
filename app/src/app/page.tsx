@@ -140,9 +140,7 @@ export default async function Home() {
                         </span>
                       )}
                     </div>
-                    {isNew ? (
-                      <span className="text-xs text-blue-400">New</span>
-                    ) : (
+                    {!isNew && (
                       <span className={`text-xs tabular-nums ${growth >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                         {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
                       </span>
