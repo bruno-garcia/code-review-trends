@@ -333,19 +333,12 @@ export type BotPREventRow = {
  * @param endDate - End date (inclusive), format YYYY-MM-DD
  * @param botLogins - GitHub logins to filter for (e.g. ["coderabbitai[bot]"])
  */
-export async function queryBotPREvents(
-  bq: BigQuery,
-  startDate: string,
-  endDate: string,
-  botLogins: string[],
-  config?: BigQueryConfig,
-): Promise<BotPREventRow[]> {
-  if (botLogins.length === 0) return [];
-
+/** Build the SQL query for bot PR events (shared by batch and streaming variants). */
+function botPREventsQuery(startDate: string, endDate: string): string {
   const startSuffix = toSuffix(startDate);
   const endSuffix = toSuffix(endDate);
 
-  const query = `
+  return `
     SELECT
       repo.name AS repo_name,
       CAST(COALESCE(
@@ -368,9 +361,19 @@ export async function queryBotPREvents(
     GROUP BY repo_name, pr_number, actor_login, event_type, week
     ORDER BY week ASC, repo_name ASC
   `;
+}
+
+export async function queryBotPREvents(
+  bq: BigQuery,
+  startDate: string,
+  endDate: string,
+  botLogins: string[],
+  config?: BigQueryConfig,
+): Promise<BotPREventRow[]> {
+  if (botLogins.length === 0) return [];
 
   const [rows] = await bq.query({
-    query,
+    query: botPREventsQuery(startDate, endDate),
     params: {
       bot_logins: botLogins,
     },
@@ -381,4 +384,56 @@ export async function queryBotPREvents(
   });
 
   return rows as BotPREventRow[];
+}
+
+/**
+ * Stream bot PR events from BigQuery, calling `onBatch` for each chunk.
+ *
+ * Uses BigQuery's `createQueryStream` so rows are never all held in memory
+ * at once. The caller controls batch size and what to do with each batch
+ * (e.g., map + insert into ClickHouse).
+ *
+ * @returns Total number of rows streamed.
+ */
+export async function streamBotPREvents(
+  bq: BigQuery,
+  startDate: string,
+  endDate: string,
+  botLogins: string[],
+  onBatch: (rows: BotPREventRow[]) => Promise<void>,
+  batchSize: number = 50_000,
+  config?: BigQueryConfig,
+): Promise<number> {
+  if (botLogins.length === 0) return 0;
+
+  const stream = bq.createQueryStream({
+    query: botPREventsQuery(startDate, endDate),
+    params: { bot_logins: botLogins },
+    maximumBytesBilled:
+      config?.maxBytesProcessed?.toString() ??
+      process.env.BQ_MAX_BYTES_BILLED ??
+      DEFAULT_MAX_BYTES_BILLED,
+  });
+
+  let buffer: BotPREventRow[] = [];
+  let total = 0;
+
+  const flush = async () => {
+    if (buffer.length === 0) return;
+    await onBatch(buffer);
+    total += buffer.length;
+    buffer = [];
+  };
+
+  for await (const row of stream) {
+    buffer.push(row as BotPREventRow);
+    if (buffer.length >= batchSize) {
+      await flush();
+    }
+  }
+
+  // Flush remaining rows
+  await flush();
+
+  return total;
 }
