@@ -94,6 +94,7 @@ export type ProductSummary = {
   avg_comments_per_review: number;
   latest_week_reviews: number;
   growth_pct: number;
+  prev_12w_reviews: number;
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
@@ -118,6 +119,7 @@ export type BotSummary = {
   avg_comments_per_review: number;
   latest_week_reviews: number;
   growth_pct: number;
+  prev_12w_reviews: number;
   thumbs_up: number;
   thumbs_down: number;
   heart: number;
@@ -145,6 +147,7 @@ export type ProductComparison = {
   thumbs_up_rate: number;
   reaction_rate: number;
   growth_pct: number;
+  prev_12w_reviews: number;
   latest_week_reviews: number;
   latest_week_comments: number;
   latest_week_pr_comments: number;
@@ -330,11 +333,12 @@ export async function getProductSummaries(since?: string): Promise<ProductSummar
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_12w_reviews > 0,
-          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
+        if(ra.prev_12w_reviews >= 100,
+          least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
           0),
         1
       ) AS growth_pct,
+      COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
@@ -473,11 +477,12 @@ export async function getProductComparisons(since?: string): Promise<ProductComp
         round(COALESCE(rr.reacted_comment_count, 0) * 100.0 / COALESCE(rr.comment_count, 0), 1),
         -1) AS reaction_rate,
       round(
-        if(ra.prev_12w_reviews > 0,
-          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
+        if(ra.prev_12w_reviews >= 100,
+          least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
           0),
         1
       ) AS growth_pct,
+      COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       COALESCE(ra.latest_week_comments, 0) AS latest_week_comments,
       COALESCE(ra.latest_week_pr_comments, 0) AS latest_week_pr_comments,
@@ -622,11 +627,12 @@ export async function getBotSummaries(since?: string): Promise<BotSummary[]> {
       round(if(ra.total_reviews > 0, ra.total_comments / ra.total_reviews, 0), 1) AS avg_comments_per_review,
       COALESCE(ra.latest_week_reviews, 0) AS latest_week_reviews,
       round(
-        if(ra.prev_12w_reviews > 0,
-          (ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews,
+        if(ra.prev_12w_reviews >= 100,
+          least(greatest((ra.recent_12w_reviews - ra.prev_12w_reviews) * 100.0 / ra.prev_12w_reviews, -999), 999),
           0),
         1
       ) AS growth_pct,
+      COALESCE(ra.prev_12w_reviews, 0) AS prev_12w_reviews,
       COALESCE(rr.thumbs_up, 0) AS thumbs_up,
       COALESCE(rr.thumbs_down, 0) AS thumbs_down,
       COALESCE(rr.heart, 0) AS heart,
