@@ -1198,9 +1198,8 @@ export async function getTopReposByProduct(
         r.primary_language AS primary_language,
         uniqExactMerge(s.pr_count) AS pr_count
       FROM pr_bot_event_counts s
-      JOIN bots b FINAL ON s.bot_id = b.id
       JOIN repos r ON s.repo_name = r.name
-      WHERE b.product_id = {productId:String}
+      WHERE s.bot_id IN (SELECT id FROM bots FINAL WHERE product_id = {productId:String})
         AND r.fetch_status = 'ok'
       GROUP BY r.name, r.owner, r.stars, r.primary_language
       ORDER BY r.stars DESC
@@ -1213,9 +1212,8 @@ export async function getTopReposByProduct(
       SELECT count() AS cnt FROM (
         SELECT r.name
         FROM pr_bot_event_counts s
-        JOIN bots b FINAL ON s.bot_id = b.id
         JOIN repos r ON s.repo_name = r.name
-        WHERE b.product_id = {productId:String}
+        WHERE s.bot_id IN (SELECT id FROM bots FINAL WHERE product_id = {productId:String})
           AND r.fetch_status = 'ok'
         GROUP BY r.name
       )

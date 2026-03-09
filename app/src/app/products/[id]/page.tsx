@@ -85,6 +85,8 @@ export default async function ProductPage({
     getProductBots(id, since),
     getWeeklyActivityByProduct(id, since),
     getBotsByLanguage(id, since),
+    // TODO: getAvgCommentsPerPR takes botId, not productId. Works for single-bot
+    // products where product_id = bot_id, but wrong for multi-bot products (e.g. sentry).
     getAvgCommentsPerPR(id, since),
     getPrCommentSyncPct(),
     getOrgList({ productIds: [id], sort: "stars", limit: TOP_N }),
