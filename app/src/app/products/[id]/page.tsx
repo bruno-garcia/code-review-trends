@@ -79,7 +79,7 @@ export default async function ProductPage({
   const range = parseTimeRange(sp.range as string | undefined);
   const since = computeCutoffDate(range) ?? undefined;
 
-  const [product, allSummaries, productBots, activity, languageData, commentsPerPR, prCommentSyncPct, topOrgs, topReposResult, prChars] = await Promise.all([
+  const [product, allSummaries, productBots, activity, languageData, commentsPerPRStats, prCommentSyncPct, topOrgs, topReposResult, prChars] = await Promise.all([
     getProductById(id),
     getProductSummaries(since),
     getProductBots(id, since),
@@ -118,7 +118,7 @@ export default async function ProductPage({
   const totalOrgs = Number(summary?.total_orgs ?? 0);
   const avgCommentsPerReview = Number(summary?.avg_comments_per_review ?? 0);
   const commentsPerRepo = Number(summary?.comments_per_repo ?? 0);
-  const avgCommentsPerPR = commentsPerPR ? Number(commentsPerPR.avg_comments_per_pr) : null;
+  const avgCommentsPerPR = commentsPerPRStats ? Number(commentsPerPRStats.avg_comments_per_pr) : null;
   const growthPct = Number(summary?.growth_pct ?? 0);
 
   // Rank among all products (by growth rate — see /about#rankings).

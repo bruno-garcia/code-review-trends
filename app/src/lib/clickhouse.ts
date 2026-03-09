@@ -780,7 +780,9 @@ export async function getAvgCommentsPerPRByProduct(
     )`,
     since ? { productId, since } : { productId },
   );
-  return rows.length > 0 ? rows[0] : null;
+  const row = rows.length > 0 ? rows[0] : null;
+  // Aggregate without GROUP BY always returns 1 row; return null when no data
+  return row && row.total_prs > 0 ? row : null;
 }
 
 // --- Weekly reactions by product (for compare trends chart) ---
