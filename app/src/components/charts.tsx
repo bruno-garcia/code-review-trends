@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import { useTheme } from "@/components/theme-provider";
 
+
 export { COLORS } from "@/lib/colors";
 import { COLORS } from "@/lib/colors";
 import { formatNumber } from "@/lib/format";
@@ -74,7 +75,7 @@ function useChartColors() {
 
 // --- Toggle button group ---
 
-type ToggleOption = { value: string; label: string };
+type ToggleOption = { value: string; label: string; info?: React.ReactNode };
 
 function ToggleGroup({
   options,
@@ -88,26 +89,45 @@ function ToggleGroup({
   testId?: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-1 mb-4" data-testid={testId}>
+    <div className="flex flex-wrap gap-1 mb-4 items-center" data-testid={testId}>
       {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
-            value === opt.value
-              ? "bg-violet-600 text-white"
-              : "bg-theme-border text-theme-muted hover:text-theme-text"
-          }`}
-          aria-pressed={value === opt.value}
-          data-testid={`toggle-${opt.value}`}
-        >
-          {opt.label}
-        </button>
+        <span key={opt.value} className="relative group/btn">
+          <button
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+              value === opt.value
+                ? "bg-violet-600 text-white"
+                : "bg-theme-border text-theme-muted hover:text-theme-text"
+            }`}
+            aria-pressed={value === opt.value}
+            data-testid={`toggle-${opt.value}`}
+          >
+            {opt.label}
+          </button>
+          {opt.info && (
+            <span className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 pb-1 pointer-events-none group-hover/btn:pointer-events-auto">
+              <span
+                role="tooltip"
+                className="block px-2.5 py-1.5 text-[11px] leading-relaxed text-theme-muted bg-theme-surface-alt border border-theme-border rounded-md shadow-md w-56 whitespace-normal opacity-0 transition-opacity duration-200 delay-500 group-hover/btn:opacity-100"
+              >
+                {opt.info}
+              </span>
+            </span>
+          )}
+        </span>
       ))}
     </div>
   );
 }
+
+// --- Metric descriptions (shared by AI Share + Total Volume charts) ---
+
+const METRIC_INFO = {
+  reviews: "Formal review submissions — approvals, change requests, or comments via GitHub's review workflow.",
+  comments: "Inline comments on specific lines of code within a pull request diff.",
+  pr_comments: "General conversation comments on the PR thread, not tied to a specific line of code.",
+} as const;
 
 // --- AI Share Chart ---
 
@@ -140,9 +160,9 @@ export function BotShareChart({ data }: { data: BotShareData[] }) {
     <div>
       <ToggleGroup
         options={[
-          { value: "reviews", label: "PR Reviews" },
-          { value: "comments", label: "Review Comments" },
-          { value: "pr_comments", label: "PR Comments" },
+          { value: "reviews", label: "PR Reviews", info: <>{METRIC_INFO.reviews} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
+          { value: "comments", label: "Review Comments", info: <>{METRIC_INFO.comments} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
+          { value: "pr_comments", label: "PR Comments", info: <>{METRIC_INFO.pr_comments} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
         ]}
         value={metric}
         onChange={setMetric}
@@ -211,9 +231,9 @@ export function TotalVolumeChart({ data }: { data: TotalVolumeData[] }) {
     <div data-testid="total-volume-chart">
       <ToggleGroup
         options={[
-          { value: "reviews", label: "Reviews" },
-          { value: "comments", label: "Review Comments" },
-          { value: "pr_comments", label: "PR Comments" },
+          { value: "reviews", label: "Reviews", info: <>{METRIC_INFO.reviews} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
+          { value: "comments", label: "Review Comments", info: <>{METRIC_INFO.comments} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
+          { value: "pr_comments", label: "PR Comments", info: <>{METRIC_INFO.pr_comments} <Link href="/about#what-counts" className="text-blue-400 hover:underline">Learn more →</Link></> },
         ]}
         value={metric}
         onChange={setMetric}
