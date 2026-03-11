@@ -22,10 +22,10 @@ export default async function AboutPage() {
   try {
     const stats = await getDataCollectionStats();
     if (stats.reactions_total > 0) {
-      reactionEnrichmentPct = (stats.reactions_scanned / stats.reactions_total) * 100;
+      reactionEnrichmentPct = ((stats.reactions_scanned + stats.reactions_unreachable) / stats.reactions_total) * 100;
     }
     if (stats.prs_discovered > 0) {
-      prEnrichmentPct = (stats.prs_enriched / stats.prs_discovered) * 100;
+      prEnrichmentPct = ((stats.prs_enriched + stats.prs_unreachable) / stats.prs_discovered) * 100;
     }
   } catch (err) {
     Sentry.captureException(err, {

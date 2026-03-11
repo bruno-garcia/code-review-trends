@@ -1773,41 +1773,9 @@ export async function getOrgLanguageOptions(): Promise<OrgFilterOption[]> {
   `);
 }
 
-export type EnrichmentStats = {
-  total_discovered_repos: number;
-  enriched_repos: number;
-  total_discovered_prs: number;
-  enriched_prs: number;
-  total_comments: number;
-};
+// --- Data collection stats (for /status and /about pages) ---
 
-const ENRICHMENT_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes — this is just banner data
-
-export async function getEnrichmentStats(): Promise<EnrichmentStats> {
-  const cached = getCached<EnrichmentStats>("enrichmentStats");
-  if (cached) return cached;
-
-  // Uses repo_pr_summary (pre-aggregated) for total_discovered_prs instead of
-  // scanning pr_bot_event_counts (471K rows). The summary table has ~200K rows
-  // with a simple GROUP BY repo_name — much faster.
-  const rows = await query<EnrichmentStats>(`
-    SELECT
-      (SELECT count() FROM repos) AS total_discovered_repos,
-      (SELECT countIf(fetch_status = 'ok') FROM repos) AS enriched_repos,
-      (SELECT sum(prs) FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)) AS total_discovered_prs,
-      (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden')) AS enriched_prs,
-      (SELECT sum(comment_count) FROM comment_stats_weekly) AS total_comments
-  `);
-  return setCache("enrichmentStats", rows[0] ?? {
-    total_discovered_repos: 0,
-    enriched_repos: 0,
-    total_discovered_prs: 0,
-    enriched_prs: 0,
-    total_comments: 0,
-  }, ENRICHMENT_CACHE_TTL_MS);
-}
-
-// --- Data collection stats (for /about page) ---
+const ENRICHMENT_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes — status data changes slowly
 
 export type DataCollectionStats = {
   // BigQuery backfill — which weeks have data

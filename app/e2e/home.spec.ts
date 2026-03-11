@@ -99,10 +99,5 @@ test.describe("Home page", () => {
     }
   });
 
-  test("shows data import status when enrichment is incomplete", async ({ page }) => {
-    await page.goto("/");
-    // data-import-status is conditionally rendered in the layout footer
-    // when enrichment is incomplete — just verify the page loads without error
-    await expect(page.getByTestId("hero")).toBeVisible();
-  });
+
 });
