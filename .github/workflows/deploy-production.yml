@@ -14,16 +14,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-production:
+  resolve-sha:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      id-token: write
-      contents: read
-    env:
-      REGION: us-central1
-      DEPLOY_ENV: production
-      SENTRY_DSN_CRT_CLI: ${{ secrets.SENTRY_DSN_CRT_CLI }}
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
     steps:
       - name: Determine deploy SHA
         id: sha
@@ -35,7 +30,6 @@ jobs:
             echo "Deploying specific SHA: ${{ inputs.sha }}"
           else
             # Default to latest main HEAD
-            # Use GitHub API instead of git ls-remote (no git credentials available yet)
             SHA=$(gh api repos/${{ github.repository }}/git/ref/heads/main --jq '.object.sha')
             if [[ -z "${SHA}" || "${SHA}" == "null" ]]; then
               echo "::error::Failed to resolve latest main SHA"
@@ -45,157 +39,19 @@ jobs:
             echo "Deploying latest main: ${SHA}"
           fi
 
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.sha.outputs.sha }}
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER_PROD }}
-          service_account: ${{ secrets.DEPLOY_SA_EMAIL_PROD }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Mask GCP identifiers
-        run: |
-          echo "::add-mask::$(gcloud config get-value project 2>/dev/null)"
-          echo "::add-mask::$(gcloud projects describe $(gcloud config get-value project 2>/dev/null) --format='value(projectNumber)' 2>/dev/null)"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-
-      - name: Determine image tags
-        id: tags
-        run: |
-          SHORT_SHA=$(echo "${{ steps.sha.outputs.sha }}" | cut -c1-7)
-          PROJECT=$(gcloud config get-value project 2>/dev/null)
-          GAR="${REGION}-docker.pkg.dev/${PROJECT}/crt"
-          echo "::add-mask::${GAR}"
-          echo "app=${GAR}/app:${SHORT_SHA}-production" >> $GITHUB_OUTPUT
-          echo "pipeline=${GAR}/pipeline:${SHORT_SHA}" >> $GITHUB_OUTPUT
-          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-
-      - name: Verify pipeline image exists
-        run: |
-          if ! gcloud artifacts docker images describe "${{ steps.tags.outputs.pipeline }}" --quiet 2>/dev/null; then
-            echo "::error::Pipeline image not found. Has this SHA been deployed to staging first?"
-            echo ""
-            echo "Production deploys promote staging-built images."
-            echo "Merge to main first, wait for staging deploy, then trigger this workflow."
-            exit 1
-          fi
-
-      - name: Build and push production app image
-        run: |
-          # Rebuild the app with NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
-          # baked in. The pipeline image is reused from staging as-is.
-          docker build -f app/Dockerfile \
-            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
-            --build-arg NEXT_PUBLIC_COMMIT_SHA="${{ steps.sha.outputs.sha }}" \
-            --build-arg SENTRY_DSN_CRT_FRONTEND="${{ secrets.SENTRY_DSN_CRT_FRONTEND }}" \
-            --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${DEPLOY_ENV}" \
-            --tag ${{ steps.tags.outputs.app }} \
-            .
-          docker push ${{ steps.tags.outputs.app }}
-
-      - name: Create Sentry release for pipeline
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: bruno-garcia
-          SENTRY_PROJECT: code-review-trends-worker
-        run: |
-          npx @sentry/cli releases new "${{ steps.sha.outputs.sha }}"
-          npx @sentry/cli releases set-commits "${{ steps.sha.outputs.sha }}" --auto
-          npx @sentry/cli releases finalize "${{ steps.sha.outputs.sha }}"
-
-      - name: Deploy app to Cloud Run (no traffic)
-        run: |
-          gcloud run deploy crt-production-app \
-            --image=${{ steps.tags.outputs.app }} \
-            --region=${REGION} \
-            --no-traffic \
-            --tag=warmup \
-            --quiet > /dev/null
-
-      - name: Warm up cache on new revision
-        run: |
-          WARMUP_URL=$(gcloud run services describe crt-production-app \
-            --region=${REGION} \
-            --format=json | jq -r '.status.traffic[] | select(.tag == "warmup") | .url')
-
-          if [[ -z "${WARMUP_URL}" || "${WARMUP_URL}" == "null" ]]; then
-            echo "::error::Could not determine warmup URL from tagged revision"
-            exit 1
-          fi
-
-          echo "::add-mask::${WARMUP_URL}"
-
-          NODE_ENV=production \
-          npm run warmup --workspace=pipeline -- "${WARMUP_URL}" || {
-            echo "::warning::Some pages failed to warm up — proceeding with traffic switch anyway"
-          }
-
-      - name: Switch traffic to new revision
-        run: |
-          gcloud run services update-traffic crt-production-app \
-            --to-latest \
-            --remove-tags=warmup \
-            --region=${REGION} \
-            --quiet > /dev/null
-
-          # Verify the correct image is serving
-          SERVING_IMAGE=$(gcloud run services describe crt-production-app \
-            --region=${REGION} \
-            --format=json | jq -r '
-              .status.traffic[]
-              | select(.latestRevision == true)
-              | .revisionName' | xargs -I{} gcloud run revisions describe {} \
-                --region=${REGION} \
-                --format='value(spec.containers[0].image)')
-          if [[ -z "${SERVING_IMAGE}" ]]; then
-            echo "::error::Deploy verification failed — could not determine serving image"
-            exit 1
-          fi
-          if [[ "${SERVING_IMAGE}" == *"cloudrun/container/hello"* ]]; then
-            echo "::error::Deploy verification failed — still serving the GCP placeholder image"
-            exit 1
-          fi
-          echo "Deploy verified — serving correct image"
-
-      - name: Update pipeline job images
-        run: |
-          for job in sync backfill discover enrich discover-bots; do
-            gcloud run jobs update "crt-production-${job}" \
-              --image=${{ steps.tags.outputs.pipeline }} \
-              --region=${REGION} \
-              --quiet > /dev/null
-          done
-
-      - name: Sync bot registry to ClickHouse
-        run: |
-          # Run sync-bots via the existing Cloud Run sync job (which has VPC
-          # access and ClickHouse credentials). The job image was just updated
-          # above, so it has the latest bot definitions from bots.ts.
-          gcloud run jobs execute crt-production-sync \
-            --region=${REGION} \
-            --args="sync-bots,--env,${DEPLOY_ENV}" \
-            --wait \
-            --quiet > /dev/null
-
-      - name: Deploy summary
-        run: |
-          echo "## Production Deploy Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **SHA:** ${{ steps.sha.outputs.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **App image:** \`app:${{ steps.tags.outputs.short_sha }}-production\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Pipeline image:** \`pipeline:${{ steps.tags.outputs.short_sha }}\` (promoted from staging)" >> $GITHUB_STEP_SUMMARY
+  deploy:
+    needs: resolve-sha
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      sha: ${{ needs.resolve-sha.outputs.sha }}
+      build_pipeline: false
+    secrets:
+      WIF_PROVIDER: ${{ secrets.WIF_PROVIDER_PROD }}
+      DEPLOY_SA_EMAIL: ${{ secrets.DEPLOY_SA_EMAIL_PROD }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_DSN_CRT_FRONTEND: ${{ secrets.SENTRY_DSN_CRT_FRONTEND }}
+      SENTRY_DSN_CRT_CLI: ${{ secrets.SENTRY_DSN_CRT_CLI }}

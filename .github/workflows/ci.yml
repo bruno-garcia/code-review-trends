@@ -232,8 +232,6 @@ jobs:
           retention-days: 14
 
   deploy-staging:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [lint-and-build, test-pipeline, test-e2e]
     concurrency:
@@ -242,158 +240,14 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    env:
-      REGION: us-central1
-      DEPLOY_ENV: staging
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      sha: ${{ github.sha }}
+      build_pipeline: true
+    secrets:
+      WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+      DEPLOY_SA_EMAIL: ${{ secrets.DEPLOY_SA_EMAIL }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_DSN_CRT_FRONTEND: ${{ secrets.SENTRY_DSN_CRT_FRONTEND }}
       SENTRY_DSN_CRT_CLI: ${{ secrets.SENTRY_DSN_CRT_CLI }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.DEPLOY_SA_EMAIL }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Mask GCP identifiers
-        run: |
-          echo "::add-mask::$(gcloud config get-value project 2>/dev/null)"
-          echo "::add-mask::$(gcloud projects describe $(gcloud config get-value project 2>/dev/null) --format='value(projectNumber)' 2>/dev/null)"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-
-      - name: Determine image tags
-        id: tags
-        run: |
-          SHA=$(git rev-parse --short HEAD)
-          PROJECT=$(gcloud config get-value project 2>/dev/null)
-          GAR="${REGION}-docker.pkg.dev/${PROJECT}/crt"
-          echo "::add-mask::${GAR}"
-          echo "app=${GAR}/app:${SHA}" >> $GITHUB_OUTPUT
-          echo "pipeline=${GAR}/pipeline:${SHA}" >> $GITHUB_OUTPUT
-
-      - name: Build and push images
-        run: |
-          docker build -f app/Dockerfile \
-            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
-            --build-arg NEXT_PUBLIC_COMMIT_SHA="${{ github.sha }}" \
-            --build-arg SENTRY_DSN_CRT_FRONTEND="${{ secrets.SENTRY_DSN_CRT_FRONTEND }}" \
-            --build-arg NEXT_PUBLIC_SENTRY_ENVIRONMENT="${DEPLOY_ENV}" \
-            --tag ${{ steps.tags.outputs.app }} \
-            . &
-          APP_PID=$!
-          docker build -f pipeline/Dockerfile \
-            --build-arg GIT_SHA="${{ github.sha }}" \
-            --tag ${{ steps.tags.outputs.pipeline }} \
-            . &
-          PIPE_PID=$!
-          wait $APP_PID || exit 1
-          wait $PIPE_PID || exit 1
-          docker push ${{ steps.tags.outputs.app }} &
-          PUSH_APP=$!
-          docker push ${{ steps.tags.outputs.pipeline }} &
-          PUSH_PIPE=$!
-          wait $PUSH_APP || exit 1
-          wait $PUSH_PIPE || exit 1
-
-      - name: Create Sentry release for pipeline
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: bruno-garcia
-          SENTRY_PROJECT: code-review-trends-worker
-        run: |
-          npx @sentry/cli releases new "${{ github.sha }}"
-          npx @sentry/cli releases set-commits "${{ github.sha }}" --auto
-          npx @sentry/cli releases finalize "${{ github.sha }}"
-
-      - name: Deploy app to Cloud Run (no traffic)
-        run: |
-          # Deploy the new revision without routing traffic to it yet.
-          # We'll warm the cache first, then switch traffic.
-          # Suppress stdout to avoid leaking Cloud Run URLs/revision names.
-          gcloud run deploy crt-staging-app \
-            --image=${{ steps.tags.outputs.app }} \
-            --region=${REGION} \
-            --no-traffic \
-            --tag=warmup \
-            --quiet > /dev/null
-
-      - name: Warm up cache on new revision
-        run: |
-          WARMUP_URL=$(gcloud run services describe crt-staging-app \
-            --region=${REGION} \
-            --format=json | jq -r '.status.traffic[] | select(.tag == "warmup") | .url')
-
-          if [[ -z "${WARMUP_URL}" || "${WARMUP_URL}" == "null" ]]; then
-            echo "::error::Could not determine warmup URL from tagged revision"
-            exit 1
-          fi
-
-          # Mask the Cloud Run URL so it doesn't appear in logs
-          echo "::add-mask::${WARMUP_URL}"
-
-          # Run the instrumented warmup script — creates Sentry spans + metrics per page.
-          # Non-zero exit means some pages failed; we warn but don't block the deploy.
-          NODE_ENV=staging \
-          npm run warmup --workspace=pipeline -- "${WARMUP_URL}" || {
-            echo "::warning::Some pages failed to warm up — proceeding with traffic switch anyway"
-          }
-
-      - name: Switch traffic to new revision
-        run: |
-          gcloud run services update-traffic crt-staging-app \
-            --to-latest \
-            --remove-tags=warmup \
-            --region=${REGION} \
-            --quiet > /dev/null
-
-          # Verify the correct image is serving
-          SERVING_IMAGE=$(gcloud run services describe crt-staging-app \
-            --region=${REGION} \
-            --format=json | jq -r '
-              .status.traffic[]
-              | select(.latestRevision == true)
-              | .revisionName' | xargs -I{} gcloud run revisions describe {} \
-                --region=${REGION} \
-                --format='value(spec.containers[0].image)')
-          if [[ -z "${SERVING_IMAGE}" ]]; then
-            echo "::error::Deploy verification failed — could not determine serving image"
-            exit 1
-          fi
-          if [[ "${SERVING_IMAGE}" == *"cloudrun/container/hello"* ]]; then
-            echo "::error::Deploy verification failed — still serving the GCP placeholder image"
-            exit 1
-          fi
-          echo "Deploy verified — serving correct image"
-
-      - name: Update pipeline job images
-        run: |
-          for job in sync backfill discover enrich discover-bots; do
-            gcloud run jobs update "crt-staging-${job}" \
-              --image=${{ steps.tags.outputs.pipeline }} \
-              --region=${REGION} \
-              --quiet > /dev/null
-          done
-
-      - name: Sync bot registry to ClickHouse
-        run: |
-          # Run sync-bots via the existing Cloud Run sync job (which has VPC
-          # access and ClickHouse credentials). The job image was just updated
-          # above, so it has the latest bot definitions from bots.ts.
-          gcloud run jobs execute crt-staging-sync \
-            --region=${REGION} \
-            --args="sync-bots,--env,${DEPLOY_ENV}" \
-            --wait \
-            --quiet > /dev/null
