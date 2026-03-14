@@ -39,6 +39,17 @@ jobs:
       REGION: us-central1
       SENTRY_DSN_CRT_CLI: ${{ secrets.SENTRY_DSN_CRT_CLI }}
     steps:
+      - name: Validate inputs
+        run: |
+          if [[ "${{ inputs.environment }}" != "staging" && "${{ inputs.environment }}" != "production" ]]; then
+            echo "::error::Invalid environment '${{ inputs.environment }}' — must be 'staging' or 'production'"
+            exit 1
+          fi
+          if ! [[ "${{ inputs.sha }}" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "::error::Invalid SHA format '${{ inputs.sha }}'"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.sha }}
@@ -204,6 +215,17 @@ jobs:
               --region=${REGION} \
               --quiet > /dev/null
           done
+
+      - name: Sync bot registry to ClickHouse
+        run: |
+          # Run sync-bots via the existing Cloud Run sync job (which has VPC
+          # access and ClickHouse credentials). The job image was just updated
+          # above, so it has the latest bot definitions from bots.ts.
+          gcloud run jobs execute crt-${{ inputs.environment }}-sync \
+            --region=${REGION} \
+            --args="sync-bots,--env,${{ inputs.environment }}" \
+            --wait \
+            --quiet > /dev/null
 
       - name: Deploy summary
         run: |
