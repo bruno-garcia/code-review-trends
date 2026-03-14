@@ -181,6 +181,17 @@ jobs:
               --quiet > /dev/null
           done
 
+      - name: Sync bot registry to ClickHouse
+        run: |
+          # Run sync-bots via the existing Cloud Run sync job (which has VPC
+          # access and ClickHouse credentials). The job image was just updated
+          # above, so it has the latest bot definitions from bots.ts.
+          gcloud run jobs execute crt-production-sync \
+            --region=${REGION} \
+            --args="sync-bots,--env,${DEPLOY_ENV}" \
+            --wait \
+            --quiet > /dev/null
+
       - name: Deploy summary
         run: |
           echo "## Production Deploy Complete" >> $GITHUB_STEP_SUMMARY
