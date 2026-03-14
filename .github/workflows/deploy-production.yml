@@ -27,13 +27,20 @@ jobs:
     steps:
       - name: Determine deploy SHA
         id: sha
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ -n "${{ inputs.sha }}" ]]; then
             echo "sha=${{ inputs.sha }}" >> $GITHUB_OUTPUT
             echo "Deploying specific SHA: ${{ inputs.sha }}"
           else
             # Default to latest main HEAD
-            SHA=$(git ls-remote https://github.com/${{ github.repository }}.git refs/heads/main | cut -f1)
+            # Use GitHub API instead of git ls-remote (no git credentials available yet)
+            SHA=$(gh api repos/${{ github.repository }}/git/ref/heads/main --jq '.object.sha')
+            if [[ -z "${SHA}" ]]; then
+              echo "::error::Failed to resolve latest main SHA"
+              exit 1
+            fi
             echo "sha=${SHA}" >> $GITHUB_OUTPUT
             echo "Deploying latest main: ${SHA}"
           fi
