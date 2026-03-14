@@ -37,7 +37,7 @@ jobs:
             # Default to latest main HEAD
             # Use GitHub API instead of git ls-remote (no git credentials available yet)
             SHA=$(gh api repos/${{ github.repository }}/git/ref/heads/main --jq '.object.sha')
-            if [[ -z "${SHA}" ]]; then
+            if [[ -z "${SHA}" || "${SHA}" == "null" ]]; then
               echo "::error::Failed to resolve latest main SHA"
               exit 1
             fi
