@@ -408,7 +408,8 @@ Options for discover-bots:
 
 Options for enrich:
   --worker-id N        Worker ID for partitioning (default: 0)
-  --total-workers N    Total workers (default: 1)
+  --total-workers N    Total workers (default: 1, or token count if GITHUB_TOKENS is set)
+  --token-index N      Which token from GITHUB_TOKENS to use (overrides CLOUD_RUN_TASK_INDEX)
   --limit N            Max items per entity type per run
   --priority TYPE      Start with: repos|prs|comments|reactions (default: repos)
   --only TYPE          Run ONLY this stage: repos|prs|comments|reactions (skip all others)
@@ -1034,6 +1035,7 @@ async function cmdEnrich() {
   let token: string;
   let workerId = parseIntArg("--worker-id", args["--worker-id"]);
   let totalWorkers = parseIntArg("--total-workers", args["--total-workers"]);
+  const tokenIndex = parseIntArg("--token-index", args["--token-index"]);
 
   if (process.env.GITHUB_TOKENS) {
     let tokens: string[];
@@ -1047,23 +1049,36 @@ async function cmdEnrich() {
     }
 
     // Determine which token this worker should use.
-    // Cloud Run Jobs set CLOUD_RUN_TASK_INDEX automatically (0-based).
-    // Falls back to --worker-id if set, otherwise defaults to 0.
-    const taskIndex = process.env.CLOUD_RUN_TASK_INDEX !== undefined
-      ? parseInt(process.env.CLOUD_RUN_TASK_INDEX, 10)
-      : (workerId ?? 0);
+    // Priority: --token-index > CLOUD_RUN_TASK_INDEX > --worker-id > 0.
+    // --token-index is for single-task catchup jobs that need a specific token
+    // (e.g., an otherwise-idle one) without affecting worker partitioning.
+    // Negative --token-index counts from the end: -1 = last token.
+    let taskIndex: number;
+    if (tokenIndex !== undefined) {
+      taskIndex = tokenIndex < 0 ? tokens.length + tokenIndex : tokenIndex;
+    } else if (process.env.CLOUD_RUN_TASK_INDEX !== undefined) {
+      taskIndex = parseInt(process.env.CLOUD_RUN_TASK_INDEX, 10);
+    } else {
+      taskIndex = workerId ?? 0;
+    }
 
     if (isNaN(taskIndex) || taskIndex < 0 || taskIndex >= tokens.length) {
       throw new CliError(
-        `Task index ${taskIndex} out of range for ${tokens.length} token(s) in GITHUB_TOKENS.`
+        `Token index ${taskIndex} out of range for ${tokens.length} token(s) in GITHUB_TOKENS.`
       );
     }
 
     token = tokens[taskIndex];
-    // Auto-set worker partitioning from the token array size
-    workerId = taskIndex;
-    totalWorkers = tokens.length;
-    log(`Using token ${taskIndex + 1}/${tokens.length} from GITHUB_TOKENS (worker ${taskIndex}/${tokens.length})`);
+    // Auto-set worker partitioning from the token array size.
+    // Allow --total-workers to override for single-task catchup jobs that need
+    // to process all items (not just 1/Nth) using one token.
+    // When --token-index is used, workerId defaults to 0 (not the token index)
+    // since token selection and partitioning are independent concerns.
+    workerId = tokenIndex !== undefined ? (workerId ?? 0) : taskIndex;
+    if (totalWorkers === undefined) {
+      totalWorkers = tokens.length;
+    }
+    log(`Using token ${taskIndex + 1}/${tokens.length} from GITHUB_TOKENS (worker ${workerId}/${totalWorkers})`);
   } else if (process.env.GITHUB_TOKEN) {
     token = process.env.GITHUB_TOKEN;
   } else {

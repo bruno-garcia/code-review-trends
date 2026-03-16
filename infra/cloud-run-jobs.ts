@@ -43,6 +43,13 @@ const jobs = [
   { name: "backfill", args: ["backfill"], timeout: "7200s" },
   { name: "discover", args: ["discover"], timeout: "1800s", memory: "1Gi" },
   { name: "enrich", args: ["enrich", "--exit-on-rate-limit"], timeout: "3600s" },
+  // Single-task enrichment that sleeps through rate limits instead of exiting.
+  // Runs every 3h to ensure lagging stages (e.g., comments) make steady progress
+  // even without workers.sh. Uses --total-workers 1 so the single task processes
+  // ALL items (not just 1/Nth). Uses --token-index to select the last token in
+  // GITHUB_TOKENS — least contested since workers.sh caps active workers to IP
+  // pathway count and assigns tokens from index 0 upward.
+  { name: "enrich-catchup", args: ["enrich", "--total-workers", "1", "--token-index", "-1"], timeout: "3600s" },
   { name: "discover-bots", args: ["discover-bots"], timeout: "1800s" },
 ];
 
@@ -107,7 +114,8 @@ export function createCloudRunJobs(
 
   for (const job of jobs) {
     const jobName = `${prefix}-${job.name}`;
-    const extraEnvs = job.name === "enrich" ? [githubTokensEnv] : [];
+    const needsGithubTokens = job.name === "enrich" || job.name === "enrich-catchup";
+    const extraEnvs = needsGithubTokens ? [githubTokensEnv] : [];
     const image = currentJobImage(jobName);
     // Append --env so every pipeline invocation knows its environment
     const jobArgs = [...job.args, "--env", cfg.environment];
@@ -118,6 +126,11 @@ export function createCloudRunJobs(
         name: jobName,
         location: gcp.config.region!,
         template: {
+          // The `enrich` job uses one task per GitHub token for parallelism.
+          // This is only effective when workers.sh provides proxy-based IP rotation.
+          // Cloud Run Jobs share a single egress IP, so multiple tasks just compete
+          // for GitHub's per-IP secondary rate limit. The catchup job handles this
+          // by running a single task that sleeps through rate limits.
           taskCount: job.name === "enrich" ? cfg.githubTokenCount : 1,
           parallelism: job.name === "enrich" ? cfg.githubTokenCount : 1,
           template: {
