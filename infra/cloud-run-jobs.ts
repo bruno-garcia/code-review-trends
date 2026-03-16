@@ -49,7 +49,7 @@ const jobs = [
   // ALL items (not just 1/Nth). Uses --token-index to select the last token in
   // GITHUB_TOKENS — least contested since workers.sh caps active workers to IP
   // pathway count and assigns tokens from index 0 upward.
-  { name: "enrich-catchup", args: ["enrich", "--total-workers", "1", "--token-index", "-1"], timeout: "3600s" },
+  { name: "enrich-catchup", args: ["enrich", "--total-workers", "1", "--token-index", "-1", "--cron-slug", "pipeline-enrich-catchup"], timeout: "3600s" },
   { name: "discover-bots", args: ["discover-bots"], timeout: "1800s" },
 ];
 
@@ -114,7 +114,7 @@ export function createCloudRunJobs(
 
   for (const job of jobs) {
     const jobName = `${prefix}-${job.name}`;
-    const needsGithubTokens = job.name === "enrich" || job.name === "enrich-catchup";
+    const needsGithubTokens = job.args[0] === "enrich";
     const extraEnvs = needsGithubTokens ? [githubTokensEnv] : [];
     const image = currentJobImage(jobName);
     // Append --env so every pipeline invocation knows its environment

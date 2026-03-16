@@ -163,9 +163,16 @@ async function main() {
     }
   }
 
-  // Commands that run on a schedule get cron monitoring (from schedules.json)
-  const schedule = schedules[command as keyof typeof schedules];
-  const cronSlug = schedule ? `pipeline-${command}` : undefined;
+  // Commands that run on a schedule get cron monitoring (from schedules.json).
+  // --cron-slug overrides the auto-derived slug so jobs that reuse the same CLI
+  // command (e.g., enrich-catchup running "enrich") get separate monitors.
+  const topArgs = parseArgs();
+  const cronSlugOverride = topArgs["--cron-slug"];
+  const scheduleKey = cronSlugOverride
+    ? cronSlugOverride.replace(/^pipeline-/, "") // "pipeline-enrich-catchup" → "enrich-catchup"
+    : command;
+  const schedule = schedules[scheduleKey as keyof typeof schedules];
+  const cronSlug = schedule ? `pipeline-${scheduleKey}` : undefined;
 
   const run = async () => Sentry.startSpan(
     { op: "pipeline.command", name: `pipeline ${command}`, forceTransaction: true },
@@ -1035,7 +1042,14 @@ async function cmdEnrich() {
   let token: string;
   let workerId = parseIntArg("--worker-id", args["--worker-id"]);
   let totalWorkers = parseIntArg("--total-workers", args["--total-workers"]);
-  const tokenIndex = parseIntArg("--token-index", args["--token-index"]);
+  // parseIntArg rejects negatives, but --token-index supports them (-1 = last token).
+  const tokenIndex = args["--token-index"] === undefined ? undefined : (() => {
+    const n = parseInt(args["--token-index"]!, 10);
+    if (isNaN(n)) {
+      throw new CliError(`--token-index must be an integer, got "${args["--token-index"]}"`);
+    }
+    return n;
+  })();
 
   if (process.env.GITHUB_TOKENS) {
     let tokens: string[];
