@@ -7,7 +7,7 @@
 
 import { Octokit } from "@octokit/rest";
 import { Sentry, log, countMetric, distributionMetric, gaugeMetric, sentryLogger } from "../sentry.js";
-import { createCHClient, query } from "../clickhouse.js";
+import { createCHClient } from "../clickhouse.js";
 import { RateLimiter, RateLimitExitError } from "./rate-limiter.js";
 import { enrichRepos, refreshStaleRepos } from "./repos.js";
 import { enrichPullRequests } from "./pull-requests.js";
@@ -17,39 +17,24 @@ import type { WorkerConfig } from "./partitioner.js";
 import { enrichCombined, type CombinedResult } from "./combined-enrichment.js";
 import { createPinnedFetch } from "./proxy-pool.js";
 
-export const ROUND_ROBIN_THRESHOLD = 0.70;
-
 export type Step = "repos" | "prs" | "comments" | "reactions";
 
 /** The default stage execution order (no flags). */
 export const DEFAULT_ORDER: readonly Step[] = ["repos", "reactions", "comments", "prs"];
 
-export type ExecutionPlan = {
-  /** Stages to run, in order. */
-  order: Step[];
-  /** Whether to run combined PR+Comments enrichment before individual stages. */
-  runCombined: boolean;
-  /** Whether to refresh stale repos after enrichment. */
-  runStaleRefresh: boolean;
-};
-
 /**
- * Pure function: determines which stages to run, in what order,
- * and whether combined enrichment and stale refresh should execute.
+ * Determine which stages to run and in what order.
  *
- * Rules:
- * - `--only`: run exactly one stage; skip combined and stale refresh; ignore threshold.
- * - `--priority`: move one stage to front; run all stages; skip threshold filtering.
+ * - `--only`: run exactly one stage; skip combined and stale refresh.
+ * - `--priority`: move one stage to front; run all stages.
  *   Combined runs only when priority is prs or comments (or unset).
- * - Default: run all stages in DEFAULT_ORDER; skip stages above ROUND_ROBIN_THRESHOLD
- *   (unless ALL are above it, in which case run all).
+ * - Default: all stages in DEFAULT_ORDER.
  */
 export function planExecution(options: {
   priority?: Step;
   only?: Step;
-  completion: Record<Step, number>;
-}): ExecutionPlan {
-  const { priority, only, completion } = options;
+}): { order: Step[]; runCombined: boolean; runStaleRefresh: boolean } {
+  const { priority, only } = options;
 
   // --only: exclusive single-stage execution
   if (only) {
@@ -67,14 +52,6 @@ export function planExecution(options: {
     order = [priority, ...rest];
   } else {
     order = [...DEFAULT_ORDER];
-  }
-
-  // Threshold-based skipping: only in default mode (no --priority, no --only)
-  if (!priority) {
-    const belowThreshold = order.filter((s) => completion[s] < ROUND_ROBIN_THRESHOLD);
-    if (belowThreshold.length > 0 && belowThreshold.length < order.length) {
-      order = belowThreshold;
-    }
   }
 
   // Combined enrichment runs when no priority is set, or priority targets prs/comments
@@ -143,35 +120,10 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     gaugeMetric("pipeline.enrich.limit", limit);
   }
 
-  // Check stage completion percentages
-  const completionRows = await query<{
-    repos_total: string; repos_done: string;
-    comments_total: string; comments_done: string;
-    reactions_total: string; reactions_done: string;
-    prs_total: string; prs_done: string;
-  }>(ch, `SELECT
-    (SELECT countDistinct(repo_name) FROM pr_bot_events) as repos_total,
-    (SELECT countDistinct(name) FROM repos) as repos_done,
-    (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_bot_events) as comments_total,
-    (SELECT countDistinct(repo_name, pr_number, bot_id) FROM pr_comments) as comments_done,
-    (SELECT countDistinct(repo_name, pr_number) FROM pr_bot_events) as reactions_total,
-    (SELECT countDistinct(repo_name, pr_number) FROM reaction_scan_progress) as reactions_done,
-    (SELECT countDistinct(repo_name, pr_number) FROM pr_bot_events) as prs_total,
-    (SELECT countDistinct(repo_name, pr_number) FROM pull_requests) as prs_done`);
-
-  const c = completionRows[0];
-  const completion: Record<Step, number> = {
-    repos: Number(c.repos_total) > 0 ? Number(c.repos_done) / Number(c.repos_total) : 0,
-    comments: Number(c.comments_total) > 0 ? Number(c.comments_done) / Number(c.comments_total) : 0,
-    reactions: Number(c.reactions_total) > 0 ? Number(c.reactions_done) / Number(c.reactions_total) : 0,
-    prs: Number(c.prs_total) > 0 ? Number(c.prs_done) / Number(c.prs_total) : 0,
-  };
-
   // Plan execution: which stages, what order, combined/stale refresh
   const plan = planExecution({
     priority: options.priority,
     only: options.only,
-    completion,
   });
   const { order } = plan;
 
@@ -179,20 +131,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     log(`[worker] Running ONLY stage: ${options.only}`);
   }
 
-  log(`[worker] Stage completion: ${order.map((s) => `${s} ${Math.round(completion[s] * 100)}%`).join(", ")}`);
-
-  // Log threshold skipping (only happens in default mode)
-  if (!options.priority && !options.only) {
-    const allStages: Step[] = [...DEFAULT_ORDER];
-    const skipped = allStages.filter((s) => !order.includes(s));
-    if (skipped.length > 0) {
-      log(`[worker] Skipping stages above ${Math.round(ROUND_ROBIN_THRESHOLD * 100)}% complete: ${skipped.join(", ")}`);
-      for (const s of skipped) {
-        const pct = Math.round(completion[s] * 100);
-        sentryLogger.info(sentryLogger.fmt`Skipping stage=${s} completion=${pct}% above threshold=${Math.round(ROUND_ROBIN_THRESHOLD * 100)}%`);
-      }
-    }
-  }
+  log(`[worker] Stages: ${order.join(", ")}${plan.runCombined ? " (+ combined)" : ""}`);
 
   let reposResult = { fetched: 0, skipped: 0, errors: 0 };
   let prsResult = { fetched: 0, skipped: 0, errors: 0 };
@@ -223,8 +162,7 @@ export async function runEnrichment(options: EnrichmentOptions): Promise<Enrichm
     for (const step of order) {
       if (rateLimitExit) break;
       const stageStart = Date.now();
-      const pct = Math.round(completion[step] * 100);
-      sentryLogger.info(sentryLogger.fmt`Starting enrichment stage=${step} completion=${pct}% worker=${partition.workerId + 1}/${partition.totalWorkers}`);
+      sentryLogger.info(sentryLogger.fmt`Starting enrichment stage=${step} worker=${partition.workerId + 1}/${partition.totalWorkers}`);
       try {
         switch (step) {
           case "repos":
