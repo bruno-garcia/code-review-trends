@@ -65,10 +65,6 @@ test.describe("Compare pair pages", () => {
   });
 
   test("sitemap includes pair URLs", async ({ request }) => {
-    // Sitemap only has real entries when SITE_URL is set
-    if (process.env.SITE_URL !== "https://codereviewtrends.com") {
-      test.skip();
-    }
     const res = await request.get("/sitemap.xml");
     const body = await res.text();
     expect(body).toMatch(/\/compare\/[a-z]+-vs-[a-z]+/);
