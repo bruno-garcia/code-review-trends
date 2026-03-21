@@ -1859,8 +1859,12 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     }>(`
       SELECT
         (SELECT sum(x) FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)) AS comments_discovered,
-        (SELECT uniq(repo_name, pr_number, bot_id) FROM pr_comments
-         WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))) AS comments_enriched,
+        (SELECT sum(distinct_bots) FROM (
+          SELECT countDistinct(bot_id) AS distinct_bots
+          FROM pr_comments
+          WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
+          GROUP BY repo_name, pr_number
+        )) AS comments_enriched,
         (SELECT sum(combos) FROM (
           SELECT uniqExactMerge(pr_count) AS combos FROM pr_bot_event_counts
           WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
