@@ -48,10 +48,9 @@ config:
   code-review-trends:alertEmail:
     secure: v1:4ZOWS+ZMbhrquItw:+lp4J9/7s8JOvQG89x+nKVUU26NBOkYKF0H2v+8S5eQQGRkIWVoFVWne
   code-review-trends:appDomain:
-    secure: v1:cSufIl2/uBpxfD9W:vjpMH94S8Uve8yTMkJtzeXEWLPbybNz2UtqcPZTNq3kubDTeM5edGg==
+    secure: v1:SDQlap4g7rKlmE5U:JFSePmS0ig7cg/Jms8Ht3Xf6JJl4Sc615HELOwwkDqonsHI0
   code-review-trends:workerVpcNetwork:
     secure: v1:3c+PLoUeEp11aQBM:ZWTJn/MAajWXS9fHZ4mZe3hTDU8nw9IH74TX3JcFKZm8joCfDg==
   code-review-trends:workerIp:
     secure: v1:ROZUzU11hf4B3Gz8:tlUMPXRoUqWtXmGSApIeca0is7Z/V9OWjCk=
-
 encryptionsalt: v1:iDjZ4Fjkne8=:v1:uVWQlqiGgeGovORW:WLD3JoVz1Pm88b3eKw07L8uJrHx1fQ==
