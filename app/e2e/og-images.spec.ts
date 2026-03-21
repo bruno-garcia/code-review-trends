@@ -76,15 +76,11 @@ test.describe("SEO files", () => {
     expect(res.status()).toBe(200);
     const body = await res.text();
     expect(body).toContain("<urlset");
-    // Without SITE_URL=https://codereviewtrends.com, sitemap returns empty.
-    // In CI/dev, just verify it's valid XML.
-    if (process.env.SITE_URL === "https://codereviewtrends.com") {
-      expect(body).toContain("codereviewtrends.com");
-      expect(body).toContain("/products");
-      expect(body).toContain("/compare");
-      expect(body).toContain("/orgs");
-      expect(body).toContain("/about");
-    }
+    expect(body).toContain("codereviewtrends.com");
+    expect(body).toContain("/products");
+    expect(body).toContain("/compare");
+    expect(body).toContain("/orgs");
+    expect(body).toContain("/about");
   });
 
   test("robots.txt returns valid response", async ({ request }) => {
@@ -92,12 +88,7 @@ test.describe("SEO files", () => {
     expect(res.status()).toBe(200);
     const body = await res.text();
     expect(body).toContain("User-Agent: *");
-    // Without SITE_URL=https://codereviewtrends.com, robots blocks all crawling (safe default).
-    if (process.env.SITE_URL === "https://codereviewtrends.com") {
-      expect(body).toContain("Allow: /");
-      expect(body).toContain("Sitemap:");
-    } else {
-      expect(body).toContain("Disallow: /");
-    }
+    expect(body).toContain("Allow: /");
+    expect(body).toContain("Sitemap:");
   });
 });

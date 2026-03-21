@@ -3,14 +3,9 @@ import * as Sentry from "@sentry/nextjs";
 import { getProductSummaries, getOrgList, getRepoList } from "@/lib/clickhouse";
 import { COMPARE_PAIRS } from "@/lib/generated/compare-pairs";
 
-const SITE_URL = process.env.SITE_URL;
-const isProduction = SITE_URL === "https://codereviewtrends.com";
 const BASE_URL = "https://codereviewtrends.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Only serve sitemap entries on production — staging/preview should not be indexed.
-  if (!isProduction) return [];
-
   const entries: MetadataRoute.Sitemap = [];
 
   // Static pages
