@@ -11,7 +11,6 @@ Public website (codereviewtrends.com) tracking adoption of AI code review bots o
 - **`infra/`** — Pulumi (TypeScript) infrastructure-as-code for GCP. Manages ClickHouse VM, Cloud Run (Next.js app), Cloud Run Jobs (pipeline), Artifact Registry, Cloud Scheduler, Workload Identity Federation, and Secret Manager. See `infra/README.md`.
 - **`db/`** — ClickHouse schema and data, split by environment:
   - `db/init/` — runs on **all** environments: numbered SQL migrations for schema, reference data, and table extensions. See `db/README.md` for the full list.
-- **`coming-soon/`** — Static landing page currently live on codereviewtrends.com. Will be replaced when the full app goes to production.
 - **`docker-compose.yml`** — Local dev services (ClickHouse).
 
 ## Dev Environment
