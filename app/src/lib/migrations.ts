@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 14;
+export const EXPECTED_SCHEMA_VERSION = 15;
 
 export type SchemaStatus = {
   /**
@@ -722,8 +722,89 @@ const MIGRATION_014: Migration = {
   ],
 };
 
+/**
+ * Migration 15 — add bot_id to pr_comments ORDER BY.
+ * Matches db/init/016_pr_comments_bot_id_ordering.sql.
+ *
+ * The enrichment pipeline inserts sentinel rows (comment_id=0) when no bot
+ * comments are found. With the old ORDER BY (repo_name, pr_number, comment_id),
+ * sentinels for different bots on the same PR share the same key and get
+ * deduplicated by ReplacingMergeTree. Adding bot_id to the sorting key makes
+ * each bot's sentinel a distinct row that survives deduplication.
+ *
+ * ALTER TABLE ... MODIFY ORDER BY cannot add existing columns, so we recreate
+ * the table with the correct ORDER BY and atomically swap. The
+ * comment_stats_weekly_mv must be dropped and recreated since it reads FROM
+ * pr_comments.
+ */
+const MIGRATION_015: Migration = {
+  version: 15,
+  name: "pr_comments_bot_id_ordering",
+  statements: [
+    // Clean up from any previous failed attempt
+    `DROP TABLE IF EXISTS pr_comments_old`,
+    `DROP TABLE IF EXISTS pr_comments_new`,
+
+    // Drop MV that reads FROM pr_comments
+    `DROP TABLE IF EXISTS comment_stats_weekly_mv`,
+
+    // Create new table with bot_id in ORDER BY
+    `CREATE TABLE pr_comments_new (
+      repo_name String,
+      pr_number UInt32,
+      comment_id UInt64,
+      bot_id String,
+      body_length UInt32,
+      created_at DateTime,
+      thumbs_up UInt32 DEFAULT 0,
+      thumbs_down UInt32 DEFAULT 0,
+      laugh UInt32 DEFAULT 0,
+      confused UInt32 DEFAULT 0,
+      heart UInt32 DEFAULT 0,
+      hooray UInt32 DEFAULT 0,
+      eyes UInt32 DEFAULT 0,
+      rocket UInt32 DEFAULT 0,
+      updated_at DateTime DEFAULT now()
+    ) ENGINE = ReplacingMergeTree(updated_at)
+    ORDER BY (repo_name, pr_number, comment_id, bot_id)`,
+
+    // Copy all data (FINAL deduplicates with old key)
+    `INSERT INTO pr_comments_new (repo_name, pr_number, comment_id, bot_id, body_length, created_at, thumbs_up, thumbs_down, laugh, confused, heart, hooray, eyes, rocket, updated_at)
+    SELECT
+      repo_name, pr_number, comment_id, bot_id, body_length, created_at,
+      thumbs_up, thumbs_down, laugh, confused, heart, hooray, eyes, rocket,
+      updated_at
+    FROM pr_comments FINAL
+    SETTINGS max_execution_time = 600`,
+
+    // Atomic swap
+    `RENAME TABLE
+      pr_comments TO pr_comments_old,
+      pr_comments_new TO pr_comments`,
+
+    // Drop old table
+    `DROP TABLE pr_comments_old`,
+
+    // Recreate MV (matches 009_comment_stats_reacted_count.sql)
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS comment_stats_weekly_mv
+    TO comment_stats_weekly
+    AS SELECT
+      bot_id,
+      toMonday(created_at) AS week,
+      count() AS comment_count,
+      sum(pr_comments.thumbs_up) AS thumbs_up,
+      sum(pr_comments.thumbs_down) AS thumbs_down,
+      sum(pr_comments.heart) AS heart,
+      uniqExactState(repo_name, pr_number) AS pr_count,
+      countIf(pr_comments.thumbs_up + pr_comments.thumbs_down > 0) AS reacted_comment_count
+    FROM pr_comments
+    WHERE comment_id > 0
+    GROUP BY bot_id, week`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012, MIGRATION_013, MIGRATION_014];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012, MIGRATION_013, MIGRATION_014, MIGRATION_015];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

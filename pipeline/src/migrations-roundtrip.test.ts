@@ -230,6 +230,17 @@ describe("migration roundtrip", async () => {
     const insertErrors: string[] = [];
     for (const { version, table, sql } of inserts) {
       try {
+        // Some migrations use transient tables (e.g., pr_comments_new for a
+        // table recreation + atomic swap). After the SQL files complete, the
+        // transient table no longer exists. Skip rather than fail — the
+        // column-mismatch risk this test guards against doesn't apply to
+        // tables that only exist during a single migration's execution.
+        const exists = await query<{ cnt: number }>(
+          dbClient,
+          `SELECT count() AS cnt FROM system.tables WHERE database = currentDatabase() AND name = '${table}'`,
+        );
+        if (!exists[0]?.cnt) continue;
+
         // TRUNCATE first so the INSERT has a clean target
         // (some tables may have been backfilled by the SQL files)
         await dbClient.command({ query: `TRUNCATE TABLE ${table}` });
