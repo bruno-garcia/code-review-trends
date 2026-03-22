@@ -235,11 +235,11 @@ describe("migration roundtrip", async () => {
         // transient table no longer exists. Skip rather than fail — the
         // column-mismatch risk this test guards against doesn't apply to
         // tables that only exist during a single migration's execution.
-        const exists = await query<{ cnt: number }>(
+        const exists = await query<{ cnt: string }>(
           dbClient,
           `SELECT count() AS cnt FROM system.tables WHERE database = currentDatabase() AND name = '${table}'`,
         );
-        if (!exists[0]?.cnt) continue;
+        if (Number(exists[0]?.cnt) === 0) continue;
 
         // TRUNCATE first so the INSERT has a clean target
         // (some tables may have been backfilled by the SQL files)

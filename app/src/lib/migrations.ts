@@ -723,14 +723,17 @@ const MIGRATION_014: Migration = {
 };
 
 /**
- * Migration 15 — add bot_id to pr_comments ORDER BY.
+ * Migration 15 — extend pr_comments ORDER BY / primary key with bot_id.
  * Matches db/init/016_pr_comments_bot_id_ordering.sql.
  *
  * The enrichment pipeline inserts sentinel rows (comment_id=0) when no bot
- * comments are found. With the old ORDER BY (repo_name, pr_number, comment_id),
- * sentinels for different bots on the same PR share the same key and get
- * deduplicated by ReplacingMergeTree. Adding bot_id to the sorting key makes
- * each bot's sentinel a distinct row that survives deduplication.
+ * comments are found. Since pr_comments has no explicit PRIMARY KEY, ClickHouse
+ * treats ORDER BY as the primary key. With the old key
+ * (repo_name, pr_number, comment_id), sentinels for different bots on the same
+ * PR share the same key and get deduplicated by ReplacingMergeTree. Appending
+ * bot_id extends the primary/ordering key to
+ * (repo_name, pr_number, comment_id, bot_id), keeping the original prefix but
+ * making each bot's sentinel a distinct row that survives deduplication.
  *
  * ALTER TABLE ... MODIFY ORDER BY cannot add existing columns, so we recreate
  * the table with the correct ORDER BY and atomically swap. The
@@ -775,7 +778,7 @@ const MIGRATION_015: Migration = {
       thumbs_up, thumbs_down, laugh, confused, heart, hooray, eyes, rocket,
       updated_at
     FROM pr_comments FINAL
-    SETTINGS max_execution_time = 600`,
+    SETTINGS max_execution_time = 300`,
 
     // Atomic swap
     `RENAME TABLE

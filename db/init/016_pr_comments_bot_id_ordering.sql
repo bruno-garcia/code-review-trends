@@ -1,9 +1,10 @@
--- Migration 15: Add bot_id to pr_comments ORDER BY.
+-- Migration 16: Add bot_id to pr_comments ORDER BY (app schema version 15).
 --
 -- The pr_comments table uses ReplacingMergeTree with
--- ORDER BY (repo_name, pr_number, comment_id). When no bot comments are found
--- for a (repo, PR, bot) combo, the enrichment pipeline inserts a sentinel row
--- with comment_id=0 so the combo is marked "done".
+-- ORDER BY (repo_name, pr_number, comment_id). Since no explicit PRIMARY KEY
+-- is defined, ClickHouse uses ORDER BY as the primary key. When no bot comments
+-- are found for a (repo, PR, bot) combo, the enrichment pipeline inserts a
+-- sentinel row with comment_id=0 so the combo is marked "done".
 --
 -- Problem: when multiple bots review the same PR and both get sentinel rows,
 -- they share the same ORDER BY key (repo_name, pr_number, 0). During merge,
@@ -12,6 +13,7 @@
 -- status page's comments_enriched count (~2% of discovered combos).
 --
 -- Fix: recreate the table with ORDER BY (repo_name, pr_number, comment_id, bot_id).
+-- This extends both the sorting key and the primary key (same prefix, new suffix).
 -- ALTER TABLE ... MODIFY ORDER BY cannot add existing columns, so we create a new
 -- table, copy data, and atomically swap. The comment_stats_weekly_mv must be
 -- dropped and recreated since it reads FROM pr_comments.
@@ -57,7 +59,7 @@ SELECT
     thumbs_up, thumbs_down, laugh, confused, heart, hooray, eyes, rocket,
     updated_at
 FROM code_review_trends.pr_comments FINAL
-SETTINGS max_execution_time = 600;
+SETTINGS max_execution_time = 300;
 
 -- 4. Atomic swap — both renames happen in a single DDL operation so there is
 --    no window where pr_comments doesn't exist.

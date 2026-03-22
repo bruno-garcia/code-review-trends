@@ -27,6 +27,7 @@ ClickHouse schema is managed through numbered SQL migration files in `db/init/`.
 | `011_pr_product_characteristics.sql` | MV pre-joining `pull_requests` with `pr_bot_events` + `bots` for per-product PR characteristic queries. |
 | `012_org_pr_counts.sql` | MV pre-aggregating owner-level PR counts, extracting owner from repo_name to eliminate expensive repos JOIN. |
 | `013_pr_summary_tables.sql` | Summary tables for total PR counts per repo and per owner. Enables fast pagination on /repos and /orgs pages. |
+| `014_bot_comment_discovery_summary.sql` | Pre-aggregated per-bot comment discovery totals. Collapses 471K rows into ~20 rows for fast status page queries. |
 | `014_product_status.sql` | Adds `status` column to `products` (active/retired). Marks Korbit as retired. |
 | `015_reaction_scan_status.sql` | Adds `scan_status` column to `reaction_scan_progress`. |
 | `016_pr_comments_bot_id_ordering.sql` | Adds `bot_id` to `pr_comments` ORDER BY to prevent sentinel row deduplication across bots. |
