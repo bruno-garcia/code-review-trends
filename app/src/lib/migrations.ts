@@ -822,22 +822,27 @@ const MIGRATION_016: Migration = {
   name: "status_page_summaries",
   statements: [
     // 1. pr_discovery_global_summary
+    // Uses a dummy _key column because AggregatingMergeTree rejects ORDER BY tuple()
+    // (empty sorting key) — unlike plain MergeTree, it requires a non-empty key.
     `CREATE TABLE IF NOT EXISTS pr_discovery_global_summary (
+      _key UInt8 DEFAULT 0,
       total_repos AggregateFunction(uniqExact, String),
       total_prs AggregateFunction(uniqExact, String, UInt32)
     ) ENGINE = AggregatingMergeTree()
-    ORDER BY tuple()`,
+    ORDER BY _key`,
 
     `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_discovery_global_summary_mv
     TO pr_discovery_global_summary
     AS SELECT
+      0 AS _key,
       uniqExactState(repo_name) AS total_repos,
       uniqExactState(repo_name, pr_number) AS total_prs
     FROM pr_bot_events`,
 
     // Backfill (uniqExactState is idempotent — duplicates merge correctly)
-    `INSERT INTO pr_discovery_global_summary (total_repos, total_prs)
+    `INSERT INTO pr_discovery_global_summary (_key, total_repos, total_prs)
     SELECT
+      0 AS _key,
       uniqExactState(repo_name) AS total_repos,
       uniqExactState(repo_name, pr_number) AS total_prs
     FROM pr_bot_events
@@ -920,20 +925,24 @@ const MIGRATION_016: Migration = {
     SETTINGS max_execution_time = 300`,
 
     // 5. pr_bot_reactions_pr_summary
+    // Uses a dummy _key column because AggregatingMergeTree rejects ORDER BY tuple().
     `CREATE TABLE IF NOT EXISTS pr_bot_reactions_pr_summary (
+      _key UInt8 DEFAULT 0,
       total_prs AggregateFunction(uniqExact, String, UInt32)
     ) ENGINE = AggregatingMergeTree()
-    ORDER BY tuple()`,
+    ORDER BY _key`,
 
     `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_bot_reactions_pr_summary_mv
     TO pr_bot_reactions_pr_summary
     AS SELECT
+      0 AS _key,
       uniqExactState(repo_name, pr_number) AS total_prs
     FROM pr_bot_reactions`,
 
     // Backfill (uniqExactState is idempotent — duplicates merge correctly)
-    `INSERT INTO pr_bot_reactions_pr_summary (total_prs)
+    `INSERT INTO pr_bot_reactions_pr_summary (_key, total_prs)
     SELECT
+      0 AS _key,
       uniqExactState(repo_name, pr_number) AS total_prs
     FROM pr_bot_reactions
     SETTINGS max_execution_time = 300`,
