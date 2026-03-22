@@ -1843,7 +1843,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       SELECT
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
         (SELECT countIf(fetch_status IN ('not_found', 'forbidden')) FROM repos) AS repos_not_found,
-        (SELECT sum(cnt) FROM (SELECT countMerge(pr_count) AS cnt FROM pull_requests_enrichment_summary GROUP BY repo_name)) AS prs_enriched,
+        (SELECT countMerge(pr_count) FROM pull_requests_enrichment_summary) AS prs_enriched,
         (SELECT sum(prs) FROM (
           SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary
           WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
@@ -1881,11 +1881,9 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       reactions_found: number;
     }>(`
       SELECT
-        (SELECT sum(cnt) FROM (
-          SELECT countMerge(pr_count) AS cnt FROM reaction_scan_repo_summary
+        (SELECT countMerge(pr_count) FROM reaction_scan_repo_summary
           WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
-          GROUP BY repo_name
-        )) AS reactions_scanned,
+        ) AS reactions_scanned,
         (SELECT sum(prs) FROM (
           SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary
           WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
