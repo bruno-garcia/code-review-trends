@@ -10,6 +10,11 @@
 --
 -- Solution: Create materialized views that maintain running aggregates,
 -- turning full table scans and expensive merges into small MV reads.
+--
+-- Backfill notes:
+--   - uniqExactState backfills are idempotent (duplicates merge via set union)
+--   - countState backfills use TRUNCATE first to ensure idempotency
+--   - All backfills use max_execution_time = 300 (app client defaults to 15s)
 
 -- ---------------------------------------------------------------------------
 -- 1. pr_discovery_global_summary
@@ -32,12 +37,13 @@ AS SELECT
     uniqExactState(repo_name, pr_number) AS total_prs
 FROM code_review_trends.pr_bot_events;
 
--- Backfill from existing data
+-- Backfill (uniqExactState is idempotent — duplicates merge correctly)
 INSERT INTO code_review_trends.pr_discovery_global_summary (total_repos, total_prs)
 SELECT
     uniqExactState(repo_name) AS total_repos,
     uniqExactState(repo_name, pr_number) AS total_prs
-FROM code_review_trends.pr_bot_events;
+FROM code_review_trends.pr_bot_events
+SETTINGS max_execution_time = 300;
 
 -- ---------------------------------------------------------------------------
 -- 2. pull_requests_enrichment_summary
@@ -61,14 +67,16 @@ FROM code_review_trends.pull_requests
 WHERE state NOT IN ('not_found', 'forbidden')
 GROUP BY repo_name;
 
--- Backfill from existing data
+-- Backfill (TRUNCATE first — countState is NOT idempotent, re-run would double-count)
+TRUNCATE TABLE IF EXISTS code_review_trends.pull_requests_enrichment_summary;
 INSERT INTO code_review_trends.pull_requests_enrichment_summary (repo_name, pr_count)
 SELECT
     repo_name,
     countState() AS pr_count
 FROM code_review_trends.pull_requests
 WHERE state NOT IN ('not_found', 'forbidden')
-GROUP BY repo_name;
+GROUP BY repo_name
+SETTINGS max_execution_time = 300;
 
 -- ---------------------------------------------------------------------------
 -- 3. pr_comments_repo_bot_combos
@@ -96,13 +104,14 @@ AS SELECT
 FROM code_review_trends.pr_comments
 GROUP BY repo_name;
 
--- Backfill from existing data
+-- Backfill (uniqExactState is idempotent — duplicates merge correctly)
 INSERT INTO code_review_trends.pr_comments_repo_bot_combos (repo_name, total_combos)
 SELECT
     repo_name,
     uniqExactState(pr_number, bot_id) AS total_combos
 FROM code_review_trends.pr_comments
-GROUP BY repo_name;
+GROUP BY repo_name
+SETTINGS max_execution_time = 300;
 
 -- ---------------------------------------------------------------------------
 -- 4. reaction_scan_repo_summary
@@ -126,13 +135,15 @@ AS SELECT
 FROM code_review_trends.reaction_scan_progress
 GROUP BY repo_name;
 
--- Backfill from existing data
+-- Backfill (TRUNCATE first — countState is NOT idempotent, re-run would double-count)
+TRUNCATE TABLE IF EXISTS code_review_trends.reaction_scan_repo_summary;
 INSERT INTO code_review_trends.reaction_scan_repo_summary (repo_name, pr_count)
 SELECT
     repo_name,
     countState() AS pr_count
 FROM code_review_trends.reaction_scan_progress
-GROUP BY repo_name;
+GROUP BY repo_name
+SETTINGS max_execution_time = 300;
 
 -- ---------------------------------------------------------------------------
 -- 5. pr_bot_reactions_pr_summary
@@ -151,8 +162,9 @@ AS SELECT
     uniqExactState(repo_name, pr_number) AS total_prs
 FROM code_review_trends.pr_bot_reactions;
 
--- Backfill from existing data
+-- Backfill (uniqExactState is idempotent — duplicates merge correctly)
 INSERT INTO code_review_trends.pr_bot_reactions_pr_summary (total_prs)
 SELECT
     uniqExactState(repo_name, pr_number) AS total_prs
-FROM code_review_trends.pr_bot_reactions;
+FROM code_review_trends.pr_bot_reactions
+SETTINGS max_execution_time = 300;

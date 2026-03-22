@@ -835,12 +835,13 @@ const MIGRATION_016: Migration = {
       uniqExactState(repo_name, pr_number) AS total_prs
     FROM pr_bot_events`,
 
-    // Backfill
+    // Backfill (uniqExactState is idempotent — duplicates merge correctly)
     `INSERT INTO pr_discovery_global_summary (total_repos, total_prs)
     SELECT
       uniqExactState(repo_name) AS total_repos,
       uniqExactState(repo_name, pr_number) AS total_prs
-    FROM pr_bot_events`,
+    FROM pr_bot_events
+    SETTINGS max_execution_time = 300`,
 
     // 2. pull_requests_enrichment_summary
     `CREATE TABLE IF NOT EXISTS pull_requests_enrichment_summary (
@@ -858,14 +859,16 @@ const MIGRATION_016: Migration = {
     WHERE state NOT IN ('not_found', 'forbidden')
     GROUP BY repo_name`,
 
-    // Backfill
+    // Backfill (TRUNCATE first — countState is NOT idempotent, re-run would double-count)
+    `TRUNCATE TABLE IF EXISTS pull_requests_enrichment_summary`,
     `INSERT INTO pull_requests_enrichment_summary (repo_name, pr_count)
     SELECT
       repo_name,
       countState() AS pr_count
     FROM pull_requests
     WHERE state NOT IN ('not_found', 'forbidden')
-    GROUP BY repo_name`,
+    GROUP BY repo_name
+    SETTINGS max_execution_time = 300`,
 
     // 3. pr_comments_repo_bot_combos
     `CREATE TABLE IF NOT EXISTS pr_comments_repo_bot_combos (
@@ -882,13 +885,14 @@ const MIGRATION_016: Migration = {
     FROM pr_comments
     GROUP BY repo_name`,
 
-    // Backfill
+    // Backfill (uniqExactState is idempotent — duplicates merge correctly)
     `INSERT INTO pr_comments_repo_bot_combos (repo_name, total_combos)
     SELECT
       repo_name,
       uniqExactState(pr_number, bot_id) AS total_combos
     FROM pr_comments
-    GROUP BY repo_name`,
+    GROUP BY repo_name
+    SETTINGS max_execution_time = 300`,
 
     // 4. reaction_scan_repo_summary
     `CREATE TABLE IF NOT EXISTS reaction_scan_repo_summary (
@@ -905,13 +909,15 @@ const MIGRATION_016: Migration = {
     FROM reaction_scan_progress
     GROUP BY repo_name`,
 
-    // Backfill
+    // Backfill (TRUNCATE first — countState is NOT idempotent, re-run would double-count)
+    `TRUNCATE TABLE IF EXISTS reaction_scan_repo_summary`,
     `INSERT INTO reaction_scan_repo_summary (repo_name, pr_count)
     SELECT
       repo_name,
       countState() AS pr_count
     FROM reaction_scan_progress
-    GROUP BY repo_name`,
+    GROUP BY repo_name
+    SETTINGS max_execution_time = 300`,
 
     // 5. pr_bot_reactions_pr_summary
     `CREATE TABLE IF NOT EXISTS pr_bot_reactions_pr_summary (
@@ -925,11 +931,12 @@ const MIGRATION_016: Migration = {
       uniqExactState(repo_name, pr_number) AS total_prs
     FROM pr_bot_reactions`,
 
-    // Backfill
+    // Backfill (uniqExactState is idempotent — duplicates merge correctly)
     `INSERT INTO pr_bot_reactions_pr_summary (total_prs)
     SELECT
       uniqExactState(repo_name, pr_number) AS total_prs
-    FROM pr_bot_reactions`,
+    FROM pr_bot_reactions
+    SETTINGS max_execution_time = 300`,
   ],
 };
 
