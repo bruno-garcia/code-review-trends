@@ -24,7 +24,7 @@ import { connection } from "next/server";
 // ---------------------------------------------------------------------------
 
 /** The schema version this app deployment expects. Bump when adding a migration. */
-export const EXPECTED_SCHEMA_VERSION = 15;
+export const EXPECTED_SCHEMA_VERSION = 16;
 
 export type SchemaStatus = {
   /**
@@ -806,8 +806,142 @@ const MIGRATION_015: Migration = {
   ],
 };
 
+/**
+ * Migration 16 — status page summary MVs.
+ * Matches db/init/017_status_page_summaries.sql.
+ *
+ * Pre-aggregates all expensive queries used by getDataCollectionStats():
+ *   1. pr_discovery_global_summary — global repo/PR counts (replaces repo_pr_summary GROUP BY)
+ *   2. pull_requests_enrichment_summary — enriched PR count per repo
+ *   3. pr_comments_repo_bot_combos — distinct (pr_number, bot_id) per repo
+ *   4. reaction_scan_repo_summary — reaction scan count per repo
+ *   5. pr_bot_reactions_pr_summary — distinct (repo_name, pr_number) from reactions
+ */
+const MIGRATION_016: Migration = {
+  version: 16,
+  name: "status_page_summaries",
+  statements: [
+    // 1. pr_discovery_global_summary
+    `CREATE TABLE IF NOT EXISTS pr_discovery_global_summary (
+      total_repos AggregateFunction(uniqExact, String),
+      total_prs AggregateFunction(uniqExact, String, UInt32)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY tuple()`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_discovery_global_summary_mv
+    TO pr_discovery_global_summary
+    AS SELECT
+      uniqExactState(repo_name) AS total_repos,
+      uniqExactState(repo_name, pr_number) AS total_prs
+    FROM pr_bot_events`,
+
+    // Backfill (uniqExactState is idempotent — duplicates merge correctly)
+    `INSERT INTO pr_discovery_global_summary (total_repos, total_prs)
+    SELECT
+      uniqExactState(repo_name) AS total_repos,
+      uniqExactState(repo_name, pr_number) AS total_prs
+    FROM pr_bot_events
+    SETTINGS max_execution_time = 300`,
+
+    // 2. pull_requests_enrichment_summary
+    `CREATE TABLE IF NOT EXISTS pull_requests_enrichment_summary (
+      repo_name String,
+      pr_count AggregateFunction(count)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY repo_name`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS pull_requests_enrichment_summary_mv
+    TO pull_requests_enrichment_summary
+    AS SELECT
+      repo_name,
+      countState() AS pr_count
+    FROM pull_requests
+    WHERE state NOT IN ('not_found', 'forbidden')
+    GROUP BY repo_name`,
+
+    // Backfill (TRUNCATE first — countState is NOT idempotent, re-run would double-count)
+    `TRUNCATE TABLE IF EXISTS pull_requests_enrichment_summary`,
+    `INSERT INTO pull_requests_enrichment_summary (repo_name, pr_count)
+    SELECT
+      repo_name,
+      countState() AS pr_count
+    FROM pull_requests
+    WHERE state NOT IN ('not_found', 'forbidden')
+    GROUP BY repo_name
+    SETTINGS max_execution_time = 300`,
+
+    // 3. pr_comments_repo_bot_combos
+    `CREATE TABLE IF NOT EXISTS pr_comments_repo_bot_combos (
+      repo_name String,
+      total_combos AggregateFunction(uniqExact, UInt32, String)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY repo_name`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_comments_repo_bot_combos_mv
+    TO pr_comments_repo_bot_combos
+    AS SELECT
+      repo_name,
+      uniqExactState(pr_number, bot_id) AS total_combos
+    FROM pr_comments
+    GROUP BY repo_name`,
+
+    // Backfill (uniqExactState is idempotent — duplicates merge correctly)
+    `INSERT INTO pr_comments_repo_bot_combos (repo_name, total_combos)
+    SELECT
+      repo_name,
+      uniqExactState(pr_number, bot_id) AS total_combos
+    FROM pr_comments
+    GROUP BY repo_name
+    SETTINGS max_execution_time = 300`,
+
+    // 4. reaction_scan_repo_summary
+    `CREATE TABLE IF NOT EXISTS reaction_scan_repo_summary (
+      repo_name String,
+      pr_count AggregateFunction(count)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY repo_name`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS reaction_scan_repo_summary_mv
+    TO reaction_scan_repo_summary
+    AS SELECT
+      repo_name,
+      countState() AS pr_count
+    FROM reaction_scan_progress
+    GROUP BY repo_name`,
+
+    // Backfill (TRUNCATE first — countState is NOT idempotent, re-run would double-count)
+    `TRUNCATE TABLE IF EXISTS reaction_scan_repo_summary`,
+    `INSERT INTO reaction_scan_repo_summary (repo_name, pr_count)
+    SELECT
+      repo_name,
+      countState() AS pr_count
+    FROM reaction_scan_progress
+    GROUP BY repo_name
+    SETTINGS max_execution_time = 300`,
+
+    // 5. pr_bot_reactions_pr_summary
+    `CREATE TABLE IF NOT EXISTS pr_bot_reactions_pr_summary (
+      total_prs AggregateFunction(uniqExact, String, UInt32)
+    ) ENGINE = AggregatingMergeTree()
+    ORDER BY tuple()`,
+
+    `CREATE MATERIALIZED VIEW IF NOT EXISTS pr_bot_reactions_pr_summary_mv
+    TO pr_bot_reactions_pr_summary
+    AS SELECT
+      uniqExactState(repo_name, pr_number) AS total_prs
+    FROM pr_bot_reactions`,
+
+    // Backfill (uniqExactState is idempotent — duplicates merge correctly)
+    `INSERT INTO pr_bot_reactions_pr_summary (total_prs)
+    SELECT
+      uniqExactState(repo_name, pr_number) AS total_prs
+    FROM pr_bot_reactions
+    SETTINGS max_execution_time = 300`,
+  ],
+};
+
 /** All migrations, ordered by version. Add new migrations here. */
-const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012, MIGRATION_013, MIGRATION_014, MIGRATION_015];
+const MIGRATIONS: Migration[] = [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012, MIGRATION_013, MIGRATION_014, MIGRATION_015, MIGRATION_016];
 
 // ---------------------------------------------------------------------------
 // Migration infrastructure tables

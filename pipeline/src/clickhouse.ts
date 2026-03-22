@@ -496,6 +496,11 @@ const TABLES_TO_OPTIMIZE = [
   "reaction_scan_progress",
   "pr_product_characteristics",
   "bot_comment_discovery_summary",
+  "pr_discovery_global_summary",
+  "pull_requests_enrichment_summary",
+  "pr_comments_repo_bot_combos",
+  "reaction_scan_repo_summary",
+  "pr_bot_reactions_pr_summary",
 ] as const;
 
 const VALID_TABLES = new Set<string>(TABLES_TO_OPTIMIZE);

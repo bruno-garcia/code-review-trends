@@ -603,6 +603,7 @@ const SCHEMA_MIGRATIONS: { version: number; name: string }[] = [
   { version: 13, name: "bot_comment_discovery_summary" },
   { version: 14, name: "reaction_scan_status" },
   { version: 15, name: "pr_comments_bot_id_ordering" },
+  { version: 16, name: "status_page_summaries" },
 ];
 
 /** Query the current schema version from a ClickHouse database. Returns 0 if no migrations table. */
@@ -904,7 +905,7 @@ async function cmdDiscover() {
     countMetric("pipeline.discover.ch_rows", totalChRows);
 
     log("Optimizing tables...");
-    await optimizeTables(ch, ["pr_bot_events", "org_bot_pr_counts", "repo_pr_summary", "org_pr_summary", "bot_comment_discovery_summary"]);
+    await optimizeTables(ch, ["pr_bot_events", "org_bot_pr_counts", "repo_pr_summary", "org_pr_summary", "bot_comment_discovery_summary", "pr_discovery_global_summary"]);
     log("✓ Tables optimized");
     log("Done!");
   } finally {
@@ -1107,7 +1108,7 @@ async function cmdEnrich() {
   log("\nOptimizing tables...");
   const ch = createCHClient();
   try {
-    await optimizeTables(ch, ["repos", "pull_requests", "pr_comments", "pr_bot_reactions", "reaction_scan_progress", "pr_product_characteristics"]);
+    await optimizeTables(ch, ["repos", "pull_requests", "pr_comments", "pr_bot_reactions", "reaction_scan_progress", "pr_product_characteristics", "pr_discovery_global_summary", "pull_requests_enrichment_summary", "pr_comments_repo_bot_combos", "reaction_scan_repo_summary", "pr_bot_reactions_pr_summary"]);
     log("✓ Tables optimized");
   } finally {
     await ch.close();
