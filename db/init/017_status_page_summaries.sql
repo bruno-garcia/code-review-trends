@@ -25,21 +25,24 @@
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS code_review_trends.pr_discovery_global_summary (
+    _key UInt8 DEFAULT 0,
     total_repos AggregateFunction(uniqExact, String),
     total_prs AggregateFunction(uniqExact, String, UInt32)
 ) ENGINE = AggregatingMergeTree()
-ORDER BY tuple();
+ORDER BY _key;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS code_review_trends.pr_discovery_global_summary_mv
 TO code_review_trends.pr_discovery_global_summary
 AS SELECT
+    0 AS _key,
     uniqExactState(repo_name) AS total_repos,
     uniqExactState(repo_name, pr_number) AS total_prs
 FROM code_review_trends.pr_bot_events;
 
 -- Backfill (uniqExactState is idempotent — duplicates merge correctly)
-INSERT INTO code_review_trends.pr_discovery_global_summary (total_repos, total_prs)
+INSERT INTO code_review_trends.pr_discovery_global_summary (_key, total_repos, total_prs)
 SELECT
+    0 AS _key,
     uniqExactState(repo_name) AS total_repos,
     uniqExactState(repo_name, pr_number) AS total_prs
 FROM code_review_trends.pr_bot_events
@@ -152,19 +155,22 @@ SETTINGS max_execution_time = 300;
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS code_review_trends.pr_bot_reactions_pr_summary (
+    _key UInt8 DEFAULT 0,
     total_prs AggregateFunction(uniqExact, String, UInt32)
 ) ENGINE = AggregatingMergeTree()
-ORDER BY tuple();
+ORDER BY _key;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS code_review_trends.pr_bot_reactions_pr_summary_mv
 TO code_review_trends.pr_bot_reactions_pr_summary
 AS SELECT
+    0 AS _key,
     uniqExactState(repo_name, pr_number) AS total_prs
 FROM code_review_trends.pr_bot_reactions;
 
 -- Backfill (uniqExactState is idempotent — duplicates merge correctly)
-INSERT INTO code_review_trends.pr_bot_reactions_pr_summary (total_prs)
+INSERT INTO code_review_trends.pr_bot_reactions_pr_summary (_key, total_prs)
 SELECT
+    0 AS _key,
     uniqExactState(repo_name, pr_number) AS total_prs
 FROM code_review_trends.pr_bot_reactions
 SETTINGS max_execution_time = 300;
