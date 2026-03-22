@@ -1823,15 +1823,17 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       WHERE week >= toDate('${DATA_EPOCH}')
       ORDER BY w
     `),
-    // 2: repo_pr_summary — single scan for repos_total + prs_discovered
+    // 2: pr_discovery_global_summary — single-row merge for repos_total + prs_discovered
+    // Uses global summary MV instead of merging uniqExact states per repo (50K+ groups).
     query<{ repos_total: number; prs_discovered: number }>(`
-      SELECT count() AS repos_total, sum(prs) AS prs_discovered
-      FROM (SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary GROUP BY repo_name)
+      SELECT
+        uniqExactMerge(total_repos) AS repos_total,
+        uniqExactMerge(total_prs) AS prs_discovered
+      FROM pr_discovery_global_summary
     `),
     // 3: repo fetch status + PR enrichment counts
-    // Uses repo_pr_summary MV for prs_unreachable instead of scanning raw
-    // pr_bot_events (7M+ rows). The MV stores uniqExact(pr_number) per repo,
-    // so merging states for ~few unreachable repos is nearly instant.
+    // Uses pull_requests_enrichment_summary MV for prs_enriched (avoids full
+    // pull_requests scan) and repo_pr_summary MV for prs_unreachable.
     query<{
       repos_ok: number;
       repos_not_found: number;
@@ -1841,7 +1843,7 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
       SELECT
         (SELECT countIf(fetch_status = 'ok') FROM repos) AS repos_ok,
         (SELECT countIf(fetch_status IN ('not_found', 'forbidden')) FROM repos) AS repos_not_found,
-        (SELECT count() FROM pull_requests WHERE state NOT IN ('not_found', 'forbidden')) AS prs_enriched,
+        (SELECT sum(cnt) FROM (SELECT countMerge(pr_count) AS cnt FROM pull_requests_enrichment_summary GROUP BY repo_name)) AS prs_enriched,
         (SELECT sum(prs) FROM (
           SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary
           WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
@@ -1849,9 +1851,8 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
         )) AS prs_unreachable
     `),
     // 4: comment discovery + enrichment counts
-    // Uses pr_bot_event_counts MV for comments_unreachable instead of scanning
-    // raw pr_bot_events. Merges uniqExact(pr_number) states per (repo, bot) —
-    // only needs to process the few unreachable repos.
+    // Uses pr_comments_repo_bot_combos MV for comments_enriched (avoids full
+    // pr_comments scan) and pr_bot_event_counts MV for comments_unreachable.
     query<{
       comments_discovered: number;
       comments_enriched: number;
@@ -1859,11 +1860,10 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
     }>(`
       SELECT
         (SELECT sum(x) FROM (SELECT uniqExactMerge(total_combos) AS x FROM bot_comment_discovery_summary GROUP BY bot_id)) AS comments_discovered,
-        (SELECT sum(distinct_bots) FROM (
-          SELECT countDistinct(bot_id) AS distinct_bots
-          FROM pr_comments
+        (SELECT sum(combos) FROM (
+          SELECT uniqExactMerge(total_combos) AS combos FROM pr_comments_repo_bot_combos
           WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
-          GROUP BY repo_name, pr_number
+          GROUP BY repo_name
         )) AS comments_enriched,
         (SELECT sum(combos) FROM (
           SELECT uniqExactMerge(pr_count) AS combos FROM pr_bot_event_counts
@@ -1872,22 +1872,26 @@ export async function getDataCollectionStats(): Promise<DataCollectionStats> {
         )) AS comments_unreachable
     `),
     // 5: reaction scan progress
-    // Uses repo_pr_summary MV for reactions_unreachable (same value as
-    // prs_unreachable — distinct PRs in unreachable repos).
+    // Uses reaction_scan_repo_summary MV for reactions_scanned (avoids full
+    // reaction_scan_progress scan), pr_bot_reactions_pr_summary MV for
+    // reactions_found, and repo_pr_summary MV for reactions_unreachable.
     query<{
       reactions_scanned: number;
       reactions_unreachable: number;
       reactions_found: number;
     }>(`
       SELECT
-        (SELECT count() FROM reaction_scan_progress
-         WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))) AS reactions_scanned,
+        (SELECT sum(cnt) FROM (
+          SELECT countMerge(pr_count) AS cnt FROM reaction_scan_repo_summary
+          WHERE repo_name NOT IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
+          GROUP BY repo_name
+        )) AS reactions_scanned,
         (SELECT sum(prs) FROM (
           SELECT uniqExactMerge(total_prs) AS prs FROM repo_pr_summary
           WHERE repo_name IN (SELECT name FROM repos WHERE fetch_status IN ('not_found', 'forbidden'))
           GROUP BY repo_name
         )) AS reactions_unreachable,
-        (SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions) AS reactions_found
+        (SELECT uniqExactMerge(total_prs) FROM pr_bot_reactions_pr_summary) AS reactions_found
     `),
   ]);
 
