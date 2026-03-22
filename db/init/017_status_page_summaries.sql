@@ -24,6 +24,8 @@
 --    which merges uniqExact states for every repo — slow with 50K+ repos.
 -- ---------------------------------------------------------------------------
 
+-- Uses a dummy _key column because AggregatingMergeTree rejects ORDER BY tuple()
+-- (empty sorting key) — unlike plain MergeTree, it requires a non-empty key.
 CREATE TABLE IF NOT EXISTS code_review_trends.pr_discovery_global_summary (
     _key UInt8 DEFAULT 0,
     total_repos AggregateFunction(uniqExact, String),
@@ -154,6 +156,7 @@ SETTINGS max_execution_time = 300;
 --    Replaces: SELECT uniq(repo_name, pr_number) FROM pr_bot_reactions
 -- ---------------------------------------------------------------------------
 
+-- Uses a dummy _key column because AggregatingMergeTree rejects ORDER BY tuple().
 CREATE TABLE IF NOT EXISTS code_review_trends.pr_bot_reactions_pr_summary (
     _key UInt8 DEFAULT 0,
     total_prs AggregateFunction(uniqExact, String, UInt32)
