@@ -40,8 +40,6 @@ export default async function RepoPage({ params }: Params) {
     getRepoProducts(repoName),
   ]);
 
-  // The repo_languages table was dropped in migration 4 as it was replaced by repos.primary_language
-  const languages: { language: string; bytes: number }[] = [];
 
   if (!detail) notFound();
 
