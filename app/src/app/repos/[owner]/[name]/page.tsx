@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   getRepoDetail,
   getRepoProducts,
-  getRepoLanguages,
 } from "@/lib/clickhouse";
 import { formatNumber, formatHours } from "@/lib/format";
 import { SectionHeading } from "@/components/section-heading";
@@ -41,18 +40,8 @@ export default async function RepoPage({ params }: Params) {
     getRepoProducts(repoName),
   ]);
 
-  // repo_languages table may not exist in all environments — fetch
-  // separately so a missing table doesn't crash the entire page.
-  let languages: Awaited<ReturnType<typeof getRepoLanguages>> = [];
-  try {
-    languages = await getRepoLanguages(repoName);
-  } catch (err) {
-    // Table missing or query failed — page is fully functional without it.
-    const Sentry = await import("@sentry/nextjs");
-    Sentry.captureException(err, {
-      tags: { route: "repos/[owner]/[name]", query: "getRepoLanguages", repo: repoName },
-    });
-  }
+  // The repo_languages table was dropped in migration 4 as it was replaced by repos.primary_language
+  const languages: { language: string; bytes: number }[] = [];
 
   if (!detail) notFound();
 
