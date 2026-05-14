@@ -1,18 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { DataCollectionStats } from "@/lib/clickhouse";
 import { DATA_EPOCH } from "@/lib/constants";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-/** Generate all Monday dates from epoch to today. */
-function allExpectedWeeks(): string[] {
+/**
+ * Generate all Monday dates from epoch to `now`.
+ *
+ * IMPORTANT: `now` must be supplied by the caller (computed on the server and
+ * threaded through as a prop). Calling `new Date()` here would make the output
+ * differ between SSR and the first client render near a week rollover, causing
+ * a hydration mismatch.
+ */
+function allExpectedWeeks(nowISO: string): string[] {
   const weeks: string[] = [];
   const d = new Date(DATA_EPOCH + "T00:00:00Z");
   // Align to first Monday on or after epoch (UTC)
   while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1);
-  const today = new Date();
+  const today = new Date(nowISO);
   while (d <= today) {
     weeks.push(d.toISOString().split("T")[0]);
     d.setUTCDate(d.getUTCDate() + 7);
@@ -27,11 +34,11 @@ function parseUTC(dateStr: string): Date {
   return new Date(dateStr.replace(" ", "T") + "Z");
 }
 
-function relativeTime(dateStr: string | null): string {
+function relativeTimeFrom(dateStr: string | null, nowMs: number): string {
   if (!dateStr) return "Never";
   const d = parseUTC(dateStr);
   if (isNaN(d.getTime())) return "Never";
-  const diffMs = Date.now() - d.getTime();
+  const diffMs = nowMs - d.getTime();
   if (diffMs < 0) return "In the future";
   const mins = Math.floor(diffMs / 60_000);
   if (mins < 1) return "Just now";
@@ -42,6 +49,30 @@ function relativeTime(dateStr: string | null): string {
   if (days < 30) return `${days}d ago`;
   const months = Math.floor(days / 30);
   return `${months}mo ago`;
+}
+
+/**
+ * Renders a human-readable "X ago" string.
+ *
+ * Uses the server-supplied `nowISO` for the initial render so SSR and client
+ * hydration produce the same markup, then re-ticks with the real client clock
+ * after mount. `suppressHydrationWarning` covers the edge case where the
+ * server clock and client clock straddle a minute boundary.
+ */
+function RelativeTime({
+  dateStr,
+  nowISO,
+}: {
+  dateStr: string | null;
+  nowISO: string;
+}) {
+  const [nowMs, setNowMs] = useState(() => new Date(nowISO).getTime());
+  useEffect(() => {
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return <span suppressHydrationWarning>{relativeTimeFrom(dateStr, nowMs)}</span>;
 }
 
 function formatDate(dateStr: string): string {
@@ -58,14 +89,18 @@ function formatDateTime(dateStr: string | null): string {
   if (!dateStr) return "Never";
   const d = parseUTC(dateStr);
   if (isNaN(d.getTime())) return "Never";
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "short",
-  });
+  // Pin to UTC so SSR (Node, server clock) and client hydration produce
+  // identical strings regardless of the browser's locale/timezone.
+  return (
+    d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    }) + " UTC"
+  );
 }
 
 // ── Tooltip ──────────────────────────────────────────────────────────────
@@ -286,10 +321,17 @@ function EnrichmentCard({
 
 export function DataCollectionPanel({
   stats,
+  nowISO,
 }: {
   stats: DataCollectionStats;
+  /**
+   * Server-supplied "now" timestamp (ISO 8601, UTC). Used as the deterministic
+   * reference clock for week-coverage computation and as the initial value for
+   * relative-time rendering, so SSR and client hydration agree.
+   */
+  nowISO: string;
 }) {
-  const expected = allExpectedWeeks();
+  const expected = allExpectedWeeks(nowISO);
   const presentSet = new Set(stats.weeks_with_data);
   const hasData = stats.weeks_with_data.length > 0 || stats.repos_total > 0;
   const [showMissing, setShowMissing] = useState(false);
@@ -345,7 +387,7 @@ export function DataCollectionPanel({
                   {formatDateTime(stats.last_import)}
                   {stats.last_import && (
                     <span className="text-theme-muted ml-2">
-                      ({relativeTime(stats.last_import)})
+                      (<RelativeTime dateStr={stats.last_import} nowISO={nowISO} />)
                     </span>
                   )}
                 </span>
