@@ -2,13 +2,30 @@
  * Shared utilities for OG image generation (Satori / next/og).
  *
  * Satori constraints:
- * - Every <div> with children must have `display: "flex"`
- * - No CSS variables, no gradient IDs, limited SVG support
- * - Use inline styles only
+ * - Every <div> with more than one child MUST have `display: "flex"` (or
+ *   `display: "none"`). Otherwise @vercel/og throws and Next.js surfaces it
+ *   as `Error: failed to pipe response` (see Sentry issue
+ *   CODE-REVIEW-TRENDS-D).
+ * - No CSS variables, no gradient IDs, limited SVG support.
+ * - Use inline styles only.
+ *
+ * Always spread `FLEX_COL` / `FLEX_ROW` into any wrapper <div> instead of
+ * writing `display: "flex"` by hand — easier to grep, harder to forget.
  */
 
+import type { CSSProperties } from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
+/** Required Satori defaults for any wrapper <div> with >1 child. */
+export const FLEX_COL: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+};
+export const FLEX_ROW: CSSProperties = {
+  display: "flex",
+  flexDirection: "row",
+};
 
 /** Standard OG image dimensions. */
 export const OG_SIZE = { width: 1200, height: 630 };
@@ -68,7 +85,7 @@ export function OgLogo({ size = 48 }: { size?: number }) {
 /** Branded wordmark: "CodeReviewTrends" with color-coded segments. */
 export function OgWordmark({ fontSize = 18 }: { fontSize?: number }) {
   return (
-    <div style={{ fontSize, fontWeight: 700, display: "flex" }}>
+    <div style={{ ...FLEX_ROW, fontSize, fontWeight: 700 }}>
       <span style={{ color: "#c4b5fd" }}>Code</span>
       <span style={{ color: "#a78bfa" }}>Review</span>
       <span style={{ color: "#22d3ee" }}>Trends</span>
@@ -81,15 +98,16 @@ export function OgFooter({ url = "codereviewtrends.com" }: { url?: string }) {
   return (
     <div
       style={{
-        display: "flex",
+        ...FLEX_ROW,
+        width: "100%",
         alignItems: "center",
         justifyContent: "space-between",
       }}
     >
-      <div style={{ fontSize: "18px", color: "#64748b", display: "flex" }}>
+      <div style={{ ...FLEX_ROW, fontSize: "18px", color: "#64748b" }}>
         {url}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <div style={{ ...FLEX_ROW, alignItems: "center", gap: "12px" }}>
         <OgLogo size={48} />
         <OgWordmark fontSize={28} />
       </div>
@@ -116,10 +134,9 @@ export function OgFallback({
   return (
     <div
       style={{
+        ...FLEX_COL,
         width: "100%",
         height: "100%",
-        display: "flex",
-        flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
         background: OG_BG,
@@ -146,7 +163,7 @@ export function OgFallback({
       {/* Site logo */}
       <div
         style={{
-          display: "flex",
+          ...FLEX_ROW,
           alignItems: "center",
           gap: "20px",
           marginBottom: "24px",
@@ -160,12 +177,12 @@ export function OgFallback({
       {title && (
         <div
           style={{
+            ...FLEX_ROW,
             fontSize: "52px",
             fontWeight: 800,
             color: brandColor || "#a78bfa",
             lineHeight: 1.1,
             textAlign: "center",
-            display: "flex",
             marginBottom: "16px",
           }}
         >
@@ -176,10 +193,10 @@ export function OgFallback({
       {/* Subtitle */}
       <div
         style={{
+          ...FLEX_ROW,
           fontSize: "24px",
           color: "#94a3b8",
           fontWeight: 500,
-          display: "flex",
         }}
       >
         {subtitle}
@@ -188,10 +205,10 @@ export function OgFallback({
       {/* Bottom URL */}
       <div
         style={{
+          ...FLEX_ROW,
           fontSize: "18px",
           color: "#64748b",
           marginTop: "auto",
-          display: "flex",
         }}
       >
         codereviewtrends.com
