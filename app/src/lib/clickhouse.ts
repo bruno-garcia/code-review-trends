@@ -1,3 +1,10 @@
+// Importing this module from any client component (`"use client"`) will throw
+// at build time. This guard prevents regressions where a client component
+// pulls in `@clickhouse/client` (a Node-only package) and breaks the browser
+// bundle — see Sentry issue CODE-REVIEW-TRENDS-19. Client-safe helpers live
+// in `./product-utils`; types should be imported with `import type` only.
+import "server-only";
+
 import { createClient } from "@clickhouse/client";
 import * as Sentry from "@sentry/nextjs";
 import { connection } from "next/server";
