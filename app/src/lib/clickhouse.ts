@@ -2024,10 +2024,7 @@ export type RepoProduct = {
   event_count: number;
 };
 
-export type RepoLanguage = {
-  language: string;
-  bytes: number;
-};
+
 
 export async function getRepoList(filters: RepoListFilters = {}): Promise<RepoListResult> {
   const { languages, productIds, sort = "stars", search, limit = 50, offset = 0 } = filters;
@@ -2408,18 +2405,6 @@ export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> 
     ) e ON s_agg.bot_id = e.bot_id
     GROUP BY p.id, p.name, p.avatar_url, p.brand_color
     ORDER BY pr_count DESC
-    `,
-    { repoName },
-  );
-}
-
-export async function getRepoLanguages(repoName: string): Promise<RepoLanguage[]> {
-  return query<RepoLanguage>(
-    `
-    SELECT language, bytes
-    FROM repo_languages
-    WHERE repo_name = {repoName:String}
-    ORDER BY bytes DESC
     `,
     { repoName },
   );
