@@ -181,13 +181,13 @@ export default async function RepoPage({ params }: Params) {
                 <div className="flex items-center gap-4 text-sm text-theme-muted">
                   <span>
                     <span className="text-theme-text font-medium tabular-nums">
-                      {Number(p.pr_count).toLocaleString()}
+                      {Number(p.pr_count).toLocaleString('en-US')}
                     </span>{" "}
                     PRs
                   </span>
                   <span>
                     <span className="text-theme-text font-medium tabular-nums">
-                      {Number(p.event_count).toLocaleString()}
+                      {Number(p.event_count).toLocaleString('en-US')}
                     </span>{" "}
                     events
                   </span>

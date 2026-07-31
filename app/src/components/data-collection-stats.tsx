@@ -112,7 +112,7 @@ function ProgressBar({
       <div className="flex justify-between text-sm mb-1">
         <span className="text-theme-text-secondary">{label}</span>
         <span className="text-theme-text/80 tabular-nums">
-          {value.toLocaleString()} / {max.toLocaleString()}{" "}
+          {value.toLocaleString('en-US')} / {max.toLocaleString('en-US')}{" "}
           <span className="text-theme-muted">({pct.toFixed(1)}%)</span>
         </span>
       </div>
@@ -253,19 +253,19 @@ function EnrichmentCard({
       <div className="grid grid-cols-3 gap-3 text-center mt-2">
         <div>
           <div className="text-lg font-semibold text-emerald-400 tabular-nums">
-            {success.toLocaleString()}
+            {success.toLocaleString('en-US')}
           </div>
           <div className="text-xs text-theme-muted">Success</div>
         </div>
         <div>
           <div className="text-lg font-semibold text-red-400 tabular-nums">
-            {unreachable.toLocaleString()}
+            {unreachable.toLocaleString('en-US')}
           </div>
           <div className="text-xs text-theme-muted">Deleted / Private</div>
         </div>
         <div>
           <div className="text-lg font-semibold text-yellow-400 tabular-nums">
-            {pending.toLocaleString()}
+            {pending.toLocaleString('en-US')}
           </div>
           <div className="text-xs text-theme-muted">Pending</div>
         </div>
@@ -435,7 +435,7 @@ export function DataCollectionPanel({
             pending={stats.reactions_pending}
             extraNote={
               stats.reactions_found > 0
-                ? `${stats.reactions_found.toLocaleString()} PR${stats.reactions_found !== 1 ? "s" : ""} found with bot reactions`
+                ? `${stats.reactions_found.toLocaleString('en-US')} PR${stats.reactions_found !== 1 ? "s" : ""} found with bot reactions`
                 : undefined
             }
           />

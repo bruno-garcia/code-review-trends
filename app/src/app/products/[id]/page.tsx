@@ -250,11 +250,11 @@ export default async function ProductPage({
       {/* Summary stats */}
       <div className="space-y-4" data-testid="bot-stats">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatCard label="Total Reviews" value={totalReviews.toLocaleString()} />
-          <StatCard label="Review Comments" value={totalComments.toLocaleString()} />
-          <StatCard label="PR Comments" value={totalPrComments.toLocaleString()} />
-          <StatCard label="Active Repos" value={totalRepos.toLocaleString()} />
-          <StatCard label="Organizations" value={totalOrgs.toLocaleString()} />
+          <StatCard label="Total Reviews" value={totalReviews.toLocaleString('en-US')} />
+          <StatCard label="Review Comments" value={totalComments.toLocaleString('en-US')} />
+          <StatCard label="PR Comments" value={totalPrComments.toLocaleString('en-US')} />
+          <StatCard label="Active Repos" value={totalRepos.toLocaleString('en-US')} />
+          <StatCard label="Organizations" value={totalOrgs.toLocaleString('en-US')} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
@@ -263,7 +263,7 @@ export default async function ProductPage({
           />
           <StatCard
             label="Comments/Repo"
-            value={commentsPerRepo.toLocaleString()}
+            value={commentsPerRepo.toLocaleString('en-US')}
           />
           <StatCard
             label="Comments/PR"
@@ -314,13 +314,13 @@ export default async function ProductPage({
                       {bot.github_login || bot.id}
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
-                      {Number(bot.total_reviews).toLocaleString()}
+                      {Number(bot.total_reviews).toLocaleString('en-US')}
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
-                      {Number(bot.total_comments).toLocaleString()}
+                      {Number(bot.total_comments).toLocaleString('en-US')}
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
-                      {Number(bot.total_pr_comments).toLocaleString()}
+                      {Number(bot.total_pr_comments).toLocaleString('en-US')}
                     </td>
                     <td className="py-3 pr-4 text-theme-muted">{bot.first_week}</td>
                     <td className="py-3 text-theme-muted">{bot.last_week}</td>

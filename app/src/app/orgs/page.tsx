@@ -60,7 +60,7 @@ export default async function OrgsPage({
       <div>
         <h1 className="text-3xl font-bold">Organizations</h1>
         <p className="mt-2 text-theme-muted">
-          {total.toLocaleString()} organizations
+          {total.toLocaleString('en-US')} organizations
           {isFiltered ? " matching current filters" : " using AI code review on GitHub"}.
         </p>
       </div>
