@@ -57,7 +57,7 @@ export default async function ReposPage({
       <div>
         <h1 className="text-3xl font-bold">Repositories</h1>
         <p className="mt-2 text-theme-muted">
-          {total.toLocaleString()} repositories
+          {total.toLocaleString('en-US')} repositories
           {isFiltered ? " matching current filters" : " using AI code review on GitHub"}.
         </p>
       </div>

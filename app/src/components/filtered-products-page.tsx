@@ -144,25 +144,25 @@ export function FilteredProductsPage({
               <div>
                 <span className="text-theme-muted/70">Reviews</span>
                 <p className="font-medium tabular-nums">
-                  {Number(product.total_reviews).toLocaleString()}
+                  {Number(product.total_reviews).toLocaleString('en-US')}
                 </p>
               </div>
               <div>
                 <span className="text-theme-muted/70">PR Comments</span>
                 <p className="font-medium tabular-nums">
-                  {Number(product.total_pr_comments).toLocaleString()}
+                  {Number(product.total_pr_comments).toLocaleString('en-US')}
                 </p>
               </div>
               <div>
                 <span className="text-theme-muted/70">Repos</span>
                 <p className="font-medium tabular-nums">
-                  {Number(product.total_repos).toLocaleString()}
+                  {Number(product.total_repos).toLocaleString('en-US')}
                 </p>
               </div>
               <div>
                 <span className="text-theme-muted/70">Orgs</span>
                 <p className="font-medium tabular-nums">
-                  {Number(product.total_orgs).toLocaleString()}
+                  {Number(product.total_orgs).toLocaleString('en-US')}
                 </p>
               </div>
               <div>

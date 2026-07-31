@@ -156,7 +156,7 @@ export function RepoFilters({
                   ? "bg-violet-600 text-white"
                   : "bg-theme-surface border border-theme-border text-theme-muted hover:text-theme-text hover:border-theme-border-hover"
               }`}
-              title={`${Number(opt.count).toLocaleString()} repositories using ${opt.value}`}
+              title={`${Number(opt.count).toLocaleString('en-US')} repositories using ${opt.value}`}
             >
               {opt.value}
             </button>

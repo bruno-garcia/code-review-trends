@@ -153,13 +153,13 @@ export default async function OrgPage({
                 <div className="flex items-center gap-4 text-sm text-theme-muted">
                   <span>
                     <span className="text-theme-text font-medium tabular-nums">
-                      {Number(p.pr_count).toLocaleString()}
+                      {Number(p.pr_count).toLocaleString('en-US')}
                     </span>{" "}
                     PRs
                   </span>
                   <span>
                     <span className="text-theme-text font-medium tabular-nums">
-                      {Number(p.event_count).toLocaleString()}
+                      {Number(p.event_count).toLocaleString('en-US')}
                     </span>{" "}
                     events
                   </span>
@@ -231,16 +231,16 @@ export default async function OrgPage({
                       </a>
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
-                      {Number(repo.stars).toLocaleString()}
+                      {Number(repo.stars).toLocaleString('en-US')}
                     </td>
                     <td className="py-3 pr-4 text-theme-muted">
                       {repo.primary_language || "—"}
                     </td>
                     <td className="py-3 pr-4 text-right tabular-nums">
-                      {Number(repo.pr_count).toLocaleString()}
+                      {Number(repo.pr_count).toLocaleString('en-US')}
                     </td>
                     <td className="py-3 text-right tabular-nums">
-                      {Number(repo.bot_comment_count).toLocaleString()}
+                      {Number(repo.bot_comment_count).toLocaleString('en-US')}
                     </td>
                   </tr>
                 );

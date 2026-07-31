@@ -157,7 +157,7 @@ export function OrgFilters({
                   ? "bg-violet-600 text-white"
                   : "bg-theme-surface border border-theme-border text-theme-muted hover:text-theme-text hover:border-theme-border-hover"
               }`}
-              title={`${Number(opt.count).toLocaleString()} organizations using ${opt.value}`}
+              title={`${Number(opt.count).toLocaleString('en-US')} organizations using ${opt.value}`}
             >
               {opt.value}
             </button>
