@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   getRepoDetail,
   getRepoProducts,
-  getRepoLanguages,
 } from "@/lib/clickhouse";
 import { formatNumber, formatHours } from "@/lib/format";
 import { SectionHeading } from "@/components/section-heading";
@@ -40,19 +39,6 @@ export default async function RepoPage({ params }: Params) {
     getRepoDetail(repoName),
     getRepoProducts(repoName),
   ]);
-
-  // repo_languages table may not exist in all environments — fetch
-  // separately so a missing table doesn't crash the entire page.
-  let languages: Awaited<ReturnType<typeof getRepoLanguages>> = [];
-  try {
-    languages = await getRepoLanguages(repoName);
-  } catch (err) {
-    // Table missing or query failed — page is fully functional without it.
-    const Sentry = await import("@sentry/nextjs");
-    Sentry.captureException(err, {
-      tags: { route: "repos/[owner]/[name]", query: "getRepoLanguages", repo: repoName },
-    });
-  }
 
   if (!detail) notFound();
 
@@ -198,35 +184,6 @@ export default async function RepoPage({ params }: Params) {
         </section>
       )}
 
-      {/* Languages */}
-      {languages.length > 0 && (
-        <section data-testid="repo-languages">
-          <SectionHeading id="languages">Languages</SectionHeading>
-          <div className="space-y-3 mt-6">
-            {languages.map((lang) => {
-              const maxBytes = Number(languages[0].bytes);
-              const pct = maxBytes > 0 ? (Number(lang.bytes) / maxBytes) * 100 : 0;
-              return (
-                <div key={lang.language} className="flex items-center gap-3">
-                  <span className="text-sm text-theme-muted w-24 text-right truncate">
-                    {lang.language}
-                  </span>
-                  <div className="flex-1 bg-theme-border rounded-full h-3 overflow-hidden">
-                    <div
-                      className="h-full bg-violet-500 rounded-full"
-                      style={{ width: `${Math.max(pct, 2)}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-theme-muted tabular-nums w-20 text-right">
-                    {formatBytes(Number(lang.bytes))}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -250,9 +207,5 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   );
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+
 }
