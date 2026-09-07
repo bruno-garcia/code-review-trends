@@ -2412,15 +2412,3 @@ export async function getRepoProducts(repoName: string): Promise<RepoProduct[]> 
     { repoName },
   );
 }
-
-export async function getRepoLanguages(repoName: string): Promise<RepoLanguage[]> {
-  return query<RepoLanguage>(
-    `
-    SELECT language, bytes
-    FROM repo_languages
-    WHERE repo_name = {repoName:String}
-    ORDER BY bytes DESC
-    `,
-    { repoName },
-  );
-}
