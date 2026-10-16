@@ -45,11 +45,13 @@ const skip = explicitSkip;
 
 // ── Known stable test targets ──────────────────────────────────────────
 // These are merged PRs with verified bot review thread comments.
-// Merged PRs are immutable — their data won't change.
+// Merged PRs are immutable, but repos can still be deleted or renamed
+// (OWASP-BLT/BLT disappeared in 2026), so prefer large, established repos.
 
 /** Well-known public repos used across tests. */
 const REPOS = {
-  BLT: "OWASP-BLT/BLT",                   // CodeRabbit + Sentry bot activity
+  PLANE: "makeplane/plane",                 // CodeRabbit bot activity
+  SENTRY: "getsentry/sentry",               // Sentry + Cursor bot activity
   KENT: "kentcdodds/kentcdodds.com",        // Cursor bot activity
   NEXTJS: "vercel/next.js",                 // High-star OSS
   REACT: "facebook/react",                  // High-star OSS
@@ -57,10 +59,17 @@ const REPOS = {
 };
 
 /**
- * OWASP-BLT/BLT PR #5330: "Add DB-backed project freshness score"
- * MERGED. Has 33 review threads from both coderabbitai[bot] and sentry[bot].
+ * makeplane/plane PR #9727: "fix(airgapped and minio): harden community
+ * restore-airgapped.sh script and minio image fix"
+ * MERGED. Has 9 review threads, 5 from coderabbitai[bot].
  */
-const BLT_PR = { repo_name: REPOS.BLT, pr_number: 5330 };
+const PLANE_PR = { repo_name: REPOS.PLANE, pr_number: 9727 };
+
+/**
+ * getsentry/sentry PR #125910: "feat(auth): Add progressive invitation acceptance"
+ * MERGED. Has 19 review threads: 7 from sentry[bot], 8 from cursor[bot].
+ */
+const SENTRY_PR = { repo_name: REPOS.SENTRY, pr_number: 125910 };
 
 /**
  * kentcdodds/kentcdodds.com PR #649: "Content favorites support"
@@ -177,24 +186,24 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
   // ── fetchPRsBatch ──────────────────────────────────────────────────
 
   describe("fetchPRsBatch", () => {
-    it("fetches metadata for BLT PR with CodeRabbit activity", async () => {
-      const results = await fetchPRsBatch(octokit, rateLimiter, [BLT_PR]);
+    it("fetches metadata for Plane PR with CodeRabbit activity", async () => {
+      const results = await fetchPRsBatch(octokit, rateLimiter, [PLANE_PR]);
 
       assert.equal(results.length, 1);
       const result = results[0];
       assert.equal(result.status, "ok");
       assert.ok(result.row);
-      assert.equal(result.row!.repo_name, REPOS.BLT);
-      assert.equal(result.row!.pr_number, BLT_PR.pr_number);
+      assert.equal(result.row!.repo_name, REPOS.PLANE);
+      assert.equal(result.row!.pr_number, PLANE_PR.pr_number);
       assert.ok(result.row!.title.length > 0, "PR should have a title");
       assert.ok(result.row!.author.length > 0, "PR should have an author");
-      assert.equal(result.row!.state, "merged", "BLT PR 5330 should be merged");
+      assert.equal(result.row!.state, "merged", "Plane PR 9727 should be merged");
       assert.ok(result.row!.created_at.length > 0, "PR should have created_at");
       assert.ok(result.row!.merged_at, "Merged PR should have merged_at");
     });
 
     it("returns diff stats for real PRs", async () => {
-      const results = await fetchPRsBatch(octokit, rateLimiter, [BLT_PR]);
+      const results = await fetchPRsBatch(octokit, rateLimiter, [PLANE_PR]);
       const row = results[0].row!;
 
       assert.ok(
@@ -205,19 +214,19 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
     });
 
     it("handles multi-repo batch with PRs from different repos", async () => {
-      const inputs = [BLT_PR, KENT_PR];
+      const inputs = [PLANE_PR, KENT_PR];
       const results = await fetchPRsBatch(octokit, rateLimiter, inputs);
 
       assert.equal(results.length, 2);
       assert.equal(results[0].status, "ok");
-      assert.equal(results[0].row!.repo_name, REPOS.BLT);
+      assert.equal(results[0].row!.repo_name, REPOS.PLANE);
       assert.equal(results[1].status, "ok");
       assert.equal(results[1].row!.repo_name, REPOS.KENT);
     });
 
     it("handles non-existent PR in a mixed batch", async () => {
       const results = await fetchPRsBatch(octokit, rateLimiter, [
-        BLT_PR,
+        PLANE_PR,
         { repo_name: REPOS.NEXTJS, pr_number: NONEXISTENT_PR_NUMBER },
       ]);
 
@@ -229,7 +238,7 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
 
     it("handles non-existent repo in PR batch", async () => {
       const results = await fetchPRsBatch(octokit, rateLimiter, [
-        BLT_PR,
+        PLANE_PR,
         { repo_name: NONEXISTENT_REPO, pr_number: 1 },
       ]);
 
@@ -242,10 +251,10 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
   // ── fetchCommentsBatch ─────────────────────────────────────────────
 
   describe("fetchCommentsBatch", () => {
-    it("finds CodeRabbit review comments on OWASP-BLT/BLT PR 5330", async () => {
+    it("finds CodeRabbit review comments on makeplane/plane PR 9727", async () => {
       const inputs: CommentBatchInput[] = [{
-        repo_name: BLT_PR.repo_name,
-        pr_number: BLT_PR.pr_number,
+        repo_name: PLANE_PR.repo_name,
+        pr_number: PLANE_PR.pr_number,
         bot_id: "coderabbit",
         bot_login: "coderabbitai[bot]",
         bot_logins: new Set(["coderabbitai[bot]"]),
@@ -256,12 +265,12 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
       assert.equal(results.length, 1);
       const result = results[0];
       assert.ok(!result.error, `Should not have error, got: ${result.error}`);
-      // BLT PR 5330 is verified to have CodeRabbit review thread comments
-      assert.ok(result.comments.length > 0, "Should find CodeRabbit comments on BLT PR 5330");
+      // Plane PR 9727 is verified to have CodeRabbit review thread comments
+      assert.ok(result.comments.length > 0, "Should find CodeRabbit comments on Plane PR 9727");
 
       const comment = result.comments[0];
-      assert.equal(comment.repo_name, REPOS.BLT);
-      assert.equal(comment.pr_number, BLT_PR.pr_number);
+      assert.equal(comment.repo_name, REPOS.PLANE);
+      assert.equal(comment.pr_number, PLANE_PR.pr_number);
       assert.equal(comment.bot_id, "coderabbit");
       assert.ok(Number(comment.comment_id) > 0, "comment_id should be a positive number");
       assert.ok(comment.body_length > 0, "Comment should have body text");
@@ -272,11 +281,10 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
       }
     });
 
-    it("finds Sentry review comments on the same PR", async () => {
-      // BLT PR 5330 also has Sentry bot review thread comments
+    it("finds Sentry review comments on getsentry/sentry PR 125910", async () => {
       const inputs: CommentBatchInput[] = [{
-        repo_name: BLT_PR.repo_name,
-        pr_number: BLT_PR.pr_number,
+        repo_name: SENTRY_PR.repo_name,
+        pr_number: SENTRY_PR.pr_number,
         bot_id: "sentry",
         bot_login: "sentry[bot]",
         bot_logins: new Set(["sentry[bot]"]),
@@ -286,15 +294,15 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
 
       assert.equal(results.length, 1);
       assert.ok(!results[0].error);
-      assert.ok(results[0].comments.length > 0, "Should find Sentry comments on BLT PR 5330");
+      assert.ok(results[0].comments.length > 0, "Should find Sentry comments on Sentry PR 125910");
       assert.equal(results[0].comments[0].bot_id, "sentry");
     });
 
     it("filters out non-bot comments correctly", async () => {
       // Request comments for a bot that didn't review this PR
       const inputs: CommentBatchInput[] = [{
-        repo_name: BLT_PR.repo_name,
-        pr_number: BLT_PR.pr_number,
+        repo_name: PLANE_PR.repo_name,
+        pr_number: PLANE_PR.pr_number,
         bot_id: "korbit",
         bot_login: "korbit-ai[bot]",
         bot_logins: new Set(["korbit-ai[bot]"]),
@@ -308,21 +316,21 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
       assert.equal(results[0].comments.length, 0, "Unrelated bot should have no comments");
     });
 
-    it("handles multi-bot batch: CodeRabbit + Sentry on same PR", async () => {
+    it("handles multi-bot batch: Sentry + Cursor on same PR", async () => {
       const inputs: CommentBatchInput[] = [
         {
-          repo_name: BLT_PR.repo_name,
-          pr_number: BLT_PR.pr_number,
-          bot_id: "coderabbit",
-          bot_login: "coderabbitai[bot]",
-          bot_logins: new Set(["coderabbitai[bot]"]),
-        },
-        {
-          repo_name: BLT_PR.repo_name,
-          pr_number: BLT_PR.pr_number,
+          repo_name: SENTRY_PR.repo_name,
+          pr_number: SENTRY_PR.pr_number,
           bot_id: "sentry",
           bot_login: "sentry[bot]",
           bot_logins: new Set(["sentry[bot]"]),
+        },
+        {
+          repo_name: SENTRY_PR.repo_name,
+          pr_number: SENTRY_PR.pr_number,
+          bot_id: "cursor",
+          bot_login: "cursor[bot]",
+          bot_logins: new Set(["cursor[bot]"]),
         },
       ];
 
@@ -333,17 +341,17 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
         assert.ok(!result.error, `Should not error, got: ${result.error}`);
       }
       // Both bots have comments on this PR
-      assert.equal(results[0].input.bot_id, "coderabbit");
-      assert.ok(results[0].comments.length > 0, "CodeRabbit should have comments");
-      assert.equal(results[1].input.bot_id, "sentry");
-      assert.ok(results[1].comments.length > 0, "Sentry should have comments");
+      assert.equal(results[0].input.bot_id, "sentry");
+      assert.ok(results[0].comments.length > 0, "Sentry should have comments");
+      assert.equal(results[1].input.bot_id, "cursor");
+      assert.ok(results[1].comments.length > 0, "Cursor should have comments");
     });
 
-    it("handles cross-repo batch: BLT + Kent PRs with different bots", async () => {
+    it("handles cross-repo batch: Plane + Kent PRs with different bots", async () => {
       const inputs: CommentBatchInput[] = [
         {
-          repo_name: BLT_PR.repo_name,
-          pr_number: BLT_PR.pr_number,
+          repo_name: PLANE_PR.repo_name,
+          pr_number: PLANE_PR.pr_number,
           bot_id: "coderabbit",
           bot_login: "coderabbitai[bot]",
           bot_logins: new Set(["coderabbitai[bot]"]),
@@ -365,7 +373,7 @@ describe("GraphQL API resilience (live GitHub)", { skip: skip ? "Skipped via SKI
       assert.equal(results[0].input.bot_id, "coderabbit");
       assert.equal(results[1].input.bot_id, "cursor");
       // Both PRs are verified to have bot review threads
-      assert.ok(results[0].comments.length > 0, "CodeRabbit should have comments on BLT PR");
+      assert.ok(results[0].comments.length > 0, "CodeRabbit should have comments on Plane PR");
       assert.ok(results[1].comments.length > 0, "Cursor should have comments on Kent PR");
     });
 
