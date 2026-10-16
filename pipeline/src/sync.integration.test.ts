@@ -401,10 +401,12 @@ describe("syncRecent integration", () => {
     assert.equal(result.botRows, 1);
     assert.equal(result.humanRows, 1);
 
-    // Verify the date range is approximately 1 week back
-    const start = new Date(calls[0].startDate);
-    const end = new Date(calls[0].endDate);
+    // Start is the Monday on/before 1 week ago, so the range spans 7 days
+    // (run on a Monday) up to 13 days (run on a Sunday).
+    const start = new Date(calls[0].startDate + "T00:00:00Z");
+    const end = new Date(calls[0].endDate + "T00:00:00Z");
+    assert.equal(start.getUTCDay(), 1, `Expected start on a Monday, got ${calls[0].startDate}`);
     const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
-    assert.ok(diffDays >= 6 && diffDays <= 8, `Expected ~7 day range, got ${diffDays}`);
+    assert.ok(diffDays >= 7 && diffDays <= 13, `Expected 7–13 day range, got ${diffDays}`);
   });
 });

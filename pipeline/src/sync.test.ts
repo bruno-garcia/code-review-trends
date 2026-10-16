@@ -9,6 +9,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   monthlyChunks,
+  recentSyncChunk,
   mapBotActivityRows,
 } from "./sync.js";
 
@@ -89,6 +90,44 @@ describe("monthlyChunks", () => {
     assert.equal(chunks.length, 2);
     assert.equal(chunks[0].endDate, "2024-03-31"); // Sun Mar 31
     assert.equal(chunks[1].startDate, "2024-04-01"); // Mon Apr 1
+  });
+});
+
+describe("recentSyncChunk", () => {
+  it("regression: window 14 days back from a Sunday starts on the Monday before", () => {
+    // Production sync on 2026-10-11 started at Sun 2026-09-27, so the week of
+    // Sep 21 was overwritten with a single day of data.
+    const chunk = recentSyncChunk(2, new Date("2026-10-11T06:00:00Z"));
+    assert.equal(chunk.startDate, "2026-09-21"); // Mon
+    assert.equal(chunk.endDate, "2026-10-11");
+  });
+
+  it("start is a Monday and the first week is fully covered, for every weekday", () => {
+    // Mon 2026-10-12 through Sun 2026-10-18
+    for (let day = 12; day <= 18; day++) {
+      const now = new Date(Date.UTC(2026, 9, day, 6));
+      const chunk = recentSyncChunk(2, now);
+      const start = new Date(chunk.startDate + "T00:00:00Z");
+      assert.equal(start.getUTCDay(), 1, `start ${chunk.startDate} should be a Monday (now=${now.toISOString()})`);
+
+      const twoWeeksAgo = new Date(now);
+      twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14);
+      const firstSunday = new Date(start);
+      firstSunday.setUTCDate(firstSunday.getUTCDate() + 6);
+      assert.ok(start <= twoWeeksAgo, `start ${chunk.startDate} must cover 14 days back`);
+      assert.ok(chunk.endDate >= firstSunday.toISOString().slice(0, 10),
+        `first week (from ${chunk.startDate}) must be fully inside the window`);
+    }
+  });
+
+  it("keeps the start when 14 days back is already a Monday", () => {
+    const chunk = recentSyncChunk(2, new Date("2026-10-12T06:00:00Z")); // Mon
+    assert.equal(chunk.startDate, "2026-09-28"); // Mon
+  });
+
+  it("respects the weeks argument", () => {
+    const chunk = recentSyncChunk(4, new Date("2026-10-15T06:00:00Z")); // Thu
+    assert.equal(chunk.startDate, "2026-09-14"); // Mon on/before Thu Sep 17
   });
 });
 
