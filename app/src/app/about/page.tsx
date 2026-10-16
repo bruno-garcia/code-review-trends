@@ -923,7 +923,7 @@ export default async function AboutPage() {
           <a href="https://github.com/bruno-garcia" target="_blank" rel="noopener noreferrer" className={linkClass}>Bruno Garcia</a>.
           I work at{" "}
           <a href="https://sentry.io/welcome/" target="_blank" rel="noopener noreferrer" className={linkClass}>Sentry</a>{" "}
-          on the code review part of{" "}
+          on{" "}
           <a href="https://sentry.io/product/seer/" target="_blank" rel="noopener noreferrer" className={linkClass}>Seer</a>,
           Sentry&apos;s AI debugging agent. Seer does root cause analysis,
           code review, and fix generation — using the context Sentry already
