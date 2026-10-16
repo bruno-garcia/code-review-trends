@@ -497,7 +497,28 @@ export async function backfill(
 // ── Public: sync recent ─────────────────────────────────────────────────
 
 /**
- * Fetch recent data (last N weeks). Designed for scheduled runs.
+ * Date range for a recent sync: the last `weeks` weeks up to `now`, with the
+ * start extended back to the preceding Monday.
+ *
+ * The start must be week-aligned for the same reason as monthlyChunks():
+ * a range starting mid-week returns only a partial slice of its first week,
+ * and that partial row replaces the full-week row in ReplacingMergeTree.
+ * With a daily sync over a sliding window, each week's last write came from
+ * a run whose window started on that week's Sunday, leaving one day of data
+ * per week unless a later backfill happened to rewrite it.
+ */
+export function recentSyncChunk(weeks: number, now: Date = new Date()): SyncChunk {
+  const start = new Date(now);
+  start.setUTCDate(start.getUTCDate() - weeks * 7);
+
+  return {
+    startDate: fmtDate(toMondayDate(start)),
+    endDate: fmtDate(now),
+  };
+}
+
+/**
+ * Fetch recent data (last N weeks, from a Monday). Designed for scheduled runs.
  * No state tracking — just overwrites recent weeks idempotently.
  */
 export async function syncRecent(
@@ -512,14 +533,7 @@ export async function syncRecent(
     throw new Error(`Invalid weeks value: ${weeks}. Must be a finite integer >= 1.`);
   }
 
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - weeks * 7);
-
-  const chunk: SyncChunk = {
-    startDate: fmtDate(start),
-    endDate: fmtDate(end),
-  };
+  const chunk = recentSyncChunk(weeks);
 
   log(`Syncing recent data: ${chunk.startDate} → ${chunk.endDate} (${weeks} weeks)`);
   return fetchAndStoreChunk(fetcher, ch, chunk, [...BOT_LOGINS], log);
