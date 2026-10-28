@@ -1,6 +1,6 @@
-# Node is pinned to an exact patch release (>= 22.23.4 fixes CVE-2026-111497).
+# Node is pinned to an exact 26.x LTS patch release (>= 26.12.1 fixes CVE-2026-111497).
 # Stage 1: Install dependencies
-FROM node:22.23.4-alpine AS deps
+FROM node:26.12.1-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY app/package.json app/
@@ -9,7 +9,7 @@ COPY infra/package.json infra/
 RUN npm ci
 
 # Stage 2: Build the Next.js app
-FROM node:22.23.4-alpine AS build
+FROM node:26.12.1-alpine AS build
 WORKDIR /app
 COPY --from=deps /app ./
 COPY . .
@@ -40,7 +40,7 @@ ENV CLICKHOUSE_URL=""
 RUN npm run build --workspace=app
 
 # Stage 3: Production runtime
-FROM node:22.23.4-alpine AS runtime
+FROM node:26.12.1-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

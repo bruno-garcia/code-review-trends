@@ -1,6 +1,6 @@
-# Node is pinned to an exact patch release (>= 22.23.4 fixes CVE-2026-111497).
+# Node is pinned to an exact 26.x LTS patch release (>= 26.12.1 fixes CVE-2026-111497).
 # Stage 1: Build the pipeline
-FROM node:22.23.4-alpine AS build
+FROM node:26.12.1-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY app/package.json app/
@@ -12,7 +12,7 @@ COPY db/init/ db/init/
 RUN npm run build --workspace=pipeline
 
 # Stage 2: Production runtime
-FROM node:22.23.4-alpine AS runtime
+FROM node:26.12.1-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
