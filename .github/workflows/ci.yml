@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22.23.4
           cache: npm
@@ -68,9 +68,9 @@ jobs:
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22.23.4
           cache: npm
@@ -132,9 +132,9 @@ jobs:
       HAS_GCP: ${{ secrets.GCP_BQ_SA_KEY != '' && 'true' || 'false' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22.23.4
           cache: npm
@@ -144,7 +144,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -169,7 +169,7 @@ jobs:
       # Smoke tests need BigQuery read access. Uses a dedicated SA key with
       # minimal permissions (bigquery.jobs.create + bigquery.datasets.get).
       # TODO: Migrate to Workload Identity Federation once PR-level OIDC is set up.
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v3
         if: ${{ env.HAS_GCP == 'true' }}
         with:
           credentials_json: ${{ secrets.GCP_BQ_SA_KEY }}
@@ -224,7 +224,7 @@ jobs:
           SENTRY_ENVIRONMENT: development
           NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
