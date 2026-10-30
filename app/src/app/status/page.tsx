@@ -19,6 +19,11 @@ export default async function StatusPage() {
   // a transient ClickHouse timeout would then be served stale for minutes.
   // Throwing gives a 500 which ISR does NOT cache, so the next request retries.
   const stats = await getDataCollectionStats();
+  // Capture "now" once on the server and pass it down. The DataCollectionPanel
+  // is a client component; if it called `new Date()` / `Date.now()` itself,
+  // SSR and client hydration would disagree near minute/week boundaries and
+  // React would throw a hydration error.
+  const nowISO = new Date().toISOString();
 
   return (
     <div data-testid="status-page" className="mx-auto max-w-4xl space-y-8 py-8">
@@ -32,7 +37,7 @@ export default async function StatusPage() {
       </div>
 
       <section data-testid="data-collection-section">
-        <DataCollectionPanel stats={stats} />
+        <DataCollectionPanel stats={stats} nowISO={nowISO} />
       </section>
     </div>
   );
