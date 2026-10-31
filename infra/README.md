@@ -218,6 +218,34 @@ Then redeploy for the changes to take effect.
 gcloud compute ssh crt-staging-clickhouse --zone=us-central1-a --tunnel-through-iap
 ```
 
+## Upgrading ClickHouse
+
+The version is pinned by `clickhouseVersion` in `Pulumi.<stack>.yaml`: an LTS release, as a full version such as `26.8.36.3`. New VMs install exactly that version from the `lts` apt channel. Existing VMs ignore startup script changes, so upgrade them with the script:
+
+```bash
+cd infra
+./upgrade-clickhouse.sh staging      # then production
+```
+
+It snapshots the VM's disks, installs the pinned version, and writes an apt pin (`/etc/apt/preferences.d/clickhouse`). Older VMs' startup scripts reinstall ClickHouse unpinned on every boot, and the pin turns that into a no-op. Then it restarts ClickHouse, checks the new binary is running, and lists system log tables the new version renamed to `<name>_N`. ClickHouse renames each one when that log first flushes, so wait a few minutes, re-list them, and drop them:
+
+```sql
+SELECT name FROM system.tables WHERE database = 'system' AND match(name, '_log_[0-9]+$');
+DROP TABLE system.query_log_0 SYNC SETTINGS max_table_size_to_drop = 0;
+```
+
+To upgrade: bump `clickhouseVersion` in both stack configs, merge, then run the script on staging before production. GitHub releases lag the apt repo, so check `https://packages.clickhouse.com/deb/dists/lts/main/binary-amd64/Packages` for available versions.
+
+ClickHouse doesn't guarantee downgrades, so the script refuses them. To roll back a bad upgrade, restore the boot disk from the snapshot the script printed:
+
+```bash
+gcloud compute instances stop $VM --zone=us-central1-a
+gcloud compute disks create $VM-restored --source-snapshot=$SNAPSHOT --zone=us-central1-a
+gcloud compute instances detach-disk $VM --disk=$VM --zone=us-central1-a
+gcloud compute instances attach-disk $VM --disk=$VM-restored --boot --zone=us-central1-a
+gcloud compute instances start $VM --zone=us-central1-a
+```
+
 ## Stack configuration
 
 Per-environment config lives in `Pulumi.<stack>.yaml`:
@@ -230,6 +258,7 @@ Per-environment config lives in `Pulumi.<stack>.yaml`:
 | `environment` | Environment name (used in resource naming) | — |
 | `clickhouseMachineType` | GCE machine type | `e2-highmem-2` |
 | `clickhouseDiskSizeGb` | Boot disk size in GB | `40` |
+| `clickhouseVersion` | Exact ClickHouse version for new VMs (LTS, e.g. `26.8.36.3`); see **Upgrading ClickHouse** | — |
 | `subnetCidr` | VPC subnet CIDR (must not overlap across envs) | `10.100.0.0/24` |
 | `clickhouseHttpPort` | ClickHouse HTTP port (different per env to prevent cross-env accidents) | `41923` |
 | `clickhouseDomain` | Domain for ClickHouse TLS (secret, required only when `clickhousePublicAccess` is true) | — |

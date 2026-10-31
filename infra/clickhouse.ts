@@ -51,6 +51,11 @@ export function createClickHouseVM(
 
       const CLICKHOUSE_HTTP_PORT = cfg.clickhouseHttpPort;
 
+      // Pinned: unpinned, a new VM gets whatever "stable" has on the day it's created.
+      const clickhousePackages = ["clickhouse-common-static", "clickhouse-server", "clickhouse-client"]
+        .map((pkg) => `    ${pkg}=${cfg.clickhouseVersion}`)
+        .join(" \\\n");
+
       // --- Caddy section (only for public access) ---
       const caddyInstallSection = cfg.clickhousePublicAccess
         ? `
@@ -63,14 +68,12 @@ export function createClickHouseVM(
 
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y \\
-    clickhouse-server \\
-    clickhouse-client \\
+${clickhousePackages} \\
     caddy`
         : `
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y \\
-    clickhouse-server \\
-    clickhouse-client`;
+${clickhousePackages}`;
 
       const caddyCheckCondition = cfg.clickhousePublicAccess
         ? `! command -v clickhouse-server &>/dev/null || ! command -v caddy &>/dev/null`
@@ -171,7 +174,7 @@ if ${caddyCheckCondition}; then
     gpg --batch --yes --dearmor -o /usr/share/keyrings/clickhouse-keyring.gpg
 
   echo "deb [signed-by=/usr/share/keyrings/clickhouse-keyring.gpg] \\
-    https://packages.clickhouse.com/deb stable main" | \\
+    https://packages.clickhouse.com/deb lts main" | \\
     tee /etc/apt/sources.list.d/clickhouse.list
 ${caddyInstallSection}
 else

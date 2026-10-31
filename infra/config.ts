@@ -20,6 +20,12 @@ export interface EnvironmentConfig {
   clickhouseMachineType: string;
   clickhouseDiskSizeGb: number;
   /**
+   * Exact ClickHouse version installed on new VMs (an LTS release, e.g. 26.8.36.3).
+   * Existing VMs ignore startup script changes — upgrade them with
+   * `infra/upgrade-clickhouse.sh`.
+   */
+  clickhouseVersion: string;
+  /**
    * Domain for Caddy TLS termination. Required when clickhousePublicAccess
    * is true (staging). Undefined when clickhousePublicAccess is false (prod)
    * — ClickHouse is reached via internal IP only.
@@ -133,6 +139,16 @@ export function loadConfig(): EnvironmentConfig {
     environment,
     clickhouseMachineType: config.require("clickhouseMachineType"),
     clickhouseDiskSizeGb: config.requireNumber("clickhouseDiskSizeGb"),
+    clickhouseVersion: (() => {
+      const version = config.require("clickhouseVersion");
+      if (!/^\d+\.\d+\.\d+\.\d+$/.test(version)) {
+        throw new Error(
+          `clickhouseVersion must be a full ClickHouse version like 26.8.36.3, got: ${version}. ` +
+          `apt needs the exact package version.`,
+        );
+      }
+      return version;
+    })(),
     // Domain is only required for public access (Caddy TLS)
     clickhouseDomain: clickhousePublicAccess
       ? config.requireSecret("clickhouseDomain")
