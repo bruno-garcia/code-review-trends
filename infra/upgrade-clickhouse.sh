@@ -186,6 +186,10 @@ if (( ${#leftovers[@]} > 0 )); then
     echo "  DROP TABLE system.$table SYNC SETTINGS max_table_size_to_drop = 0;"
   done
 fi
+echo ""
+echo "ClickHouse renames a changed system log table when that log first flushes, so more can appear in the"
+echo "next few minutes. Re-list them before dropping:"
+echo "  SELECT name FROM system.tables WHERE database = 'system' AND match(name, '_log_[0-9]+\$');"
 REMOTE
 } | gcloud compute ssh "$VM" \
   --zone="$ZONE" \

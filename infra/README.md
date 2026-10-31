@@ -227,9 +227,10 @@ cd infra
 ./upgrade-clickhouse.sh staging      # then production
 ```
 
-It snapshots the VM's disks, installs the pinned version, and writes an apt pin (`/etc/apt/preferences.d/clickhouse`). Older VMs' startup scripts reinstall ClickHouse unpinned on every boot, and the pin turns that into a no-op. Then it restarts ClickHouse, checks the new binary is running, and lists system log tables the new version renamed to `<name>_N`. Drop those manually:
+It snapshots the VM's disks, installs the pinned version, and writes an apt pin (`/etc/apt/preferences.d/clickhouse`). Older VMs' startup scripts reinstall ClickHouse unpinned on every boot, and the pin turns that into a no-op. Then it restarts ClickHouse, checks the new binary is running, and lists system log tables the new version renamed to `<name>_N`. ClickHouse renames each one when that log first flushes, so wait a few minutes, re-list them, and drop them:
 
 ```sql
+SELECT name FROM system.tables WHERE database = 'system' AND match(name, '_log_[0-9]+$');
 DROP TABLE system.query_log_0 SYNC SETTINGS max_table_size_to_drop = 0;
 ```
 
