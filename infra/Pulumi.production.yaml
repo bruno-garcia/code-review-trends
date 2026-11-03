@@ -22,6 +22,7 @@ config:
   code-review-trends:environment: production
   code-review-trends:clickhouseMachineType: e2-highmem-2
   code-review-trends:clickhouseDiskSizeGb: "40"
+  code-review-trends:clickhouseVersion: "26.8.36.3"
   code-review-trends:subnetCidr: "10.101.0.0/24"
   code-review-trends:clickhouseHttpPort: "39847"
   code-review-trends:clickhousePublicAccess: "false"

@@ -4,6 +4,7 @@ config:
   code-review-trends:environment: staging
   code-review-trends:clickhouseMachineType: e2-highmem-2
   code-review-trends:clickhouseDiskSizeGb: "40"
+  code-review-trends:clickhouseVersion: "26.8.36.3"
   code-review-trends:appMemory: "4Gi"
   code-review-trends:appCpu: "2"
   code-review-trends:appMinInstances: "0"

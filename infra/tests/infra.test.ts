@@ -104,6 +104,42 @@ describe("config", () => {
     const { loadConfig } = await import("../config");
     expect(() => loadConfig()).toThrow("workerIp must be a single IP address without CIDR notation");
   });
+
+  it("rejects a partial clickhouseVersion", async () => {
+    setTestConfig({ clickhouseVersion: "26.8" });
+    const { loadConfig } = await import("../config");
+    expect(() => loadConfig()).toThrow("clickhouseVersion must be a full ClickHouse version");
+  });
+});
+
+describe("clickhouse", () => {
+  beforeEach(() => resetTestConfig());
+
+  // The startup script installs ClickHouse on a VM's first boot. Unpinned, it
+  // installs whatever "stable" has that day; prod got an unsupported 26.2 that
+  // never received the CVE-2026-111497 (Brotli) fix.
+  for (const clickhousePublicAccess of ["true", "false"]) {
+    it(`pins the ClickHouse version in the startup script (clickhousePublicAccess: ${clickhousePublicAccess})`, async () => {
+      setTestConfig({ clickhousePublicAccess });
+      const { loadConfig } = await import("../config");
+      const { createClickHouseVM } = await import("../clickhouse");
+      const cfg = loadConfig();
+      const { vm } = createClickHouseVM(
+        cfg,
+        pulumi.output("crt-test-vpc"),
+        pulumi.output("crt-test-subnet"),
+        pulumi.output("203.0.113.10"),
+        pulumi.output("test-password"),
+      );
+
+      const script = await outputValue(vm.metadataStartupScript);
+      expect(script).toContain("https://packages.clickhouse.com/deb lts main");
+      expect(script).toContain("clickhouse-common-static=26.8.36.3");
+      expect(script).toContain("clickhouse-server=26.8.36.3");
+      expect(script).toContain("clickhouse-client=26.8.36.3");
+      expect(script).not.toMatch(/clickhouse-(server|client) \\$/m);
+    });
+  }
 });
 
 describe("network", () => {

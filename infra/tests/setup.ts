@@ -81,6 +81,7 @@ const defaultConfig: Record<string, string> = {
   environment: "test",
   clickhouseMachineType: "e2-medium",
   clickhouseDiskSizeGb: "20",
+  clickhouseVersion: "26.8.36.3",
   clickhouseDomain: "ch-test.example.com",
   appDomain: "staging-test.example.com",
   artifactRegistryLocation: "us-central1",
